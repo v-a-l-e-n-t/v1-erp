@@ -15,10 +15,30 @@ interface LigneProductionFormProps {
 }
 
 export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemove }: LigneProductionFormProps) => {
+  // Calcul du cumul total
+  const cumul = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_petro_b12 || 0) +
+                (ligne.recharges_total_b6 || 0) + (ligne.recharges_total_b12 || 0) +
+                (ligne.recharges_vivo_b6 || 0) + (ligne.recharges_vivo_b12 || 0) +
+                (ligne.consignes_petro_b6 || 0) + (ligne.consignes_petro_b12 || 0) +
+                (ligne.consignes_total_b6 || 0) + (ligne.consignes_total_b12 || 0) +
+                (ligne.consignes_vivo_b6 || 0) + (ligne.consignes_vivo_b12 || 0);
+
+  // Calcul du tonnage (B6 = 6kg, B12 = 12.5kg)
+  const totalB6 = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0) +
+                  (ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0);
+  const totalB12 = (ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0) +
+                   (ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0);
+  const tonnage = (totalB6 * 6 + totalB12 * 12.5) / 1000; // Convertir en tonnes
+
   return (
     <Card className="p-4 bg-muted/30">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="font-medium">Ligne {index + 1}</h4>
+        <div>
+          <h4 className="font-medium">Ligne {index + 1}</h4>
+          <p className="text-sm text-muted-foreground">
+            Cumul: {cumul} bouteilles | Tonnage: {tonnage.toFixed(2)} T
+          </p>
+        </div>
         <Button
           type="button"
           variant="ghost"
@@ -51,7 +71,14 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
         </div>
 
         <div className="space-y-3">
-          <h5 className="font-medium text-sm bg-black text-white py-2 px-3 rounded">Quantité Recharges</h5>
+          <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
+            <h5 className="font-medium text-sm">Quantité Recharges</h5>
+            <span className="text-sm font-semibold">
+              Total: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_petro_b12 || 0) + 
+                      (ligne.recharges_total_b6 || 0) + (ligne.recharges_total_b12 || 0) + 
+                      (ligne.recharges_vivo_b6 || 0) + (ligne.recharges_vivo_b12 || 0)}
+            </span>
+          </div>
           
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">PETRO IVOIRE</p>
@@ -139,7 +166,14 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
         </div>
 
         <div className="space-y-3">
-          <h5 className="font-medium text-sm bg-black text-white py-2 px-3 rounded">Quantité Consignes</h5>
+          <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
+            <h5 className="font-medium text-sm">Quantité Consignes</h5>
+            <span className="text-sm font-semibold">
+              Total: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_petro_b12 || 0) + 
+                      (ligne.consignes_total_b6 || 0) + (ligne.consignes_total_b12 || 0) + 
+                      (ligne.consignes_vivo_b6 || 0) + (ligne.consignes_vivo_b12 || 0)}
+            </span>
+          </div>
           
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">PETRO IVOIRE</p>
