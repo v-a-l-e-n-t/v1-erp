@@ -73,11 +73,13 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
         <div className="space-y-3">
           <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
             <h5 className="font-medium text-sm">Quantité Recharges</h5>
-            <span className="text-sm font-semibold">
-              Cumul B6 et B12 | CUMUL: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_petro_b12 || 0) + 
+            <div className="text-sm font-semibold flex gap-4">
+              <span>Cumul B6: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)}</span>
+              <span>Cumul B12: {(ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0)}</span>
+              <span>CUMUL: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_petro_b12 || 0) + 
                       (ligne.recharges_total_b6 || 0) + (ligne.recharges_total_b12 || 0) + 
-                      (ligne.recharges_vivo_b6 || 0) + (ligne.recharges_vivo_b12 || 0)}
-            </span>
+                      (ligne.recharges_vivo_b6 || 0) + (ligne.recharges_vivo_b12 || 0)}</span>
+            </div>
           </div>
           
           <div className="border rounded-lg p-3 space-y-2">
@@ -168,11 +170,13 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
         <div className="space-y-3">
           <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
             <h5 className="font-medium text-sm">Quantité Consignes</h5>
-            <span className="text-sm font-semibold">
-              Cumul B6 et B12 | CUMUL: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_petro_b12 || 0) + 
+            <div className="text-sm font-semibold flex gap-4">
+              <span>Cumul B6: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)}</span>
+              <span>Cumul B12: {(ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0)}</span>
+              <span>CUMUL: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_petro_b12 || 0) + 
                       (ligne.consignes_total_b6 || 0) + (ligne.consignes_total_b12 || 0) + 
-                      (ligne.consignes_vivo_b6 || 0) + (ligne.consignes_vivo_b12 || 0)}
-            </span>
+                      (ligne.consignes_vivo_b6 || 0) + (ligne.consignes_vivo_b12 || 0)}</span>
+            </div>
           </div>
           
           <div className="border rounded-lg p-3 space-y-2">
