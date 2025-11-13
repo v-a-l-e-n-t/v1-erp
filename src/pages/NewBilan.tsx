@@ -4,7 +4,6 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, saveEntry } from '@/utils/storage';
 import { calculateBilan, formatNumberValue } from '@/utils/calculations';
 import { toast } from 'sonner';
-import logoSaepp from '@/assets/logo-saepp.jpg';
 
 const NewBilan = () => {
   const [entries, setEntries] = useState<BilanEntry[]>([]);
@@ -45,11 +44,10 @@ const NewBilan = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <img src={logoSaepp} alt="SAEPP Logo" className="h-14 w-14 object-contain" />
+          <div>
             <h1 className="text-3xl font-bold text-primary">Bilan Matière GPL</h1>
+            <p className="text-sm text-muted-foreground mt-2">Saisie du bilan journalier</p>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">Saisie du bilan journalier</p>
         </div>
       </header>
 
