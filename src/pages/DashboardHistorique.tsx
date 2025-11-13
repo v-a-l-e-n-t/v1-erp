@@ -10,7 +10,6 @@ import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, expo
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
 import { BarChart3, FileText, Calculator } from 'lucide-react';
-import logoSaepp from '@/assets/logo-saepp.jpg';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -103,10 +102,7 @@ const DashboardHistorique = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-            <div className="flex items-center gap-3">
-              <img src={logoSaepp} alt="SAEPP Logo" className="h-14 w-14 object-contain" />
               <h1 className="text-3xl font-bold text-primary">Bilan Matière GPL</h1>
-            </div>
               <p className="text-sm text-muted-foreground mt-2">
                 Dashboard & Historique
               </p>

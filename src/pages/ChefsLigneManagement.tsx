@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Shield } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ChefLigneForm } from "@/components/ChefLigneForm";
@@ -9,7 +7,6 @@ import { ChefsLigneList } from "@/components/ChefsLigneList";
 import { ChefLigne } from "@/types/production";
 
 const ChefsLigneManagement = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -36,7 +33,6 @@ const ChefsLigneManagement = () => {
           description: "Vous devez être connecté pour accéder à cette page",
           variant: "destructive"
         });
-        navigate('/dashboard');
         return;
       }
 
@@ -55,7 +51,6 @@ const ChefsLigneManagement = () => {
           description: "Seuls les administrateurs peuvent accéder à cette page",
           variant: "destructive"
         });
-        navigate('/dashboard');
         return;
       }
 
@@ -67,7 +62,6 @@ const ChefsLigneManagement = () => {
         description: "Impossible de vérifier les permissions",
         variant: "destructive"
       });
-      navigate('/dashboard');
     } finally {
       setCheckingAuth(false);
     }
@@ -191,22 +185,13 @@ const ChefsLigneManagement = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Shield className="h-6 w-6 text-primary" />
-              <div>
-                <h1 className="text-2xl font-bold">Gestion des Chefs de Ligne</h1>
-                <p className="text-sm text-muted-foreground">
-                  Administration - Réservé aux administrateurs
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <Shield className="h-6 w-6 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold">Gestion des Chefs de Ligne</h1>
+              <p className="text-sm text-muted-foreground">
+                Administration - Réservé aux administrateurs
+              </p>
             </div>
           </div>
         </div>

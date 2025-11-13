@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { formatNumberWithSpaces } from '@/utils/sphereCalculations';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -50,11 +50,7 @@ export default function SphereHistory() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour au tableau de bord
-          </Button>
+        <div className="flex items-center justify-end">
           <Button onClick={() => navigate('/sphere-calculation')}>
             Nouveau calcul
           </Button>

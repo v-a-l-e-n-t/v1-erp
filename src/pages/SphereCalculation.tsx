@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { calculateSphere, formatNumberWithSpaces, type SphereInputData, type CalibrationPoint, type SphereCalculationResult } from '@/utils/sphereCalculations';
-import { ArrowLeft, Calculator, Printer } from 'lucide-react';
+import { Calculator, Printer } from 'lucide-react';
 import { SphereCalculationPrint } from '@/components/SphereCalculationPrint';
 import { useNavigate } from 'react-router-dom';
 import { AutoBaremageImport } from '@/components/AutoBaremageImport';
@@ -327,11 +327,7 @@ export default function SphereCalculation() {
     <div className="min-h-screen bg-background p-6">
       {!showPreview && (
         <div className="max-w-7xl mx-auto space-y-6 print:hidden">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour au tableau de bord
-          </Button>
+        <div className="flex items-center justify-end">
           <Button variant="outline" onClick={() => navigate('/sphere-history')}>
             Voir l'historique
           </Button>

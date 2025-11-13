@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, BarChart3, Calculator, Users, ClipboardList } from 'lucide-react';
-import logoSaepp from '@/assets/logo-saepp.jpg';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -49,14 +48,11 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <img src={logoSaepp} alt="SAEPP Logo" className="h-16 w-16 object-contain" />
-            <div>
-              <h1 className="text-3xl font-bold text-primary">Système de Gestion GPL</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                SAEPP - Suivi de production et inventaire
-              </p>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold text-primary">Système de Gestion GPL</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Suivi de production et inventaire
+            </p>
           </div>
         </div>
       </header>
