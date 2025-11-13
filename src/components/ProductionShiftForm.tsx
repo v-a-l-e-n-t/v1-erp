@@ -377,16 +377,16 @@ export const ProductionShiftForm = () => {
             </div>
 
             <div>
-              <Label htmlFor="chef-ligne">Chef de Ligne *</Label>
+              <Label htmlFor="chef-quart">Chef de Quart *</Label>
               <Select
-                value={shift.chef_ligne_id}
-                onValueChange={(value) => handleShiftChange('chef_ligne_id', value)}
+                value={shift.chef_quart_id}
+                onValueChange={(value) => handleShiftChange('chef_quart_id', value)}
               >
-                <SelectTrigger id="chef-ligne">
+                <SelectTrigger id="chef-quart">
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
-                  {chefsLigne.map((chef) => (
+                  {chefsQuart.map((chef) => (
                     <SelectItem key={chef.id} value={chef.id}>
                       {chef.prenom} {chef.nom}
                     </SelectItem>
@@ -398,16 +398,16 @@ export const ProductionShiftForm = () => {
 
           <div className="grid grid-cols-1 gap-4 mt-4">
             <div>
-              <Label htmlFor="chef-quart">Chef de Quart *</Label>
+              <Label htmlFor="chef-ligne">Chef de Ligne *</Label>
               <Select
-                value={shift.chef_quart_id}
-                onValueChange={(value) => handleShiftChange('chef_quart_id', value)}
+                value={shift.chef_ligne_id}
+                onValueChange={(value) => handleShiftChange('chef_ligne_id', value)}
               >
-                <SelectTrigger id="chef-quart">
+                <SelectTrigger id="chef-ligne">
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
-                  {chefsQuart.map((chef) => (
+                  {chefsLigne.map((chef) => (
                     <SelectItem key={chef.id} value={chef.id}>
                       {chef.prenom} {chef.nom}
                     </SelectItem>
