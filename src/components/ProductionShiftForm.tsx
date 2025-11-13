@@ -18,6 +18,7 @@ import {
   ShiftType,
   LigneType,
   ChefLigne,
+  ChefQuart,
   SHIFT_HOURS,
   LIGNE_LABELS
 } from "@/types/production";
@@ -25,11 +26,13 @@ import {
 export const ProductionShiftForm = () => {
   const [loading, setLoading] = useState(false);
   const [chefsLigne, setChefsLigne] = useState<ChefLigne[]>([]);
+  const [chefsQuart, setChefsQuart] = useState<ChefQuart[]>([]);
   const [shift, setShift] = useState<ProductionShift>({
     date: new Date().toISOString().split('T')[0],
     shift_type: '10h-19h',
     ligne: 'B6_L1',
     chef_ligne_id: '',
+    chef_quart_id: '',
     heure_debut_theorique: '10:00',
     heure_fin_theorique: '19:00',
     heure_debut_reelle: '10:00',
@@ -41,6 +44,7 @@ export const ProductionShiftForm = () => {
 
   useEffect(() => {
     loadChefsLigne();
+    loadChefsQuart();
   }, []);
 
   useEffect(() => {
@@ -70,6 +74,24 @@ export const ProductionShiftForm = () => {
     }
 
     setChefsLigne(data || []);
+  };
+
+  const loadChefsQuart = async () => {
+    const { data, error } = await (supabase as any)
+      .from('chefs_quart')
+      .select('*')
+      .order('nom');
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les chefs de quart",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setChefsQuart(data || []);
   };
 
   const handleShiftChange = (field: keyof ProductionShift, value: any) => {
@@ -148,6 +170,15 @@ export const ProductionShiftForm = () => {
       toast({
         title: "Validation",
         description: "Veuillez sélectionner un chef de ligne",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (!shift.chef_quart_id) {
+      toast({
+        title: "Validation",
+        description: "Veuillez sélectionner un chef de quart",
         variant: "destructive"
       });
       return false;
@@ -260,6 +291,7 @@ export const ProductionShiftForm = () => {
         shift_type: '10h-19h',
         ligne: 'B6_L1',
         chef_ligne_id: '',
+        chef_quart_id: '',
         heure_debut_theorique: '10:00',
         heure_fin_theorique: '19:00',
         heure_debut_reelle: '10:00',
@@ -345,16 +377,37 @@ export const ProductionShiftForm = () => {
             </div>
 
             <div>
-              <Label htmlFor="chef-equipe">Chef d'Équipe *</Label>
+              <Label htmlFor="chef-ligne">Chef de Ligne *</Label>
               <Select
                 value={shift.chef_ligne_id}
                 onValueChange={(value) => handleShiftChange('chef_ligne_id', value)}
               >
-                <SelectTrigger id="chef-equipe">
+                <SelectTrigger id="chef-ligne">
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
                   {chefsLigne.map((chef) => (
+                    <SelectItem key={chef.id} value={chef.id}>
+                      {chef.prenom} {chef.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 mt-4">
+            <div>
+              <Label htmlFor="chef-quart">Chef de Quart *</Label>
+              <Select
+                value={shift.chef_quart_id}
+                onValueChange={(value) => handleShiftChange('chef_quart_id', value)}
+              >
+                <SelectTrigger id="chef-quart">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {chefsQuart.map((chef) => (
                     <SelectItem key={chef.id} value={chef.id}>
                       {chef.prenom} {chef.nom}
                     </SelectItem>
