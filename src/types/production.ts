@@ -37,13 +37,32 @@ export interface ProductionShift {
   user_id?: string;
 }
 
+export interface LigneProduction {
+  id?: string;
+  shift_id?: string;
+  numero_ligne: number;
+  chef_ligne_id: string;
+  recharges_petro_b6: number;
+  recharges_petro_b12: number;
+  recharges_total_b6: number;
+  recharges_total_b12: number;
+  recharges_vivo_b6: number;
+  recharges_vivo_b12: number;
+  consignes_petro_b6: number;
+  consignes_petro_b12: number;
+  consignes_total_b6: number;
+  consignes_total_b12: number;
+  consignes_vivo_b6: number;
+  consignes_vivo_b12: number;
+}
+
 export interface ArretProduction {
   id?: string;
   shift_id?: string;
   heure_debut: string;
   heure_fin: string;
   type_arret: ArretType;
-  equipement?: string;
+  ordre_intervention?: string;
   etape_ligne?: EtapeLigne;
   description?: string;
   action_corrective?: string;
