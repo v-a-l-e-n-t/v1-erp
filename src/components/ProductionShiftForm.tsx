@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Save } from "lucide-react";
 import { ArretProductionForm } from "./ArretProductionForm";
+import { LigneProductionForm } from "./LigneProductionForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   ProductionShift,
   ArretProduction,
+  LigneProduction,
   ShiftType,
   LigneType,
   ChefLigne,
@@ -33,6 +35,7 @@ export const ProductionShiftForm = () => {
     heure_fin_reelle: '19:00',
     bouteilles_produites: 0
   });
+  const [lignes, setLignes] = useState<LigneProduction[]>([]);
   const [arrets, setArrets] = useState<ArretProduction[]>([]);
 
   useEffect(() => {
@@ -70,6 +73,48 @@ export const ProductionShiftForm = () => {
 
   const handleShiftChange = (field: keyof ProductionShift, value: any) => {
     setShift(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addLigne = () => {
+    if (lignes.length >= 5) {
+      toast({
+        title: "Limite atteinte",
+        description: "Vous ne pouvez ajouter que 5 lignes maximum",
+        variant: "destructive"
+      });
+      return;
+    }
+    setLignes(prev => [
+      ...prev,
+      {
+        numero_ligne: prev.length + 1,
+        chef_ligne_id: '',
+        recharges_petro_b6: 0,
+        recharges_petro_b12: 0,
+        recharges_total_b6: 0,
+        recharges_total_b12: 0,
+        recharges_vivo_b6: 0,
+        recharges_vivo_b12: 0,
+        consignes_petro_b6: 0,
+        consignes_petro_b12: 0,
+        consignes_total_b6: 0,
+        consignes_total_b12: 0,
+        consignes_vivo_b6: 0,
+        consignes_vivo_b12: 0
+      }
+    ]);
+  };
+
+  const updateLigne = (index: number, field: keyof LigneProduction, value: any) => {
+    setLignes(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeLigne = (index: number) => {
+    setLignes(prev => prev.filter((_, i) => i !== index));
   };
 
   const addArret = () => {
@@ -244,7 +289,7 @@ export const ProductionShiftForm = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="date">Date *</Label>
               <Input
@@ -257,89 +302,9 @@ export const ProductionShiftForm = () => {
             </div>
 
             <div>
-              <Label htmlFor="shift-type">Type de shift *</Label>
-              <Select
-                value={shift.shift_type}
-                onValueChange={(value) => handleShiftChange('shift_type', value as ShiftType)}
-              >
-                <SelectTrigger id="shift-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10h-19h">10h-19h</SelectItem>
-                  <SelectItem value="20h-5h">20h-5h</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="ligne">Ligne *</Label>
-              <Select
-                value={shift.ligne}
-                onValueChange={(value) => handleShiftChange('ligne', value as LigneType)}
-              >
-                <SelectTrigger id="ligne">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(LIGNE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="chef-ligne">Chef de ligne *</Label>
-            <Select
-              value={shift.chef_ligne_id}
-              onValueChange={(value) => handleShiftChange('chef_ligne_id', value)}
-            >
-              <SelectTrigger id="chef-ligne">
-                <SelectValue placeholder="Sélectionner un chef de ligne" />
-              </SelectTrigger>
-              <SelectContent>
-                {chefsLigne.map((chef) => (
-                  <SelectItem key={chef.id} value={chef.id}>
-                    {chef.prenom} {chef.nom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="debut-theorique">Heure début théorique</Label>
+              <Label htmlFor="heure-debut">Heure Début *</Label>
               <Input
-                id="debut-theorique"
-                type="time"
-                value={shift.heure_debut_theorique}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="fin-theorique">Heure fin théorique</Label>
-              <Input
-                id="fin-theorique"
-                type="time"
-                value={shift.heure_fin_theorique}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="debut-reelle">Heure début réelle *</Label>
-              <Input
-                id="debut-reelle"
+                id="heure-debut"
                 type="time"
                 value={shift.heure_debut_reelle}
                 onChange={(e) => handleShiftChange('heure_debut_reelle', e.target.value)}
@@ -348,27 +313,50 @@ export const ProductionShiftForm = () => {
             </div>
 
             <div>
-              <Label htmlFor="fin-reelle">Heure fin réelle *</Label>
+              <Label htmlFor="heure-fin">Heure Fin *</Label>
               <Input
-                id="fin-reelle"
+                id="heure-fin"
                 type="time"
                 value={shift.heure_fin_reelle}
                 onChange={(e) => handleShiftChange('heure_fin_reelle', e.target.value)}
                 required
               />
             </div>
-          </div>
 
-          <div>
-            <Label htmlFor="bouteilles">Nombre de bouteilles produites *</Label>
-            <Input
-              id="bouteilles"
-              type="number"
-              min="0"
-              value={shift.bouteilles_produites}
-              onChange={(e) => handleShiftChange('bouteilles_produites', parseInt(e.target.value) || 0)}
-              required
-            />
+            <div>
+              <Label htmlFor="shift-type">Shift *</Label>
+              <Select
+                value={shift.shift_type}
+                onValueChange={(value) => handleShiftChange('shift_type', value as ShiftType)}
+              >
+                <SelectTrigger id="shift-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10h-19h">Shift 1</SelectItem>
+                  <SelectItem value="20h-5h">Shift 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="chef-equipe">Chef d'Équipe *</Label>
+              <Select
+                value={shift.chef_ligne_id}
+                onValueChange={(value) => handleShiftChange('chef_ligne_id', value)}
+              >
+                <SelectTrigger id="chef-equipe">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {chefsLigne.map((chef) => (
+                    <SelectItem key={chef.id} value={chef.id}>
+                      {chef.prenom} {chef.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -377,21 +365,68 @@ export const ProductionShiftForm = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Arrêts de production</CardTitle>
+              <CardTitle>Lignes de Production</CardTitle>
               <CardDescription>
-                Enregistrer les arrêts survenus pendant le shift
+                Ajouter les données de production pour chaque ligne
               </CardDescription>
             </div>
-            <Button type="button" onClick={addArret} size="sm">
+            <Button
+              type="button"
+              onClick={addLigne}
+              variant="outline"
+              size="sm"
+              disabled={lignes.length >= 5}
+            >
               <Plus className="h-4 w-4 mr-2" />
-              Ajouter un arrêt
+              AJOUTER LIGNE {lignes.length + 1}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {lignes.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Aucune ligne ajoutée. Cliquez sur "AJOUTER LIGNE 1" pour commencer.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {lignes.map((ligne, index) => (
+                <LigneProductionForm
+                  key={index}
+                  ligne={ligne}
+                  index={index}
+                  chefsLigne={chefsLigne}
+                  onUpdate={updateLigne}
+                  onRemove={removeLigne}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Arrêts de production</CardTitle>
+              <CardDescription>
+                Enregistrer les interruptions de production
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              onClick={addArret}
+              variant="outline"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              AJOUTER UN ARRÊT
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {arrets.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Aucun arrêt enregistré. Cliquez sur "Ajouter un arrêt" pour commencer.
+              Aucun arrêt enregistré. Cliquez sur "AJOUTER UN ARRÊT" pour commencer.
             </p>
           ) : (
             arrets.map((arret, index) => (

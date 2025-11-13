@@ -72,40 +72,36 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove }: ArretP
           </Select>
         </div>
 
-        {arret.type_arret === 'panne_ligne' && (
-          <>
-            <div>
-              <Label htmlFor={`arret-etape-${index}`}>Étape de la ligne *</Label>
-              <Select
-                value={arret.etape_ligne || ''}
-                onValueChange={(value) => onUpdate(index, 'etape_ligne', value as EtapeLigne)}
-              >
-                <SelectTrigger id={`arret-etape-${index}`}>
-                  <SelectValue placeholder="Sélectionner une étape" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(ETAPE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div>
+          <Label htmlFor={`arret-etape-${index}`}>Étape de la ligne</Label>
+          <Select
+            value={arret.etape_ligne || ''}
+            onValueChange={(value) => onUpdate(index, 'etape_ligne', value as EtapeLigne)}
+          >
+            <SelectTrigger id={`arret-etape-${index}`}>
+              <SelectValue placeholder="Sélectionner une étape" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(ETAPE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div>
-              <Label htmlFor={`arret-equipement-${index}`}>Équipement</Label>
-              <Input
-                id={`arret-equipement-${index}`}
-                type="text"
-                value={arret.equipement || ''}
-                onChange={(e) => onUpdate(index, 'equipement', e.target.value)}
-                placeholder="Ex: Bascule #5"
-                maxLength={100}
-              />
-            </div>
-          </>
-        )}
+        <div>
+          <Label htmlFor={`arret-ordre-${index}`}>Ordre d'intervention</Label>
+          <Input
+            id={`arret-ordre-${index}`}
+            type="text"
+            value={arret.ordre_intervention || ''}
+            onChange={(e) => onUpdate(index, 'ordre_intervention', e.target.value)}
+            placeholder="Ex: OI-2024-001"
+            maxLength={100}
+          />
+        </div>
 
         <div className="md:col-span-2">
           <Label htmlFor={`arret-description-${index}`}>Description</Label>
