@@ -35,9 +35,6 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="font-medium">Ligne {index + 1}</h4>
-          <p className="text-sm font-bold text-orange-500">
-            {tonnage.toFixed(3)} T
-          </p>
         </div>
         <Button
           type="button"
@@ -261,6 +258,14 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Récapitulatif du tonnage */}
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-1">TONNAGE DE LA LIGNE {index + 1}</p>
+            <p className="text-4xl font-bold text-orange-500">{tonnage.toFixed(3)} T</p>
           </div>
         </div>
       </div>
