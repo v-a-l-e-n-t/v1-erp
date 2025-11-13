@@ -51,7 +51,7 @@ export const ProductionShiftForm = () => {
   }, [shift.shift_type]);
 
   const loadChefsLigne = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('chefs_ligne')
       .select('*')
       .order('nom');
@@ -172,7 +172,7 @@ export const ProductionShiftForm = () => {
         user_id: user.id
       };
 
-      const { data: insertedShift, error: shiftError } = await supabase
+      const { data: insertedShift, error: shiftError } = await (supabase as any)
         .from('production_shifts')
         .insert(shiftData)
         .select()
@@ -191,13 +191,13 @@ export const ProductionShiftForm = () => {
         return;
       }
 
-      if (arrets.length > 0) {
+      if (arrets.length > 0 && insertedShift) {
         const arretsData = arrets.map(arret => ({
           ...arret,
           shift_id: insertedShift.id
         }));
 
-        const { error: arretsError } = await supabase
+        const { error: arretsError } = await (supabase as any)
           .from('arrets_production')
           .insert(arretsData);
 

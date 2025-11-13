@@ -40,14 +40,14 @@ const ChefsLigneManagement = () => {
         return;
       }
 
-      const { data: roles, error } = await supabase
+      const { data: roles, error } = await (supabase as any)
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id);
 
       if (error) throw error;
 
-      const hasAdminRole = roles?.some(r => r.role === 'admin');
+      const hasAdminRole = roles?.some((r: any) => r.role === 'admin');
       
       if (!hasAdminRole) {
         toast({
@@ -74,7 +74,7 @@ const ChefsLigneManagement = () => {
   };
 
   const loadChefs = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('chefs_ligne')
       .select('*')
       .order('nom');
@@ -96,7 +96,7 @@ const ChefsLigneManagement = () => {
 
     try {
       if (editingChef) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('chefs_ligne')
           .update(data)
           .eq('id', editingChef.id);
@@ -108,7 +108,7 @@ const ChefsLigneManagement = () => {
           description: "Chef de ligne modifié avec succès"
         });
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('chefs_ligne')
           .insert(data);
 
@@ -143,7 +143,7 @@ const ChefsLigneManagement = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('chefs_ligne')
         .delete()
         .eq('id', id);
