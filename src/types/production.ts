@@ -23,12 +23,19 @@ export interface ChefLigne {
   prenom: string;
 }
 
+export interface ChefQuart {
+  id: string;
+  nom: string;
+  prenom: string;
+}
+
 export interface ProductionShift {
   id?: string;
   date: string;
   shift_type: ShiftType;
   ligne: LigneType;
   chef_ligne_id: string;
+  chef_quart_id: string;
   heure_debut_theorique: string;
   heure_fin_theorique: string;
   heure_debut_reelle: string;
