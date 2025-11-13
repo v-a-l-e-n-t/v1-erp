@@ -51,10 +51,10 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
         </div>
 
         <div className="space-y-3">
-          <h5 className="font-medium text-sm">Quantité Recharges</h5>
+          <h5 className="font-medium text-sm bg-black text-white py-2 px-3 rounded">Quantité Recharges</h5>
           
           <div className="border rounded-lg p-3 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">PETRO IVOIRE</p>
+            <p className="text-sm font-medium text-orange-500">PETRO IVOIRE</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor={`ligne-rechg-petro-b6-${index}`}>Recharges B6</Label>
@@ -62,8 +62,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-rechg-petro-b6-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.recharges_petro_b6}
-                  onChange={(e) => onUpdate(index, 'recharges_petro_b6', parseInt(e.target.value) || 0)}
+                  value={ligne.recharges_petro_b6 ?? ''}
+                  onChange={(e) => onUpdate(index, 'recharges_petro_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -72,15 +73,16 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-rechg-petro-b12-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.recharges_petro_b12}
-                  onChange={(e) => onUpdate(index, 'recharges_petro_b12', parseInt(e.target.value) || 0)}
+                  value={ligne.recharges_petro_b12 ?? ''}
+                  onChange={(e) => onUpdate(index, 'recharges_petro_b12', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
             </div>
           </div>
 
           <div className="border rounded-lg p-3 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">TOTAL ENERGIES</p>
+            <p className="text-sm font-medium text-orange-500">TOTAL ENERGIES</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor={`ligne-rechg-total-b6-${index}`}>Recharges B6</Label>
@@ -88,8 +90,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-rechg-total-b6-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.recharges_total_b6}
-                  onChange={(e) => onUpdate(index, 'recharges_total_b6', parseInt(e.target.value) || 0)}
+                  value={ligne.recharges_total_b6 ?? ''}
+                  onChange={(e) => onUpdate(index, 'recharges_total_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -98,15 +101,16 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-rechg-total-b12-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.recharges_total_b12}
-                  onChange={(e) => onUpdate(index, 'recharges_total_b12', parseInt(e.target.value) || 0)}
+                  value={ligne.recharges_total_b12 ?? ''}
+                  onChange={(e) => onUpdate(index, 'recharges_total_b12', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
             </div>
           </div>
 
           <div className="border rounded-lg p-3 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">VIVO ENERGIES</p>
+            <p className="text-sm font-medium text-orange-500">VIVO ENERGIES</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor={`ligne-rechg-vivo-b6-${index}`}>Recharges B6</Label>
@@ -114,8 +118,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-rechg-vivo-b6-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.recharges_vivo_b6}
-                  onChange={(e) => onUpdate(index, 'recharges_vivo_b6', parseInt(e.target.value) || 0)}
+                  value={ligne.recharges_vivo_b6 ?? ''}
+                  onChange={(e) => onUpdate(index, 'recharges_vivo_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -124,8 +129,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-rechg-vivo-b12-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.recharges_vivo_b12}
-                  onChange={(e) => onUpdate(index, 'recharges_vivo_b12', parseInt(e.target.value) || 0)}
+                  value={ligne.recharges_vivo_b12 ?? ''}
+                  onChange={(e) => onUpdate(index, 'recharges_vivo_b12', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
             </div>
@@ -133,10 +139,10 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
         </div>
 
         <div className="space-y-3">
-          <h5 className="font-medium text-sm">Quantité Consignes</h5>
+          <h5 className="font-medium text-sm bg-black text-white py-2 px-3 rounded">Quantité Consignes</h5>
           
           <div className="border rounded-lg p-3 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">PETRO IVOIRE</p>
+            <p className="text-sm font-medium text-orange-500">PETRO IVOIRE</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor={`ligne-consig-petro-b6-${index}`}>Consignes B6</Label>
@@ -144,8 +150,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-consig-petro-b6-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.consignes_petro_b6}
-                  onChange={(e) => onUpdate(index, 'consignes_petro_b6', parseInt(e.target.value) || 0)}
+                  value={ligne.consignes_petro_b6 ?? ''}
+                  onChange={(e) => onUpdate(index, 'consignes_petro_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -154,15 +161,16 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-consig-petro-b12-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.consignes_petro_b12}
-                  onChange={(e) => onUpdate(index, 'consignes_petro_b12', parseInt(e.target.value) || 0)}
+                  value={ligne.consignes_petro_b12 ?? ''}
+                  onChange={(e) => onUpdate(index, 'consignes_petro_b12', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
             </div>
           </div>
 
           <div className="border rounded-lg p-3 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">TOTAL ENERGIES</p>
+            <p className="text-sm font-medium text-orange-500">TOTAL ENERGIES</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor={`ligne-consig-total-b6-${index}`}>Consignes B6</Label>
@@ -170,8 +178,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-consig-total-b6-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.consignes_total_b6}
-                  onChange={(e) => onUpdate(index, 'consignes_total_b6', parseInt(e.target.value) || 0)}
+                  value={ligne.consignes_total_b6 ?? ''}
+                  onChange={(e) => onUpdate(index, 'consignes_total_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -180,15 +189,16 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-consig-total-b12-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.consignes_total_b12}
-                  onChange={(e) => onUpdate(index, 'consignes_total_b12', parseInt(e.target.value) || 0)}
+                  value={ligne.consignes_total_b12 ?? ''}
+                  onChange={(e) => onUpdate(index, 'consignes_total_b12', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
             </div>
           </div>
 
           <div className="border rounded-lg p-3 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">VIVO ENERGIES</p>
+            <p className="text-sm font-medium text-orange-500">VIVO ENERGIES</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor={`ligne-consig-vivo-b6-${index}`}>Consignes B6</Label>
@@ -196,8 +206,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-consig-vivo-b6-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.consignes_vivo_b6}
-                  onChange={(e) => onUpdate(index, 'consignes_vivo_b6', parseInt(e.target.value) || 0)}
+                  value={ligne.consignes_vivo_b6 ?? ''}
+                  onChange={(e) => onUpdate(index, 'consignes_vivo_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -206,8 +217,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
                   id={`ligne-consig-vivo-b12-${index}`}
                   type="number"
                   min="0"
-                  value={ligne.consignes_vivo_b12}
-                  onChange={(e) => onUpdate(index, 'consignes_vivo_b12', parseInt(e.target.value) || 0)}
+                  value={ligne.consignes_vivo_b12 ?? ''}
+                  onChange={(e) => onUpdate(index, 'consignes_vivo_b12', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder="0"
                 />
               </div>
             </div>
