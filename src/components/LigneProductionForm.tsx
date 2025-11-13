@@ -35,8 +35,8 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="font-medium">Ligne {index + 1}</h4>
-          <p className="text-sm text-muted-foreground">
-            Cumul: {cumul} bouteilles | Tonnage: {tonnage.toFixed(2)} T
+          <p className="text-sm font-bold text-orange-500">
+            {tonnage.toFixed(3)} T
           </p>
         </div>
         <Button

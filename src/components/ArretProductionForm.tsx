@@ -92,7 +92,7 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove }: ArretP
         </div>
 
         <div>
-          <Label htmlFor={`arret-ordre-${index}`}>Ordre d'intervention</Label>
+          <Label htmlFor={`arret-ordre-${index}`}>Ordre de travail</Label>
           <Input
             id={`arret-ordre-${index}`}
             type="text"
