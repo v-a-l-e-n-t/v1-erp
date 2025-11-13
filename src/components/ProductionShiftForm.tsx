@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Save } from "lucide-react";
 import { ArretProductionForm } from "./ArretProductionForm";
 import { LigneProductionForm } from "./LigneProductionForm";
+import { ProductionRecapitulatif } from "./ProductionRecapitulatif";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -89,18 +90,18 @@ export const ProductionShiftForm = () => {
       {
         numero_ligne: prev.length + 1,
         chef_ligne_id: '',
-        recharges_petro_b6: 0,
-        recharges_petro_b12: 0,
-        recharges_total_b6: 0,
-        recharges_total_b12: 0,
-        recharges_vivo_b6: 0,
-        recharges_vivo_b12: 0,
-        consignes_petro_b6: 0,
-        consignes_petro_b12: 0,
-        consignes_total_b6: 0,
-        consignes_total_b12: 0,
-        consignes_vivo_b6: 0,
-        consignes_vivo_b12: 0
+        recharges_petro_b6: undefined,
+        recharges_petro_b12: undefined,
+        recharges_total_b6: undefined,
+        recharges_total_b12: undefined,
+        recharges_vivo_b6: undefined,
+        recharges_vivo_b12: undefined,
+        consignes_petro_b6: undefined,
+        consignes_petro_b12: undefined,
+        consignes_total_b6: undefined,
+        consignes_total_b12: undefined,
+        consignes_vivo_b6: undefined,
+        consignes_vivo_b12: undefined
       }
     ]);
   };
@@ -281,6 +282,10 @@ export const ProductionShiftForm = () => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {(lignes.length > 0 || arrets.length > 0) && (
+        <ProductionRecapitulatif lignes={lignes} arrets={arrets} />
+      )}
+      
       <Card>
         <CardHeader>
           <CardTitle>Informations du Shift</CardTitle>
