@@ -247,6 +247,33 @@ export const ProductionShiftForm = () => {
         return;
       }
 
+      // Enregistrer les lignes de production
+      if (lignes.length > 0 && insertedShift) {
+        const lignesData = lignes.map(ligne => ({
+          shift_id: insertedShift.id,
+          numero_ligne: ligne.numero_ligne,
+          chef_ligne_id: ligne.chef_ligne_id || null,
+          recharges_petro_b6: ligne.recharges_petro_b6 || 0,
+          recharges_petro_b12: ligne.recharges_petro_b12 || 0,
+          recharges_total_b6: ligne.recharges_total_b6 || 0,
+          recharges_total_b12: ligne.recharges_total_b12 || 0,
+          recharges_vivo_b6: ligne.recharges_vivo_b6 || 0,
+          recharges_vivo_b12: ligne.recharges_vivo_b12 || 0,
+          consignes_petro_b6: ligne.consignes_petro_b6 || 0,
+          consignes_petro_b12: ligne.consignes_petro_b12 || 0,
+          consignes_total_b6: ligne.consignes_total_b6 || 0,
+          consignes_total_b12: ligne.consignes_total_b12 || 0,
+          consignes_vivo_b6: ligne.consignes_vivo_b6 || 0,
+          consignes_vivo_b12: ligne.consignes_vivo_b12 || 0
+        }));
+
+        const { error: lignesError } = await (supabase as any)
+          .from('lignes_production')
+          .insert(lignesData);
+
+        if (lignesError) throw lignesError;
+      }
+
       if (arrets.length > 0 && insertedShift) {
         const arretsData = arrets.map(arret => ({
           ...arret,
@@ -276,6 +303,7 @@ export const ProductionShiftForm = () => {
         heure_fin_reelle: '19:00',
         bouteilles_produites: 0
       });
+      setLignes([]);
       setArrets([]);
 
     } catch (error: any) {
@@ -409,16 +437,17 @@ export const ProductionShiftForm = () => {
             </p>
           ) : (
             <div className="space-y-4">
-              {lignes.map((ligne, index) => (
-                <LigneProductionForm
-                  key={index}
-                  ligne={ligne}
-                  index={index}
-                  chefsLigne={chefsLigne}
-                  onUpdate={updateLigne}
-                  onRemove={removeLigne}
-                />
-              ))}
+            {lignes.map((ligne, index) => (
+              <LigneProductionForm
+                key={index}
+                ligne={ligne}
+                index={index}
+                chefsLigne={chefsLigne}
+                onUpdate={updateLigne}
+                onRemove={removeLigne}
+                isB12Only={index === 4}
+              />
+            ))}
             </div>
           )}
         </CardContent>

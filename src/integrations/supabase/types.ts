@@ -14,16 +14,524 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      arrets_production: {
+        Row: {
+          action_corrective: string | null
+          created_at: string
+          description: string | null
+          equipement: string | null
+          etape_ligne: Database["public"]["Enums"]["etape_ligne"] | null
+          heure_debut: string
+          heure_fin: string
+          id: string
+          shift_id: string
+          type_arret: Database["public"]["Enums"]["arret_type"]
+          updated_at: string
+        }
+        Insert: {
+          action_corrective?: string | null
+          created_at?: string
+          description?: string | null
+          equipement?: string | null
+          etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
+          heure_debut: string
+          heure_fin: string
+          id?: string
+          shift_id: string
+          type_arret: Database["public"]["Enums"]["arret_type"]
+          updated_at?: string
+        }
+        Update: {
+          action_corrective?: string | null
+          created_at?: string
+          description?: string | null
+          equipement?: string | null
+          etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
+          heure_debut?: string
+          heure_fin?: string
+          id?: string
+          shift_id?: string
+          type_arret?: Database["public"]["Enums"]["arret_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arrets_production_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "production_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bilan_entries: {
+        Row: {
+          bilan: number
+          bouteilles_final: number
+          bouteilles_initial: number
+          created_at: string
+          cumul_sorties: number
+          date: string
+          fuyardes: number
+          fuyardes_petro_ivoire: number | null
+          fuyardes_total_energies: number | null
+          fuyardes_vivo_energies: number | null
+          id: string
+          nature: string
+          notes: string | null
+          reception_gpl: number
+          receptions: Json
+          reservoirs_final: number
+          reservoirs_initial: number
+          sorties_conditionnees: number
+          sorties_conditionnees_petro_ivoire: number | null
+          sorties_conditionnees_total_energies: number | null
+          sorties_conditionnees_vivo_energies: number | null
+          sorties_vrac: number
+          sorties_vrac_petro_ivoire: number | null
+          sorties_vrac_simam: number | null
+          sorties_vrac_total_energies: number | null
+          sorties_vrac_vivo_energies: number | null
+          spheres_final: number
+          spheres_initial: number
+          stock_final: number
+          stock_initial: number
+          stock_theorique: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bilan?: number
+          bouteilles_final?: number
+          bouteilles_initial?: number
+          created_at?: string
+          cumul_sorties?: number
+          date: string
+          fuyardes?: number
+          fuyardes_petro_ivoire?: number | null
+          fuyardes_total_energies?: number | null
+          fuyardes_vivo_energies?: number | null
+          id?: string
+          nature: string
+          notes?: string | null
+          reception_gpl?: number
+          receptions?: Json
+          reservoirs_final?: number
+          reservoirs_initial?: number
+          sorties_conditionnees?: number
+          sorties_conditionnees_petro_ivoire?: number | null
+          sorties_conditionnees_total_energies?: number | null
+          sorties_conditionnees_vivo_energies?: number | null
+          sorties_vrac?: number
+          sorties_vrac_petro_ivoire?: number | null
+          sorties_vrac_simam?: number | null
+          sorties_vrac_total_energies?: number | null
+          sorties_vrac_vivo_energies?: number | null
+          spheres_final?: number
+          spheres_initial?: number
+          stock_final?: number
+          stock_initial?: number
+          stock_theorique?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bilan?: number
+          bouteilles_final?: number
+          bouteilles_initial?: number
+          created_at?: string
+          cumul_sorties?: number
+          date?: string
+          fuyardes?: number
+          fuyardes_petro_ivoire?: number | null
+          fuyardes_total_energies?: number | null
+          fuyardes_vivo_energies?: number | null
+          id?: string
+          nature?: string
+          notes?: string | null
+          reception_gpl?: number
+          receptions?: Json
+          reservoirs_final?: number
+          reservoirs_initial?: number
+          sorties_conditionnees?: number
+          sorties_conditionnees_petro_ivoire?: number | null
+          sorties_conditionnees_total_energies?: number | null
+          sorties_conditionnees_vivo_energies?: number | null
+          sorties_vrac?: number
+          sorties_vrac_petro_ivoire?: number | null
+          sorties_vrac_simam?: number | null
+          sorties_vrac_total_energies?: number | null
+          sorties_vrac_vivo_energies?: number | null
+          spheres_final?: number
+          spheres_initial?: number
+          stock_final?: number
+          stock_initial?: number
+          stock_theorique?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chefs_ligne: {
+        Row: {
+          created_at: string
+          id: string
+          nom: string
+          prenom: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nom: string
+          prenom: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nom?: string
+          prenom?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chefs_quart: {
+        Row: {
+          created_at: string
+          id: string
+          nom: string
+          prenom: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nom: string
+          prenom: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nom?: string
+          prenom?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lignes_production: {
+        Row: {
+          chef_ligne_id: string | null
+          consignes_petro_b12: number | null
+          consignes_petro_b6: number | null
+          consignes_total_b12: number | null
+          consignes_total_b6: number | null
+          consignes_vivo_b12: number | null
+          consignes_vivo_b6: number | null
+          created_at: string | null
+          id: string
+          numero_ligne: number
+          recharges_petro_b12: number | null
+          recharges_petro_b6: number | null
+          recharges_total_b12: number | null
+          recharges_total_b6: number | null
+          recharges_vivo_b12: number | null
+          recharges_vivo_b6: number | null
+          shift_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          chef_ligne_id?: string | null
+          consignes_petro_b12?: number | null
+          consignes_petro_b6?: number | null
+          consignes_total_b12?: number | null
+          consignes_total_b6?: number | null
+          consignes_vivo_b12?: number | null
+          consignes_vivo_b6?: number | null
+          created_at?: string | null
+          id?: string
+          numero_ligne: number
+          recharges_petro_b12?: number | null
+          recharges_petro_b6?: number | null
+          recharges_total_b12?: number | null
+          recharges_total_b6?: number | null
+          recharges_vivo_b12?: number | null
+          recharges_vivo_b6?: number | null
+          shift_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          chef_ligne_id?: string | null
+          consignes_petro_b12?: number | null
+          consignes_petro_b6?: number | null
+          consignes_total_b12?: number | null
+          consignes_total_b6?: number | null
+          consignes_vivo_b12?: number | null
+          consignes_vivo_b6?: number | null
+          created_at?: string | null
+          id?: string
+          numero_ligne?: number
+          recharges_petro_b12?: number | null
+          recharges_petro_b6?: number | null
+          recharges_total_b12?: number | null
+          recharges_total_b6?: number | null
+          recharges_vivo_b12?: number | null
+          recharges_vivo_b6?: number | null
+          shift_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lignes_production_chef_ligne_id_fkey"
+            columns: ["chef_ligne_id"]
+            isOneToOne: false
+            referencedRelation: "chefs_ligne"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lignes_production_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "production_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_shifts: {
+        Row: {
+          bouteilles_produites: number
+          chef_ligne_id: string | null
+          chef_quart_id: string | null
+          created_at: string
+          date: string
+          heure_debut_reelle: string
+          heure_debut_theorique: string
+          heure_fin_reelle: string
+          heure_fin_theorique: string
+          id: string
+          ligne: Database["public"]["Enums"]["ligne_type"]
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bouteilles_produites?: number
+          chef_ligne_id?: string | null
+          chef_quart_id?: string | null
+          created_at?: string
+          date: string
+          heure_debut_reelle: string
+          heure_debut_theorique: string
+          heure_fin_reelle: string
+          heure_fin_theorique: string
+          id?: string
+          ligne: Database["public"]["Enums"]["ligne_type"]
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bouteilles_produites?: number
+          chef_ligne_id?: string | null
+          chef_quart_id?: string | null
+          created_at?: string
+          date?: string
+          heure_debut_reelle?: string
+          heure_debut_theorique?: string
+          heure_fin_reelle?: string
+          heure_fin_theorique?: string
+          id?: string
+          ligne?: Database["public"]["Enums"]["ligne_type"]
+          shift_type?: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_shifts_chef_ligne_id_fkey"
+            columns: ["chef_ligne_id"]
+            isOneToOne: false
+            referencedRelation: "chefs_ligne"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_shifts_chef_quart_id_fkey"
+            columns: ["chef_quart_id"]
+            isOneToOne: false
+            referencedRelation: "chefs_quart"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sphere_calculations: {
+        Row: {
+          calculation_date: string
+          created_at: string
+          creux_kg: number
+          d_max: number
+          d_min: number
+          densite_d15: number
+          hauteur_mm: number
+          id: string
+          masse_liquide_gaz_kg: number
+          masse_produit_kg: number
+          masse_total_gaz_kg: number
+          masse_total_liquide_kg: number
+          masse_volumique_butane_kgl: number
+          pression_sphere_barg: number
+          ps_max: number
+          ps_min: number
+          sphere_number: number
+          temperature_gazeuse_c: number
+          temperature_liquide_c: number
+          tg_max: number
+          tg_min: number
+          tl_max: number
+          tl_min: number
+          updated_at: string
+          user_id: string | null
+          volume_gazeux_l: number
+          volume_liquide_l: number
+        }
+        Insert: {
+          calculation_date?: string
+          created_at?: string
+          creux_kg: number
+          d_max: number
+          d_min: number
+          densite_d15: number
+          hauteur_mm: number
+          id?: string
+          masse_liquide_gaz_kg: number
+          masse_produit_kg: number
+          masse_total_gaz_kg: number
+          masse_total_liquide_kg: number
+          masse_volumique_butane_kgl: number
+          pression_sphere_barg: number
+          ps_max: number
+          ps_min: number
+          sphere_number: number
+          temperature_gazeuse_c: number
+          temperature_liquide_c: number
+          tg_max: number
+          tg_min: number
+          tl_max: number
+          tl_min: number
+          updated_at?: string
+          user_id?: string | null
+          volume_gazeux_l: number
+          volume_liquide_l: number
+        }
+        Update: {
+          calculation_date?: string
+          created_at?: string
+          creux_kg?: number
+          d_max?: number
+          d_min?: number
+          densite_d15?: number
+          hauteur_mm?: number
+          id?: string
+          masse_liquide_gaz_kg?: number
+          masse_produit_kg?: number
+          masse_total_gaz_kg?: number
+          masse_total_liquide_kg?: number
+          masse_volumique_butane_kgl?: number
+          pression_sphere_barg?: number
+          ps_max?: number
+          ps_min?: number
+          sphere_number?: number
+          temperature_gazeuse_c?: number
+          temperature_liquide_c?: number
+          tg_max?: number
+          tg_min?: number
+          tl_max?: number
+          tl_min?: number
+          updated_at?: string
+          user_id?: string | null
+          volume_gazeux_l?: number
+          volume_liquide_l?: number
+        }
+        Relationships: []
+      }
+      sphere_calibration: {
+        Row: {
+          capacity_l: number
+          created_at: string
+          height_mm: number
+          id: string
+          sphere_number: number
+        }
+        Insert: {
+          capacity_l: number
+          created_at?: string
+          height_mm: number
+          id?: string
+          sphere_number: number
+        }
+        Update: {
+          capacity_l?: number
+          created_at?: string
+          height_mm?: number
+          id?: string
+          sphere_number?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "chef_depot"
+      arret_type:
+        | "maintenance_corrective"
+        | "manque_personnel"
+        | "probleme_approvisionnement"
+        | "panne_ligne"
+        | "autre"
+      etape_ligne:
+        | "BASCULES"
+        | "PURGE"
+        | "CONTROLE"
+        | "ETANCHEITE"
+        | "CAPSULAGE"
+        | "VIDANGE"
+        | "PALETTISEUR"
+        | "TRI"
+        | "AUTRE"
+      ligne_type: "B6_L1" | "B6_L2" | "B6_L3" | "B6_L4" | "B12"
+      shift_type: "10h-19h" | "20h-5h"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +658,28 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "chef_depot"],
+      arret_type: [
+        "maintenance_corrective",
+        "manque_personnel",
+        "probleme_approvisionnement",
+        "panne_ligne",
+        "autre",
+      ],
+      etape_ligne: [
+        "BASCULES",
+        "PURGE",
+        "CONTROLE",
+        "ETANCHEITE",
+        "CAPSULAGE",
+        "VIDANGE",
+        "PALETTISEUR",
+        "TRI",
+        "AUTRE",
+      ],
+      ligne_type: ["B6_L1", "B6_L2", "B6_L3", "B6_L4", "B12"],
+      shift_type: ["10h-19h", "20h-5h"],
+    },
   },
 } as const

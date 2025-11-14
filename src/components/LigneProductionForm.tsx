@@ -12,9 +12,10 @@ interface LigneProductionFormProps {
   chefsLigne: ChefLigne[];
   onUpdate: (index: number, field: keyof LigneProduction, value: any) => void;
   onRemove: (index: number) => void;
+  isB12Only?: boolean; // True si on est sur une ligne B12 uniquement
 }
 
-export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemove }: LigneProductionFormProps) => {
+export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemove, isB12Only = false }: LigneProductionFormProps) => {
   // Calcul du cumul total
   const cumul = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_petro_b12 || 0) +
                 (ligne.recharges_total_b6 || 0) + (ligne.recharges_total_b12 || 0) +
@@ -71,7 +72,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
           <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
             <h5 className="font-medium text-sm">Quantité Recharges</h5>
             <div className="text-sm font-semibold flex gap-4">
-              <span>Cumul B6: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)}</span>
+              {!isB12Only && <span>Cumul B6: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)}</span>}
               <span>Cumul B12: {(ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0)}</span>
               <span>TONNAGE: {((((ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)) * 6 + 
                       ((ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0)) * 12.5) / 1000).toFixed(3)} T</span>
@@ -167,7 +168,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
           <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
             <h5 className="font-medium text-sm">Quantité Consignes</h5>
             <div className="text-sm font-semibold flex gap-4">
-              <span>Cumul B6: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)}</span>
+              {!isB12Only && <span>Cumul B6: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)}</span>}
               <span>Cumul B12: {(ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0)}</span>
               <span>TONNAGE: {((((ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)) * 6 + 
                       ((ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0)) * 12.5) / 1000).toFixed(3)} T</span>
