@@ -12,6 +12,15 @@ import { ProductionRecapitulatif } from "./ProductionRecapitulatif";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ProductionShift,
   ArretProduction,
   LigneProduction,
@@ -25,6 +34,7 @@ export const ProductionShiftForm = () => {
   const [loading, setLoading] = useState(false);
   const [chefsLigne, setChefsLigne] = useState<ChefLigne[]>([]);
   const [chefsQuart, setChefsQuart] = useState<ChefQuart[]>([]);
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [shift, setShift] = useState<ProductionShift>({
     date: new Date().toISOString().split('T')[0],
     shift_type: '10h-19h',
@@ -224,6 +234,23 @@ export const ProductionShiftForm = () => {
     setLoading(true);
 
     try {
+      // Vérifier si un shift existe déjà pour cette date et ce type
+      const { data: existingShift, error: checkError } = await (supabase as any)
+        .from('production_shifts')
+        .select('id')
+        .eq('date', shift.date)
+        .eq('shift_type', shift.shift_type)
+        .maybeSingle();
+
+      if (checkError) {
+        throw checkError;
+      }
+
+      if (existingShift) {
+        setShowDuplicateAlert(true);
+        setLoading(false);
+        return;
+      }
       // Calculer les totaux à partir des lignes de production
       let tonnageTotal = 0;
       let cumulRechargesTotal = 0;
@@ -334,6 +361,7 @@ export const ProductionShiftForm = () => {
         description: "Données de production enregistrées avec succès"
       });
 
+      // Réinitialiser tous les champs du formulaire
       setShift({
         date: new Date().toISOString().split('T')[0],
         shift_type: '10h-19h',
@@ -360,10 +388,29 @@ export const ProductionShiftForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {(lignes.length > 0 || arrets.length > 0) && (
-        <ProductionRecapitulatif lignes={lignes} arrets={arrets} />
-      )}
+    <>
+      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Shift déjà enregistré</AlertDialogTitle>
+            <AlertDialogDescription>
+              Un shift pour cette date ({shift.date}) et ce type ({shift.shift_type === '10h-19h' ? 'Shift 1' : 'Shift 2'}) 
+              a déjà été enregistré dans le système.
+              <br /><br />
+              Si cet enregistrement précédent était une erreur, veuillez contacter l'administrateur 
+              pour le supprimer avant de pouvoir saisir à nouveau ces données.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Compris</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {(lignes.length > 0 || arrets.length > 0) && (
+          <ProductionRecapitulatif lignes={lignes} arrets={arrets} />
+        )}
       
       <Card>
         <CardHeader>
@@ -532,12 +579,13 @@ export const ProductionShiftForm = () => {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={loading} size="lg">
-          <Save className="h-4 w-4 mr-2" />
-          {loading ? 'Enregistrement...' : 'Enregistrer les données'}
-        </Button>
-      </div>
-    </form>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={loading} size="lg">
+            <Save className="h-4 w-4 mr-2" />
+            {loading ? 'Enregistrement...' : 'Enregistrer les données'}
+          </Button>
+        </div>
+      </form>
+    </>
   );
 };
