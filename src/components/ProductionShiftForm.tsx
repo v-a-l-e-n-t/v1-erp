@@ -203,6 +203,15 @@ export const ProductionShiftForm = () => {
         return false;
       }
 
+      if (!arret.lignes_concernees || arret.lignes_concernees.length === 0) {
+        toast({
+          title: "Validation",
+          description: `Arrêt #${i + 1}: veuillez sélectionner au moins une ligne`,
+          variant: "destructive"
+        });
+        return false;
+      }
+
       if (arret.type_arret === 'panne_ligne' && !arret.etape_ligne) {
         toast({
           title: "Validation",
