@@ -369,6 +369,11 @@ export const ProductionShiftForm = () => {
                       {chef.prenom} {chef.nom}
                     </SelectItem>
                   ))}
+                  {chefsLigne.map((chef) => (
+                    <SelectItem key={chef.id} value={chef.id}>
+                      {chef.prenom} {chef.nom}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
