@@ -73,9 +73,8 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
             <div className="text-sm font-semibold flex gap-4">
               <span>Cumul B6: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)}</span>
               <span>Cumul B12: {(ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0)}</span>
-              <span>CUMUL: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_petro_b12 || 0) + 
-                      (ligne.recharges_total_b6 || 0) + (ligne.recharges_total_b12 || 0) + 
-                      (ligne.recharges_vivo_b6 || 0) + (ligne.recharges_vivo_b12 || 0)}</span>
+              <span>TONNAGE: {(((ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)) * 6 + 
+                      ((ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0)) * 12.5) / 1000} T</span>
             </div>
           </div>
           
@@ -170,9 +169,8 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
             <div className="text-sm font-semibold flex gap-4">
               <span>Cumul B6: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)}</span>
               <span>Cumul B12: {(ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0)}</span>
-              <span>CUMUL: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_petro_b12 || 0) + 
-                      (ligne.consignes_total_b6 || 0) + (ligne.consignes_total_b12 || 0) + 
-                      (ligne.consignes_vivo_b6 || 0) + (ligne.consignes_vivo_b12 || 0)}</span>
+              <span>TONNAGE: {(((ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)) * 6 + 
+                      ((ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0)) * 12.5) / 1000} T</span>
             </div>
           </div>
           

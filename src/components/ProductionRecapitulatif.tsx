@@ -61,7 +61,10 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
   const heuresArret = Math.floor(tempsArretTotal / 60);
   const minutesArret = tempsArretTotal % 60;
 
-  const quantiteProduite = cumuls.recharges_b6 + cumuls.recharges_b12 + cumuls.consignes_b6 + cumuls.consignes_b12;
+  // Calcul du tonnage (B6 = 6kg, B12 = 12.5kg)
+  const totalB6 = cumuls.recharges_b6 + cumuls.consignes_b6;
+  const totalB12 = cumuls.recharges_b12 + cumuls.consignes_b12;
+  const tonnageProduit = (totalB6 * 6 + totalB12 * 12.5) / 1000; // En tonnes
 
   return (
     <div className="md:sticky top-0 z-10 bg-background pb-4">
@@ -71,10 +74,10 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-            {/* Quantité produite */}
+            {/* Tonnage produit */}
             <div className="bg-card p-2 rounded-lg border">
-              <p className="text-xs text-muted-foreground">Quantité Produite</p>
-              <p className="text-xl font-bold">{quantiteProduite}</p>
+              <p className="text-xs text-muted-foreground">Tonnage Produit</p>
+              <p className="text-xl font-bold">{tonnageProduit.toFixed(3)} T</p>
             </div>
 
             {/* Recharges */}
@@ -111,7 +114,6 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
               <div className="space-y-0.5 text-xs">
                 <p>B6: {cumuls.petro_b6}</p>
                 <p>B12: {cumuls.petro_b12}</p>
-                <p className="font-semibold pt-1 border-t">Total: {cumuls.petro_b6 + cumuls.petro_b12}</p>
               </div>
             </div>
 
@@ -120,7 +122,6 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
               <div className="space-y-0.5 text-xs">
                 <p>B6: {cumuls.total_b6}</p>
                 <p>B12: {cumuls.total_b12}</p>
-                <p className="font-semibold pt-1 border-t">Total: {cumuls.total_b6 + cumuls.total_b12}</p>
               </div>
             </div>
 
@@ -129,7 +130,6 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
               <div className="space-y-0.5 text-xs">
                 <p>B6: {cumuls.vivo_b6}</p>
                 <p>B12: {cumuls.vivo_b12}</p>
-                <p className="font-semibold pt-1 border-t">Total: {cumuls.vivo_b6 + cumuls.vivo_b12}</p>
               </div>
             </div>
           </div>
