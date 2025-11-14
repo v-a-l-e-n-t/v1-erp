@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2 } from "lucide-react";
 import { ArretProduction, ArretType, EtapeLigne, ARRET_LABELS, ETAPE_LABELS } from "@/types/production";
 
@@ -70,6 +71,33 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove }: ArretP
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div>
+          <Label>Lignes concernées *</Label>
+          <div className="flex gap-4 mt-2">
+            {[1, 2, 3, 4, 5].map((ligne) => (
+              <div key={ligne} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`arret-ligne-${index}-${ligne}`}
+                  checked={arret.lignes_concernees?.includes(ligne) || false}
+                  onCheckedChange={(checked) => {
+                    const current = arret.lignes_concernees || [];
+                    const updated = checked
+                      ? [...current, ligne].sort()
+                      : current.filter(l => l !== ligne);
+                    onUpdate(index, 'lignes_concernees', updated);
+                  }}
+                />
+                <Label 
+                  htmlFor={`arret-ligne-${index}-${ligne}`}
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  L{ligne}
+                </Label>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div>

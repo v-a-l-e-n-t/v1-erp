@@ -65,6 +65,7 @@ export interface LigneProduction {
 export interface ArretProduction {
   id?: string;
   shift_id?: string;
+  lignes_concernees?: number[];
   heure_debut: string;
   heure_fin: string;
   type_arret: ArretType;
