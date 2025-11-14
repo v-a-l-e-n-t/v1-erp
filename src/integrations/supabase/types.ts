@@ -24,6 +24,7 @@ export type Database = {
           heure_fin: string
           id: string
           lignes_concernees: number[] | null
+          ordre_intervention: string | null
           shift_id: string
           type_arret: Database["public"]["Enums"]["arret_type"]
           updated_at: string
@@ -37,6 +38,7 @@ export type Database = {
           heure_fin: string
           id?: string
           lignes_concernees?: number[] | null
+          ordre_intervention?: string | null
           shift_id: string
           type_arret: Database["public"]["Enums"]["arret_type"]
           updated_at?: string
@@ -50,6 +52,7 @@ export type Database = {
           heure_fin?: string
           id?: string
           lignes_concernees?: number[] | null
+          ordre_intervention?: string | null
           shift_id?: string
           type_arret?: Database["public"]["Enums"]["arret_type"]
           updated_at?: string
