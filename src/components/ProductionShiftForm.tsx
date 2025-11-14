@@ -144,6 +144,8 @@ export const ProductionShiftForm = () => {
         heure_fin: '',
         type_arret: 'maintenance_corrective',
         lignes_concernees: [],
+        ordre_intervention: '',
+        etape_ligne: undefined,
         description: '',
         action_corrective: ''
       }
@@ -255,6 +257,7 @@ export const ProductionShiftForm = () => {
 
       const shiftData = {
         ...shift,
+        chef_quart_id: shift.chef_quart_id || null,
         bouteilles_produites: bouteillesProduites,
         tonnage_total: parseFloat(tonnageTotal.toFixed(3)),
         cumul_recharges_total: cumulRechargesTotal,
@@ -431,11 +434,6 @@ export const ProductionShiftForm = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {chefsQuart.map((chef) => (
-                    <SelectItem key={chef.id} value={chef.id}>
-                      {chef.prenom} {chef.nom}
-                    </SelectItem>
-                  ))}
-                  {chefsLigne.map((chef) => (
                     <SelectItem key={chef.id} value={chef.id}>
                       {chef.prenom} {chef.nom}
                     </SelectItem>
