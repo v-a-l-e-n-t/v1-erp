@@ -35,7 +35,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
     <Card className="p-4 bg-muted/30">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h4 className="font-medium">Ligne {index + 1}</h4>
+          <h4 className="font-medium">Ligne {index + 1} {isB12Only && "(B12 uniquement)"}</h4>
         </div>
         <Button
           type="button"
@@ -81,18 +81,20 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
           
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">PETRO IVOIRE</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`ligne-rechg-petro-b6-${index}`}>Recharges B6</Label>
-                <Input
-                  id={`ligne-rechg-petro-b6-${index}`}
-                  type="number"
-                  min="0"
-                  value={ligne.recharges_petro_b6 ?? ''}
-                  onChange={(e) => onUpdate(index, 'recharges_petro_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
-                  placeholder="0"
-                />
-              </div>
+            <div className={`grid ${isB12Only ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+              {!isB12Only && (
+                <div>
+                  <Label htmlFor={`ligne-rechg-petro-b6-${index}`}>Recharges B6</Label>
+                  <Input
+                    id={`ligne-rechg-petro-b6-${index}`}
+                    type="number"
+                    min="0"
+                    value={ligne.recharges_petro_b6 ?? ''}
+                    onChange={(e) => onUpdate(index, 'recharges_petro_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor={`ligne-rechg-petro-b12-${index}`}>Recharges B12</Label>
                 <Input
@@ -109,18 +111,20 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
 
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">TOTAL ENERGIES</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`ligne-rechg-total-b6-${index}`}>Recharges B6</Label>
-                <Input
-                  id={`ligne-rechg-total-b6-${index}`}
-                  type="number"
-                  min="0"
-                  value={ligne.recharges_total_b6 ?? ''}
-                  onChange={(e) => onUpdate(index, 'recharges_total_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
-                  placeholder="0"
-                />
-              </div>
+            <div className={`grid ${isB12Only ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+              {!isB12Only && (
+                <div>
+                  <Label htmlFor={`ligne-rechg-total-b6-${index}`}>Recharges B6</Label>
+                  <Input
+                    id={`ligne-rechg-total-b6-${index}`}
+                    type="number"
+                    min="0"
+                    value={ligne.recharges_total_b6 ?? ''}
+                    onChange={(e) => onUpdate(index, 'recharges_total_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor={`ligne-rechg-total-b12-${index}`}>Recharges B12</Label>
                 <Input
@@ -137,18 +141,20 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
 
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">VIVO ENERGIES</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`ligne-rechg-vivo-b6-${index}`}>Recharges B6</Label>
-                <Input
-                  id={`ligne-rechg-vivo-b6-${index}`}
-                  type="number"
-                  min="0"
-                  value={ligne.recharges_vivo_b6 ?? ''}
-                  onChange={(e) => onUpdate(index, 'recharges_vivo_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
-                  placeholder="0"
-                />
-              </div>
+            <div className={`grid ${isB12Only ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+              {!isB12Only && (
+                <div>
+                  <Label htmlFor={`ligne-rechg-vivo-b6-${index}`}>Recharges B6</Label>
+                  <Input
+                    id={`ligne-rechg-vivo-b6-${index}`}
+                    type="number"
+                    min="0"
+                    value={ligne.recharges_vivo_b6 ?? ''}
+                    onChange={(e) => onUpdate(index, 'recharges_vivo_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor={`ligne-rechg-vivo-b12-${index}`}>Recharges B12</Label>
                 <Input
@@ -177,18 +183,20 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
           
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">PETRO IVOIRE</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`ligne-consig-petro-b6-${index}`}>Consignes B6</Label>
-                <Input
-                  id={`ligne-consig-petro-b6-${index}`}
-                  type="number"
-                  min="0"
-                  value={ligne.consignes_petro_b6 ?? ''}
-                  onChange={(e) => onUpdate(index, 'consignes_petro_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
-                  placeholder="0"
-                />
-              </div>
+            <div className={`grid ${isB12Only ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+              {!isB12Only && (
+                <div>
+                  <Label htmlFor={`ligne-consig-petro-b6-${index}`}>Consignes B6</Label>
+                  <Input
+                    id={`ligne-consig-petro-b6-${index}`}
+                    type="number"
+                    min="0"
+                    value={ligne.consignes_petro_b6 ?? ''}
+                    onChange={(e) => onUpdate(index, 'consignes_petro_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor={`ligne-consig-petro-b12-${index}`}>Consignes B12</Label>
                 <Input
@@ -205,18 +213,20 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
 
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">TOTAL ENERGIES</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`ligne-consig-total-b6-${index}`}>Consignes B6</Label>
-                <Input
-                  id={`ligne-consig-total-b6-${index}`}
-                  type="number"
-                  min="0"
-                  value={ligne.consignes_total_b6 ?? ''}
-                  onChange={(e) => onUpdate(index, 'consignes_total_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
-                  placeholder="0"
-                />
-              </div>
+            <div className={`grid ${isB12Only ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+              {!isB12Only && (
+                <div>
+                  <Label htmlFor={`ligne-consig-total-b6-${index}`}>Consignes B6</Label>
+                  <Input
+                    id={`ligne-consig-total-b6-${index}`}
+                    type="number"
+                    min="0"
+                    value={ligne.consignes_total_b6 ?? ''}
+                    onChange={(e) => onUpdate(index, 'consignes_total_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor={`ligne-consig-total-b12-${index}`}>Consignes B12</Label>
                 <Input
@@ -233,18 +243,20 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
 
           <div className="border rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-orange-500">VIVO ENERGIES</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`ligne-consig-vivo-b6-${index}`}>Consignes B6</Label>
-                <Input
-                  id={`ligne-consig-vivo-b6-${index}`}
-                  type="number"
-                  min="0"
-                  value={ligne.consignes_vivo_b6 ?? ''}
-                  onChange={(e) => onUpdate(index, 'consignes_vivo_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
-                  placeholder="0"
-                />
-              </div>
+            <div className={`grid ${isB12Only ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
+              {!isB12Only && (
+                <div>
+                  <Label htmlFor={`ligne-consig-vivo-b6-${index}`}>Consignes B6</Label>
+                  <Input
+                    id={`ligne-consig-vivo-b6-${index}`}
+                    type="number"
+                    min="0"
+                    value={ligne.consignes_vivo_b6 ?? ''}
+                    onChange={(e) => onUpdate(index, 'consignes_vivo_b6', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor={`ligne-consig-vivo-b12-${index}`}>Consignes B12</Label>
                 <Input
