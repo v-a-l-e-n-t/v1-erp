@@ -19,7 +19,6 @@ export type Database = {
           action_corrective: string | null
           created_at: string
           description: string | null
-          equipement: string | null
           etape_ligne: Database["public"]["Enums"]["etape_ligne"] | null
           heure_debut: string
           heure_fin: string
@@ -33,7 +32,6 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
-          equipement?: string | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
           heure_debut: string
           heure_fin: string
@@ -47,7 +45,6 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
-          equipement?: string | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
           heure_debut?: string
           heure_fin?: string
@@ -233,6 +230,10 @@ export type Database = {
           consignes_vivo_b12: number | null
           consignes_vivo_b6: number | null
           created_at: string | null
+          cumul_consignes_b12: number | null
+          cumul_consignes_b6: number | null
+          cumul_recharges_b12: number | null
+          cumul_recharges_b6: number | null
           id: string
           numero_ligne: number
           recharges_petro_b12: number | null
@@ -242,6 +243,7 @@ export type Database = {
           recharges_vivo_b12: number | null
           recharges_vivo_b6: number | null
           shift_id: string
+          tonnage_ligne: number | null
           updated_at: string | null
         }
         Insert: {
@@ -253,6 +255,10 @@ export type Database = {
           consignes_vivo_b12?: number | null
           consignes_vivo_b6?: number | null
           created_at?: string | null
+          cumul_consignes_b12?: number | null
+          cumul_consignes_b6?: number | null
+          cumul_recharges_b12?: number | null
+          cumul_recharges_b6?: number | null
           id?: string
           numero_ligne: number
           recharges_petro_b12?: number | null
@@ -262,6 +268,7 @@ export type Database = {
           recharges_vivo_b12?: number | null
           recharges_vivo_b6?: number | null
           shift_id: string
+          tonnage_ligne?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -273,6 +280,10 @@ export type Database = {
           consignes_vivo_b12?: number | null
           consignes_vivo_b6?: number | null
           created_at?: string | null
+          cumul_consignes_b12?: number | null
+          cumul_consignes_b6?: number | null
+          cumul_recharges_b12?: number | null
+          cumul_recharges_b6?: number | null
           id?: string
           numero_ligne?: number
           recharges_petro_b12?: number | null
@@ -282,6 +293,7 @@ export type Database = {
           recharges_vivo_b12?: number | null
           recharges_vivo_b6?: number | null
           shift_id?: string
+          tonnage_ligne?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -307,6 +319,8 @@ export type Database = {
           chef_ligne_id: string | null
           chef_quart_id: string | null
           created_at: string
+          cumul_consignes_total: number | null
+          cumul_recharges_total: number | null
           date: string
           heure_debut_reelle: string
           heure_debut_theorique: string
@@ -315,6 +329,8 @@ export type Database = {
           id: string
           ligne: Database["public"]["Enums"]["ligne_type"]
           shift_type: Database["public"]["Enums"]["shift_type"]
+          temps_arret_total_minutes: number | null
+          tonnage_total: number | null
           updated_at: string
           user_id: string | null
         }
@@ -323,6 +339,8 @@ export type Database = {
           chef_ligne_id?: string | null
           chef_quart_id?: string | null
           created_at?: string
+          cumul_consignes_total?: number | null
+          cumul_recharges_total?: number | null
           date: string
           heure_debut_reelle: string
           heure_debut_theorique: string
@@ -331,6 +349,8 @@ export type Database = {
           id?: string
           ligne: Database["public"]["Enums"]["ligne_type"]
           shift_type: Database["public"]["Enums"]["shift_type"]
+          temps_arret_total_minutes?: number | null
+          tonnage_total?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -339,6 +359,8 @@ export type Database = {
           chef_ligne_id?: string | null
           chef_quart_id?: string | null
           created_at?: string
+          cumul_consignes_total?: number | null
+          cumul_recharges_total?: number | null
           date?: string
           heure_debut_reelle?: string
           heure_debut_theorique?: string
@@ -347,6 +369,8 @@ export type Database = {
           id?: string
           ligne?: Database["public"]["Enums"]["ligne_type"]
           shift_type?: Database["public"]["Enums"]["shift_type"]
+          temps_arret_total_minutes?: number | null
+          tonnage_total?: number | null
           updated_at?: string
           user_id?: string | null
         }

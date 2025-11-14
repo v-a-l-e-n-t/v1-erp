@@ -40,6 +40,10 @@ export interface ProductionShift {
   heure_debut_reelle: string;
   heure_fin_reelle: string;
   bouteilles_produites: number;
+  tonnage_total?: number;
+  cumul_recharges_total?: number;
+  cumul_consignes_total?: number;
+  temps_arret_total_minutes?: number;
   user_id?: string;
 }
 
@@ -60,6 +64,11 @@ export interface LigneProduction {
   consignes_total_b12: number;
   consignes_vivo_b6: number;
   consignes_vivo_b12: number;
+  cumul_recharges_b6?: number;
+  cumul_recharges_b12?: number;
+  cumul_consignes_b6?: number;
+  cumul_consignes_b12?: number;
+  tonnage_ligne?: number;
 }
 
 export interface ArretProduction {
