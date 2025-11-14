@@ -22,7 +22,7 @@ export const loadEntries = async (): Promise<BilanEntry[]> => {
     return (data || []).map((entry: any) => ({
       ...entry,
       receptions: Array.isArray(entry.receptions) 
-        ? (entry.receptions as Array<{ quantity: number; provenance: string }>)
+        ? (entry.receptions as Array<{ quantity: number; navire: string; reception_no: string }>)
         : []
     })) as BilanEntry[];
   } catch (error) {
@@ -55,7 +55,7 @@ export const loadEntryByDate = async (date: string): Promise<BilanEntry | null> 
     return {
       ...data,
       receptions: Array.isArray(data.receptions) 
-        ? (data.receptions as Array<{ quantity: number; provenance: string }>)
+        ? (data.receptions as Array<{ quantity: number; navire: string; reception_no: string }>)
         : []
     } as BilanEntry;
   } catch (error) {
@@ -152,7 +152,7 @@ export const exportToCSV = (entries: BilanEntry[]): void => {
   ];
 
   const rows = entries.map(entry => {
-    const receptionsStr = entry.receptions.map(r => `${formatNumberValue(r.quantity)} Kg de ${r.provenance}`).join('; ');
+    const receptionsStr = entry.receptions.map(r => `${formatNumberValue(r.quantity)} Kg - Navire: ${r.navire} - N°${r.reception_no}`).join('; ');
     return [
       entry.date,
       formatNumberValue(entry.stock_initial),
@@ -210,7 +210,7 @@ export const exportToExcel = (entries: BilanEntry[]): void => {
   // Add data rows
   entries.forEach(entry => {
     const receptionsStr = entry.receptions
-      .map(r => `${formatNumberValue(r.quantity)} Kg de ${r.provenance}`)
+      .map(r => `${formatNumberValue(r.quantity)} Kg - Navire: ${r.navire} - N°${r.reception_no}`)
       .join('; ');
     
     worksheetData.push([
@@ -284,7 +284,7 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
     entry.receptions.forEach((r, idx) => {
       tableData.push([
         `  Réception ${idx + 1}`,
-        `${r.quantity.toFixed(3)}kg de ${r.provenance}`
+        `${r.quantity.toFixed(3)}kg - Navire: ${r.navire} - N°${r.reception_no}`
       ]);
     });
   }
@@ -394,7 +394,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
   // Prepare table data
   const tableData = entries.map(entry => {
     const receptionsStr = entry.receptions
-      .map(r => `${formatNumberValue(r.quantity)} Kg - ${r.provenance}`)
+      .map(r => `${formatNumberValue(r.quantity)} Kg - Navire: ${r.navire} - N°${r.reception_no}`)
       .join('\n');
     
     return [

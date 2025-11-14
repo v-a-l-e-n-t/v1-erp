@@ -7,10 +7,14 @@ export const receptionSchema = z.object({
     .refine(val => !isNaN(parseFloat(val)), 'Quantité invalide')
     .refine(val => parseFloat(val) >= 0, 'La quantité doit être positive')
     .refine(val => parseFloat(val) <= 10000000, 'Quantité trop élevée (max 10 000 000 kg)'),
-  provenance: z.string()
+  navire: z.string()
     .trim()
-    .min(1, 'La provenance est requise')
-    .max(100, 'La provenance ne peut pas dépasser 100 caractères')
+    .min(1, 'Le navire est requis')
+    .max(100, 'Le navire ne peut pas dépasser 100 caractères'),
+  reception_no: z.string()
+    .trim()
+    .min(1, 'Le numéro de réception est requis')
+    .max(50, 'Le numéro de réception ne peut pas dépasser 50 caractères')
 });
 
 // Schema for the full bilan form
@@ -34,17 +38,55 @@ export const bilanFormSchema = z.object({
     .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
   receptions: z.array(receptionSchema)
     .min(0),
-  sorties_vrac: z.string()
+  // Sorties vrac par client
+  sorties_vrac_simam: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
     .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
-  sorties_conditionnees: z.string()
+  sorties_vrac_petro_ivoire: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
     .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
-  fuyardes: z.string()
+  sorties_vrac_vivo_energies: z.string()
+    .transform(val => val.trim() === '' ? '0' : val)
+    .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
+    .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
+    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+  sorties_vrac_total_energies: z.string()
+    .transform(val => val.trim() === '' ? '0' : val)
+    .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
+    .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
+    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+  // Sorties conditionnées par client
+  sorties_conditionnees_petro_ivoire: z.string()
+    .transform(val => val.trim() === '' ? '0' : val)
+    .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
+    .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
+    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+  sorties_conditionnees_vivo_energies: z.string()
+    .transform(val => val.trim() === '' ? '0' : val)
+    .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
+    .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
+    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+  sorties_conditionnees_total_energies: z.string()
+    .transform(val => val.trim() === '' ? '0' : val)
+    .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
+    .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
+    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+  // Fuyardes par client
+  fuyardes_petro_ivoire: z.string()
+    .transform(val => val.trim() === '' ? '0' : val)
+    .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
+    .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
+    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+  fuyardes_vivo_energies: z.string()
+    .transform(val => val.trim() === '' ? '0' : val)
+    .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
+    .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
+    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+  fuyardes_total_energies: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')

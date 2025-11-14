@@ -13,13 +13,36 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
   // Process receptions with precise decimal arithmetic (already in kg)
   const receptions = formData.receptions.map(r => ({
     quantity: new Decimal(r.quantity || 0).toNumber(),
-    provenance: r.provenance
+    navire: r.navire,
+    reception_no: r.reception_no
   }));
   const reception_gpl = receptions.reduce((sum, r) => sum.plus(r.quantity), new Decimal(0));
   
-  const sorties_vrac = new Decimal(formData.sorties_vrac || 0);
-  const sorties_conditionnees = new Decimal(formData.sorties_conditionnees || 0);
-  const fuyardes = new Decimal(formData.fuyardes || 0);
+  // Calculate sorties vrac total
+  const sorties_vrac_simam = new Decimal(formData.sorties_vrac_simam || 0);
+  const sorties_vrac_petro_ivoire = new Decimal(formData.sorties_vrac_petro_ivoire || 0);
+  const sorties_vrac_vivo_energies = new Decimal(formData.sorties_vrac_vivo_energies || 0);
+  const sorties_vrac_total_energies = new Decimal(formData.sorties_vrac_total_energies || 0);
+  const sorties_vrac = sorties_vrac_simam
+    .plus(sorties_vrac_petro_ivoire)
+    .plus(sorties_vrac_vivo_energies)
+    .plus(sorties_vrac_total_energies);
+  
+  // Calculate sorties conditionnées total
+  const sorties_conditionnees_petro_ivoire = new Decimal(formData.sorties_conditionnees_petro_ivoire || 0);
+  const sorties_conditionnees_vivo_energies = new Decimal(formData.sorties_conditionnees_vivo_energies || 0);
+  const sorties_conditionnees_total_energies = new Decimal(formData.sorties_conditionnees_total_energies || 0);
+  const sorties_conditionnees = sorties_conditionnees_petro_ivoire
+    .plus(sorties_conditionnees_vivo_energies)
+    .plus(sorties_conditionnees_total_energies);
+  
+  // Calculate fuyardes total
+  const fuyardes_petro_ivoire = new Decimal(formData.fuyardes_petro_ivoire || 0);
+  const fuyardes_vivo_energies = new Decimal(formData.fuyardes_vivo_energies || 0);
+  const fuyardes_total_energies = new Decimal(formData.fuyardes_total_energies || 0);
+  const fuyardes = fuyardes_petro_ivoire
+    .plus(fuyardes_vivo_energies)
+    .plus(fuyardes_total_energies);
   const spheres_final = new Decimal(formData.spheres_final || 0);
   const bouteilles_final = new Decimal(formData.bouteilles_final || 0);
   const reservoirs_final = new Decimal(formData.reservoirs_final || 0);
@@ -54,8 +77,18 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
     stock_initial: stock_initial.toNumber(),
     receptions,
     reception_gpl: reception_gpl.toNumber(),
+    sorties_vrac_simam: sorties_vrac_simam.toNumber(),
+    sorties_vrac_petro_ivoire: sorties_vrac_petro_ivoire.toNumber(),
+    sorties_vrac_vivo_energies: sorties_vrac_vivo_energies.toNumber(),
+    sorties_vrac_total_energies: sorties_vrac_total_energies.toNumber(),
     sorties_vrac: sorties_vrac.toNumber(),
+    sorties_conditionnees_petro_ivoire: sorties_conditionnees_petro_ivoire.toNumber(),
+    sorties_conditionnees_vivo_energies: sorties_conditionnees_vivo_energies.toNumber(),
+    sorties_conditionnees_total_energies: sorties_conditionnees_total_energies.toNumber(),
     sorties_conditionnees: sorties_conditionnees.toNumber(),
+    fuyardes_petro_ivoire: fuyardes_petro_ivoire.toNumber(),
+    fuyardes_vivo_energies: fuyardes_vivo_energies.toNumber(),
+    fuyardes_total_energies: fuyardes_total_energies.toNumber(),
     fuyardes: fuyardes.toNumber(),
     cumul_sorties: cumul_sorties.toNumber(),
     spheres_final: spheres_final.toNumber(),

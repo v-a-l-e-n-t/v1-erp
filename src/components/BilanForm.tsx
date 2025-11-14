@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 import { BilanFormData, BilanEntry } from '@/types/balance';
 import { calculateBilan, formatNumber, getNatureColor } from '@/utils/calculations';
 import { bilanFormSchema } from '@/utils/validation';
@@ -29,19 +30,29 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
     bouteilles_initial: '',
     reservoirs_initial: '',
     receptions: [],
-    sorties_vrac: '',
-    sorties_conditionnees: '',
-    fuyardes: '',
+    sorties_vrac_simam: '',
+    sorties_vrac_petro_ivoire: '',
+    sorties_vrac_vivo_energies: '',
+    sorties_vrac_total_energies: '',
+    sorties_conditionnees_petro_ivoire: '',
+    sorties_conditionnees_vivo_energies: '',
+    sorties_conditionnees_total_energies: '',
+    fuyardes_petro_ivoire: '',
+    fuyardes_vivo_energies: '',
+    fuyardes_total_energies: '',
     spheres_final: '',
     bouteilles_final: '',
     reservoirs_final: '',
     notes: '',
   });
 
+  const [calculated, setCalculated] = useState<ReturnType<typeof calculateBilan> | null>(null);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+
   // Pré-remplir avec les données d'hier ou l'entrée à éditer
   useEffect(() => {
     if (editEntry) {
-      // Mode édition : pré-remplir avec toutes les données (déjà en kg)
+      // Mode édition : pré-remplir avec toutes les données
       setFormData({
         date: editEntry.date,
         spheres_initial: editEntry.spheres_initial.toString(),
@@ -49,18 +60,27 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
         reservoirs_initial: editEntry.reservoirs_initial.toString(),
         receptions: editEntry.receptions.map(r => ({
           quantity: r.quantity.toString(),
-          provenance: r.provenance
+          navire: r.navire,
+          reception_no: r.reception_no
         })),
-        sorties_vrac: editEntry.sorties_vrac.toString(),
-        sorties_conditionnees: editEntry.sorties_conditionnees.toString(),
-        fuyardes: editEntry.fuyardes.toString(),
+        sorties_vrac_simam: editEntry.sorties_vrac_simam.toString(),
+        sorties_vrac_petro_ivoire: editEntry.sorties_vrac_petro_ivoire.toString(),
+        sorties_vrac_vivo_energies: editEntry.sorties_vrac_vivo_energies.toString(),
+        sorties_vrac_total_energies: editEntry.sorties_vrac_total_energies.toString(),
+        sorties_conditionnees_petro_ivoire: editEntry.sorties_conditionnees_petro_ivoire.toString(),
+        sorties_conditionnees_vivo_energies: editEntry.sorties_conditionnees_vivo_energies.toString(),
+        sorties_conditionnees_total_energies: editEntry.sorties_conditionnees_total_energies.toString(),
+        fuyardes_petro_ivoire: editEntry.fuyardes_petro_ivoire.toString(),
+        fuyardes_vivo_energies: editEntry.fuyardes_vivo_energies.toString(),
+        fuyardes_total_energies: editEntry.fuyardes_total_energies.toString(),
         spheres_final: editEntry.spheres_final.toString(),
         bouteilles_final: editEntry.bouteilles_final.toString(),
         reservoirs_final: editEntry.reservoirs_final.toString(),
         notes: editEntry.notes || '',
       });
+      setDate(new Date(editEntry.date));
     } else if (previousEntry && !editEntry) {
-      // Mode nouveau : pré-remplir uniquement le stock initial avec le stock final d'hier (déjà en kg)
+      // Mode nouveau : pré-remplir uniquement le stock initial
       setFormData(prev => ({
         ...prev,
         spheres_initial: previousEntry.spheres_final.toString(),
@@ -103,19 +123,24 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
     }
   }, [formData.date, editEntry]);
 
-  const [calculated, setCalculated] = useState<ReturnType<typeof calculateBilan> | null>(null);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-  const handleChange = (field: keyof BilanFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setCalculated(null);
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      setDate(selectedDate);
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      setFormData(prev => ({ ...prev, date: dateStr }));
+    }
   };
 
   const addReception = () => {
     setFormData(prev => ({
       ...prev,
-      receptions: [...prev.receptions, { quantity: '', provenance: '' }]
+      receptions: [...prev.receptions, { quantity: '', navire: '', reception_no: '' }]
     }));
-    setCalculated(null);
   };
 
   const removeReception = (index: number) => {
@@ -123,352 +148,501 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
       ...prev,
       receptions: prev.receptions.filter((_, i) => i !== index)
     }));
-    setCalculated(null);
   };
 
-  const updateReception = (index: number, field: 'quantity' | 'provenance', value: string) => {
+  const updateReception = (index: number, field: 'quantity' | 'navire' | 'reception_no', value: string) => {
     setFormData(prev => ({
       ...prev,
       receptions: prev.receptions.map((r, i) => 
         i === index ? { ...r, [field]: value } : r
       )
     }));
-    setCalculated(null);
   };
 
   const handleCalculate = () => {
-    // Validate form data
-    const validation = bilanFormSchema.safeParse(formData);
-    
-    if (!validation.success) {
-      const firstError = validation.error.errors[0];
-      if (import.meta.env.DEV) {
-        console.error('Validation errors:', validation.error.errors);
+    try {
+      const result = bilanFormSchema.safeParse(formData);
+      
+      if (!result.success) {
+        const errors = result.error.errors.map(err => 
+          `${err.path.join(' → ')}: ${err.message}`
+        ).join('\n');
+        
+        toast.error('Erreur de validation', {
+          description: errors,
+        });
+        return;
       }
-      toast.error('Validation échouée', {
-        description: `${firstError.path.join('.')} : ${firstError.message}`
-      });
-      return;
-    }
 
-    const result = calculateBilan(formData);
-    setCalculated(result);
+      const calculatedData = calculateBilan(formData);
+      setCalculated(calculatedData);
+      
+      toast.success('Calcul effectué avec succès');
+    } catch (error) {
+      toast.error('Erreur lors du calcul', {
+        description: error instanceof Error ? error.message : 'Une erreur est survenue',
+      });
+    }
   };
 
   const handleSave = () => {
-    if (calculated) {
-      onSave(calculated, editEntry?.id);
-      // Reset form only if not editing
-      if (!editEntry) {
-        setFormData({
-          date: new Date().toISOString().split('T')[0],
-          spheres_initial: '',
-          bouteilles_initial: '',
-          reservoirs_initial: '',
-          receptions: [],
-          sorties_vrac: '',
-          sorties_conditionnees: '',
-          fuyardes: '',
-          spheres_final: '',
-          bouteilles_final: '',
-          reservoirs_final: '',
-          notes: '',
-        });
-      }
-      setCalculated(null);
+    if (!calculated) {
+      toast.error('Veuillez d\'abord calculer le bilan');
+      return;
+    }
+
+    if (editEntry) {
+      onSave(calculated, editEntry.id);
+    } else {
+      onSave(calculated);
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Date Card */}
       <Card>
         <CardHeader>
-          <CardTitle>{editEntry ? 'Modifier le bilan' : 'Saisie du bilan journalier'}</CardTitle>
-          <CardDescription>Remplissez tous les champs en kilogrammes (kg)</CardDescription>
+          <CardTitle>Date</CardTitle>
+          <CardDescription>Sélectionnez la date du bilan</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Date */}
-          <div className="space-y-2">
-            <Label htmlFor="date">Date du bilan</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="date"
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.date ? (
-                    format(new Date(formData.date), "PPP", { locale: fr })
-                  ) : (
-                    <span>Sélectionner une date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.date ? new Date(formData.date) : undefined}
-                  onSelect={(date) => {
-                    if (date) {
-                      handleChange('date', date.toISOString().split('T')[0]);
-                    }
-                  }}
-                  initialFocus
-                  locale={fr}
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Stock Initial */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Stock initial (d'hier matin)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="spheres_initial">Sphères (kg)</Label>
-                <Input
-                  id="spheres_initial"
-                  type="number"
-                  step="0.01"
-                  value={formData.spheres_initial}
-                  onChange={(e) => handleChange('spheres_initial', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bouteilles_initial">Bouteilles pleines (kg)</Label>
-                <Input
-                  id="bouteilles_initial"
-                  type="number"
-                  step="0.01"
-                  value={formData.bouteilles_initial}
-                  onChange={(e) => handleChange('bouteilles_initial', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reservoirs_initial">Réservoirs centre (kg)</Label>
-                <Input
-                  id="reservoirs_initial"
-                  type="number"
-                  step="0.01"
-                  value={formData.reservoirs_initial}
-                  onChange={(e) => handleChange('reservoirs_initial', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Réceptions */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Réceptions</h3>
+        <CardContent>
+          <Popover>
+            <PopoverTrigger asChild>
               <Button
-                type="button"
                 variant="outline"
-                size="sm"
-                onClick={addReception}
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !date && "text-muted-foreground"
+                )}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter une réception
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, 'PPP', { locale: fr }) : <span>Sélectionner une date</span>}
               </Button>
-            </div>
-            {formData.receptions.map((reception, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
-                <div className="space-y-2">
-                  <Label htmlFor={`reception_${index}`}>Réception GPL (kg)</Label>
-                  <Input
-                    id={`reception_${index}`}
-                    type="number"
-                    step="0.01"
-                    value={reception.quantity}
-                    onChange={(e) => updateReception(index, 'quantity', e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`provenance_${index}`}>Provenance</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id={`provenance_${index}`}
-                      type="text"
-                      value={reception.provenance}
-                      onChange={(e) => updateReception(index, 'provenance', e.target.value)}
-                      placeholder="Fournisseur ou source"
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => removeReception(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={handleDateSelect}
+                initialFocus
+                locale={fr}
+              />
+            </PopoverContent>
+          </Popover>
+        </CardContent>
+      </Card>
 
-          {/* Sorties */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Sorties</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sorties_vrac">Sorties vrac (kg)</Label>
-                <Input
-                  id="sorties_vrac"
-                  type="number"
-                  step="0.01"
-                  value={formData.sorties_vrac}
-                  onChange={(e) => handleChange('sorties_vrac', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sorties_conditionnees">Sorties conditionnées (kg)</Label>
-                <Input
-                  id="sorties_conditionnees"
-                  type="number"
-                  step="0.01"
-                  value={formData.sorties_conditionnees}
-                  onChange={(e) => handleChange('sorties_conditionnees', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fuyardes">Fuyardes / Pertes (kg)</Label>
-                <Input
-                  id="fuyardes"
-                  type="number"
-                  step="0.01"
-                  value={formData.fuyardes}
-                  onChange={(e) => handleChange('fuyardes', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Stock Final */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Stock final (mesuré ce matin)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="spheres_final">Sphères (kg)</Label>
-                <Input
-                  id="spheres_final"
-                  type="number"
-                  step="0.01"
-                  value={formData.spheres_final}
-                  onChange={(e) => handleChange('spheres_final', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bouteilles_final">Bouteilles pleines (kg)</Label>
-                <Input
-                  id="bouteilles_final"
-                  type="number"
-                  step="0.01"
-                  value={formData.bouteilles_final}
-                  onChange={(e) => handleChange('bouteilles_final', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reservoirs_final">Réservoirs (kg)</Label>
-                <Input
-                  id="reservoirs_final"
-                  type="number"
-                  step="0.01"
-                  value={formData.reservoirs_final}
-                  onChange={(e) => handleChange('reservoirs_final', e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Notes */}
+      {/* Stock Initial Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Stock Initial</CardTitle>
+          <CardDescription>Quantités en kilogrammes (kg)</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes / Justification d'écart (facultatif)</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => handleChange('notes', e.target.value)}
-              placeholder="Commentaires, explications..."
-              rows={3}
+            <Label htmlFor="spheres_initial">Sphères (kg)</Label>
+            <Input
+              type="number"
+              step="0.001"
+              id="spheres_initial"
+              name="spheres_initial"
+              value={formData.spheres_initial}
+              onChange={handleChange}
+              placeholder="0.000"
             />
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <Button onClick={handleCalculate} className="flex-1">
-              <Calculator className="mr-2 h-4 w-4" />
-              Calculer le bilan
-            </Button>
+          <div className="space-y-2">
+            <Label htmlFor="bouteilles_initial">Bouteilles (kg)</Label>
+            <Input
+              type="number"
+              step="0.001"
+              id="bouteilles_initial"
+              name="bouteilles_initial"
+              value={formData.bouteilles_initial}
+              onChange={handleChange}
+              placeholder="0.000"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reservoirs_initial">Réservoirs (kg)</Label>
+            <Input
+              type="number"
+              step="0.001"
+              id="reservoirs_initial"
+              name="reservoirs_initial"
+              value={formData.reservoirs_initial}
+              onChange={handleChange}
+              placeholder="0.000"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Results Card */}
+      {/* Réceptions Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Réceptions GPL</CardTitle>
+              <CardDescription>Quantités en kilogrammes (kg)</CardDescription>
+            </div>
+            <Button onClick={addReception} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {formData.receptions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Aucune réception ajoutée
+            </p>
+          ) : (
+            formData.receptions.map((reception, index) => (
+              <div key={index} className="flex gap-4 items-end">
+                <div className="flex-1 space-y-2">
+                  <Label>Réception GPL (kg)</Label>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    value={reception.quantity}
+                    onChange={(e) => updateReception(index, 'quantity', e.target.value)}
+                    placeholder="0.000"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>Navire</Label>
+                  <Input
+                    type="text"
+                    value={reception.navire}
+                    onChange={(e) => updateReception(index, 'navire', e.target.value)}
+                    placeholder="Nom du navire"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>Réception N°</Label>
+                  <Input
+                    type="text"
+                    value={reception.reception_no}
+                    onChange={(e) => updateReception(index, 'reception_no', e.target.value)}
+                    placeholder="Numéro"
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => removeReception(index)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sorties Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sorties</CardTitle>
+          <CardDescription>Quantités détaillées par client en kilogrammes (kg)</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Sorties Vrac */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Sorties Vrac</h3>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="sorties_vrac_simam">SIMAM (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="sorties_vrac_simam"
+                  name="sorties_vrac_simam"
+                  value={formData.sorties_vrac_simam}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sorties_vrac_petro_ivoire">PETRO IVOIRE (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="sorties_vrac_petro_ivoire"
+                  name="sorties_vrac_petro_ivoire"
+                  value={formData.sorties_vrac_petro_ivoire}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sorties_vrac_vivo_energies">VIVO ENERGIES (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="sorties_vrac_vivo_energies"
+                  name="sorties_vrac_vivo_energies"
+                  value={formData.sorties_vrac_vivo_energies}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sorties_vrac_total_energies">TOTAL ENERGIES (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="sorties_vrac_total_energies"
+                  name="sorties_vrac_total_energies"
+                  value={formData.sorties_vrac_total_energies}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Sorties Conditionnées */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Sorties Conditionnées</h3>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="sorties_conditionnees_petro_ivoire">PETRO IVOIRE (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="sorties_conditionnees_petro_ivoire"
+                  name="sorties_conditionnees_petro_ivoire"
+                  value={formData.sorties_conditionnees_petro_ivoire}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sorties_conditionnees_vivo_energies">VIVO ENERGIES (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="sorties_conditionnees_vivo_energies"
+                  name="sorties_conditionnees_vivo_energies"
+                  value={formData.sorties_conditionnees_vivo_energies}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sorties_conditionnees_total_energies">TOTAL ENERGIES (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="sorties_conditionnees_total_energies"
+                  name="sorties_conditionnees_total_energies"
+                  value={formData.sorties_conditionnees_total_energies}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Fuyardes */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Fuyardes</h3>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="fuyardes_petro_ivoire">PETRO IVOIRE (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="fuyardes_petro_ivoire"
+                  name="fuyardes_petro_ivoire"
+                  value={formData.fuyardes_petro_ivoire}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fuyardes_vivo_energies">VIVO ENERGIES (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="fuyardes_vivo_energies"
+                  name="fuyardes_vivo_energies"
+                  value={formData.fuyardes_vivo_energies}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fuyardes_total_energies">TOTAL ENERGIES (kg)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  id="fuyardes_total_energies"
+                  name="fuyardes_total_energies"
+                  value={formData.fuyardes_total_energies}
+                  onChange={handleChange}
+                  placeholder="0.000"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stock Final Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Stock Final</CardTitle>
+          <CardDescription>Quantités en kilogrammes (kg)</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="spheres_final">Sphères (kg)</Label>
+            <Input
+              type="number"
+              step="0.001"
+              id="spheres_final"
+              name="spheres_final"
+              value={formData.spheres_final}
+              onChange={handleChange}
+              placeholder="0.000"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="bouteilles_final">Bouteilles (kg)</Label>
+            <Input
+              type="number"
+              step="0.001"
+              id="bouteilles_final"
+              name="bouteilles_final"
+              value={formData.bouteilles_final}
+              onChange={handleChange}
+              placeholder="0.000"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reservoirs_final">Réservoirs (kg)</Label>
+            <Input
+              type="number"
+              step="0.001"
+              id="reservoirs_final"
+              name="reservoirs_final"
+              value={formData.reservoirs_final}
+              onChange={handleChange}
+              placeholder="0.000"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notes Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notes</CardTitle>
+          <CardDescription>Informations complémentaires</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            id="notes"
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            placeholder="Ajouter des notes..."
+            rows={4}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Résultats */}
       {calculated && (
-        <Card className="border-2">
+        <Card className="border-primary">
           <CardHeader>
-            <CardTitle>Résultats du calcul</CardTitle>
+            <CardTitle>Résultats du Calcul</CardTitle>
+            <CardDescription>Bilan matière GPL</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Stock initial</p>
-                <p className="text-2xl font-bold">{formatNumber(calculated.stock_initial)}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Stock Initial</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.stock_initial)} Kg</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Stock théorique</p>
-                <p className="text-2xl font-bold">{formatNumber(calculated.stock_theorique)}</p>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Total Réception GPL</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.reception_gpl)} Kg</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Stock final</p>
-                <p className="text-2xl font-bold">{formatNumber(calculated.stock_final)}</p>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Total Sorties Vrac</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.sorties_vrac)} Kg</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Total Sorties Conditionnées</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.sorties_conditionnees)} Kg</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Total Fuyardes</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.fuyardes)} Kg</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Cumul Sorties</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.cumul_sorties)} Kg</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Stock Théorique</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.stock_theorique)} Kg</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Stock Final</Label>
+                <p className="text-2xl font-bold">{formatNumber(calculated.stock_final)} Kg</p>
               </div>
             </div>
-
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Bilan</p>
-                  <p className={`text-3xl font-bold ${getNatureColor(calculated.nature)}`}>
-                    {formatNumber(calculated.bilan)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground mb-1">Nature</p>
-                  <div className={`inline-flex items-center px-4 py-2 rounded-lg font-semibold text-lg ${
-                    calculated.nature === 'Positif' ? 'bg-success/10 text-success' :
-                    calculated.nature === 'Négatif' ? 'bg-destructive/10 text-destructive' :
-                    'bg-muted text-muted-foreground'
-                  }`}>
-                    {calculated.nature.toUpperCase()}
-                  </div>
-                </div>
+            
+            <Separator />
+            
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Bilan</Label>
+              <div className="flex items-center gap-4">
+                <p className={cn("text-3xl font-bold", getNatureColor(calculated.nature))}>
+                  {formatNumber(calculated.bilan)} Kg
+                </p>
+                <span className={cn("px-3 py-1 rounded-full text-sm font-medium", 
+                  calculated.nature === 'Positif' ? 'bg-success/10 text-success' : 
+                  calculated.nature === 'Négatif' ? 'bg-destructive/10 text-destructive' : 
+                  'bg-muted text-muted-foreground'
+                )}>
+                  {calculated.nature}
+                </span>
               </div>
             </div>
-
-            <Button onClick={handleSave} className="w-full" size="lg">
-              <Save className="mr-2 h-4 w-4" />
-              {editEntry ? 'Mettre à jour' : 'Valider et enregistrer'}
-            </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Actions */}
+      <div className="flex gap-4">
+        <Button onClick={handleCalculate} className="flex-1" size="lg">
+          <Calculator className="mr-2 h-5 w-5" />
+          Calculer le Bilan
+        </Button>
+        {calculated && (
+          <Button onClick={handleSave} variant="default" className="flex-1" size="lg">
+            <Save className="mr-2 h-5 w-5" />
+            Enregistrer
+          </Button>
+        )}
+      </div>
     </div>
   );
 };
