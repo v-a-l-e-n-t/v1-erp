@@ -382,13 +382,6 @@ export type Database = {
             referencedRelation: "chefs_ligne"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "production_shifts_chef_quart_id_fkey"
-            columns: ["chef_quart_id"]
-            isOneToOne: false
-            referencedRelation: "chefs_quart"
-            referencedColumns: ["id"]
-          },
         ]
       }
       sphere_calculations: {
