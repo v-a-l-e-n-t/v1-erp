@@ -146,6 +146,7 @@ export const ProductionShiftForm = () => {
         heure_debut: '',
         heure_fin: '',
         type_arret: 'maintenance_corrective',
+        lignes_concernees: [],
         description: '',
         action_corrective: ''
       }
@@ -178,15 +179,6 @@ export const ProductionShiftForm = () => {
       toast({
         title: "Validation",
         description: "Veuillez renseigner les heures de début et fin réelles",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    if (shift.bouteilles_produites < 0) {
-      toast({
-        title: "Validation",
-        description: "Le nombre de bouteilles ne peut pas être négatif",
         variant: "destructive"
       });
       return false;
@@ -233,8 +225,44 @@ export const ProductionShiftForm = () => {
     setLoading(true);
 
     try {
+      // Calculer les totaux à partir des lignes de production
+      let tonnageTotal = 0;
+      let cumulRechargesTotal = 0;
+      let cumulConsignesTotal = 0;
+      let bouteillesProduites = 0;
+
+      lignes.forEach(ligne => {
+        tonnageTotal += ligne.tonnage_ligne || 0;
+        cumulRechargesTotal += (ligne.cumul_recharges_b6 || 0) + (ligne.cumul_recharges_b12 || 0);
+        cumulConsignesTotal += (ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0);
+        bouteillesProduites += (ligne.cumul_recharges_b6 || 0) + (ligne.cumul_recharges_b12 || 0) + 
+                               (ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0);
+      });
+
+      // Calculer le temps d'arrêt total en minutes
+      let tempsArretTotalMinutes = 0;
+      arrets.forEach(arret => {
+        if (arret.heure_debut && arret.heure_fin) {
+          const [heureD, minD] = arret.heure_debut.split(':').map(Number);
+          const [heureF, minF] = arret.heure_fin.split(':').map(Number);
+          let dureeMinutes = (heureF * 60 + minF) - (heureD * 60 + minD);
+          
+          // Gérer les cas où l'arrêt traverse minuit
+          if (dureeMinutes < 0) {
+            dureeMinutes += 24 * 60;
+          }
+          
+          tempsArretTotalMinutes += dureeMinutes;
+        }
+      });
+
       const shiftData = {
-        ...shift
+        ...shift,
+        bouteilles_produites: bouteillesProduites,
+        tonnage_total: parseFloat(tonnageTotal.toFixed(3)),
+        cumul_recharges_total: cumulRechargesTotal,
+        cumul_consignes_total: cumulConsignesTotal,
+        temps_arret_total_minutes: tempsArretTotalMinutes
       };
 
       const { data: insertedShift, error: shiftError } = await (supabase as any)
@@ -256,7 +284,7 @@ export const ProductionShiftForm = () => {
         return;
       }
 
-      // Enregistrer les lignes de production
+      // Enregistrer les lignes de production avec tous les champs
       if (lignes.length > 0 && insertedShift) {
         const lignesData = lignes.map(ligne => ({
           shift_id: insertedShift.id,
@@ -273,7 +301,12 @@ export const ProductionShiftForm = () => {
           consignes_total_b6: ligne.consignes_total_b6 || 0,
           consignes_total_b12: ligne.consignes_total_b12 || 0,
           consignes_vivo_b6: ligne.consignes_vivo_b6 || 0,
-          consignes_vivo_b12: ligne.consignes_vivo_b12 || 0
+          consignes_vivo_b12: ligne.consignes_vivo_b12 || 0,
+          cumul_recharges_b6: ligne.cumul_recharges_b6 || 0,
+          cumul_recharges_b12: ligne.cumul_recharges_b12 || 0,
+          cumul_consignes_b6: ligne.cumul_consignes_b6 || 0,
+          cumul_consignes_b12: ligne.cumul_consignes_b12 || 0,
+          tonnage_ligne: ligne.tonnage_ligne || 0
         }));
 
         const { error: lignesError } = await (supabase as any)

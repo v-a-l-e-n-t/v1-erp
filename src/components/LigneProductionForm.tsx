@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,20 +17,32 @@ interface LigneProductionFormProps {
 }
 
 export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemove, isB12Only = false }: LigneProductionFormProps) => {
-  // Calcul du cumul total
-  const cumul = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_petro_b12 || 0) +
-                (ligne.recharges_total_b6 || 0) + (ligne.recharges_total_b12 || 0) +
-                (ligne.recharges_vivo_b6 || 0) + (ligne.recharges_vivo_b12 || 0) +
-                (ligne.consignes_petro_b6 || 0) + (ligne.consignes_petro_b12 || 0) +
-                (ligne.consignes_total_b6 || 0) + (ligne.consignes_total_b12 || 0) +
-                (ligne.consignes_vivo_b6 || 0) + (ligne.consignes_vivo_b12 || 0);
-
+  // Calcul des cumuls par type de bouteille
+  const cumulRechargesB6 = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0);
+  const cumulRechargesB12 = (ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0);
+  const cumulConsignesB6 = (ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0);
+  const cumulConsignesB12 = (ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0);
+  
   // Calcul du tonnage (B6 = 6kg, B12 = 12.5kg)
-  const totalB6 = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0) +
-                  (ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0);
-  const totalB12 = (ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0) +
-                   (ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0);
+  const totalB6 = cumulRechargesB6 + cumulConsignesB6;
+  const totalB12 = cumulRechargesB12 + cumulConsignesB12;
   const tonnage = (totalB6 * 6 + totalB12 * 12.5) / 1000; // Convertir en tonnes
+
+  // Mettre à jour les valeurs calculées dans le parent
+  useEffect(() => {
+    onUpdate(index, 'cumul_recharges_b6', cumulRechargesB6);
+    onUpdate(index, 'cumul_recharges_b12', cumulRechargesB12);
+    onUpdate(index, 'cumul_consignes_b6', cumulConsignesB6);
+    onUpdate(index, 'cumul_consignes_b12', cumulConsignesB12);
+    onUpdate(index, 'tonnage_ligne', parseFloat(tonnage.toFixed(3)));
+  }, [
+    ligne.recharges_petro_b6, ligne.recharges_petro_b12,
+    ligne.recharges_total_b6, ligne.recharges_total_b12,
+    ligne.recharges_vivo_b6, ligne.recharges_vivo_b12,
+    ligne.consignes_petro_b6, ligne.consignes_petro_b12,
+    ligne.consignes_total_b6, ligne.consignes_total_b12,
+    ligne.consignes_vivo_b6, ligne.consignes_vivo_b12
+  ]);
 
   return (
     <Card className="p-4 bg-muted/30">
@@ -72,10 +85,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
           <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
             <h5 className="font-medium text-sm">Quantité Recharges</h5>
             <div className="text-sm font-semibold flex gap-4">
-              {!isB12Only && <span>Cumul B6: {(ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)}</span>}
-              <span>Cumul B12: {(ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0)}</span>
-              <span>TONNAGE: {((((ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0)) * 6 + 
-                      ((ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0)) * 12.5) / 1000).toFixed(3)} T</span>
+              {!isB12Only && <span>Cumul B6: {cumulRechargesB6}</span>}
+              <span>Cumul B12: {cumulRechargesB12}</span>
+              <span>TONNAGE: {((cumulRechargesB6 * 6 + cumulRechargesB12 * 12.5) / 1000).toFixed(3)} T</span>
             </div>
           </div>
           
@@ -174,10 +186,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
           <div className="flex items-center justify-between bg-black text-white py-2 px-3 rounded">
             <h5 className="font-medium text-sm">Quantité Consignes</h5>
             <div className="text-sm font-semibold flex gap-4">
-              {!isB12Only && <span>Cumul B6: {(ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)}</span>}
-              <span>Cumul B12: {(ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0)}</span>
-              <span>TONNAGE: {((((ligne.consignes_petro_b6 || 0) + (ligne.consignes_total_b6 || 0) + (ligne.consignes_vivo_b6 || 0)) * 6 + 
-                      ((ligne.consignes_petro_b12 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_vivo_b12 || 0)) * 12.5) / 1000).toFixed(3)} T</span>
+              {!isB12Only && <span>Cumul B6: {cumulConsignesB6}</span>}
+              <span>Cumul B12: {cumulConsignesB12}</span>
+              <span>TONNAGE: {((cumulConsignesB6 * 6 + cumulConsignesB12 * 12.5) / 1000).toFixed(3)} T</span>
             </div>
           </div>
           
