@@ -224,19 +224,8 @@ export const ProductionShiftForm = () => {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Erreur",
-          description: "Vous devez être connecté",
-          variant: "destructive"
-        });
-        return;
-      }
-
       const shiftData = {
-        ...shift,
-        user_id: user.id
+        ...shift
       };
 
       const { data: insertedShift, error: shiftError } = await (supabase as any)
