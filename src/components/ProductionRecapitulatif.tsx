@@ -64,7 +64,7 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
   const quantiteProduite = cumuls.recharges_b6 + cumuls.recharges_b12 + cumuls.consignes_b6 + cumuls.consignes_b12;
 
   return (
-    <div className="sticky top-0 z-10 bg-background pb-4">
+    <div className="md:sticky top-0 z-10 bg-background pb-4">
       <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Récapitulatif Production</CardTitle>
