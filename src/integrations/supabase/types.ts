@@ -327,7 +327,6 @@ export type Database = {
           heure_fin_reelle: string
           heure_fin_theorique: string
           id: string
-          ligne: Database["public"]["Enums"]["ligne_type"]
           shift_type: Database["public"]["Enums"]["shift_type"]
           temps_arret_total_minutes: number | null
           tonnage_total: number | null
@@ -347,7 +346,6 @@ export type Database = {
           heure_fin_reelle: string
           heure_fin_theorique: string
           id?: string
-          ligne: Database["public"]["Enums"]["ligne_type"]
           shift_type: Database["public"]["Enums"]["shift_type"]
           temps_arret_total_minutes?: number | null
           tonnage_total?: number | null
@@ -367,7 +365,6 @@ export type Database = {
           heure_fin_reelle?: string
           heure_fin_theorique?: string
           id?: string
-          ligne?: Database["public"]["Enums"]["ligne_type"]
           shift_type?: Database["public"]["Enums"]["shift_type"]
           temps_arret_total_minutes?: number | null
           tonnage_total?: number | null

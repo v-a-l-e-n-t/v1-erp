@@ -16,11 +16,9 @@ import {
   ArretProduction,
   LigneProduction,
   ShiftType,
-  LigneType,
   ChefLigne,
   ChefQuart,
-  SHIFT_HOURS,
-  LIGNE_LABELS
+  SHIFT_HOURS
 } from "@/types/production";
 
 export const ProductionShiftForm = () => {
@@ -30,7 +28,6 @@ export const ProductionShiftForm = () => {
   const [shift, setShift] = useState<ProductionShift>({
     date: new Date().toISOString().split('T')[0],
     shift_type: '10h-19h',
-    ligne: 'B6_L1',
     chef_quart_id: '',
     heure_debut_theorique: '10:00',
     heure_fin_theorique: '19:00',
@@ -337,7 +334,6 @@ export const ProductionShiftForm = () => {
       setShift({
         date: new Date().toISOString().split('T')[0],
         shift_type: '10h-19h',
-        ligne: 'B6_L1',
         chef_quart_id: '',
         heure_debut_theorique: '10:00',
         heure_fin_theorique: '19:00',

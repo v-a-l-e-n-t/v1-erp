@@ -83,9 +83,16 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove }: ArretP
                   checked={arret.lignes_concernees?.includes(ligne) || false}
                   onCheckedChange={(checked) => {
                     const current = arret.lignes_concernees || [];
-                    const updated = checked
-                      ? [...current, ligne].sort()
-                      : current.filter(l => l !== ligne);
+                    let updated: number[];
+                    if (checked) {
+                      // Ajouter la ligne si elle n'existe pas déjà
+                      updated = current.includes(ligne) 
+                        ? current 
+                        : [...current, ligne].sort((a, b) => a - b);
+                    } else {
+                      // Retirer la ligne
+                      updated = current.filter(l => l !== ligne);
+                    }
                     onUpdate(index, 'lignes_concernees', updated);
                   }}
                 />
