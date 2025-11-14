@@ -31,7 +31,6 @@ export const ProductionShiftForm = () => {
     date: new Date().toISOString().split('T')[0],
     shift_type: '10h-19h',
     ligne: 'B6_L1',
-    chef_ligne_id: '',
     chef_quart_id: '',
     heure_debut_theorique: '10:00',
     heure_fin_theorique: '19:00',
@@ -166,15 +165,6 @@ export const ProductionShiftForm = () => {
   };
 
   const validateForm = (): boolean => {
-    if (!shift.chef_ligne_id) {
-      toast({
-        title: "Validation",
-        description: "Veuillez sélectionner un chef de ligne",
-        variant: "destructive"
-      });
-      return false;
-    }
-
     if (!shift.chef_quart_id) {
       toast({
         title: "Validation",
@@ -290,7 +280,6 @@ export const ProductionShiftForm = () => {
         date: new Date().toISOString().split('T')[0],
         shift_type: '10h-19h',
         ligne: 'B6_L1',
-        chef_ligne_id: '',
         chef_quart_id: '',
         heure_debut_theorique: '10:00',
         heure_fin_theorique: '19:00',
@@ -387,27 +376,6 @@ export const ProductionShiftForm = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {chefsQuart.map((chef) => (
-                    <SelectItem key={chef.id} value={chef.id}>
-                      {chef.prenom} {chef.nom}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 mt-4">
-            <div>
-              <Label htmlFor="chef-ligne">Chef de Ligne *</Label>
-              <Select
-                value={shift.chef_ligne_id}
-                onValueChange={(value) => handleShiftChange('chef_ligne_id', value)}
-              >
-                <SelectTrigger id="chef-ligne">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chefsLigne.map((chef) => (
                     <SelectItem key={chef.id} value={chef.id}>
                       {chef.prenom} {chef.nom}
                     </SelectItem>

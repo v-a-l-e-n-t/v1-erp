@@ -34,7 +34,6 @@ export interface ProductionShift {
   date: string;
   shift_type: ShiftType;
   ligne: LigneType;
-  chef_ligne_id: string;
   chef_quart_id: string;
   heure_debut_theorique: string;
   heure_fin_theorique: string;
