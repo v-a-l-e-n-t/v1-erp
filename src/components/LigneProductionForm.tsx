@@ -52,7 +52,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
           <Button
             type="button"
             variant="ghost"
-            className="w-full flex items-center justify-between p-4 hover:bg-muted/50"
+            className={`w-full flex items-center justify-between p-4 transition-colors hover:bg-muted/50 ${
+              isOpen ? 'text-orange-500' : 'text-foreground hover:text-orange-500'
+            }`}
           >
             <div className="flex items-center gap-3">
               <span className="font-semibold text-lg">Ligne {index + 1}</span>
