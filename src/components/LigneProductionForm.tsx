@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Minus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LigneProduction, ChefLigne } from "@/types/production";
 
@@ -65,7 +65,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
                 </span>
               )}
             </div>
-            {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            {isOpen ? <Minus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
           </Button>
         </CollapsibleTrigger>
         
