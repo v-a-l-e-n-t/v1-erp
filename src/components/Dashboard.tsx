@@ -180,6 +180,23 @@ const Dashboard = ({ entries }: DashboardProps) => {
   // Calculate totals
   const totalReceptions = filteredEntries.reduce((sum, e) => sum + e.reception_gpl, 0);
   const nombreReceptions = filteredEntries.reduce((sum, e) => sum + e.receptions.length, 0);
+
+  // Generate period text for display
+  const getPeriodText = () => {
+    if (filterType === 'month') {
+      const monthDate = new Date(selectedMonth + '-01');
+      return `en ${monthDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+    } else if (filterType === 'date' && selectedDate) {
+      return `le ${format(selectedDate, 'dd/MM/yyyy', { locale: fr })}`;
+    } else if (filterType === 'range' && dateRange?.from) {
+      if (dateRange.to) {
+        return `du ${format(dateRange.from, 'dd/MM/yyyy', { locale: fr })} au ${format(dateRange.to, 'dd/MM/yyyy', { locale: fr })}`;
+      } else {
+        return `le ${format(dateRange.from, 'dd/MM/yyyy', { locale: fr })}`;
+      }
+    }
+    return '';
+  };
   const totalSorties = filteredEntries.reduce((sum, e) => sum + e.cumul_sorties, 0);
   const totalBilan = filteredEntries.reduce((sum, e) => sum + e.bilan, 0);
   
@@ -449,7 +466,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totalReceptions)}</div>
             <p className="text-sm font-semibold text-foreground mt-2">
-              {nombreReceptions} réception{nombreReceptions > 1 ? 's' : ''} ce mois
+              {nombreReceptions} réception{nombreReceptions > 1 ? 's' : ''} {getPeriodText()}
             </p>
           </CardContent>
         </Card>
