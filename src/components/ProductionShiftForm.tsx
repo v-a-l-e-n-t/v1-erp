@@ -45,7 +45,90 @@ export const ProductionShiftForm = () => {
     heure_fin_reelle: '19:00',
     bouteilles_produites: 0
   });
-  const [lignes, setLignes] = useState<LigneProduction[]>([]);
+  
+  // Initialiser les 5 lignes dès le début
+  const [lignes, setLignes] = useState<LigneProduction[]>([
+    {
+      numero_ligne: 1,
+      chef_ligne_id: '',
+      recharges_petro_b6: undefined,
+      recharges_petro_b12: undefined,
+      recharges_total_b6: undefined,
+      recharges_total_b12: undefined,
+      recharges_vivo_b6: undefined,
+      recharges_vivo_b12: undefined,
+      consignes_petro_b6: undefined,
+      consignes_petro_b12: undefined,
+      consignes_total_b6: undefined,
+      consignes_total_b12: undefined,
+      consignes_vivo_b6: undefined,
+      consignes_vivo_b12: undefined
+    },
+    {
+      numero_ligne: 2,
+      chef_ligne_id: '',
+      recharges_petro_b6: undefined,
+      recharges_petro_b12: undefined,
+      recharges_total_b6: undefined,
+      recharges_total_b12: undefined,
+      recharges_vivo_b6: undefined,
+      recharges_vivo_b12: undefined,
+      consignes_petro_b6: undefined,
+      consignes_petro_b12: undefined,
+      consignes_total_b6: undefined,
+      consignes_total_b12: undefined,
+      consignes_vivo_b6: undefined,
+      consignes_vivo_b12: undefined
+    },
+    {
+      numero_ligne: 3,
+      chef_ligne_id: '',
+      recharges_petro_b6: undefined,
+      recharges_petro_b12: undefined,
+      recharges_total_b6: undefined,
+      recharges_total_b12: undefined,
+      recharges_vivo_b6: undefined,
+      recharges_vivo_b12: undefined,
+      consignes_petro_b6: undefined,
+      consignes_petro_b12: undefined,
+      consignes_total_b6: undefined,
+      consignes_total_b12: undefined,
+      consignes_vivo_b6: undefined,
+      consignes_vivo_b12: undefined
+    },
+    {
+      numero_ligne: 4,
+      chef_ligne_id: '',
+      recharges_petro_b6: undefined,
+      recharges_petro_b12: undefined,
+      recharges_total_b6: undefined,
+      recharges_total_b12: undefined,
+      recharges_vivo_b6: undefined,
+      recharges_vivo_b12: undefined,
+      consignes_petro_b6: undefined,
+      consignes_petro_b12: undefined,
+      consignes_total_b6: undefined,
+      consignes_total_b12: undefined,
+      consignes_vivo_b6: undefined,
+      consignes_vivo_b12: undefined
+    },
+    {
+      numero_ligne: 5,
+      chef_ligne_id: '',
+      recharges_petro_b6: undefined,
+      recharges_petro_b12: undefined,
+      recharges_total_b6: undefined,
+      recharges_total_b12: undefined,
+      recharges_vivo_b6: undefined,
+      recharges_vivo_b12: undefined,
+      consignes_petro_b6: undefined,
+      consignes_petro_b12: undefined,
+      consignes_total_b6: undefined,
+      consignes_total_b12: undefined,
+      consignes_vivo_b6: undefined,
+      consignes_vivo_b12: undefined
+    }
+  ]);
   const [arrets, setArrets] = useState<ArretProduction[]>([]);
 
   useEffect(() => {
@@ -104,35 +187,6 @@ export const ProductionShiftForm = () => {
     setShift(prev => ({ ...prev, [field]: value }));
   };
 
-  const addLigne = () => {
-    if (lignes.length >= 5) {
-      toast({
-        title: "Limite atteinte",
-        description: "Vous ne pouvez ajouter que 5 lignes maximum",
-        variant: "destructive"
-      });
-      return;
-    }
-    setLignes(prev => [
-      ...prev,
-      {
-        numero_ligne: prev.length + 1,
-        chef_ligne_id: '',
-        recharges_petro_b6: undefined,
-        recharges_petro_b12: undefined,
-        recharges_total_b6: undefined,
-        recharges_total_b12: undefined,
-        recharges_vivo_b6: undefined,
-        recharges_vivo_b12: undefined,
-        consignes_petro_b6: undefined,
-        consignes_petro_b12: undefined,
-        consignes_total_b6: undefined,
-        consignes_total_b12: undefined,
-        consignes_vivo_b6: undefined,
-        consignes_vivo_b12: undefined
-      }
-    ]);
-  };
 
   const updateLigne = (index: number, field: keyof LigneProduction, value: any) => {
     setLignes(prev => {
@@ -142,9 +196,6 @@ export const ProductionShiftForm = () => {
     });
   };
 
-  const removeLigne = (index: number) => {
-    setLignes(prev => prev.filter((_, i) => i !== index));
-  };
 
   const addArret = () => {
     setArrets(prev => [
@@ -372,7 +423,90 @@ export const ProductionShiftForm = () => {
         heure_fin_reelle: '19:00',
         bouteilles_produites: 0
       });
-      setLignes([]);
+      
+      // Réinitialiser les 5 lignes
+      setLignes([
+        {
+          numero_ligne: 1,
+          chef_ligne_id: '',
+          recharges_petro_b6: undefined,
+          recharges_petro_b12: undefined,
+          recharges_total_b6: undefined,
+          recharges_total_b12: undefined,
+          recharges_vivo_b6: undefined,
+          recharges_vivo_b12: undefined,
+          consignes_petro_b6: undefined,
+          consignes_petro_b12: undefined,
+          consignes_total_b6: undefined,
+          consignes_total_b12: undefined,
+          consignes_vivo_b6: undefined,
+          consignes_vivo_b12: undefined
+        },
+        {
+          numero_ligne: 2,
+          chef_ligne_id: '',
+          recharges_petro_b6: undefined,
+          recharges_petro_b12: undefined,
+          recharges_total_b6: undefined,
+          recharges_total_b12: undefined,
+          recharges_vivo_b6: undefined,
+          recharges_vivo_b12: undefined,
+          consignes_petro_b6: undefined,
+          consignes_petro_b12: undefined,
+          consignes_total_b6: undefined,
+          consignes_total_b12: undefined,
+          consignes_vivo_b6: undefined,
+          consignes_vivo_b12: undefined
+        },
+        {
+          numero_ligne: 3,
+          chef_ligne_id: '',
+          recharges_petro_b6: undefined,
+          recharges_petro_b12: undefined,
+          recharges_total_b6: undefined,
+          recharges_total_b12: undefined,
+          recharges_vivo_b6: undefined,
+          recharges_vivo_b12: undefined,
+          consignes_petro_b6: undefined,
+          consignes_petro_b12: undefined,
+          consignes_total_b6: undefined,
+          consignes_total_b12: undefined,
+          consignes_vivo_b6: undefined,
+          consignes_vivo_b12: undefined
+        },
+        {
+          numero_ligne: 4,
+          chef_ligne_id: '',
+          recharges_petro_b6: undefined,
+          recharges_petro_b12: undefined,
+          recharges_total_b6: undefined,
+          recharges_total_b12: undefined,
+          recharges_vivo_b6: undefined,
+          recharges_vivo_b12: undefined,
+          consignes_petro_b6: undefined,
+          consignes_petro_b12: undefined,
+          consignes_total_b6: undefined,
+          consignes_total_b12: undefined,
+          consignes_vivo_b6: undefined,
+          consignes_vivo_b12: undefined
+        },
+        {
+          numero_ligne: 5,
+          chef_ligne_id: '',
+          recharges_petro_b6: undefined,
+          recharges_petro_b12: undefined,
+          recharges_total_b6: undefined,
+          recharges_total_b12: undefined,
+          recharges_vivo_b6: undefined,
+          recharges_vivo_b12: undefined,
+          consignes_petro_b6: undefined,
+          consignes_petro_b12: undefined,
+          consignes_total_b6: undefined,
+          consignes_total_b12: undefined,
+          consignes_vivo_b6: undefined,
+          consignes_vivo_b12: undefined
+        }
+      ]);
       setArrets([]);
 
     } catch (error: any) {
@@ -499,32 +633,13 @@ export const ProductionShiftForm = () => {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Lignes de Production</CardTitle>
-              <CardDescription>
-                Ajouter les données de production pour chaque ligne
-              </CardDescription>
-            </div>
-            <Button
-              type="button"
-              onClick={addLigne}
-              variant="outline"
-              size="sm"
-              disabled={lignes.length >= 5}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              AJOUTER LIGNE {lignes.length + 1}
-            </Button>
-          </div>
+          <CardTitle>Lignes de Production</CardTitle>
+          <CardDescription>
+            Cliquez sur le + pour dérouler une ligne et renseigner les données
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {lignes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Aucune ligne ajoutée. Cliquez sur "AJOUTER LIGNE 1" pour commencer.
-            </p>
-          ) : (
-            <div className="space-y-4">
+          <div className="space-y-2">
             {lignes.map((ligne, index) => (
               <LigneProductionForm
                 key={index}
@@ -532,12 +647,10 @@ export const ProductionShiftForm = () => {
                 index={index}
                 chefsLigne={chefsLigne}
                 onUpdate={updateLigne}
-                onRemove={removeLigne}
                 isB12Only={index === 4}
               />
             ))}
-            </div>
-          )}
+          </div>
         </CardContent>
       </Card>
       <Card>

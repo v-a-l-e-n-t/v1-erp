@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LigneProduction, ChefLigne } from "@/types/production";
 
 interface LigneProductionFormProps {
@@ -12,11 +13,11 @@ interface LigneProductionFormProps {
   index: number;
   chefsLigne: ChefLigne[];
   onUpdate: (index: number, field: keyof LigneProduction, value: any) => void;
-  onRemove: (index: number) => void;
   isB12Only?: boolean; // True si on est sur une ligne B12 uniquement
 }
 
-export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemove, isB12Only = false }: LigneProductionFormProps) => {
+export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12Only = false }: LigneProductionFormProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   // Calcul des cumuls par type de bouteille
   const cumulRechargesB6 = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0);
   const cumulRechargesB12 = (ligne.recharges_petro_b12 || 0) + (ligne.recharges_total_b12 || 0) + (ligne.recharges_vivo_b12 || 0);
@@ -45,25 +46,31 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
   ]);
 
   return (
-    <Card className="p-4 bg-muted/30">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h4 className="font-medium">Ligne {index + 1} {isB12Only && "(B12 uniquement)"}</h4>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onRemove(index)}
-          className="text-destructive hover:text-destructive"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor={`ligne-chef-${index}`}>Chef de Ligne *</Label>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="border-2">
+        <CollapsibleTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full flex items-center justify-between p-4 hover:bg-muted/50"
+          >
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-lg">Ligne {index + 1}</span>
+              {isB12Only && <span className="text-sm text-muted-foreground">(B12 uniquement)</span>}
+              {ligne.chef_ligne_id && (
+                <span className="text-sm text-muted-foreground">
+                  - {chefsLigne.find(c => c.id === ligne.chef_ligne_id)?.prenom} {chefsLigne.find(c => c.id === ligne.chef_ligne_id)?.nom}
+                </span>
+              )}
+            </div>
+            {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </Button>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent>
+          <div className="p-4 pt-0 border-t space-y-4">
+            <div>
+              <Label htmlFor={`ligne-chef-${index}`}>Chef de Ligne *</Label>
           <Select
             value={ligne.chef_ligne_id}
             onValueChange={(value) => onUpdate(index, 'chef_ligne_id', value)}
@@ -290,7 +297,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, onRemo
             <p className="text-4xl font-bold text-orange-500">{tonnage.toFixed(3)} T</p>
           </div>
         </div>
-      </div>
-    </Card>
+          </div>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 };
