@@ -13,9 +13,10 @@ interface ArretProductionFormProps {
   index: number;
   onUpdate: (index: number, field: keyof ArretProduction, value: any) => void;
   onRemove: (index: number) => void;
+  allowedLigne?: number;
 }
 
-export const ArretProductionForm = ({ arret, index, onUpdate, onRemove }: ArretProductionFormProps) => {
+export const ArretProductionForm = ({ arret, index, onUpdate, onRemove, allowedLigne }: ArretProductionFormProps) => {
   return (
     <Card className="p-4 bg-muted/30">
       <div className="flex items-center justify-between mb-4">
@@ -74,31 +75,23 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove }: ArretP
         </div>
 
         <div>
-          <Label>Lignes concernées *</Label>
+          <Label>Ligne concernée *</Label>
           <div className="flex gap-4 mt-2">
             {[1, 2, 3, 4, 5].map((ligne) => (
               <div key={ligne} className="flex items-center space-x-2">
                 <Checkbox
                   id={`arret-ligne-${index}-${ligne}`}
                   checked={arret.lignes_concernees?.includes(ligne) || false}
+                  disabled={allowedLigne !== undefined && ligne !== allowedLigne}
                   onCheckedChange={(checked) => {
-                    const current = arret.lignes_concernees || [];
-                    let updated: number[];
-                    if (checked) {
-                      // Ajouter la ligne si elle n'existe pas déjà
-                      updated = current.includes(ligne) 
-                        ? current 
-                        : [...current, ligne].sort((a, b) => a - b);
-                    } else {
-                      // Retirer la ligne
-                      updated = current.filter(l => l !== ligne);
+                    if (allowedLigne !== undefined && ligne === allowedLigne) {
+                      onUpdate(index, 'lignes_concernees', checked ? [ligne] : []);
                     }
-                    onUpdate(index, 'lignes_concernees', updated);
                   }}
                 />
                 <Label 
                   htmlFor={`arret-ligne-${index}-${ligne}`}
-                  className="text-sm font-normal cursor-pointer"
+                  className={`text-sm font-normal ${allowedLigne !== undefined && ligne !== allowedLigne ? 'text-muted-foreground cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   L{ligne}
                 </Label>

@@ -390,6 +390,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
                       index={arretIndex}
                       onUpdate={handleUpdateArret}
                       onRemove={handleRemoveArret}
+                      allowedLigne={ligne.numero_ligne}
                     />
                   ))}
                 </div>
