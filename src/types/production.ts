@@ -51,6 +51,7 @@ export interface LigneProduction {
   shift_id?: string;
   numero_ligne: number;
   chef_ligne_id: string;
+  nombre_agents: number;
   recharges_petro_b6: number;
   recharges_petro_b12: number;
   recharges_total_b6: number;
@@ -68,6 +69,7 @@ export interface LigneProduction {
   cumul_consignes_b6?: number;
   cumul_consignes_b12?: number;
   tonnage_ligne?: number;
+  arrets?: ArretProduction[];
 }
 
 export interface ArretProduction {

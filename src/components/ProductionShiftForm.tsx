@@ -51,6 +51,7 @@ export const ProductionShiftForm = () => {
     {
       numero_ligne: 1,
       chef_ligne_id: '',
+      nombre_agents: 0,
       recharges_petro_b6: undefined,
       recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
@@ -62,11 +63,13 @@ export const ProductionShiftForm = () => {
       consignes_total_b6: undefined,
       consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined
+      consignes_vivo_b12: undefined,
+      arrets: []
     },
     {
       numero_ligne: 2,
       chef_ligne_id: '',
+      nombre_agents: 0,
       recharges_petro_b6: undefined,
       recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
@@ -78,11 +81,13 @@ export const ProductionShiftForm = () => {
       consignes_total_b6: undefined,
       consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined
+      consignes_vivo_b12: undefined,
+      arrets: []
     },
     {
       numero_ligne: 3,
       chef_ligne_id: '',
+      nombre_agents: 0,
       recharges_petro_b6: undefined,
       recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
@@ -94,11 +99,13 @@ export const ProductionShiftForm = () => {
       consignes_total_b6: undefined,
       consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined
+      consignes_vivo_b12: undefined,
+      arrets: []
     },
     {
       numero_ligne: 4,
       chef_ligne_id: '',
+      nombre_agents: 0,
       recharges_petro_b6: undefined,
       recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
@@ -110,11 +117,13 @@ export const ProductionShiftForm = () => {
       consignes_total_b6: undefined,
       consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined
+      consignes_vivo_b12: undefined,
+      arrets: []
     },
     {
       numero_ligne: 5,
       chef_ligne_id: '',
+      nombre_agents: 0,
       recharges_petro_b6: undefined,
       recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
@@ -126,7 +135,8 @@ export const ProductionShiftForm = () => {
       consignes_total_b6: undefined,
       consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined
+      consignes_vivo_b12: undefined,
+      arrets: []
     }
   ]);
   const [arrets, setArrets] = useState<ArretProduction[]>([]);
@@ -316,20 +326,26 @@ export const ProductionShiftForm = () => {
                                (ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0);
       });
 
-      // Calculer le temps d'arrêt total en minutes
+      // Calculer le temps d'arrêt total en minutes depuis toutes les lignes
       let tempsArretTotalMinutes = 0;
-      arrets.forEach(arret => {
-        if (arret.heure_debut && arret.heure_fin) {
-          const [heureD, minD] = arret.heure_debut.split(':').map(Number);
-          const [heureF, minF] = arret.heure_fin.split(':').map(Number);
-          let dureeMinutes = (heureF * 60 + minF) - (heureD * 60 + minD);
-          
-          // Gérer les cas où l'arrêt traverse minuit
-          if (dureeMinutes < 0) {
-            dureeMinutes += 24 * 60;
-          }
-          
-          tempsArretTotalMinutes += dureeMinutes;
+      const allArrets: ArretProduction[] = [];
+      
+      lignes.forEach(ligne => {
+        if (ligne.arrets && ligne.arrets.length > 0) {
+          ligne.arrets.forEach(arret => {
+            if (arret.heure_debut && arret.heure_fin) {
+              const [heureD, minD] = arret.heure_debut.split(':').map(Number);
+              const [heureF, minF] = arret.heure_fin.split(':').map(Number);
+              let dureeMinutes = (heureF * 60 + minF) - (heureD * 60 + minD);
+              
+              if (dureeMinutes < 0) {
+                dureeMinutes += 24 * 60;
+              }
+              
+              tempsArretTotalMinutes += dureeMinutes;
+              allArrets.push(arret);
+            }
+          });
         }
       });
 
@@ -368,6 +384,7 @@ export const ProductionShiftForm = () => {
           shift_id: insertedShift.id,
           numero_ligne: ligne.numero_ligne,
           chef_ligne_id: ligne.chef_ligne_id || null,
+          nombre_agents: ligne.nombre_agents || 0,
           recharges_petro_b6: ligne.recharges_petro_b6 || 0,
           recharges_petro_b12: ligne.recharges_petro_b12 || 0,
           recharges_total_b6: ligne.recharges_total_b6 || 0,
@@ -394,8 +411,8 @@ export const ProductionShiftForm = () => {
         if (lignesError) throw lignesError;
       }
 
-      if (arrets.length > 0 && insertedShift) {
-        const arretsData = arrets.map(arret => ({
+      if (allArrets.length > 0 && insertedShift) {
+        const arretsData = allArrets.map(arret => ({
           ...arret,
           shift_id: insertedShift.id
         }));
@@ -429,6 +446,7 @@ export const ProductionShiftForm = () => {
         {
           numero_ligne: 1,
           chef_ligne_id: '',
+          nombre_agents: 0,
           recharges_petro_b6: undefined,
           recharges_petro_b12: undefined,
           recharges_total_b6: undefined,
@@ -440,11 +458,13 @@ export const ProductionShiftForm = () => {
           consignes_total_b6: undefined,
           consignes_total_b12: undefined,
           consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined
+          consignes_vivo_b12: undefined,
+          arrets: []
         },
         {
           numero_ligne: 2,
           chef_ligne_id: '',
+          nombre_agents: 0,
           recharges_petro_b6: undefined,
           recharges_petro_b12: undefined,
           recharges_total_b6: undefined,
@@ -456,11 +476,13 @@ export const ProductionShiftForm = () => {
           consignes_total_b6: undefined,
           consignes_total_b12: undefined,
           consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined
+          consignes_vivo_b12: undefined,
+          arrets: []
         },
         {
           numero_ligne: 3,
           chef_ligne_id: '',
+          nombre_agents: 0,
           recharges_petro_b6: undefined,
           recharges_petro_b12: undefined,
           recharges_total_b6: undefined,
@@ -472,11 +494,13 @@ export const ProductionShiftForm = () => {
           consignes_total_b6: undefined,
           consignes_total_b12: undefined,
           consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined
+          consignes_vivo_b12: undefined,
+          arrets: []
         },
         {
           numero_ligne: 4,
           chef_ligne_id: '',
+          nombre_agents: 0,
           recharges_petro_b6: undefined,
           recharges_petro_b12: undefined,
           recharges_total_b6: undefined,
@@ -488,11 +512,13 @@ export const ProductionShiftForm = () => {
           consignes_total_b6: undefined,
           consignes_total_b12: undefined,
           consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined
+          consignes_vivo_b12: undefined,
+          arrets: []
         },
         {
           numero_ligne: 5,
           chef_ligne_id: '',
+          nombre_agents: 0,
           recharges_petro_b6: undefined,
           recharges_petro_b12: undefined,
           recharges_total_b6: undefined,
@@ -504,7 +530,8 @@ export const ProductionShiftForm = () => {
           consignes_total_b6: undefined,
           consignes_total_b12: undefined,
           consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined
+          consignes_vivo_b12: undefined,
+          arrets: []
         }
       ]);
       setArrets([]);
@@ -651,44 +678,6 @@ export const ProductionShiftForm = () => {
               />
             ))}
           </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Arrêts de production</CardTitle>
-              <CardDescription>
-                Enregistrer les interruptions de production
-              </CardDescription>
-            </div>
-            <Button
-              type="button"
-              onClick={addArret}
-              variant="outline"
-              size="sm"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              AJOUTER UN ARRÊT
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {arrets.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Aucun arrêt enregistré. Cliquez sur "AJOUTER UN ARRÊT" pour commencer.
-            </p>
-          ) : (
-            arrets.map((arret, index) => (
-              <ArretProductionForm
-                key={index}
-                arret={arret}
-                index={index}
-                onUpdate={updateArret}
-                onRemove={removeArret}
-              />
-            ))
-          )}
         </CardContent>
       </Card>
 
