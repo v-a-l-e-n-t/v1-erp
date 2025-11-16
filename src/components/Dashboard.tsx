@@ -5,19 +5,26 @@ import { TrendingUp, TrendingDown, TrendingUpDown, Calendar as CalendarIcon } fr
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { DayContentProps } from 'react-day-picker';
+import { DayContentProps, DateRange } from 'react-day-picker';
 import { fr } from 'date-fns/locale';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface DashboardProps {
   entries: BilanEntry[];
 }
 
 const Dashboard = ({ entries }: DashboardProps) => {
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   if (entries.length === 0) {
     return (
@@ -33,77 +40,172 @@ const Dashboard = ({ entries }: DashboardProps) => {
     );
   }
 
-  // Filter entries for selected month
-  const monthEntries = entries.filter(entry => {
-    const entryMonth = entry.date.substring(0, 7);
-    return entryMonth === selectedMonth;
+  // Filter entries based on selected filter type
+  const filteredEntries = entries.filter(entry => {
+    const entryDate = new Date(entry.date);
+    
+    if (filterType === 'month') {
+      const entryMonth = entry.date.substring(0, 7);
+      return entryMonth === selectedMonth;
+    } else if (filterType === 'date' && selectedDate) {
+      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+      return entry.date === selectedDateStr;
+    } else if (filterType === 'range' && dateRange?.from) {
+      const fromDate = dateRange.from;
+      const toDate = dateRange.to || dateRange.from;
+      return entryDate >= fromDate && entryDate <= toDate;
+    }
+    return false;
   });
 
   // Get available months from entries
   const availableMonths = Array.from(new Set(entries.map(e => e.date.substring(0, 7)))).sort().reverse();
 
-  if (monthEntries.length === 0) {
+  if (filteredEntries.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Tableau de bord - Mois en cours</CardTitle>
-              <CardDescription>Aucune donnée pour ce mois</CardDescription>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Tableau de bord</CardTitle>
+                <CardDescription>Aucune donnée pour la période sélectionnée</CardDescription>
+              </div>
             </div>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMonths.map(month => (
-                  <SelectItem key={month} value={month}>
-                    {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
+            <div className="flex items-center gap-2">
+              <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">Par mois</SelectItem>
+                  <SelectItem value="date">Par date</SelectItem>
+                  <SelectItem value="range">Par période</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {filterType === 'month' && (
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map(month => (
+                      <SelectItem key={month} value={month}>
+                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {filterType === 'date' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      locale={fr}
+                      disabled={{ after: new Date() }}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {filterType === 'range' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[280px] justify-start text-left font-normal",
+                        !dateRange && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "dd/MM/yyyy")
+                        )
+                      ) : (
+                        "Sélectionner une période"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      locale={fr}
+                      disabled={{ after: new Date() }}
+                      numberOfMonths={2}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Consultez l'historique pour voir les données des mois précédents.</p>
+          <p className="text-muted-foreground">Aucune donnée disponible pour cette période. Consultez l'historique ou sélectionnez une autre période.</p>
         </CardContent>
       </Card>
     );
   }
 
   // Get last entry (most recent)
-  const lastEntry = monthEntries[0]; // entries are already sorted by date desc
+  const lastEntry = filteredEntries[0]; // entries are already sorted by date desc
 
-  // Calculate monthly totals
-  const totalReceptions = monthEntries.reduce((sum, e) => sum + e.reception_gpl, 0);
-  const nombreReceptions = monthEntries.reduce((sum, e) => sum + e.receptions.length, 0);
-  const totalSorties = monthEntries.reduce((sum, e) => sum + e.cumul_sorties, 0);
-  const totalBilan = monthEntries.reduce((sum, e) => sum + e.bilan, 0);
+  // Calculate totals
+  const totalReceptions = filteredEntries.reduce((sum, e) => sum + e.reception_gpl, 0);
+  const nombreReceptions = filteredEntries.reduce((sum, e) => sum + e.receptions.length, 0);
+  const totalSorties = filteredEntries.reduce((sum, e) => sum + e.cumul_sorties, 0);
+  const totalBilan = filteredEntries.reduce((sum, e) => sum + e.bilan, 0);
   
-  // Sorties breakdown (monthly totals)
-  const totalVrac = monthEntries.reduce((sum, e) => sum + e.sorties_vrac, 0);
-  const totalConditionne = monthEntries.reduce((sum, e) => sum + e.sorties_conditionnees, 0);
-  const totalFuyardes = monthEntries.reduce((sum, e) => sum + e.fuyardes, 0);
+  // Sorties breakdown (totals)
+  const totalVrac = filteredEntries.reduce((sum, e) => sum + e.sorties_vrac, 0);
+  const totalConditionne = filteredEntries.reduce((sum, e) => sum + e.sorties_conditionnees, 0);
+  const totalFuyardes = filteredEntries.reduce((sum, e) => sum + e.fuyardes, 0);
 
   // Percentages
   const pourcentageVrac = totalSorties > 0 ? (totalVrac / totalSorties) * 100 : 0;
   const pourcentageConditionne = totalSorties > 0 ? (totalConditionne / totalSorties) * 100 : 0;
 
   // Bilan positif et négatif
-  const bilansPositifs = monthEntries.filter(e => e.nature === 'Positif');
-  const bilansNegatifs = monthEntries.filter(e => e.nature === 'Négatif');
+  const bilansPositifs = filteredEntries.filter(e => e.nature === 'Positif');
+  const bilansNegatifs = filteredEntries.filter(e => e.nature === 'Négatif');
   const totalBilanPositif = bilansPositifs.reduce((sum, e) => sum + e.bilan, 0);
   const totalBilanNegatif = bilansNegatifs.reduce((sum, e) => sum + e.bilan, 0);
 
   // Count by nature
   const positifCount = bilansPositifs.length;
   const negatifCount = bilansNegatifs.length;
-  const neutreCount = monthEntries.filter(e => e.nature === 'Neutre').length;
+  const neutreCount = filteredEntries.filter(e => e.nature === 'Neutre').length;
 
   // Create a map of dates to entries for the heatmap
   const entriesByDate = new Map<string, BilanEntry>();
-  monthEntries.forEach(entry => {
+  filteredEntries.forEach(entry => {
     entriesByDate.set(entry.date, entry);
   });
 
@@ -206,24 +308,107 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Month Selector */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Bilan du mois</h2>
-          <p className="text-muted-foreground">Vue d'ensemble des opérations du mois sélectionné</p>
+      {/* Filter Selector */}
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">Vue d'ensemble des opérations</h2>
+            <p className="text-muted-foreground">Sélectionnez une période pour filtrer les statistiques</p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Par mois</SelectItem>
+                <SelectItem value="date">Par date</SelectItem>
+                <SelectItem value="range">Par période</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {filterType === 'month' && (
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMonths.map(month => (
+                    <SelectItem key={month} value={month}>
+                      {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {filterType === 'date' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    locale={fr}
+                    disabled={{ after: new Date() }}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+
+            {filterType === 'range' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[280px] justify-start text-left font-normal",
+                      !dateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "dd/MM/yyyy")
+                      )
+                    ) : (
+                      "Sélectionner une période"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    locale={fr}
+                    disabled={{ after: new Date() }}
+                    numberOfMonths={2}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {availableMonths.map(month => (
-              <SelectItem key={month} value={month}>
-                {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* KPI Cards */}
