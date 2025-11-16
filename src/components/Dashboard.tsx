@@ -179,7 +179,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Calculate totals
   const totalReceptions = filteredEntries.reduce((sum, e) => sum + e.reception_gpl, 0);
-  const nombreReceptions = filteredEntries.reduce((sum, e) => sum + e.receptions.length, 0);
+  const nombreReceptions = filteredEntries.reduce((sum, e) => {
+    const receptions = Array.isArray(e.receptions) ? e.receptions : [];
+    return sum + receptions.length;
+  }, 0);
 
   // Generate period text for display
   const getPeriodText = () => {
