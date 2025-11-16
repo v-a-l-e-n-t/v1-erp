@@ -238,6 +238,7 @@ export type Database = {
           cumul_recharges_b12: number | null
           cumul_recharges_b6: number | null
           id: string
+          nombre_agents: number | null
           numero_ligne: number
           recharges_petro_b12: number | null
           recharges_petro_b6: number | null
@@ -263,6 +264,7 @@ export type Database = {
           cumul_recharges_b12?: number | null
           cumul_recharges_b6?: number | null
           id?: string
+          nombre_agents?: number | null
           numero_ligne: number
           recharges_petro_b12?: number | null
           recharges_petro_b6?: number | null
@@ -288,6 +290,7 @@ export type Database = {
           cumul_recharges_b12?: number | null
           cumul_recharges_b6?: number | null
           id?: string
+          nombre_agents?: number | null
           numero_ligne?: number
           recharges_petro_b12?: number | null
           recharges_petro_b6?: number | null
