@@ -381,7 +381,7 @@ export const ProductionShiftForm = () => {
         if (shiftError.code === '23505') {
           toast({
             title: "Erreur",
-            description: "Un shift existe déjà pour cette date, type et ligne",
+            description: "Un shift existe déjà pour cette date, type et ligne.",
             variant: "destructive"
           });
         } else {
