@@ -227,24 +227,40 @@ export type Database = {
         Row: {
           chef_ligne_id: string | null
           consignes_petro_b12: number | null
+          consignes_petro_b28: number | null
+          consignes_petro_b38: number | null
           consignes_petro_b6: number | null
           consignes_total_b12: number | null
+          consignes_total_b28: number | null
+          consignes_total_b38: number | null
           consignes_total_b6: number | null
           consignes_vivo_b12: number | null
+          consignes_vivo_b28: number | null
+          consignes_vivo_b38: number | null
           consignes_vivo_b6: number | null
           created_at: string | null
           cumul_consignes_b12: number | null
+          cumul_consignes_b28: number | null
+          cumul_consignes_b38: number | null
           cumul_consignes_b6: number | null
           cumul_recharges_b12: number | null
+          cumul_recharges_b28: number | null
+          cumul_recharges_b38: number | null
           cumul_recharges_b6: number | null
           id: string
           nombre_agents: number | null
           numero_ligne: number
           recharges_petro_b12: number | null
+          recharges_petro_b28: number | null
+          recharges_petro_b38: number | null
           recharges_petro_b6: number | null
           recharges_total_b12: number | null
+          recharges_total_b28: number | null
+          recharges_total_b38: number | null
           recharges_total_b6: number | null
           recharges_vivo_b12: number | null
+          recharges_vivo_b28: number | null
+          recharges_vivo_b38: number | null
           recharges_vivo_b6: number | null
           shift_id: string
           tonnage_ligne: number | null
@@ -253,24 +269,40 @@ export type Database = {
         Insert: {
           chef_ligne_id?: string | null
           consignes_petro_b12?: number | null
+          consignes_petro_b28?: number | null
+          consignes_petro_b38?: number | null
           consignes_petro_b6?: number | null
           consignes_total_b12?: number | null
+          consignes_total_b28?: number | null
+          consignes_total_b38?: number | null
           consignes_total_b6?: number | null
           consignes_vivo_b12?: number | null
+          consignes_vivo_b28?: number | null
+          consignes_vivo_b38?: number | null
           consignes_vivo_b6?: number | null
           created_at?: string | null
           cumul_consignes_b12?: number | null
+          cumul_consignes_b28?: number | null
+          cumul_consignes_b38?: number | null
           cumul_consignes_b6?: number | null
           cumul_recharges_b12?: number | null
+          cumul_recharges_b28?: number | null
+          cumul_recharges_b38?: number | null
           cumul_recharges_b6?: number | null
           id?: string
           nombre_agents?: number | null
           numero_ligne: number
           recharges_petro_b12?: number | null
+          recharges_petro_b28?: number | null
+          recharges_petro_b38?: number | null
           recharges_petro_b6?: number | null
           recharges_total_b12?: number | null
+          recharges_total_b28?: number | null
+          recharges_total_b38?: number | null
           recharges_total_b6?: number | null
           recharges_vivo_b12?: number | null
+          recharges_vivo_b28?: number | null
+          recharges_vivo_b38?: number | null
           recharges_vivo_b6?: number | null
           shift_id: string
           tonnage_ligne?: number | null
@@ -279,24 +311,40 @@ export type Database = {
         Update: {
           chef_ligne_id?: string | null
           consignes_petro_b12?: number | null
+          consignes_petro_b28?: number | null
+          consignes_petro_b38?: number | null
           consignes_petro_b6?: number | null
           consignes_total_b12?: number | null
+          consignes_total_b28?: number | null
+          consignes_total_b38?: number | null
           consignes_total_b6?: number | null
           consignes_vivo_b12?: number | null
+          consignes_vivo_b28?: number | null
+          consignes_vivo_b38?: number | null
           consignes_vivo_b6?: number | null
           created_at?: string | null
           cumul_consignes_b12?: number | null
+          cumul_consignes_b28?: number | null
+          cumul_consignes_b38?: number | null
           cumul_consignes_b6?: number | null
           cumul_recharges_b12?: number | null
+          cumul_recharges_b28?: number | null
+          cumul_recharges_b38?: number | null
           cumul_recharges_b6?: number | null
           id?: string
           nombre_agents?: number | null
           numero_ligne?: number
           recharges_petro_b12?: number | null
+          recharges_petro_b28?: number | null
+          recharges_petro_b38?: number | null
           recharges_petro_b6?: number | null
           recharges_total_b12?: number | null
+          recharges_total_b28?: number | null
+          recharges_total_b38?: number | null
           recharges_total_b6?: number | null
           recharges_vivo_b12?: number | null
+          recharges_vivo_b28?: number | null
+          recharges_vivo_b38?: number | null
           recharges_vivo_b6?: number | null
           shift_id?: string
           tonnage_ligne?: number | null
@@ -321,7 +369,12 @@ export type Database = {
       }
       production_shifts: {
         Row: {
+          agent_atelier: number | null
+          agent_quai: number | null
+          agent_saisie: number | null
           bouteilles_produites: number
+          chariot: number | null
+          chariste: number | null
           chef_ligne_id: string | null
           chef_quart_id: string | null
           created_at: string
@@ -340,7 +393,12 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          agent_atelier?: number | null
+          agent_quai?: number | null
+          agent_saisie?: number | null
           bouteilles_produites?: number
+          chariot?: number | null
+          chariste?: number | null
           chef_ligne_id?: string | null
           chef_quart_id?: string | null
           created_at?: string
@@ -359,7 +417,12 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          agent_atelier?: number | null
+          agent_quai?: number | null
+          agent_saisie?: number | null
           bouteilles_produites?: number
+          chariot?: number | null
+          chariste?: number | null
           chef_ligne_id?: string | null
           chef_quart_id?: string | null
           created_at?: string
