@@ -655,9 +655,11 @@ export const ProductionShiftForm = () => {
                     <Label htmlFor="chariste">Chariste</Label>
                     <Input
                       id="chariste"
+                      type="number"
+                      min="0"
                       value={shift.chariste || ''}
-                      onChange={(e) => handleShiftChange('chariste', e.target.value)}
-                      placeholder="Nom du chariste"
+                      onChange={(e) => handleShiftChange('chariste', parseInt(e.target.value) || 0)}
+                      placeholder="0"
                     />
                   </div>
 
@@ -665,9 +667,11 @@ export const ProductionShiftForm = () => {
                     <Label htmlFor="chariot">Chariot</Label>
                     <Input
                       id="chariot"
+                      type="number"
+                      min="0"
                       value={shift.chariot || ''}
-                      onChange={(e) => handleShiftChange('chariot', e.target.value)}
-                      placeholder="Numéro du chariot"
+                      onChange={(e) => handleShiftChange('chariot', parseInt(e.target.value) || 0)}
+                      placeholder="0"
                     />
                   </div>
 
@@ -675,9 +679,11 @@ export const ProductionShiftForm = () => {
                     <Label htmlFor="agent-quai">Agent de Quai</Label>
                     <Input
                       id="agent-quai"
+                      type="number"
+                      min="0"
                       value={shift.agent_quai || ''}
-                      onChange={(e) => handleShiftChange('agent_quai', e.target.value)}
-                      placeholder="Nom de l'agent de quai"
+                      onChange={(e) => handleShiftChange('agent_quai', parseInt(e.target.value) || 0)}
+                      placeholder="0"
                     />
                   </div>
 
@@ -685,9 +691,11 @@ export const ProductionShiftForm = () => {
                     <Label htmlFor="agent-saisie">Agent de Saisie</Label>
                     <Input
                       id="agent-saisie"
+                      type="number"
+                      min="0"
                       value={shift.agent_saisie || ''}
-                      onChange={(e) => handleShiftChange('agent_saisie', e.target.value)}
-                      placeholder="Nom de l'agent de saisie"
+                      onChange={(e) => handleShiftChange('agent_saisie', parseInt(e.target.value) || 0)}
+                      placeholder="0"
                     />
                   </div>
 
@@ -695,9 +703,11 @@ export const ProductionShiftForm = () => {
                     <Label htmlFor="agent-atelier">Agent Atelier</Label>
                     <Input
                       id="agent-atelier"
+                      type="number"
+                      min="0"
                       value={shift.agent_atelier || ''}
-                      onChange={(e) => handleShiftChange('agent_atelier', e.target.value)}
-                      placeholder="Nom de l'agent atelier"
+                      onChange={(e) => handleShiftChange('agent_atelier', parseInt(e.target.value) || 0)}
+                      placeholder="0"
                     />
                   </div>
                 </div>
