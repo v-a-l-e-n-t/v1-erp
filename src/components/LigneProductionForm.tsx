@@ -124,7 +124,9 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
             {/* Chef de ligne et nombre d'agents */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor={`ligne-chef-${index}`}>Chef de Ligne *</Label>
+                <Label htmlFor={`ligne-chef-${index}`}>
+                  Chef de Ligne <span className="text-red-500">*</span>
+                </Label>
                 <Select
                   value={ligne.chef_ligne_id}
                   onValueChange={(value) => onUpdate(index, 'chef_ligne_id', value)}

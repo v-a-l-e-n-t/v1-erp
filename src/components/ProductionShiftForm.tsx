@@ -226,10 +226,20 @@ export const ProductionShiftForm = () => {
   };
 
   const validateForm = (): boolean => {
+    // Validation des champs obligatoires du shift
+    if (!shift.date) {
+      toast({
+        title: "Validation",
+        description: "Veuillez renseigner tous les champs obligatoires",
+        variant: "destructive"
+      });
+      return false;
+    }
+
     if (!shift.chef_quart_id) {
       toast({
         title: "Validation",
-        description: "Veuillez sélectionner un chef de quart",
+        description: "Veuillez renseigner tous les champs obligatoires",
         variant: "destructive"
       });
       return false;
@@ -238,10 +248,22 @@ export const ProductionShiftForm = () => {
     if (!shift.heure_debut_reelle || !shift.heure_fin_reelle) {
       toast({
         title: "Validation",
-        description: "Veuillez renseigner les heures de début et fin réelles",
+        description: "Veuillez renseigner tous les champs obligatoires",
         variant: "destructive"
       });
       return false;
+    }
+
+    // Validation des chefs de ligne (tous obligatoires)
+    for (let i = 0; i < lignes.length; i++) {
+      if (!lignes[i].chef_ligne_id) {
+        toast({
+          title: "Validation",
+          description: "Veuillez renseigner tous les champs obligatoires",
+          variant: "destructive"
+        });
+        return false;
+      }
     }
 
     for (let i = 0; i < arrets.length; i++) {
@@ -416,7 +438,8 @@ export const ProductionShiftForm = () => {
 
       toast({
         title: "Succès",
-        description: "Données de production enregistrées avec succès"
+        description: "Données de production enregistrées avec succès",
+        className: "bg-green-500 text-white border-green-600"
       });
 
       // Réinitialiser tous les champs du formulaire
@@ -575,11 +598,16 @@ export const ProductionShiftForm = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Informations du Shift</CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Les champs avec un <span className="text-red-500">*</span> sont obligatoires
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="date">Date *</Label>
+                    <Label htmlFor="date">
+                      Date <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="date"
                       type="date"
@@ -590,7 +618,9 @@ export const ProductionShiftForm = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="heure-debut">Heure début réelle *</Label>
+                    <Label htmlFor="heure-debut">
+                      Heure début réelle <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="heure-debut"
                       type="time"
@@ -601,7 +631,9 @@ export const ProductionShiftForm = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="heure-fin">Heure fin réelle *</Label>
+                    <Label htmlFor="heure-fin">
+                      Heure fin réelle <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="heure-fin"
                       type="time"
@@ -612,7 +644,9 @@ export const ProductionShiftForm = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="shift-type">Shift *</Label>
+                    <Label htmlFor="shift-type">
+                      Shift <span className="text-red-500">*</span>
+                    </Label>
                     <Select
                       value={shift.shift_type}
                       onValueChange={(value) => handleShiftChange('shift_type', value as ShiftType)}
@@ -628,7 +662,9 @@ export const ProductionShiftForm = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="chef-quart">Chef de Quart *</Label>
+                    <Label htmlFor="chef-quart">
+                      Chef de Quart <span className="text-red-500">*</span>
+                    </Label>
                     <Select
                       value={shift.chef_quart_id}
                       onValueChange={(value) => handleShiftChange('chef_quart_id', value)}
