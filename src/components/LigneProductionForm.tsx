@@ -15,10 +15,11 @@ interface LigneProductionFormProps {
   chefsLigne: ChefLigne[];
   onUpdate: (index: number, field: keyof LigneProduction, value: any) => void;
   isB12Only?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
-export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12Only = false }: LigneProductionFormProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12Only = false, isOpen, onToggle }: LigneProductionFormProps) => {
 
   // Calcul des cumuls par type de bouteille
   const cumulRechargesB6 = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0);
@@ -97,7 +98,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={() => onToggle()}>
       <Card className="border-2">
         <CollapsibleTrigger asChild>
           <Button

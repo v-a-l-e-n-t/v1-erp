@@ -34,6 +34,7 @@ import {
 export const ProductionShiftForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [activeLineIndex, setActiveLineIndex] = useState<number | null>(null);
   const [chefsLigne, setChefsLigne] = useState<ChefLigne[]>([]);
   const [chefsQuart, setChefsQuart] = useState<ChefQuart[]>([]);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
@@ -649,103 +650,79 @@ export const ProductionShiftForm = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                {/* Personnel Section */}
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium text-sm mb-3">Personnel du Shift</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div>
-                      <Label htmlFor="chariste">Chariste</Label>
-                      <Input
-                        id="chariste"
-                        type="number"
-                        min="0"
-                        value={shift.chariste || ''}
-                        onChange={(e) => handleShiftChange('chariste', parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="chariste">Chariste</Label>
+                    <Input
+                      id="chariste"
+                      value={shift.chariste || ''}
+                      onChange={(e) => handleShiftChange('chariste', e.target.value)}
+                      placeholder="Nom du chariste"
+                    />
+                  </div>
 
-                    <div>
-                      <Label htmlFor="chariot">Chariot</Label>
-                      <Input
-                        id="chariot"
-                        type="number"
-                        min="0"
-                        value={shift.chariot || ''}
-                        onChange={(e) => handleShiftChange('chariot', parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="chariot">Chariot</Label>
+                    <Input
+                      id="chariot"
+                      value={shift.chariot || ''}
+                      onChange={(e) => handleShiftChange('chariot', e.target.value)}
+                      placeholder="Numéro du chariot"
+                    />
+                  </div>
 
-                    <div>
-                      <Label htmlFor="agent-quai">Agent quai</Label>
-                      <Input
-                        id="agent-quai"
-                        type="number"
-                        min="0"
-                        value={shift.agent_quai || ''}
-                        onChange={(e) => handleShiftChange('agent_quai', parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="agent-quai">Agent de Quai</Label>
+                    <Input
+                      id="agent-quai"
+                      value={shift.agent_quai || ''}
+                      onChange={(e) => handleShiftChange('agent_quai', e.target.value)}
+                      placeholder="Nom de l'agent de quai"
+                    />
+                  </div>
 
-                    <div>
-                      <Label htmlFor="agent-saisie">Agent saisie</Label>
-                      <Input
-                        id="agent-saisie"
-                        type="number"
-                        min="0"
-                        value={shift.agent_saisie || ''}
-                        onChange={(e) => handleShiftChange('agent_saisie', parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="agent-saisie">Agent de Saisie</Label>
+                    <Input
+                      id="agent-saisie"
+                      value={shift.agent_saisie || ''}
+                      onChange={(e) => handleShiftChange('agent_saisie', e.target.value)}
+                      placeholder="Nom de l'agent de saisie"
+                    />
+                  </div>
 
-                    <div>
-                      <Label htmlFor="agent-atelier">Agent atelier</Label>
-                      <Input
-                        id="agent-atelier"
-                        type="number"
-                        min="0"
-                        value={shift.agent_atelier || ''}
-                        onChange={(e) => handleShiftChange('agent_atelier', parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="agent-atelier">Agent Atelier</Label>
+                    <Input
+                      id="agent-atelier"
+                      value={shift.agent_atelier || ''}
+                      onChange={(e) => handleShiftChange('agent_atelier', e.target.value)}
+                      placeholder="Nom de l'agent atelier"
+                    />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Lignes de Production</CardTitle>
-                <CardDescription>
-                  Cliquez sur le + pour dérouler une ligne et renseigner les données
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {lignes.map((ligne, index) => (
-                    <LigneProductionForm
-                      key={index}
-                      ligne={ligne}
-                      index={index}
-                      chefsLigne={chefsLigne}
-                      onUpdate={updateLigne}
-                      isB12Only={index === 4}
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Lignes de Production</h2>
+              {lignes.map((ligne, index) => (
+                <LigneProductionForm
+                  key={index}
+                  index={index}
+                  ligne={ligne}
+                  chefsLigne={chefsLigne}
+                  onUpdate={updateLigne}
+                  isB12Only={index === 4}
+                  isOpen={activeLineIndex === index}
+                  onToggle={() => setActiveLineIndex(activeLineIndex === index ? null : index)}
+                />
+              ))}
+            </div>
 
-            <div className="flex justify-end pb-10">
-              <Button type="submit" disabled={loading} size="lg">
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Enregistrement...' : 'Enregistrer les données'}
+            <div className="flex justify-end pt-6">
+              <Button type="submit" size="lg" disabled={loading}>
+                {loading ? "Enregistrement..." : "Enregistrer le Shift"}
               </Button>
             </div>
           </form>
