@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ import {
 } from "@/types/production";
 
 export const ProductionShiftForm = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [chefsLigne, setChefsLigne] = useState<ChefLigne[]>([]);
   const [chefsQuart, setChefsQuart] = useState<ChefQuart[]>([]);
@@ -43,9 +45,14 @@ export const ProductionShiftForm = () => {
     heure_fin_theorique: '19:00',
     heure_debut_reelle: '10:00',
     heure_fin_reelle: '19:00',
-    bouteilles_produites: 0
+    bouteilles_produites: 0,
+    chariste: 0,
+    chariot: 0,
+    agent_quai: 0,
+    agent_saisie: 0,
+    agent_atelier: 0
   });
-  
+
   // Initialiser les 5 lignes dès le début
   const [lignes, setLignes] = useState<LigneProduction[]>([
     {
@@ -53,17 +60,11 @@ export const ProductionShiftForm = () => {
       chef_ligne_id: '',
       nombre_agents: 0,
       recharges_petro_b6: undefined,
-      recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
-      recharges_total_b12: undefined,
       recharges_vivo_b6: undefined,
-      recharges_vivo_b12: undefined,
       consignes_petro_b6: undefined,
-      consignes_petro_b12: undefined,
       consignes_total_b6: undefined,
-      consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined,
       arrets: []
     },
     {
@@ -71,17 +72,11 @@ export const ProductionShiftForm = () => {
       chef_ligne_id: '',
       nombre_agents: 0,
       recharges_petro_b6: undefined,
-      recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
-      recharges_total_b12: undefined,
       recharges_vivo_b6: undefined,
-      recharges_vivo_b12: undefined,
       consignes_petro_b6: undefined,
-      consignes_petro_b12: undefined,
       consignes_total_b6: undefined,
-      consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined,
       arrets: []
     },
     {
@@ -89,17 +84,11 @@ export const ProductionShiftForm = () => {
       chef_ligne_id: '',
       nombre_agents: 0,
       recharges_petro_b6: undefined,
-      recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
-      recharges_total_b12: undefined,
       recharges_vivo_b6: undefined,
-      recharges_vivo_b12: undefined,
       consignes_petro_b6: undefined,
-      consignes_petro_b12: undefined,
       consignes_total_b6: undefined,
-      consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined,
       arrets: []
     },
     {
@@ -107,35 +96,35 @@ export const ProductionShiftForm = () => {
       chef_ligne_id: '',
       nombre_agents: 0,
       recharges_petro_b6: undefined,
-      recharges_petro_b12: undefined,
       recharges_total_b6: undefined,
-      recharges_total_b12: undefined,
       recharges_vivo_b6: undefined,
-      recharges_vivo_b12: undefined,
       consignes_petro_b6: undefined,
-      consignes_petro_b12: undefined,
       consignes_total_b6: undefined,
-      consignes_total_b12: undefined,
       consignes_vivo_b6: undefined,
-      consignes_vivo_b12: undefined,
       arrets: []
     },
     {
       numero_ligne: 5,
       chef_ligne_id: '',
       nombre_agents: 0,
-      recharges_petro_b6: undefined,
       recharges_petro_b12: undefined,
-      recharges_total_b6: undefined,
+      recharges_petro_b28: undefined,
+      recharges_petro_b38: undefined,
       recharges_total_b12: undefined,
-      recharges_vivo_b6: undefined,
+      recharges_total_b28: undefined,
+      recharges_total_b38: undefined,
       recharges_vivo_b12: undefined,
-      consignes_petro_b6: undefined,
+      recharges_vivo_b28: undefined,
+      recharges_vivo_b38: undefined,
       consignes_petro_b12: undefined,
-      consignes_total_b6: undefined,
+      consignes_petro_b28: undefined,
+      consignes_petro_b38: undefined,
       consignes_total_b12: undefined,
-      consignes_vivo_b6: undefined,
+      consignes_total_b28: undefined,
+      consignes_total_b38: undefined,
       consignes_vivo_b12: undefined,
+      consignes_vivo_b28: undefined,
+      consignes_vivo_b38: undefined,
       arrets: []
     }
   ]);
@@ -289,7 +278,7 @@ export const ProductionShiftForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
@@ -322,14 +311,14 @@ export const ProductionShiftForm = () => {
         tonnageTotal += ligne.tonnage_ligne || 0;
         cumulRechargesTotal += (ligne.cumul_recharges_b6 || 0) + (ligne.cumul_recharges_b12 || 0);
         cumulConsignesTotal += (ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0);
-        bouteillesProduites += (ligne.cumul_recharges_b6 || 0) + (ligne.cumul_recharges_b12 || 0) + 
-                               (ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0);
+        bouteillesProduites += (ligne.cumul_recharges_b6 || 0) + (ligne.cumul_recharges_b12 || 0) +
+          (ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0);
       });
 
       // Calculer le temps d'arrêt total en minutes depuis toutes les lignes
       let tempsArretTotalMinutes = 0;
       const allArrets: ArretProduction[] = [];
-      
+
       lignes.forEach(ligne => {
         if (ligne.arrets && ligne.arrets.length > 0) {
           ligne.arrets.forEach(arret => {
@@ -337,11 +326,11 @@ export const ProductionShiftForm = () => {
               const [heureD, minD] = arret.heure_debut.split(':').map(Number);
               const [heureF, minF] = arret.heure_fin.split(':').map(Number);
               let dureeMinutes = (heureF * 60 + minF) - (heureD * 60 + minD);
-              
+
               if (dureeMinutes < 0) {
                 dureeMinutes += 24 * 60;
               }
-              
+
               tempsArretTotalMinutes += dureeMinutes;
               allArrets.push(arret);
             }
@@ -440,7 +429,7 @@ export const ProductionShiftForm = () => {
         heure_fin_reelle: '19:00',
         bouteilles_produites: 0
       });
-      
+
       // Réinitialiser les 5 lignes
       setLignes([
         {
@@ -555,10 +544,10 @@ export const ProductionShiftForm = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Shift déjà enregistré</AlertDialogTitle>
             <AlertDialogDescription>
-              Un shift pour cette date ({shift.date}) et ce type ({shift.shift_type === '10h-19h' ? 'Shift 1' : 'Shift 2'}) 
+              Un shift pour cette date ({shift.date}) et ce type ({shift.shift_type === '10h-19h' ? 'Shift 1' : 'Shift 2'})
               a déjà été enregistré dans le système.
               <br /><br />
-              Si cet enregistrement précédent était une erreur, veuillez contacter l'administrateur 
+              Si cet enregistrement précédent était une erreur, veuillez contacter l'administrateur
               pour le supprimer avant de pouvoir saisir à nouveau ces données.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -568,126 +557,200 @@ export const ProductionShiftForm = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {(lignes.length > 0 || arrets.length > 0) && (
+      <div className="flex flex-col lg:flex-row min-h-screen bg-background">
+        {/* Sidebar Recapitulatif - Fixed on Desktop */}
+        <aside className="w-full lg:w-80 lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r bg-background z-20 overflow-y-auto">
           <ProductionRecapitulatif lignes={lignes} arrets={arrets} />
-        )}
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations du Shift</CardTitle>
-          <CardDescription>
-            Enregistrer les données de production du shift
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div>
-              <Label htmlFor="date">Date *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={shift.date}
-                onChange={(e) => handleShiftChange('date', e.target.value)}
-                required
-              />
-            </div>
+        </aside>
 
-            <div>
-              <Label htmlFor="heure-debut">Heure Début *</Label>
-              <Input
-                id="heure-debut"
-                type="time"
-                value={shift.heure_debut_reelle}
-                onChange={(e) => handleShiftChange('heure_debut_reelle', e.target.value)}
-                required
-              />
-            </div>
+        {/* Main Content - Scrollable */}
+        <main className="flex-1 lg:ml-80 p-4 md:p-6">
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 -mt-4 pt-4 md:-mx-6 md:px-6 md:-mt-6 md:pt-6 mb-6 border-b pb-4 flex items-center justify-between">
+            <h1 className="text-2xl font-bold tracking-tight">Saisie Production</h1>
 
-            <div>
-              <Label htmlFor="heure-fin">Heure Fin *</Label>
-              <Input
-                id="heure-fin"
-                type="time"
-                value={shift.heure_fin_reelle}
-                onChange={(e) => handleShiftChange('heure_fin_reelle', e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="shift-type">Shift *</Label>
-              <Select
-                value={shift.shift_type}
-                onValueChange={(value) => handleShiftChange('shift_type', value as ShiftType)}
-              >
-                <SelectTrigger id="shift-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10h-19h">Shift 1</SelectItem>
-                  <SelectItem value="20h-5h">Shift 2</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="chef-quart">Chef de Quart *</Label>
-              <Select
-                value={shift.chef_quart_id}
-                onValueChange={(value) => handleShiftChange('chef_quart_id', value)}
-              >
-                <SelectTrigger id="chef-quart">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chefsQuart.map((chef) => (
-                    <SelectItem key={chef.id} value={chef.id}>
-                      {chef.prenom} {chef.nom}
-                    </SelectItem>
-                  ))}
-                  {chefsLigne.map((chef) => (
-                    <SelectItem key={chef.id} value={chef.id}>
-                      {chef.prenom} {chef.nom}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lignes de Production</CardTitle>
-          <CardDescription>
-            Cliquez sur le + pour dérouler une ligne et renseigner les données
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {lignes.map((ligne, index) => (
-              <LigneProductionForm
-                key={index}
-                ligne={ligne}
-                index={index}
-                chefsLigne={chefsLigne}
-                onUpdate={updateLigne}
-                isB12Only={index === 4}
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          <form onSubmit={handleSubmit} className="space-y-6 max-w-[1600px] mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informations du Shift</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="date">Date *</Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={shift.date}
+                      onChange={(e) => handleShiftChange('date', e.target.value)}
+                      required
+                    />
+                  </div>
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={loading} size="lg">
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Enregistrement...' : 'Enregistrer les données'}
-          </Button>
-        </div>
-      </form>
+                  <div>
+                    <Label htmlFor="heure-debut">Heure début réelle *</Label>
+                    <Input
+                      id="heure-debut"
+                      type="time"
+                      value={shift.heure_debut_reelle}
+                      onChange={(e) => handleShiftChange('heure_debut_reelle', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="heure-fin">Heure fin réelle *</Label>
+                    <Input
+                      id="heure-fin"
+                      type="time"
+                      value={shift.heure_fin_reelle}
+                      onChange={(e) => handleShiftChange('heure_fin_reelle', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="shift-type">Shift *</Label>
+                    <Select
+                      value={shift.shift_type}
+                      onValueChange={(value) => handleShiftChange('shift_type', value as ShiftType)}
+                    >
+                      <SelectTrigger id="shift-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10h-19h">Shift 1</SelectItem>
+                        <SelectItem value="20h-5h">Shift 2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="chef-quart">Chef de Quart *</Label>
+                    <Select
+                      value={shift.chef_quart_id}
+                      onValueChange={(value) => handleShiftChange('chef_quart_id', value)}
+                    >
+                      <SelectTrigger id="chef-quart">
+                        <SelectValue placeholder="Sélectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {chefsQuart.map((chef) => (
+                          <SelectItem key={chef.id} value={chef.id}>
+                            {chef.prenom} {chef.nom}
+                          </SelectItem>
+                        ))}
+                        {chefsLigne.map((chef) => (
+                          <SelectItem key={chef.id} value={chef.id}>
+                            {chef.prenom} {chef.nom}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Personnel Section */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium text-sm mb-3">Personnel du Shift</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div>
+                      <Label htmlFor="chariste">Chariste</Label>
+                      <Input
+                        id="chariste"
+                        type="number"
+                        min="0"
+                        value={shift.chariste || ''}
+                        onChange={(e) => handleShiftChange('chariste', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="chariot">Chariot</Label>
+                      <Input
+                        id="chariot"
+                        type="number"
+                        min="0"
+                        value={shift.chariot || ''}
+                        onChange={(e) => handleShiftChange('chariot', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="agent-quai">Agent quai</Label>
+                      <Input
+                        id="agent-quai"
+                        type="number"
+                        min="0"
+                        value={shift.agent_quai || ''}
+                        onChange={(e) => handleShiftChange('agent_quai', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="agent-saisie">Agent saisie</Label>
+                      <Input
+                        id="agent-saisie"
+                        type="number"
+                        min="0"
+                        value={shift.agent_saisie || ''}
+                        onChange={(e) => handleShiftChange('agent_saisie', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="agent-atelier">Agent atelier</Label>
+                      <Input
+                        id="agent-atelier"
+                        type="number"
+                        min="0"
+                        value={shift.agent_atelier || ''}
+                        onChange={(e) => handleShiftChange('agent_atelier', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Lignes de Production</CardTitle>
+                <CardDescription>
+                  Cliquez sur le + pour dérouler une ligne et renseigner les données
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {lignes.map((ligne, index) => (
+                    <LigneProductionForm
+                      key={index}
+                      ligne={ligne}
+                      index={index}
+                      chefsLigne={chefsLigne}
+                      onUpdate={updateLigne}
+                      isB12Only={index === 4}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end pb-10">
+              <Button type="submit" disabled={loading} size="lg">
+                <Save className="h-4 w-4 mr-2" />
+                {loading ? 'Enregistrement...' : 'Enregistrer les données'}
+              </Button>
+            </div>
+          </form>
+        </main>
+      </div>
     </>
   );
 };
