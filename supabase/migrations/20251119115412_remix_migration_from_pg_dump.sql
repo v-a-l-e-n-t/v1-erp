@@ -4,7 +4,7 @@
 
 
 -- Dumped from database version 17.6
--- Dumped by pg_dump version 17.6
+-- Dumped by pg_dump version 17.7
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -131,12 +131,13 @@ CREATE TABLE public.arrets_production (
     heure_debut time without time zone NOT NULL,
     heure_fin time without time zone NOT NULL,
     type_arret public.arret_type NOT NULL,
-    equipement text,
     etape_ligne public.etape_ligne,
     description text,
     action_corrective text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    lignes_concernees integer[],
+    ordre_intervention text
 );
 
 
@@ -167,7 +168,17 @@ CREATE TABLE public.bilan_entries (
     spheres_final numeric DEFAULT 0 NOT NULL,
     bouteilles_final numeric DEFAULT 0 NOT NULL,
     reservoirs_final numeric DEFAULT 0 NOT NULL,
-    user_id uuid
+    user_id uuid,
+    sorties_vrac_simam numeric DEFAULT 0,
+    sorties_vrac_petro_ivoire numeric DEFAULT 0,
+    sorties_vrac_vivo_energies numeric DEFAULT 0,
+    sorties_vrac_total_energies numeric DEFAULT 0,
+    sorties_conditionnees_petro_ivoire numeric DEFAULT 0,
+    sorties_conditionnees_vivo_energies numeric DEFAULT 0,
+    sorties_conditionnees_total_energies numeric DEFAULT 0,
+    fuyardes_petro_ivoire numeric DEFAULT 0,
+    fuyardes_vivo_energies numeric DEFAULT 0,
+    fuyardes_total_energies numeric DEFAULT 0
 );
 
 
@@ -185,6 +196,51 @@ CREATE TABLE public.chefs_ligne (
 
 
 --
+-- Name: chefs_quart; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chefs_quart (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nom text NOT NULL,
+    prenom text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: lignes_production; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lignes_production (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    shift_id uuid NOT NULL,
+    numero_ligne integer NOT NULL,
+    chef_ligne_id uuid,
+    recharges_petro_b6 integer DEFAULT 0,
+    recharges_petro_b12 integer DEFAULT 0,
+    recharges_total_b6 integer DEFAULT 0,
+    recharges_total_b12 integer DEFAULT 0,
+    recharges_vivo_b6 integer DEFAULT 0,
+    recharges_vivo_b12 integer DEFAULT 0,
+    consignes_petro_b6 integer DEFAULT 0,
+    consignes_petro_b12 integer DEFAULT 0,
+    consignes_total_b6 integer DEFAULT 0,
+    consignes_total_b12 integer DEFAULT 0,
+    consignes_vivo_b6 integer DEFAULT 0,
+    consignes_vivo_b12 integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    cumul_recharges_b6 integer DEFAULT 0,
+    cumul_recharges_b12 integer DEFAULT 0,
+    cumul_consignes_b6 integer DEFAULT 0,
+    cumul_consignes_b12 integer DEFAULT 0,
+    tonnage_ligne numeric(10,3) DEFAULT 0,
+    nombre_agents integer DEFAULT 0
+);
+
+
+--
 -- Name: production_shifts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -192,16 +248,20 @@ CREATE TABLE public.production_shifts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     date date NOT NULL,
     shift_type public.shift_type NOT NULL,
-    ligne public.ligne_type NOT NULL,
     chef_ligne_id uuid,
     heure_debut_theorique time without time zone NOT NULL,
     heure_fin_theorique time without time zone NOT NULL,
     heure_debut_reelle time without time zone NOT NULL,
     heure_fin_reelle time without time zone NOT NULL,
     bouteilles_produites integer DEFAULT 0 NOT NULL,
-    user_id uuid NOT NULL,
+    user_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    chef_quart_id uuid,
+    tonnage_total numeric(10,3) DEFAULT 0,
+    cumul_recharges_total integer DEFAULT 0,
+    cumul_consignes_total integer DEFAULT 0,
+    temps_arret_total_minutes integer DEFAULT 0
 );
 
 
@@ -290,11 +350,19 @@ ALTER TABLE ONLY public.chefs_ligne
 
 
 --
--- Name: production_shifts production_shifts_date_shift_type_ligne_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: chefs_quart chefs_quart_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.production_shifts
-    ADD CONSTRAINT production_shifts_date_shift_type_ligne_key UNIQUE (date, shift_type, ligne);
+ALTER TABLE ONLY public.chefs_quart
+    ADD CONSTRAINT chefs_quart_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: lignes_production lignes_production_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lignes_production
+    ADD CONSTRAINT lignes_production_pkey PRIMARY KEY (id);
 
 
 --
@@ -346,10 +414,31 @@ ALTER TABLE ONLY public.user_roles
 
 
 --
+-- Name: idx_arrets_production_lignes_concernees; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_arrets_production_lignes_concernees ON public.arrets_production USING gin (lignes_concernees);
+
+
+--
 -- Name: idx_bilan_entries_date; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bilan_entries_date ON public.bilan_entries USING btree (date);
+
+
+--
+-- Name: idx_lignes_production_chef_ligne_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lignes_production_chef_ligne_id ON public.lignes_production USING btree (chef_ligne_id);
+
+
+--
+-- Name: idx_lignes_production_shift_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lignes_production_shift_id ON public.lignes_production USING btree (shift_id);
 
 
 --
@@ -395,6 +484,13 @@ CREATE TRIGGER update_chefs_ligne_updated_at BEFORE UPDATE ON public.chefs_ligne
 
 
 --
+-- Name: lignes_production update_lignes_production_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_lignes_production_updated_at BEFORE UPDATE ON public.lignes_production FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
 -- Name: production_shifts update_production_shifts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -414,6 +510,22 @@ CREATE TRIGGER update_sphere_calculations_updated_at BEFORE UPDATE ON public.sph
 
 ALTER TABLE ONLY public.arrets_production
     ADD CONSTRAINT arrets_production_shift_id_fkey FOREIGN KEY (shift_id) REFERENCES public.production_shifts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: lignes_production lignes_production_chef_ligne_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lignes_production
+    ADD CONSTRAINT lignes_production_chef_ligne_id_fkey FOREIGN KEY (chef_ligne_id) REFERENCES public.chefs_ligne(id);
+
+
+--
+-- Name: lignes_production lignes_production_shift_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lignes_production
+    ADD CONSTRAINT lignes_production_shift_id_fkey FOREIGN KEY (shift_id) REFERENCES public.production_shifts(id) ON DELETE CASCADE;
 
 
 --
@@ -439,17 +551,10 @@ CREATE POLICY "Admins can manage chefs de ligne" ON public.chefs_ligne USING (pu
 
 
 --
--- Name: arrets_production Admins can view all arrets; Type: POLICY; Schema: public; Owner: -
+-- Name: chefs_quart Admins can manage chefs de quart; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "Admins can view all arrets" ON public.arrets_production FOR SELECT USING (public.has_role(auth.uid(), 'admin'::public.app_role));
-
-
---
--- Name: production_shifts Admins can view all shifts; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Admins can view all shifts" ON public.production_shifts FOR SELECT USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+CREATE POLICY "Admins can manage chefs de quart" ON public.chefs_quart USING (public.has_role(auth.uid(), 'admin'::public.app_role));
 
 
 --
@@ -460,10 +565,31 @@ CREATE POLICY "Allow all operations for everyone" ON public.bilan_entries USING 
 
 
 --
+-- Name: arrets_production Allow all operations on arrets_production; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow all operations on arrets_production" ON public.arrets_production USING (true) WITH CHECK (true);
+
+
+--
 -- Name: sphere_calculations Allow all operations on calculations; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Allow all operations on calculations" ON public.sphere_calculations USING (true);
+
+
+--
+-- Name: lignes_production Allow all operations on lignes_production; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow all operations on lignes_production" ON public.lignes_production USING (true) WITH CHECK (true);
+
+
+--
+-- Name: production_shifts Allow all operations on production_shifts; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow all operations on production_shifts" ON public.production_shifts USING (true) WITH CHECK (true);
 
 
 --
@@ -481,27 +607,6 @@ CREATE POLICY "Allow public read access to calibration data" ON public.sphere_ca
 
 
 --
--- Name: production_shifts Chef depot can insert shifts; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Chef depot can insert shifts" ON public.production_shifts FOR INSERT WITH CHECK ((public.has_role(auth.uid(), 'chef_depot'::public.app_role) OR public.has_role(auth.uid(), 'admin'::public.app_role)));
-
-
---
--- Name: arrets_production Chef depot can manage arrets; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Chef depot can manage arrets" ON public.arrets_production USING ((public.has_role(auth.uid(), 'chef_depot'::public.app_role) OR public.has_role(auth.uid(), 'admin'::public.app_role)));
-
-
---
--- Name: production_shifts Chef depot can update their shifts; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Chef depot can update their shifts" ON public.production_shifts FOR UPDATE USING ((public.has_role(auth.uid(), 'chef_depot'::public.app_role) OR public.has_role(auth.uid(), 'admin'::public.app_role)));
-
-
---
 -- Name: chefs_ligne Chef depot can view chefs de ligne; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -509,10 +614,24 @@ CREATE POLICY "Chef depot can view chefs de ligne" ON public.chefs_ligne FOR SEL
 
 
 --
--- Name: production_shifts Chef depot can view their shifts; Type: POLICY; Schema: public; Owner: -
+-- Name: chefs_quart Chef depot can view chefs de quart; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "Chef depot can view their shifts" ON public.production_shifts FOR SELECT USING ((public.has_role(auth.uid(), 'chef_depot'::public.app_role) OR public.has_role(auth.uid(), 'admin'::public.app_role)));
+CREATE POLICY "Chef depot can view chefs de quart" ON public.chefs_quart FOR SELECT USING ((public.has_role(auth.uid(), 'chef_depot'::public.app_role) OR public.has_role(auth.uid(), 'admin'::public.app_role)));
+
+
+--
+-- Name: chefs_ligne Public can view chefs de ligne; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Public can view chefs de ligne" ON public.chefs_ligne FOR SELECT TO authenticated, anon USING (true);
+
+
+--
+-- Name: chefs_quart Public can view chefs de quart; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Public can view chefs de quart" ON public.chefs_quart FOR SELECT TO authenticated, anon USING (true);
 
 
 --
@@ -539,6 +658,18 @@ ALTER TABLE public.bilan_entries ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.chefs_ligne ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: chefs_quart; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.chefs_quart ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: lignes_production; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.lignes_production ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: production_shifts; Type: ROW SECURITY; Schema: public; Owner: -
