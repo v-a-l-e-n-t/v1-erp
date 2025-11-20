@@ -22,11 +22,13 @@ const DashboardHistorique = () => {
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
+  const [sortieVracAnnuelle, setSortieVracAnnuelle] = useState<number>(0);
   const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     loadData();
     loadProductionAnnuelle();
+    loadSortieVracAnnuelle();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'm') {
@@ -60,6 +62,23 @@ const DashboardHistorique = () => {
 
     const total = data?.reduce((sum, shift) => sum + (shift.tonnage_total || 0), 0) || 0;
     setProductionAnnuelle(total);
+  };
+
+  const loadSortieVracAnnuelle = async () => {
+    const currentYear = new Date().getFullYear();
+    const { data, error } = await supabase
+      .from('bilan_entries')
+      .select('sorties_vrac')
+      .gte('date', `${currentYear}-01-01`)
+      .lte('date', `${currentYear}-12-31`);
+
+    if (error) {
+      console.error('Erreur chargement sortie vrac annuelle:', error);
+      return;
+    }
+
+    const total = data?.reduce((sum, entry) => sum + (entry.sorties_vrac || 0), 0) || 0;
+    setSortieVracAnnuelle(total);
   };
 
   const handleDelete = async (id: string) => {
@@ -133,18 +152,32 @@ const DashboardHistorique = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-primary">GazPilot</h1>
+              <h1 className="text-3xl font-bold text-primary">GazPilote</h1>
             </div>
             <div className="flex items-center gap-4">
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-6 py-4 shadow-sm">
-                <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider mb-1">
-                  PRODUCTION ANNUELLE CE : <span className="text-foreground font-bold">{new Date().getFullYear()}</span>
-                </p>
-                <p className="text-4xl font-extrabold text-primary tracking-tight">
-                  {productionAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
-                  <span className="text-lg font-semibold text-primary/60 ml-2">Kg</span>
-                </p>
-              </div>
+              {(activeView === 'overview' || activeView === 'vrac') && (
+                <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-6 py-4 shadow-sm">
+                  <p className="text-xs font-semibold text-orange-600/70 uppercase tracking-wider mb-1">
+                    SORTIE VRAC ANNUELLE : <span className="text-foreground font-bold">{new Date().getFullYear()}</span>
+                  </p>
+                  <p className="text-4xl font-extrabold text-orange-600 tracking-tight">
+                    {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                    <span className="text-lg font-semibold text-orange-600/60 ml-2">Kg</span>
+                  </p>
+                </div>
+              )}
+
+              {(activeView === 'overview' || activeView === 'emplisseur') && (
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-6 py-4 shadow-sm">
+                  <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider mb-1">
+                    PRODUCTION ANNUELLE CE : <span className="text-foreground font-bold">{new Date().getFullYear()}</span>
+                  </p>
+                  <p className="text-4xl font-extrabold text-primary tracking-tight">
+                    {productionAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                    <span className="text-lg font-semibold text-primary/60 ml-2">Kg</span>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
