@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DateRange } from 'react-day-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Dashboard from '@/components/Dashboard';
 import HistoryTable from '@/components/HistoryTable';
 import BilanForm from '@/components/BilanForm';
-import { BilanEntriesImport } from '@/components/BilanEntriesImport';
 import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
@@ -24,6 +23,19 @@ const DashboardHistorique = () => {
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
   const [sortieVracAnnuelle, setSortieVracAnnuelle] = useState<number>(0);
   const [showImport, setShowImport] = useState(false);
+
+  // Filter state for Centre Emplisseur
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('range');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    const yesterday = new Date(Date.now() - 86400000);
+    return { from: yesterday, to: today };
+  });
 
   useEffect(() => {
     loadData();
@@ -240,7 +252,16 @@ const DashboardHistorique = () => {
           )}
 
           {activeView === 'emplisseur' && (
-            <CentreEmplisseurView />
+            <CentreEmplisseurView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+            />
           )}
         </div>
       </main>
