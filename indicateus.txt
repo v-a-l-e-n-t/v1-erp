@@ -1,0 +1,256 @@
+LISTE DES 190 INDICATEURS DASHBOARD GPL
+========================================
+
+BILAN MATIERE - STOCKS (12)
+----------------------------
+1. Stock Initial Moyen (période)
+2. Stock Final Moyen (période)
+3. Stock Théorique Moyen (période)
+4. Stock Minimum Atteint (alerte seuil bas)
+5. Stock Maximum Atteint (capacité)
+6. Variation de Stock (Final - Initial)
+7. Taux de Rotation du Stock (Sorties / Stock Moyen)
+8. Jours de Couverture (Stock / Sorties Moyennes Journalières)
+9. Stock Sphères Moyen
+10. Stock Bouteilles Moyen
+11. Stock Réservoirs Moyen
+12. Répartition % Sphères/Bouteilles/Réservoirs
+
+BILAN MATIERE - RECEPTIONS (9)
+-------------------------------
+13. Total Réceptions (kg)
+14. Nombre de Réceptions (comptage)
+15. Réception Moyenne par Jour
+16. Réception Maximale (pic)
+17. Réception Minimale
+18. Nombre de Navires Différents
+19. Navire le Plus Fréquent
+20. Fréquence de Réception (jours entre réceptions)
+21. Taux de Réception (% jours avec réception)
+
+BILAN MATIERE - SORTIES GLOBALES (5)
+-------------------------------------
+22. Total Sorties (kg)
+23. Sorties Moyennes par Jour
+24. Sorties Maximales (pic)
+25. Sorties Minimales
+26. Tendance Sorties (croissant/décroissant)
+
+BILAN MATIERE - SORTIES VRAC (8)
+---------------------------------
+27. Total Sorties Vrac
+28. % Sorties Vrac (vs Total Sorties)
+29. Sorties Vrac SIMAM
+30. Sorties Vrac PETRO IVOIRE
+31. Sorties Vrac VIVO ENERGIES
+32. Sorties Vrac TOTAL ENERGIES
+33. Client Vrac Principal
+34. Répartition % par Client Vrac
+
+BILAN MATIERE - SORTIES CONDITIONNEES (7)
+------------------------------------------
+35. Total Sorties Conditionnées
+36. % Sorties Conditionnées (vs Total Sorties)
+37. Sorties Conditionnées PETRO IVOIRE
+38. Sorties Conditionnées VIVO ENERGIES
+39. Sorties Conditionnées TOTAL ENERGIES
+40. Client Conditionné Principal
+41. Répartition % par Client Conditionné
+
+BILAN MATIERE - FUYARDES (6)
+-----------------------------
+42. Total Fuyardes
+43. % Fuyardes (vs Total Sorties)
+44. Fuyardes PETRO IVOIRE
+45. Fuyardes VIVO ENERGIES
+46. Fuyardes TOTAL ENERGIES
+47. Taux de Fuyardes Moyen
+
+BILAN MATIERE - BILANS (17)
+----------------------------
+48. Bilan Total (Somme des écarts)
+49. Bilan Moyen par Jour
+50. Nombre de Bilans Positifs
+51. Nombre de Bilans Négatifs
+52. Nombre de Bilans Neutres
+53. % Bilans Positifs
+54. % Bilans Négatifs
+55. % Bilans Neutres
+56. Total Bilan Positif
+57. Total Bilan Négatif
+58. Écart Moyen Positif
+59. Écart Moyen Négatif
+60. Plus Grand Écart Positif
+61. Plus Grand Écart Négatif
+62. Série de Bilans Négatifs Consécutifs
+63. Série de Bilans Positifs Consécutifs
+64. Taux de Précision (% bilans neutres)
+
+BILAN MATIERE - CALCULES (4)
+-----------------------------
+65. Ratio Réceptions/Sorties
+66. Taux de Remplissage Théorique
+67. Écart Stock Réel vs Théorique
+68. Fiabilité des Prévisions
+
+PRODUCTION - GLOBALE (10)
+--------------------------
+69. Tonnage Total Produit (kg)
+70. Tonnage Moyen par Shift
+71. Tonnage Maximum
+72. Tonnage Minimum
+73. Nombre de Shifts Total
+74. Nombre de Shifts 10h-19h
+75. Nombre de Shifts 20h-5h
+76. Tonnage Moyen Shift Jour
+77. Tonnage Moyen Shift Nuit
+78. Shift le Plus Productif
+
+PRODUCTION - PAR TYPE BOUTEILLE (18)
+-------------------------------------
+79. Total Recharges B6
+80. Total Recharges B12
+81. Total Recharges B28
+82. Total Recharges B38
+83. % Recharges B6
+84. % Recharges B12
+85. % Recharges B28
+86. % Recharges B38
+87. Total Consignes B6
+88. Total Consignes B12
+89. Total Consignes B28
+90. Total Consignes B38
+91. % Consignes B6
+92. % Consignes B12
+93. % Consignes B28
+94. % Consignes B38
+95. Ratio Recharges/Consignes Global
+96. Bouteilles Totales Produites
+
+PRODUCTION - PAR LIGNE (14)
+----------------------------
+97. Tonnage Ligne 1
+98. Tonnage Ligne 2
+99. Tonnage Ligne 3
+100. Tonnage Ligne 4
+101. Tonnage Ligne 5
+102. % Production Ligne 1
+103. % Production Ligne 2
+104. % Production Ligne 3
+105. % Production Ligne 4
+106. % Production Ligne 5
+107. Ligne la Plus Productive
+108. Ligne la Moins Productive
+109. Nombre de Shifts par Ligne
+110. Tonnage Moyen par Ligne
+
+PRODUCTION - PAR CLIENT (7)
+----------------------------
+111. Total PETRO IVOIRE
+112. Total VIVO ENERGIES
+113. Total TOTAL ENERGIES
+114. % PETRO IVOIRE
+115. % VIVO ENERGIES
+116. % TOTAL ENERGIES
+117. Client Principal
+
+PRODUCTION - PERSONNEL (16)
+----------------------------
+118. Nombre Total d'Agents Mobilisés
+119. Nombre Moyen d'Agents par Shift
+120. Nombre de Charistes Moyen
+121. Nombre de Chariots Utilisés Moyen
+122. Nombre d'Agents Quai Moyen
+123. Nombre d'Agents Saisie Moyen
+124. Nombre d'Agents Atelier Moyen
+125. Taux de Présence Ligne 1
+126. Taux de Présence Ligne 2
+127. Taux de Présence Ligne 3
+128. Taux de Présence Ligne 4
+129. Taux de Présence Ligne 5
+130. Productivité par Agent
+131. Nombre de Chefs de Ligne Actifs
+132. Nombre de Chefs de Quart Actifs
+133. Chef de Ligne le Plus Productif
+
+PRODUCTION - TEMPS ET PERFORMANCE (11)
+---------------------------------------
+134. Temps d'Arrêt Total (minutes)
+135. Temps d'Arrêt Moyen par Shift
+136. % Temps d'Arrêt
+137. Nombre d'Arrêts Total
+138. Nombre Moyen d'Arrêts par Shift
+139. Durée Moyenne d'un Arrêt
+140. Arrêt le Plus Long
+141. Shift avec le Plus d'Arrêts
+142. Temps de Production Réel Moyen
+143. Écart Horaire Moyen
+144. Taux de Respect des Horaires
+
+PRODUCTION - CAUSES D'ARRET (12)
+---------------------------------
+145. Nombre d'Arrêts - Maintenance Corrective
+146. Nombre d'Arrêts - Manque Personnel
+147. Nombre d'Arrêts - Problème Approvisionnement
+148. Nombre d'Arrêts - Panne Ligne
+149. Nombre d'Arrêts - Autre
+150. Cause d'Arrêt Principale
+151. Top 3 des Causes d'Arrêt
+152. % Arrêts Maintenance
+153. % Arrêts Manque Personnel
+154. % Arrêts Approvisionnement
+155. % Arrêts Panne Ligne
+156. Temps d'Arrêt par Cause
+
+PRODUCTION - ETAPES LIGNE (9)
+------------------------------
+157. Arrêts BASCULES
+158. Arrêts PURGE
+159. Arrêts CONTROLE
+160. Arrêts ETANCHEITE
+161. Arrêts CAPSULAGE
+162. Arrêts VIDANGE
+163. Arrêts PALETTISEUR
+164. Arrêts TRI
+165. Étape la Plus Problématique
+
+PRODUCTION - KPI PERFORMANCE (5)
+---------------------------------
+166. TRS (Taux de Rendement Synthétique)
+167. Taux de Disponibilité
+168. Taux de Performance
+169. Taux de Qualité
+170. OEE (Overall Equipment Effectiveness)
+
+INDICATEURS CROISES (8)
+------------------------
+171. Corrélation Production vs Sorties Conditionnées
+172. Écart Production vs Sorties
+173. Taux de Conversion
+174. Stock Disponible vs Capacité Production
+175. Jours de Production Couverts par Stock
+176. Efficacité Globale GPL
+177. Taux de Perte Global
+178. Ratio Réceptions/Production
+
+ALERTES (6)
+-----------
+179. Alerte Stock Critique
+180. Alerte Bilan Négatif Récurrent
+181. Alerte Arrêt Prolongé
+182. Alerte Taux de Fuyardes Élevé
+183. Alerte Productivité Faible
+184. Alerte Manque Personnel
+
+TENDANCES ET PREVISIONS (6)
+----------------------------
+185. Tendance Tonnage (7 derniers jours)
+186. Tendance Bilan
+187. Prévision Stock J+7
+188. Prévision Réception Prochaine
+189. Évolution Mensuelle Production
+190. Évolution Mensuelle Sorties
+
+========================================
+TOTAL: 190 INDICATEURS
+========================================
