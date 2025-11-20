@@ -555,12 +555,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
         <h3 className="text-lg font-semibold text-muted-foreground">Bilan Matière</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Bilan Matière */}
-          <Card>
+          <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Bilan Matière</CardTitle>
               <TrendingUpDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className={`text-2xl font-bold ${totalBilan > 0 ? 'text-success' : totalBilan < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {formatNumber(totalBilan)} Kg
               </div>
@@ -569,12 +569,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </Card>
 
           {/* Réception Navire */}
-          <Card>
+          <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Réception Navire</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className="text-2xl font-bold">{formatNumber(totalReceptions)} Kg</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {nombreReceptions} réception{nombreReceptions > 1 ? 's' : ''}
@@ -583,12 +583,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </Card>
 
           {/* Sorties */}
-          <Card>
+          <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Sorties</CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">Dépôt VRAC</span>
@@ -603,12 +603,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </Card>
 
           {/* Sorties par Client */}
-          <Card>
+          <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Sorties par Client</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className="space-y-1">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Petro Ivoire</span>
@@ -633,26 +633,44 @@ const Dashboard = ({ entries }: DashboardProps) => {
         <h3 className="text-lg font-semibold text-muted-foreground">Production Centre Emplisseur</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Tonnage Production CE */}
-          <Card className="bg-primary/5 border-primary/20">
+          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-primary">Tonnage Production CE</CardTitle>
               <Weight className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className="text-2xl font-bold text-primary">
                 {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
               </div>
               <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
+              <div className="mt-3 space-y-1 border-t pt-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">B6</span>
+                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">B12</span>
+                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12)} Kg</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">B28</span>
+                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">B38</span>
+                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {/* Nombre Bouteilles Produites */}
-          <Card className="bg-primary/5 border-primary/20">
+          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-primary">Bouteilles Produites</CardTitle>
               <Package className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className="text-2xl font-bold text-primary">
                 {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
               </div>
@@ -678,12 +696,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </Card>
 
           {/* Corrélation Production vs Sorties Conditionnées */}
-          <Card className="bg-primary/5 border-primary/20">
+          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-primary">Corrélation Prod. vs Sorties</CardTitle>
               <TrendingUpDown className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className="space-y-2">
                 <div>
                   <div className="text-sm">
@@ -713,12 +731,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </Card>
 
           {/* Production par Client */}
-          <Card className="bg-primary/5 border-primary/20">
+          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-primary">Production par Client</CardTitle>
               <Factory className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2">
               <div className="space-y-1">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Petro Ivoire</span>
