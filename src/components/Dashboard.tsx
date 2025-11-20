@@ -118,19 +118,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
     fetchProductionStats();
   }, [filterType, selectedMonth, selectedDate, dateRange]);
 
-  if (entries.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Tableau de bord</CardTitle>
-          <CardDescription>Aucune donnée disponible</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Commencez par saisir votre premier bilan.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+
 
   // Filter entries based on selected filter type
   const filteredEntries = entries.filter(entry => {
@@ -153,121 +141,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
   // Get available months from entries
   const availableMonths = Array.from(new Set(entries.map(e => e.date.substring(0, 7)))).sort().reverse();
 
-  if (filteredEntries.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Tableau de bord</CardTitle>
-                <CardDescription>Aucune donnée pour la période sélectionnée</CardDescription>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">Par mois</SelectItem>
-                  <SelectItem value="date">Par date</SelectItem>
-                  <SelectItem value="range">Par période</SelectItem>
-                </SelectContent>
-              </Select>
 
-              {filterType === 'month' && (
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMonths.map(month => (
-                      <SelectItem key={month} value={month}>
-                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {filterType === 'date' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[240px] justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      locale={fr}
-                      disabled={{ after: new Date() }}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              )}
-
-              {filterType === 'range' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal",
-                        !dateRange && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                          </>
-                        ) : (
-                          format(dateRange.from, "dd/MM/yyyy")
-                        )
-                      ) : (
-                        "Sélectionner une période"
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      locale={fr}
-                      disabled={{ after: new Date() }}
-                      numberOfMonths={2}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Aucune donnée disponible pour cette période. Consultez l'historique ou sélectionnez une autre période.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Get last entry (most recent)
-  const lastEntry = filteredEntries[0]; // entries are already sorted by date desc
+  // Get last entry (most recent) or default
+  const lastEntry = filteredEntries[0] || { date: new Date().toISOString(), bilan: 0, nature: '-' } as unknown as BilanEntry;
 
   // Calculate totals
   const totalReceptions = filteredEntries.reduce((sum, e) => sum + e.reception_gpl, 0);
@@ -710,21 +587,25 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     <span className="text-muted-foreground"> des sorties conditionnées</span>
                   </div>
                 </div>
-                <div className="border-t pt-2">
-                  <div className="text-xs text-muted-foreground mb-1">Différence</div>
-                  <div className={`text-lg font-bold ${(productionStats.tonnage - totalConditionne) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    {formatNumber(productionStats.tonnage - totalConditionne)} Kg
+
+                <div className="mt-3 space-y-1 text-xs border-t pt-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Production</span>
+                    <span className="text-base font-bold">{formatNumber(productionStats.tonnage)} Kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sorties Cond.</span>
+                    <span className="text-base font-bold">{formatNumber(totalConditionne)} Kg</span>
                   </div>
                 </div>
-              </div>
-              <div className="mt-3 space-y-1 text-xs border-t pt-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Production</span>
-                  <span className="text-base font-bold">{formatNumber(productionStats.tonnage)} Kg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sorties Cond.</span>
-                  <span className="text-base font-bold">{formatNumber(totalConditionne)} Kg</span>
+
+                <div className="border-t pt-2 mt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Différence</span>
+                    <span className={`text-lg font-bold ${(productionStats.tonnage - totalConditionne) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {formatNumber(productionStats.tonnage - totalConditionne)} Kg
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>
