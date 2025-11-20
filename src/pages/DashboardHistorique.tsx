@@ -159,7 +159,7 @@ const DashboardHistorique = () => {
           <Button
             variant={activeView === 'overview' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5'}`}
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('overview')}
           >
             <BarChart3 className="mr-3 h-6 w-6" />
@@ -169,7 +169,7 @@ const DashboardHistorique = () => {
           <Button
             variant={activeView === 'vrac' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5'}`}
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('vrac')}
           >
             <FileText className="mr-3 h-6 w-6" />
@@ -179,7 +179,7 @@ const DashboardHistorique = () => {
           <Button
             variant={activeView === 'emplisseur' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5'}`}
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('emplisseur')}
           >
             <Calculator className="mr-3 h-6 w-6" />
