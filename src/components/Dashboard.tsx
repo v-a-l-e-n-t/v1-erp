@@ -326,13 +326,13 @@ const Dashboard = ({ entries }: DashboardProps) => {
     <div className="space-y-6">
       {/* Filter Selector */}
       <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold">Vue d'ensemble des opérations</h2>
             <p className="text-muted-foreground">Sélectionnez une période pour filtrer les statistiques</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue />

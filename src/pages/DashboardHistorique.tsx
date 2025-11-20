@@ -131,12 +131,9 @@ const DashboardHistorique = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-primary">Bilan Matière GPL</h1>
-              <p className="text-sm text-muted-foreground mt-2">
-                Dashboard & Historique
-              </p>
+              <h1 className="text-3xl font-bold text-primary">GazPilot</h1>
             </div>
             <div className="flex items-center gap-4">
               <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-6 py-4 shadow-sm">
