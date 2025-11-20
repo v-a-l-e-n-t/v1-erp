@@ -30,7 +30,7 @@ BILAN MATIERE - RECEPTIONS (9)
 
 BILAN MATIERE - SORTIES GLOBALES (5)
 -------------------------------------
-22. Total Sorties (kg)
+22. Total Sorties
 23. Sorties Moyennes par Jour
 24. Sorties Maximales (pic)
 25. Sorties Minimales
