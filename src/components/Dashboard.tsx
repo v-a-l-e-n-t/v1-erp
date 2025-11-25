@@ -19,7 +19,7 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ entries }: DashboardProps) => {
-  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('range');
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;

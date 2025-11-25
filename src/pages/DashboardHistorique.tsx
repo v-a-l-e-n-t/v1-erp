@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Dashboard from '@/components/Dashboard';
 import HistoryTable from '@/components/HistoryTable';
 import BilanForm from '@/components/BilanForm';
@@ -25,7 +26,7 @@ const DashboardHistorique = () => {
   const [showImport, setShowImport] = useState(false);
 
   // Filter state for Centre Emplisseur
-  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('range');
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -37,10 +38,12 @@ const DashboardHistorique = () => {
     return { from: yesterday, to: today };
   });
 
+  // Year selection for header KPIs
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const availableYears = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+
   useEffect(() => {
     loadData();
-    loadProductionAnnuelle();
-    loadSortieVracAnnuelle();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'm') {
@@ -52,6 +55,11 @@ const DashboardHistorique = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    loadProductionAnnuelle();
+    loadSortieVracAnnuelle();
+  }, [selectedYear]);
+
   const loadData = async () => {
     setLoading(true);
     const loaded = await loadEntries();
@@ -60,12 +68,11 @@ const DashboardHistorique = () => {
   };
 
   const loadProductionAnnuelle = async () => {
-    const currentYear = new Date().getFullYear();
     const { data, error } = await supabase
       .from('production_shifts')
       .select('tonnage_total')
-      .gte('date', `${currentYear}-01-01`)
-      .lte('date', `${currentYear}-12-31`);
+      .gte('date', `${selectedYear}-01-01`)
+      .lte('date', `${selectedYear}-12-31`);
 
     if (error) {
       console.error('Erreur chargement production annuelle:', error);
@@ -77,12 +84,11 @@ const DashboardHistorique = () => {
   };
 
   const loadSortieVracAnnuelle = async () => {
-    const currentYear = new Date().getFullYear();
     const { data, error } = await supabase
       .from('bilan_entries')
       .select('sorties_vrac')
-      .gte('date', `${currentYear}-01-01`)
-      .lte('date', `${currentYear}-12-31`);
+      .gte('date', `${selectedYear}-01-01`)
+      .lte('date', `${selectedYear}-12-31`);
 
     if (error) {
       console.error('Erreur chargement sortie vrac annuelle:', error);
@@ -169,9 +175,21 @@ const DashboardHistorique = () => {
             <div className="flex items-center gap-4">
               {(activeView === 'overview' || activeView === 'vrac') && (
                 <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-6 py-4 shadow-sm">
-                  <p className="text-xs font-semibold text-orange-600/70 uppercase tracking-wider mb-1">
-                    SORTIE VRAC ANNUELLE : <span className="text-foreground font-bold">{new Date().getFullYear()}</span>
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs font-semibold text-orange-600/70 uppercase tracking-wider">
+                      SORTIE VRAC ANNUELLE :
+                    </p>
+                    <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                      <SelectTrigger className="h-6 w-20 text-xs font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableYears.map(year => (
+                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <p className="text-4xl font-extrabold text-orange-600 tracking-tight">
                     {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     <span className="text-lg font-semibold text-orange-600/60 ml-2">Kg</span>
@@ -181,9 +199,21 @@ const DashboardHistorique = () => {
 
               {(activeView === 'overview' || activeView === 'emplisseur') && (
                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-6 py-4 shadow-sm">
-                  <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider mb-1">
-                    PRODUCTION ANNUELLE CE : <span className="text-foreground font-bold">{new Date().getFullYear()}</span>
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider">
+                      PRODUCTION ANNUELLE CE :
+                    </p>
+                    <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                      <SelectTrigger className="h-6 w-20 text-xs font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableYears.map(year => (
+                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <p className="text-4xl font-extrabold text-primary tracking-tight">
                     {productionAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     <span className="text-lg font-semibold text-primary/60 ml-2">Kg</span>
