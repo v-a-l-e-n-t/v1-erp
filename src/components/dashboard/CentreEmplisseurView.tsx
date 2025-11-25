@@ -666,10 +666,6 @@ const CentreEmplisseurView = ({
                             <div className="bg-card p-3 rounded-md border shadow-sm">
                                 <div className="text-center mb-2">
                                     <p className="text-xs text-muted-foreground uppercase font-bold">Recharges</p>
-                                    <p className="text-xl font-bold text-foreground">
-                                        {stats.recharges.total.toLocaleString('fr-FR')}
-                                        <span className="text-xs text-muted-foreground ml-1">Btl</span>
-                                    </p>
                                 </div>
                                 <div className="grid grid-cols-4 gap-1 text-center text-xs">
                                     <div className="bg-muted/30 p-1 rounded">
@@ -693,10 +689,6 @@ const CentreEmplisseurView = ({
                             <div className="bg-card p-3 rounded-md border shadow-sm">
                                 <div className="text-center mb-2">
                                     <p className="text-xs text-muted-foreground uppercase font-bold">Consignes</p>
-                                    <p className="text-xl font-bold text-foreground">
-                                        {stats.consignes.total.toLocaleString('fr-FR')}
-                                        <span className="text-xs text-muted-foreground ml-1">Btl</span>
-                                    </p>
                                 </div>
                                 <div className="grid grid-cols-4 gap-1 text-center text-xs">
                                     <div className="bg-muted/30 p-1 rounded">
@@ -734,13 +726,10 @@ const CentreEmplisseurView = ({
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <p className="text-xs text-muted-foreground font-semibold">{names[client as keyof typeof names]}</p>
-                                                    <p className="text-lg font-bold text-foreground leading-none mt-1">
-                                                        {cStats.qty.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground font-normal">Btl</span>
-                                                    </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-xs font-medium text-muted-foreground">{cStats.pct.toFixed(1)}%</p>
-                                                    <p className="text-xs font-bold text-primary">{(cStats.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} T</p>
+                                                    <p className="text-sm font-extrabold text-foreground">{cStats.pct.toFixed(1)}%</p>
+                                                    <p className="text-sm font-extrabold text-primary">{(cStats.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} T</p>
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
