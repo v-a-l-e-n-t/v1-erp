@@ -69,9 +69,9 @@ const CentreEmplisseurView = ({
 
         // Clients
         clients: {
-            petro: { qty: 0, pct: 0 },
-            vivo: { qty: 0, pct: 0 },
-            total: { qty: 0, pct: 0 },
+            petro: { qty: 0, pct: 0, tonnage: 0 },
+            vivo: { qty: 0, pct: 0, tonnage: 0 },
+            total: { qty: 0, pct: 0, tonnage: 0 },
             global: 0
         }
     });
@@ -225,6 +225,26 @@ const CentreEmplisseurView = ({
 
             const globalClients = cl_petro + cl_vivo + cl_total;
 
+            // Calculate tonnage per client
+            const calculateClientTonnage = (lines: any[], clientPrefix: string) => {
+                return lines.reduce((sum: number, l: any) => {
+                    const tonnage =
+                        (l[`recharges_${clientPrefix}_b6`] || 0) * 6 +
+                        (l[`recharges_${clientPrefix}_b12`] || 0) * 12.5 +
+                        (l[`recharges_${clientPrefix}_b28`] || 0) * 28 +
+                        (l[`recharges_${clientPrefix}_b38`] || 0) * 38 +
+                        (l[`consignes_${clientPrefix}_b6`] || 0) * 6 +
+                        (l[`consignes_${clientPrefix}_b12`] || 0) * 12.5 +
+                        (l[`consignes_${clientPrefix}_b28`] || 0) * 28 +
+                        (l[`consignes_${clientPrefix}_b38`] || 0) * 38;
+                    return sum + tonnage;
+                }, 0);
+            };
+
+            const petroTonnage = calculateClientTonnage(lines, 'petro');
+            const vivoTonnage = calculateClientTonnage(lines, 'vivo');
+            const totalClientTonnage = calculateClientTonnage(lines, 'total');
+
             setStats({
                 totalTonnage,
                 shift1: shift1Stats,
@@ -247,9 +267,9 @@ const CentreEmplisseurView = ({
                     total: totalConsignes
                 },
                 clients: {
-                    petro: { qty: cl_petro, pct: globalClients > 0 ? (cl_petro / globalClients) * 100 : 0 },
-                    vivo: { qty: cl_vivo, pct: globalClients > 0 ? (cl_vivo / globalClients) * 100 : 0 },
-                    total: { qty: cl_total, pct: globalClients > 0 ? (cl_total / globalClients) * 100 : 0 },
+                    petro: { qty: cl_petro, pct: globalClients > 0 ? (cl_petro / globalClients) * 100 : 0, tonnage: petroTonnage },
+                    vivo: { qty: cl_vivo, pct: globalClients > 0 ? (cl_vivo / globalClients) * 100 : 0, tonnage: vivoTonnage },
+                    total: { qty: cl_total, pct: globalClients > 0 ? (cl_total / globalClients) * 100 : 0, tonnage: totalClientTonnage },
                     global: globalClients
                 }
             });
@@ -380,13 +400,73 @@ const CentreEmplisseurView = ({
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {/* Global Tonnage */}
-                    <div className="text-center p-6 bg-primary/5 rounded-lg border border-primary/10">
-                        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Production Totale</p>
-                        <p className="text-5xl font-extrabold text-primary tracking-tight">
-                            {stats.totalTonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })}
-                            <span className="text-2xl text-primary/60 ml-2">Kg</span>
-                        </p>
+                    {/* Global Tonnage with Recharges, Consignes and Clients */}
+                    <div className="p-6 bg-primary/5 rounded-lg border border-primary/10">
+                        <div className="text-center mb-4">
+                            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Production Totale</p>
+                            <p className="text-5xl font-extrabold text-primary tracking-tight">
+                                {stats.totalTonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })}
+                                <span className="text-2xl text-primary/60 ml-2">Kg</span>
+                            </p>
+                        </div>
+
+                        {/* Total Recharges et Consignes */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-primary/20">
+                            <div className="text-center">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recharges</p>
+                                <p className="text-2xl font-bold text-blue-700">
+                                    {stats.recharges.total.toLocaleString('fr-FR')}
+                                    <span className="text-sm text-blue-600/60 ml-1">Bouteilles</span>
+                                </p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Consignes</p>
+                                <p className="text-2xl font-bold text-orange-700">
+                                    {stats.consignes.total.toLocaleString('fr-FR')}
+                                    <span className="text-sm text-orange-600/60 ml-1">Bouteilles</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Production par Client */}
+                        <div className="mt-6 pt-6 border-t border-primary/20">
+                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <Users className="h-4 w-4" />
+                                Production par Client
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-4 bg-white/50 rounded-lg border border-primary/20">
+                                    <p className="text-sm text-muted-foreground mb-2">Petro Ivoire</p>
+                                    <div className="flex items-baseline justify-between mb-1">
+                                        <div className="text-2xl font-bold text-primary">{stats.clients.petro.qty.toLocaleString('fr-FR')} Btl</div>
+                                        <div className="text-sm font-medium text-primary/80">{stats.clients.petro.pct.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="text-sm font-semibold text-muted-foreground">
+                                        {(stats.clients.petro.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-white/50 rounded-lg border border-primary/20">
+                                    <p className="text-sm text-muted-foreground mb-2">Vivo Energies</p>
+                                    <div className="flex items-baseline justify-between mb-1">
+                                        <div className="text-2xl font-bold text-primary">{stats.clients.vivo.qty.toLocaleString('fr-FR')} Btl</div>
+                                        <div className="text-sm font-medium text-primary/80">{stats.clients.vivo.pct.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="text-sm font-semibold text-muted-foreground">
+                                        {(stats.clients.vivo.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-white/50 rounded-lg border border-primary/20">
+                                    <p className="text-sm text-muted-foreground mb-2">Total Energies</p>
+                                    <div className="flex items-baseline justify-between mb-1">
+                                        <div className="text-2xl font-bold text-primary">{stats.clients.total.qty.toLocaleString('fr-FR')} Btl</div>
+                                        <div className="text-sm font-medium text-primary/80">{stats.clients.total.pct.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="text-sm font-semibold text-muted-foreground">
+                                        {(stats.clients.total.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Shifts Breakdown */}
@@ -429,28 +509,19 @@ const CentreEmplisseurView = ({
                                             <span className="font-bold text-lg">{line.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })} Kg</span>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4 text-sm bg-muted/20 p-2 rounded">
-                                        <div className="space-y-1">
-                                            <span className="text-xs text-muted-foreground uppercase block border-b pb-1 mb-1">Recharges</span>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Qté:</span>
-                                                <span className="font-medium">{line.recharges.toLocaleString('fr-FR')}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Poids:</span>
-                                                <span className="font-medium">{(line.rechargesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                            </div>
+                                    <div className="flex items-center gap-4 text-sm bg-muted/20 p-2 rounded">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-muted-foreground uppercase font-semibold">Recharges:</span>
+                                            <span className="font-medium">{line.recharges.toLocaleString('fr-FR')} Btl</span>
+                                            <span className="text-muted-foreground">•</span>
+                                            <span className="font-medium">{(line.rechargesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
                                         </div>
-                                        <div className="space-y-1">
-                                            <span className="text-xs text-muted-foreground uppercase block border-b pb-1 mb-1">Consignes</span>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Qté:</span>
-                                                <span className="font-medium">{line.consignes.toLocaleString('fr-FR')}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Poids:</span>
-                                                <span className="font-medium">{(line.consignesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                            </div>
+                                        <div className="h-4 w-px bg-border"></div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-muted-foreground uppercase font-semibold">Consignes:</span>
+                                            <span className="font-medium">{line.consignes.toLocaleString('fr-FR')} Btl</span>
+                                            <span className="text-muted-foreground">•</span>
+                                            <span className="font-medium">{(line.consignesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
                                         </div>
                                     </div>
                                 </div>
@@ -458,93 +529,9 @@ const CentreEmplisseurView = ({
                         </div>
                     </div>
 
-                    <div className="border-t my-4"></div>
-
-                    {/* Bottle Types Breakdown */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Recharges */}
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-blue-600 flex items-center gap-2">
-                                <Package className="h-4 w-4" />
-                                Recharges (Kg)
-                            </h3>
-                            <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-100 space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B6</span>
-                                    <span className="font-bold text-blue-700">{(stats.recharges.b6.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B12</span>
-                                    <span className="font-bold text-blue-700">{(stats.recharges.b12.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B28</span>
-                                    <span className="font-bold text-blue-700">{(stats.recharges.b28.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B38</span>
-                                    <span className="font-bold text-blue-700">{(stats.recharges.b38.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Consignes */}
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-orange-600 flex items-center gap-2">
-                                <Package className="h-4 w-4" />
-                                Consignes (Kg)
-                            </h3>
-                            <div className="bg-orange-50/50 rounded-lg p-4 border border-orange-100 space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B6</span>
-                                    <span className="font-bold text-orange-700">{(stats.consignes.b6.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B12</span>
-                                    <span className="font-bold text-orange-700">{(stats.consignes.b12.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B28</span>
-                                    <span className="font-bold text-orange-700">{(stats.consignes.b28.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-muted-foreground">B38</span>
-                                    <span className="font-bold text-orange-700">{(stats.consignes.b38.kg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </CardContent>
             </Card>
 
-            {/* 4. PROD - PAR CLIENT */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Production par Client
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
-                            <p className="text-sm text-muted-foreground mb-2">Petro Ivoire</p>
-                            <div className="text-2xl font-bold text-primary">{stats.clients.petro.qty.toLocaleString('fr-FR')} U</div>
-                            <div className="text-sm font-medium text-primary/80 mt-1">{stats.clients.petro.pct.toFixed(1)}%</div>
-                        </div>
-                        <div className="p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
-                            <p className="text-sm text-muted-foreground mb-2">Vivo Energies</p>
-                            <div className="text-2xl font-bold text-primary">{stats.clients.vivo.qty.toLocaleString('fr-FR')} U</div>
-                            <div className="text-sm font-medium text-primary/80 mt-1">{stats.clients.vivo.pct.toFixed(1)}%</div>
-                        </div>
-                        <div className="p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
-                            <p className="text-sm text-muted-foreground mb-2">Total Energies</p>
-                            <div className="text-2xl font-bold text-primary">{stats.clients.total.qty.toLocaleString('fr-FR')} U</div>
-                            <div className="text-sm font-medium text-primary/80 mt-1">{stats.clients.total.pct.toFixed(1)}%</div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 };
