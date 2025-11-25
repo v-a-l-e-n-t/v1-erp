@@ -69,9 +69,9 @@ const CentreEmplisseurView = ({
 
         // Clients
         clients: {
-            petro: { qty: 0, pct: 0, tonnage: 0 },
-            vivo: { qty: 0, pct: 0, tonnage: 0 },
-            total: { qty: 0, pct: 0, tonnage: 0 },
+            petro: { qty: 0, pct: 0, tonnage: 0, b6: 0, b12: 0, b28: 0, b38: 0 },
+            vivo: { qty: 0, pct: 0, tonnage: 0, b6: 0, b12: 0, b28: 0, b38: 0 },
+            total: { qty: 0, pct: 0, tonnage: 0, b6: 0, b12: 0, b28: 0, b38: 0 },
             global: 0
         }
     });
@@ -233,17 +233,18 @@ const CentreEmplisseurView = ({
 
             // 4. Clients Breakdown
             const calculateClientStats = (client: 'petro' | 'vivo' | 'total') => {
-                return lines.reduce((sum, l) => {
-                    return sum +
-                        (l[`recharges_${client}_b6`] || 0) + (l[`recharges_${client}_b12`] || 0) + (l[`recharges_${client}_b28`] || 0) + (l[`recharges_${client}_b38`] || 0) +
-                        (l[`consignes_${client}_b6`] || 0) + (l[`consignes_${client}_b12`] || 0) + (l[`consignes_${client}_b28`] || 0) + (l[`consignes_${client}_b38`] || 0);
-                }, 0);
+                const b6 = lines.reduce((sum, l) => sum + (l[`recharges_${client}_b6`] || 0) + (l[`consignes_${client}_b6`] || 0), 0);
+                const b12 = lines.reduce((sum, l) => sum + (l[`recharges_${client}_b12`] || 0) + (l[`consignes_${client}_b12`] || 0), 0);
+                const b28 = lines.reduce((sum, l) => sum + (l[`recharges_${client}_b28`] || 0) + (l[`consignes_${client}_b28`] || 0), 0);
+                const b38 = lines.reduce((sum, l) => sum + (l[`recharges_${client}_b38`] || 0) + (l[`consignes_${client}_b38`] || 0), 0);
+                const total = b6 + b12 + b28 + b38;
+                return { b6, b12, b28, b38, total };
             };
 
             const cl_petro = calculateClientStats('petro');
             const cl_vivo = calculateClientStats('vivo');
             const cl_total = calculateClientStats('total');
-            const globalClients = cl_petro + cl_vivo + cl_total;
+            const globalClients = cl_petro.total + cl_vivo.total + cl_total.total;
 
             const calculateClientTonnage = (lines: any[], clientPrefix: string) => {
                 return lines.reduce((sum: number, l: any) => {
@@ -294,9 +295,24 @@ const CentreEmplisseurView = ({
                     total: totalConsignes
                 },
                 clients: {
-                    petro: { qty: cl_petro, pct: globalClients > 0 ? (cl_petro / globalClients) * 100 : 0, tonnage: petroTonnage },
-                    vivo: { qty: cl_vivo, pct: globalClients > 0 ? (cl_vivo / globalClients) * 100 : 0, tonnage: vivoTonnage },
-                    total: { qty: cl_total, pct: globalClients > 0 ? (cl_total / globalClients) * 100 : 0, tonnage: totalClientTonnage },
+                    petro: {
+                        qty: cl_petro.total,
+                        pct: globalClients > 0 ? (cl_petro.total / globalClients) * 100 : 0,
+                        tonnage: petroTonnage,
+                        b6: cl_petro.b6, b12: cl_petro.b12, b28: cl_petro.b28, b38: cl_petro.b38
+                    },
+                    vivo: {
+                        qty: cl_vivo.total,
+                        pct: globalClients > 0 ? (cl_vivo.total / globalClients) * 100 : 0,
+                        tonnage: vivoTonnage,
+                        b6: cl_vivo.b6, b12: cl_vivo.b12, b28: cl_vivo.b28, b38: cl_vivo.b38
+                    },
+                    total: {
+                        qty: cl_total.total,
+                        pct: globalClients > 0 ? (cl_total.total / globalClients) * 100 : 0,
+                        tonnage: totalClientTonnage,
+                        b6: cl_total.b6, b12: cl_total.b12, b28: cl_total.b28, b38: cl_total.b38
+                    },
                     global: globalClients
                 }
             });
@@ -635,6 +651,7 @@ const CentreEmplisseurView = ({
                 <CardContent className="space-y-6">
                     {/* Global Tonnage with Recharges, Consignes and Clients */}
                     {/* Global Tonnage with Recharges, Consignes and Clients */}
+                    {/* Global Tonnage with Recharges, Consignes and Clients */}
                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
                         <div className="text-center mb-3">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Production Totale</p>
@@ -645,60 +662,108 @@ const CentreEmplisseurView = ({
                         </div>
 
                         {/* Total Recharges et Consignes */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pt-3 border-t border-primary/20">
-                            <div className="text-center">
-                                <p className="text-xs text-muted-foreground mb-1">Recharges</p>
-                                <p className="text-xl font-bold text-foreground">
-                                    {stats.recharges.total.toLocaleString('fr-FR')}
-                                    <span className="text-xs text-muted-foreground ml-1">Btl</span>
-                                </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-primary/20">
+                            <div className="bg-card p-3 rounded-md border shadow-sm">
+                                <div className="text-center mb-2">
+                                    <p className="text-xs text-muted-foreground uppercase font-bold">Recharges</p>
+                                    <p className="text-xl font-bold text-foreground">
+                                        {stats.recharges.total.toLocaleString('fr-FR')}
+                                        <span className="text-xs text-muted-foreground ml-1">Btl</span>
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B6</span>
+                                        <span className="font-bold">{stats.recharges.b6.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B12</span>
+                                        <span className="font-bold">{stats.recharges.b12.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B28</span>
+                                        <span className="font-bold">{stats.recharges.b28.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B38</span>
+                                        <span className="font-bold">{stats.recharges.b38.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="text-center">
-                                <p className="text-xs text-muted-foreground mb-1">Consignes</p>
-                                <p className="text-xl font-bold text-foreground">
-                                    {stats.consignes.total.toLocaleString('fr-FR')}
-                                    <span className="text-xs text-muted-foreground ml-1">Btl</span>
-                                </p>
+                            <div className="bg-card p-3 rounded-md border shadow-sm">
+                                <div className="text-center mb-2">
+                                    <p className="text-xs text-muted-foreground uppercase font-bold">Consignes</p>
+                                    <p className="text-xl font-bold text-foreground">
+                                        {stats.consignes.total.toLocaleString('fr-FR')}
+                                        <span className="text-xs text-muted-foreground ml-1">Btl</span>
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B6</span>
+                                        <span className="font-bold">{stats.consignes.b6.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B12</span>
+                                        <span className="font-bold">{stats.consignes.b12.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B28</span>
+                                        <span className="font-bold">{stats.consignes.b28.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <div className="bg-muted/30 p-1 rounded">
+                                        <span className="block font-semibold text-muted-foreground">B38</span>
+                                        <span className="font-bold">{stats.consignes.b38.qty.toLocaleString('fr-FR')}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         {/* Production par Client */}
-                        <div className="mt-3 pt-3 border-t border-primary/20">
+                        <div className="mt-4 pt-3 border-t border-primary/20">
                             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <Users className="h-3 w-3" />
                                 Production par Client
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div className="p-3 bg-white/50 rounded-lg border border-primary/20">
-                                    <p className="text-xs text-muted-foreground mb-1">Petro Ivoire</p>
-                                    <div className="flex items-baseline justify-between mb-1">
-                                        <div className="text-lg font-bold text-foreground">{stats.clients.petro.qty.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground">Btl</span></div>
-                                        <div className="text-xs font-medium text-muted-foreground">{stats.clients.petro.pct.toFixed(1)}%</div>
-                                    </div>
-                                    <div className="text-sm font-bold text-primary">
-                                        {(stats.clients.petro.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-white/50 rounded-lg border border-primary/20">
-                                    <p className="text-xs text-muted-foreground mb-1">Vivo Energies</p>
-                                    <div className="flex items-baseline justify-between mb-1">
-                                        <div className="text-lg font-bold text-foreground">{stats.clients.vivo.qty.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground">Btl</span></div>
-                                        <div className="text-xs font-medium text-muted-foreground">{stats.clients.vivo.pct.toFixed(1)}%</div>
-                                    </div>
-                                    <div className="text-sm font-bold text-primary">
-                                        {(stats.clients.vivo.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-white/50 rounded-lg border border-primary/20">
-                                    <p className="text-xs text-muted-foreground mb-1">Total Energies</p>
-                                    <div className="flex items-baseline justify-between mb-1">
-                                        <div className="text-lg font-bold text-foreground">{stats.clients.total.qty.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground">Btl</span></div>
-                                        <div className="text-xs font-medium text-muted-foreground">{stats.clients.total.pct.toFixed(1)}%</div>
-                                    </div>
-                                    <div className="text-sm font-bold text-primary">
-                                        {(stats.clients.total.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T
-                                    </div>
-                                </div>
+                                {['petro', 'vivo', 'total'].map((client) => {
+                                    const cStats = stats.clients[client as keyof typeof stats.clients] as any;
+                                    const names = { petro: 'Petro Ivoire', vivo: 'Vivo Energies', total: 'Total Energies' };
+                                    return (
+                                        <div key={client} className="p-3 bg-white/50 rounded-lg border border-primary/20 hover:shadow-sm transition-shadow">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground font-semibold">{names[client as keyof typeof names]}</p>
+                                                    <p className="text-lg font-bold text-foreground leading-none mt-1">
+                                                        {cStats.qty.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground font-normal">Btl</span>
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs font-medium text-muted-foreground">{cStats.pct.toFixed(1)}%</p>
+                                                    <p className="text-xs font-bold text-primary">{(cStats.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} T</p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
+                                                <div className="bg-primary/5 p-1 rounded">
+                                                    <span className="block text-muted-foreground">B6</span>
+                                                    <span className="font-bold">{cStats.b6.toLocaleString('fr-FR')}</span>
+                                                </div>
+                                                <div className="bg-primary/5 p-1 rounded">
+                                                    <span className="block text-muted-foreground">B12</span>
+                                                    <span className="font-bold">{cStats.b12.toLocaleString('fr-FR')}</span>
+                                                </div>
+                                                <div className="bg-primary/5 p-1 rounded">
+                                                    <span className="block text-muted-foreground">B28</span>
+                                                    <span className="font-bold">{cStats.b28.toLocaleString('fr-FR')}</span>
+                                                </div>
+                                                <div className="bg-primary/5 p-1 rounded">
+                                                    <span className="block text-muted-foreground">B38</span>
+                                                    <span className="font-bold">{cStats.b38.toLocaleString('fr-FR')}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -734,27 +799,29 @@ const CentreEmplisseurView = ({
                         <h3 className="font-semibold text-muted-foreground uppercase text-xs tracking-wider mb-2">Détail par Ligne</h3>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             {stats.lines.map((line) => (
-                                <div key={line.id} className="p-3 bg-card border rounded-md hover:bg-accent/5 transition-colors">
-                                    <div className="flex justify-between items-center mb-2">
+                                <div key={line.id} className="p-4 bg-card border border-primary/20 rounded-lg shadow-sm hover:shadow-md transition-all border-l-4 border-l-primary">
+                                    <div className="flex justify-between items-center mb-3">
                                         <div className="flex items-center gap-3">
-                                            <div className="bg-primary/10 text-primary font-bold w-8 h-8 flex items-center justify-center rounded-full">
-                                                {line.id}
+                                            <div className="bg-primary text-primary-foreground font-bold px-3 py-1 rounded-md text-sm shadow-sm">
+                                                Ligne {line.id}
                                             </div>
-                                            <span className="font-bold text-lg text-primary">{line.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })} Kg</span>
+                                            <span className="font-extrabold text-2xl text-primary tracking-tight">{line.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })} <span className="text-lg text-primary/70">Kg</span></span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4 text-sm bg-muted/20 p-2 rounded">
+                                    <div className="flex items-center gap-4 text-sm bg-primary/5 p-3 rounded-md border border-primary/10">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs text-muted-foreground uppercase font-semibold">Recharges:</span>
-                                            <span className="font-bold text-foreground">{line.recharges.toLocaleString('fr-FR')} Btl</span>
-                                            <span className="text-muted-foreground">•</span>
+                                            <span className="font-bold text-foreground text-base">{line.recharges.toLocaleString('fr-FR')}</span>
+                                            <span className="text-muted-foreground text-xs">Btl</span>
+                                            <span className="text-muted-foreground mx-1">•</span>
                                             <span className="font-bold text-primary">{(line.rechargesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
                                         </div>
-                                        <div className="h-4 w-px bg-border"></div>
+                                        <div className="h-4 w-px bg-primary/20"></div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs text-muted-foreground uppercase font-semibold">Consignes:</span>
-                                            <span className="font-bold text-foreground">{line.consignes.toLocaleString('fr-FR')} Btl</span>
-                                            <span className="text-muted-foreground">•</span>
+                                            <span className="font-bold text-foreground text-base">{line.consignes.toLocaleString('fr-FR')}</span>
+                                            <span className="text-muted-foreground text-xs">Btl</span>
+                                            <span className="text-muted-foreground mx-1">•</span>
                                             <span className="font-bold text-primary">{(line.consignesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
                                         </div>
                                     </div>
