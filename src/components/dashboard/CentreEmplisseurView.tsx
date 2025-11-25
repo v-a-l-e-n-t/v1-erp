@@ -77,10 +77,8 @@ const CentreEmplisseurView = ({
     });
 
     // Agent productivity states
-    const [agentType, setAgentType] = useState<'chef_quart' | 'chef_ligne'>('chef_quart');
     const [selectedAgentId, setSelectedAgentId] = useState<string>('');
-    const [chefsQuart, setChefsQuart] = useState<any[]>([]);
-    const [chefsLigne, setChefsLigne] = useState<any[]>([]);
+    const [allAgents, setAllAgents] = useState<any[]>([]);
     const [agentStats, setAgentStats] = useState({
         tonnage: 0,
         bouteilles: 0,
@@ -88,9 +86,10 @@ const CentreEmplisseurView = ({
         consignes: 0,
         nombreShifts: 0,
         nombreLignes: 0,
-        effectifMoyen: 0,
+        effectifTotal: 0,
         tempsArretMinutes: 0,
-        productivite: 0
+        tauxPerformance: 0,
+        lignesOccupees: [] as number[]
     });
 
     // Agent Filter States
@@ -115,7 +114,7 @@ const CentreEmplisseurView = ({
         if (selectedAgentId) {
             fetchAgentStats();
         }
-    }, [selectedAgentId, agentType, agentFilterType, agentSelectedMonth, agentSelectedDate, agentDateRange]);
+    }, [selectedAgentId, agentFilterType, agentSelectedMonth, agentSelectedDate, agentDateRange]);
 
     const fetchStats = async () => {
         setLoading(true);
@@ -326,23 +325,22 @@ const CentreEmplisseurView = ({
 
     const fetchAgents = async () => {
         try {
-            // Fetch chefs de quart
-            const { data: quartsData, error: quartsError } = await supabase
-                .from('chefs_quart')
-                .select('*')
-                .order('nom');
+            // Fetch both chefs de quart and chefs de ligne
+            const [quartsResult, lignesResult] = await Promise.all([
+                supabase.from('chefs_quart').select('*').order('nom'),
+                supabase.from('chefs_ligne').select('*').order('nom')
+            ]);
 
-            if (quartsError) throw quartsError;
-            setChefsQuart(quartsData || []);
+            if (quartsResult.error) throw quartsResult.error;
+            if (lignesResult.error) throw lignesResult.error;
 
-            // Fetch chefs de ligne
-            const { data: lignesData, error: lignesError } = await supabase
-                .from('chefs_ligne')
-                .select('*')
-                .order('nom');
+            // Combine both lists with unique IDs and role info
+            const quartsWithRole = (quartsResult.data || []).map(agent => ({ ...agent, role: 'chef_quart' }));
+            const lignesWithRole = (lignesResult.data || []).map(agent => ({ ...agent, role: 'chef_ligne' }));
 
-            if (lignesError) throw lignesError;
-            setChefsLigne(lignesData || []);
+            // Merge and remove duplicates based on name (in case same person is in both tables)
+            const allAgentsList = [...quartsWithRole, ...lignesWithRole];
+            setAllAgents(allAgentsList);
         } catch (error) {
             console.error('Error fetching agents:', error);
         }
@@ -352,179 +350,139 @@ const CentreEmplisseurView = ({
         if (!selectedAgentId) return;
 
         try {
-            if (agentType === 'chef_quart') {
-                // Fetch shifts for this chef de quart
-                let shiftsQuery = supabase
-                    .from('production_shifts')
-                    .select('*, lignes_production(*), arrets_production(*)')
-                    .eq('chef_quart_id', selectedAgentId);
+            // Query both tables simultaneously
+            let shiftsQuery = supabase
+                .from('production_shifts')
+                .select('*, lignes_production(*), arrets_production(*)')
+                .eq('chef_quart_id', selectedAgentId);
 
-                // Apply filters using agent-specific state
-                if (agentFilterType === 'month') {
-                    const startDate = `${agentSelectedMonth}-01`;
-                    const [y, m] = agentSelectedMonth.split('-').map(Number);
-                    const endDate = new Date(y, m, 0).toISOString().split('T')[0];
-                    shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
-                } else if (agentFilterType === 'date' && agentSelectedDate) {
-                    const dateStr = format(agentSelectedDate, 'yyyy-MM-dd');
-                    shiftsQuery = shiftsQuery.eq('date', dateStr);
-                } else if (agentFilterType === 'range' && agentDateRange?.from) {
-                    const fromStr = format(agentDateRange.from, 'yyyy-MM-dd');
-                    const toStr = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : fromStr;
-                    shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
-                }
+            let lignesQuery = supabase
+                .from('lignes_production')
+                .select('*, production_shifts!inner(date, shift_type)')
+                .eq('chef_ligne_id', selectedAgentId);
 
-                const { data: shifts, error } = await shiftsQuery;
-                if (error) throw error;
+            // Apply filters to both queries
+            if (agentFilterType === 'month') {
+                const startDate = `${agentSelectedMonth}-01`;
+                const [y, m] = agentSelectedMonth.split('-').map(Number);
+                const endDate = new Date(y, m, 0).toISOString().split('T')[0];
+                shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
+                lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
+            } else if (agentFilterType === 'date' && agentSelectedDate) {
+                const dateStr = format(agentSelectedDate, 'yyyy-MM-dd');
+                shiftsQuery = shiftsQuery.eq('date', dateStr);
+                lignesQuery = lignesQuery.eq('production_shifts.date', dateStr);
+            } else if (agentFilterType === 'range' && agentDateRange?.from) {
+                const fromStr = format(agentDateRange.from, 'yyyy-MM-dd');
+                const toStr = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : fromStr;
+                shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
+                lignesQuery = lignesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
+            }
 
-                const totalTonnage = shifts?.reduce((sum, s) => sum + (Number(s.tonnage_total) || 0), 0) || 0;
-                const totalBouteilles = shifts?.reduce((sum, s) => sum + (Number(s.bouteilles_produites) || 0), 0) || 0;
+            // Execute both queries
+            const [shiftsResult, lignesResult] = await Promise.all([shiftsQuery, lignesQuery]);
 
-                let totalRecharges = 0;
-                let totalConsignes = 0;
-                let totalEffectif = 0;
-                let totalTempsArret = 0;
+            if (shiftsResult.error) throw shiftsResult.error;
+            if (lignesResult.error) throw lignesResult.error;
 
-                shifts?.forEach(shift => {
-                    const lignes = shift.lignes_production || [];
-                    lignes.forEach((l: any) => {
-                        totalRecharges += (l.cumul_recharges_b6 || 0) + (l.cumul_recharges_b12 || 0) +
-                            (l.cumul_recharges_b28 || 0) + (l.cumul_recharges_b38 || 0);
-                        totalConsignes += (l.cumul_consignes_b6 || 0) + (l.cumul_consignes_b12 || 0) +
-                            (l.cumul_consignes_b28 || 0) + (l.cumul_consignes_b38 || 0);
-                    });
+            const shifts = shiftsResult.data || [];
+            const lignes = lignesResult.data || [];
 
-                    totalEffectif += (shift.chariste || 0) + (shift.chariot || 0) +
-                        (shift.agent_quai || 0) + (shift.agent_saisie || 0) + (shift.agent_atelier || 0);
+            // Combine stats from both roles
+            let totalTonnage = 0;
+            let totalBouteilles = 0;
+            let totalRecharges = 0;
+            let totalConsignes = 0;
+            let totalEffectif = 0;
+            let totalTempsArret = 0;
 
-                    const arrets = shift.arrets_production || [];
-                    arrets.forEach((a: any) => {
-                        if (a.heure_debut && a.heure_fin) {
-                            const debut = new Date(`2000-01-01T${a.heure_debut}`);
-                            const fin = new Date(`2000-01-01T${a.heure_fin}`);
-                            const diffMs = fin.getTime() - debut.getTime();
-                            totalTempsArret += diffMs / 60000; // Convert to minutes
-                        }
-                    });
-                });
+            // Stats from chef de quart role
+            shifts.forEach(shift => {
+                totalTonnage += Number(shift.tonnage_total) || 0;
+                totalBouteilles += Number(shift.bouteilles_produites) || 0;
 
-                const effectifMoyen = shifts && shifts.length > 0 ? totalEffectif / shifts.length : 0;
-
-                // Calculate performance rate for chef de quart
-                // Heures productives = 9h par shift - temps d'arrêt
-                const heuresProductives = (shifts?.length || 0) * 9 - (totalTempsArret / 60); // Convert minutes to hours
-
-                // Production théorique = somme pour chaque ligne
-                // L1-L4 (B6): 1600 btl/h × 6 Kg/btl
-                // L5 (B12): 900 btl/h × 12.5 Kg/btl
-                let productionTheoriqueL1_4 = 0;
-                let productionTheoriqueL5 = 0;
-
-                shifts?.forEach(shift => {
-                    const lignes = shift.lignes_production || [];
-                    lignes.forEach((l: any) => {
-                        if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
-                            // Ligne B6
-                            productionTheoriqueL1_4 += 1600 * 6 * heuresProductives / (shifts?.length || 1);
-                        } else if (l.numero_ligne === 5) {
-                            // Ligne B12
-                            productionTheoriqueL5 += 900 * 12.5 * heuresProductives / (shifts?.length || 1);
-                        }
-                    });
-                });
-
-                const productionTheorique = productionTheoriqueL1_4 + productionTheoriqueL5;
-                const tauxPerformance = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
-
-                setAgentStats({
-                    tonnage: totalTonnage,
-                    bouteilles: totalBouteilles,
-                    recharges: totalRecharges,
-                    consignes: totalConsignes,
-                    nombreShifts: shifts?.length || 0,
-                    nombreLignes: 0,
-                    effectifMoyen,
-                    tempsArretMinutes: totalTempsArret,
-                    productivite: tauxPerformance
-                });
-
-            } else {
-                // Fetch lignes for this chef de ligne
-                let lignesQuery = supabase
-                    .from('lignes_production')
-                    .select('*, production_shifts!inner(date, shift_type)')
-                    .eq('chef_ligne_id', selectedAgentId);
-
-                // Apply filters using agent-specific state
-                if (agentFilterType === 'month') {
-                    const startDate = `${agentSelectedMonth}-01`;
-                    const [y, m] = agentSelectedMonth.split('-').map(Number);
-                    const endDate = new Date(y, m, 0).toISOString().split('T')[0];
-                    lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
-                } else if (agentFilterType === 'date' && agentSelectedDate) {
-                    const dateStr = format(agentSelectedDate, 'yyyy-MM-dd');
-                    lignesQuery = lignesQuery.eq('production_shifts.date', dateStr);
-                } else if (agentFilterType === 'range' && agentDateRange?.from) {
-                    const fromStr = format(agentDateRange.from, 'yyyy-MM-dd');
-                    const toStr = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : fromStr;
-                    lignesQuery = lignesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
-                }
-
-                const { data: lignes, error } = await lignesQuery;
-                if (error) throw error;
-
-                const totalTonnage = lignes?.reduce((sum, l) => sum + (Number(l.tonnage_ligne) || 0), 0) || 0;
-
-                let totalRecharges = 0;
-                let totalConsignes = 0;
-                let totalAgents = 0;
-
-                lignes?.forEach(l => {
+                const shiftLignes = shift.lignes_production || [];
+                shiftLignes.forEach((l: any) => {
                     totalRecharges += (l.cumul_recharges_b6 || 0) + (l.cumul_recharges_b12 || 0) +
                         (l.cumul_recharges_b28 || 0) + (l.cumul_recharges_b38 || 0);
                     totalConsignes += (l.cumul_consignes_b6 || 0) + (l.cumul_consignes_b12 || 0) +
                         (l.cumul_consignes_b28 || 0) + (l.cumul_consignes_b38 || 0);
-                    totalAgents += l.nombre_agents || 0;
                 });
 
-                const effectifMoyen = lignes && lignes.length > 0 ? totalAgents / lignes.length : 0;
+                totalEffectif += (shift.chariste || 0) + (shift.chariot || 0) +
+                    (shift.agent_quai || 0) + (shift.agent_saisie || 0) + (shift.agent_atelier || 0);
 
-                // Calculate performance rate for chef de ligne
-                // Count unique lines to determine which formula to use
-                const uniqueLines = new Set(lignes?.map(l => l.numero_ligne));
-
-                // Calculate productive hours (9h per shift - downtime)
-                // For chef de ligne, we need to get downtime from shifts
-                const nombreShifts = lignes?.length || 0;
-                const heuresProductives = nombreShifts * 9; // Simplified: 9h per shift (downtime already reflected in production)
-
-                // Calculate theoretical production based on line types
-                let productionTheorique = 0;
-
-                uniqueLines.forEach(numeroLigne => {
-                    if (numeroLigne >= 1 && numeroLigne <= 4) {
-                        // Ligne B6: 1600 btl/h × 6 Kg/btl
-                        productionTheorique += 1600 * 6 * heuresProductives;
-                    } else if (numeroLigne === 5) {
-                        // Ligne B12: 900 btl/h × 12.5 Kg/btl
-                        productionTheorique += 900 * 12.5 * heuresProductives;
+                const arrets = shift.arrets_production || [];
+                arrets.forEach((a: any) => {
+                    if (a.heure_debut && a.heure_fin) {
+                        const debut = new Date(`2000-01-01T${a.heure_debut}`);
+                        const fin = new Date(`2000-01-01T${a.heure_fin}`);
+                        const diffMs = fin.getTime() - debut.getTime();
+                        totalTempsArret += diffMs / 60000;
                     }
                 });
+            });
 
-                const tauxPerformance = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
+            // Stats from chef de ligne role
+            lignes.forEach(l => {
+                totalTonnage += Number(l.tonnage_ligne) || 0;
+                totalRecharges += (l.cumul_recharges_b6 || 0) + (l.cumul_recharges_b12 || 0) +
+                    (l.cumul_recharges_b28 || 0) + (l.cumul_recharges_b38 || 0);
+                totalConsignes += (l.cumul_consignes_b6 || 0) + (l.cumul_consignes_b12 || 0) +
+                    (l.cumul_consignes_b28 || 0) + (l.cumul_consignes_b38 || 0);
+                totalEffectif += l.nombre_agents || 0;
+            });
 
-                setAgentStats({
-                    tonnage: totalTonnage,
-                    bouteilles: totalRecharges + totalConsignes,
-                    recharges: totalRecharges,
-                    consignes: totalConsignes,
-                    nombreShifts: 0,
-                    nombreLignes: uniqueLines.size,
-                    effectifMoyen,
-                    tempsArretMinutes: 0,
-                    productivite: tauxPerformance
+            totalBouteilles = totalRecharges + totalConsignes;
+
+            const nombreShifts = shifts.length;
+            const nombreLignes = lignes.length;
+            const totalSessions = nombreShifts + nombreLignes;
+
+            // Get unique lines occupied as chef de ligne
+            const lignesOccupees = Array.from(new Set(lignes.map(l => l.numero_ligne))).sort();
+
+            // Calculate performance rate
+            const heuresProductives = totalSessions * 9 - (totalTempsArret / 60);
+            let productionTheorique = 0;
+
+            // From shifts (all lines)
+            shifts.forEach(shift => {
+                const shiftLignes = shift.lignes_production || [];
+                shiftLignes.forEach((l: any) => {
+                    if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
+                        productionTheorique += 1600 * 6 * (heuresProductives / totalSessions);
+                    } else if (l.numero_ligne === 5) {
+                        productionTheorique += 900 * 12.5 * (heuresProductives / totalSessions);
+                    }
                 });
-            }
+            });
+
+            // From lignes (specific lines)
+            const uniqueLines = new Set(lignes.map(l => l.numero_ligne));
+            uniqueLines.forEach(numeroLigne => {
+                if (numeroLigne >= 1 && numeroLigne <= 4) {
+                    productionTheorique += 1600 * 6 * (heuresProductives / totalSessions);
+                } else if (numeroLigne === 5) {
+                    productionTheorique += 900 * 12.5 * (heuresProductives / totalSessions);
+                }
+            });
+
+            const tauxPerformance = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
+
+            setAgentStats({
+                tonnage: totalTonnage,
+                bouteilles: totalBouteilles,
+                recharges: totalRecharges,
+                consignes: totalConsignes,
+                nombreShifts,
+                nombreLignes,
+                effectifTotal: totalEffectif,
+                tempsArretMinutes: totalTempsArret,
+                tauxPerformance,
+                lignesOccupees
+            });
+
         } catch (error) {
             console.error('Error fetching agent stats:', error);
         }
@@ -656,7 +614,7 @@ const CentreEmplisseurView = ({
                         <div className="text-center mb-3">
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Production Totale</p>
                             <p className="text-4xl font-extrabold text-primary tracking-tight">
-                                {stats.totalTonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })}
+                                {(stats.totalTonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                 <span className="text-xl text-primary/60 ml-2">Kg</span>
                             </p>
                         </div>
@@ -721,15 +679,21 @@ const CentreEmplisseurView = ({
                                 {['petro', 'vivo', 'total'].map((client) => {
                                     const cStats = stats.clients[client as keyof typeof stats.clients] as any;
                                     const names = { petro: 'Petro Ivoire', vivo: 'Vivo Energies', total: 'Total Energies' };
+                                    const logos = { petro: '/images/logo-petro.png', vivo: '/images/logo-vivo.png', total: '/images/logo-total.png' };
+
                                     return (
                                         <div key={client} className="p-3 bg-white/50 rounded-lg border border-primary/20 hover:shadow-sm transition-shadow">
                                             <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <p className="text-xs text-muted-foreground font-semibold">{names[client as keyof typeof names]}</p>
+                                                <div className="h-16 w-16 relative flex-shrink-0">
+                                                    <img
+                                                        src={logos[client as keyof typeof logos]}
+                                                        alt={names[client as keyof typeof names]}
+                                                        className="h-full w-full object-contain"
+                                                    />
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-sm font-extrabold text-foreground">{cStats.pct.toFixed(1)}%</p>
-                                                    <p className="text-sm font-extrabold text-primary">{(cStats.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} T</p>
+                                                    <p className="text-sm font-extrabold text-primary">{cStats.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</p>
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
@@ -762,7 +726,7 @@ const CentreEmplisseurView = ({
                         <div className="p-4 bg-muted/30 rounded-lg border">
                             <div className="flex justify-between items-center mb-3">
                                 <span className="font-bold text-lg">Shift 1</span>
-                                <span className="font-bold text-xl text-primary">{stats.shift1.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })} Kg</span>
+                                <span className="font-bold text-xl text-primary">{(stats.shift1.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
                             </div>
                             <div className="flex justify-between text-sm text-muted-foreground">
                                 <span>Recharges: <span className="font-medium text-foreground">{stats.shift1.recharges.toLocaleString('fr-FR')}</span></span>
@@ -772,7 +736,7 @@ const CentreEmplisseurView = ({
                         <div className="p-4 bg-muted/30 rounded-lg border">
                             <div className="flex justify-between items-center mb-3">
                                 <span className="font-bold text-lg">Shift 2</span>
-                                <span className="font-bold text-xl text-primary">{stats.shift2.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })} Kg</span>
+                                <span className="font-bold text-xl text-primary">{(stats.shift2.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
                             </div>
                             <div className="flex justify-between text-sm text-muted-foreground">
                                 <span>Recharges: <span className="font-medium text-foreground">{stats.shift2.recharges.toLocaleString('fr-FR')}</span></span>
@@ -794,7 +758,7 @@ const CentreEmplisseurView = ({
                                             <div className="bg-primary text-primary-foreground font-bold px-3 py-1 rounded-md text-sm shadow-sm">
                                                 Ligne {line.id}
                                             </div>
-                                            <span className="font-extrabold text-2xl text-primary tracking-tight">{line.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 3 })} <span className="text-lg text-primary/70">Kg</span></span>
+                                            <span className="font-extrabold text-2xl text-primary tracking-tight">{(line.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span className="text-lg text-primary/70">Kg</span></span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4 text-sm bg-primary/5 p-3 rounded-md border border-primary/10">
@@ -803,7 +767,7 @@ const CentreEmplisseurView = ({
                                             <span className="font-bold text-foreground text-base">{line.recharges.toLocaleString('fr-FR')}</span>
                                             <span className="text-muted-foreground text-xs">Btl</span>
                                             <span className="text-muted-foreground mx-1">•</span>
-                                            <span className="font-bold text-primary">{(line.rechargesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
+                                            <span className="font-bold text-primary">{line.rechargesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
                                         </div>
                                         <div className="h-4 w-px bg-primary/20"></div>
                                         <div className="flex items-center gap-2">
@@ -811,7 +775,7 @@ const CentreEmplisseurView = ({
                                             <span className="font-bold text-foreground text-base">{line.consignes.toLocaleString('fr-FR')}</span>
                                             <span className="text-muted-foreground text-xs">Btl</span>
                                             <span className="text-muted-foreground mx-1">•</span>
-                                            <span className="font-bold text-primary">{(line.consignesKg / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T</span>
+                                            <span className="font-bold text-primary">{line.consignesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
                                         </div>
                                     </div>
                                 </div>
@@ -819,11 +783,11 @@ const CentreEmplisseurView = ({
                         </div>
                     </div>
 
-                </CardContent>
-            </Card>
+                </CardContent >
+            </Card >
 
             {/* 2. PRODUCTIVITÉ PAR AGENT */}
-            <Card className="border-l-4 border-l-primary">
+            < Card className="border-l-4 border-l-primary" >
                 <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
                         <Users className="h-5 w-5" />
@@ -927,120 +891,133 @@ const CentreEmplisseurView = ({
                     </div>
 
                     {/* Agent Selection */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-medium text-muted-foreground mb-2 block">Type d'agent</label>
-                            <Select value={agentType} onValueChange={(value: 'chef_quart' | 'chef_ligne') => {
-                                setAgentType(value);
-                                setSelectedAgentId('');
-                            }}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="chef_quart">Chef de Quart</SelectItem>
-                                    <SelectItem value="chef_ligne">Chef de Ligne</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-muted-foreground mb-2 block">Agent</label>
-                            <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionner un agent" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {agentType === 'chef_quart' ? (
-                                        chefsQuart.map(chef => (
-                                            <SelectItem key={chef.id} value={chef.id}>
-                                                {chef.prenom} {chef.nom}
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        chefsLigne.map(chef => (
-                                            <SelectItem key={chef.id} value={chef.id}>
-                                                {chef.prenom} {chef.nom}
-                                            </SelectItem>
-                                        ))
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Choisissez un agent</label>
+                        <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner un agent" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {allAgents.map(agent => (
+                                    <SelectItem key={`${agent.role}-${agent.id}`} value={agent.id}>
+                                        {agent.prenom} {agent.nom}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* KPIs Display */}
                     {selectedAgentId && (
-                        <div className="mt-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
-                            {/* Main Metrics */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div className="text-center p-3 bg-white/50 rounded-lg border border-primary/20">
-                                    <p className="text-xs text-muted-foreground mb-1">Tonnage Total</p>
-                                    <p className="text-2xl font-bold text-primary">
-                                        {(agentStats.tonnage / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} T
-                                    </p>
-                                </div>
-                                <div className="text-center p-3 bg-white/50 rounded-lg border border-primary/20">
-                                    <p className="text-xs text-muted-foreground mb-1">Bouteilles Produites</p>
-                                    <p className="text-2xl font-bold text-foreground">
-                                        {agentStats.bouteilles.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground">Btl</span>
-                                    </p>
-                                </div>
-                                <div className="text-center p-3 bg-white/50 rounded-lg border border-primary/20">
-                                    <p className="text-xs text-muted-foreground mb-1">Taux de Performance</p>
-                                    <p className="text-2xl font-bold text-primary">
-                                        {agentStats.productivite.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span className="text-xs text-primary/60">%</span>
-                                    </p>
+                        <div className="mt-4 space-y-4">
+                            {/* Performance Globale */}
+                            <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Performance Globale</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Tonnage */}
+                                    <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                                        <p className="text-xs text-muted-foreground mb-1">Tonnage Total</p>
+                                        <p className="text-3xl font-extrabold text-primary">
+                                            {(agentStats.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">Kg</p>
+                                    </div>
+
+                                    {/* Taux de Performance avec code couleur */}
+                                    <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                                        <p className="text-xs text-muted-foreground mb-1">Taux de Performance</p>
+                                        <p className={`text-3xl font-extrabold ${agentStats.tauxPerformance >= 90 ? 'text-green-600' :
+                                                agentStats.tauxPerformance >= 70 ? 'text-orange-500' :
+                                                    'text-red-600'
+                                            }`}>
+                                            {agentStats.tauxPerformance.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            {agentStats.tauxPerformance >= 90 ? '🟢 Excellent' :
+                                                agentStats.tauxPerformance >= 70 ? '🟡 Bon' :
+                                                    '🔴 À améliorer'}
+                                        </p>
+                                    </div>
+
+                                    {/* Temps d'Arrêt */}
+                                    {agentStats.tempsArretMinutes > 0 ? (
+                                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                                            <p className="text-xs text-muted-foreground mb-1">Temps d'Arrêt</p>
+                                            <p className="text-3xl font-extrabold text-orange-600">
+                                                {Math.floor(agentStats.tempsArretMinutes / 60)}h{Math.round(agentStats.tempsArretMinutes % 60)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">minutes</p>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                                            <p className="text-xs text-muted-foreground mb-1">Temps d'Arrêt</p>
+                                            <p className="text-3xl font-extrabold text-green-600">0</p>
+                                            <p className="text-xs text-muted-foreground mt-1">🟢 Aucun arrêt</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Secondary Metrics */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-primary/20">
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Recharges</p>
-                                    <p className="text-lg font-bold text-foreground">
-                                        {agentStats.recharges.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground">Btl</span>
-                                    </p>
+                            {/* Activité */}
+                            <div className="p-4 bg-muted/30 rounded-lg border">
+                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Activité</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Chef de Quart */}
+                                    {agentStats.nombreShifts > 0 && (
+                                        <div className="p-3 bg-white rounded-lg border border-primary/20">
+                                            <p className="text-xs text-muted-foreground mb-2">👔 Chef de Quart</p>
+                                            <p className="text-2xl font-bold text-foreground">{agentStats.nombreShifts}</p>
+                                            <p className="text-xs text-muted-foreground mt-1">shifts (toutes lignes)</p>
+                                        </div>
+                                    )}
+
+                                    {/* Chef de Ligne */}
+                                    {agentStats.nombreLignes > 0 && (
+                                        <div className="p-3 bg-white rounded-lg border border-primary/20">
+                                            <p className="text-xs text-muted-foreground mb-2">🔧 Chef de Ligne</p>
+                                            <p className="text-2xl font-bold text-foreground">{agentStats.nombreLignes}</p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                sessions sur {agentStats.lignesOccupees.length > 0 ? `L${agentStats.lignesOccupees.join(', L')}` : 'lignes'}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Effectif Total */}
+                                    <div className="p-3 bg-white rounded-lg border border-primary/20">
+                                        <p className="text-xs text-muted-foreground mb-2">👥 Effectif Total</p>
+                                        <p className="text-2xl font-bold text-foreground">{agentStats.effectifTotal}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">agents mobilisés</p>
+                                    </div>
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Consignes</p>
-                                    <p className="text-lg font-bold text-foreground">
-                                        {agentStats.consignes.toLocaleString('fr-FR')} <span className="text-xs text-muted-foreground">Btl</span>
-                                    </p>
-                                </div>
-                                {agentType === 'chef_quart' ? (
-                                    <>
-                                        <div className="text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Shifts</p>
-                                            <p className="text-lg font-bold text-foreground">{agentStats.nombreShifts}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Effectif Moyen</p>
-                                            <p className="text-lg font-bold text-foreground">{agentStats.effectifMoyen.toFixed(1)} <span className="text-xs text-muted-foreground">agt</span></p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Lignes</p>
-                                            <p className="text-lg font-bold text-foreground">{agentStats.nombreLignes}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Effectif Moyen</p>
-                                            <p className="text-lg font-bold text-foreground">{agentStats.effectifMoyen.toFixed(1)} <span className="text-xs text-muted-foreground">agt</span></p>
-                                        </div>
-                                    </>
-                                )}
                             </div>
 
-                            {/* Downtime for Chef de Quart */}
-                            {agentType === 'chef_quart' && agentStats.tempsArretMinutes > 0 && (
-                                <div className="mt-3 pt-3 border-t border-primary/20 text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Temps d'Arrêt Total</p>
-                                    <p className="text-lg font-bold text-orange-600">
-                                        {Math.floor(agentStats.tempsArretMinutes / 60)}h {Math.round(agentStats.tempsArretMinutes % 60)}min
-                                    </p>
+                            {/* Production Détaillée */}
+                            <div className="p-4 bg-muted/30 rounded-lg border">
+                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Production Détaillée</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    <div className="text-center p-3 bg-white rounded-lg">
+                                        <p className="text-xs text-muted-foreground mb-1">Bouteilles Totales</p>
+                                        <p className="text-xl font-bold text-foreground">
+                                            {agentStats.bouteilles.toLocaleString('fr-FR')}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">Btl</p>
+                                    </div>
+                                    <div className="text-center p-3 bg-white rounded-lg">
+                                        <p className="text-xs text-muted-foreground mb-1">Recharges</p>
+                                        <p className="text-xl font-bold text-blue-600">
+                                            {agentStats.recharges.toLocaleString('fr-FR')}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">Btl</p>
+                                    </div>
+                                    <div className="text-center p-3 bg-white rounded-lg">
+                                        <p className="text-xs text-muted-foreground mb-1">Consignes</p>
+                                        <p className="text-xl font-bold text-green-600">
+                                            {agentStats.consignes.toLocaleString('fr-FR')}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">Btl</p>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )}
 
@@ -1051,9 +1028,9 @@ const CentreEmplisseurView = ({
                         </div>
                     )}
                 </CardContent>
-            </Card>
+            </Card >
 
-        </div>
+        </div >
     );
 };
 
