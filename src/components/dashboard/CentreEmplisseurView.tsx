@@ -812,9 +812,10 @@ const CentreEmplisseurView = ({
                 .from('production_shifts')
                 .select(`
                     *,
-                    chef_quart:chefs_quart!production_shifts_chef_quart_id_fkey(id, nom, prenom),
+                    chef_quart:chefs_quart(id, nom, prenom),
                     lignes_production(*),
-                    arrets_production(*)
+                    arrets_production(*),
+                    production_modifications(*)
                 `)
                 .gte('date', startDate)
                 .lte('date', endDate)
