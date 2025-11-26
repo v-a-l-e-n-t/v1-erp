@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -77,26 +78,18 @@ const CentreEmplisseurView = ({
     });
 
     // Agent productivity states
-    const [selectedAgentId, setSelectedAgentId] = useState<string>('');
     const [allAgents, setAllAgents] = useState<any[]>([]);
-    const [agentStats, setAgentStats] = useState({
-        tonnage: 0,
-        bouteilles: 0,
-        recharges: 0,
-        consignes: 0,
-        nombreShifts: 0,
-        nombreLignes: 0,
-        effectifTotal: 0,
-        tempsArretMinutes: 0,
-        tauxPerformance: 0,
-        lignesOccupees: [] as number[]
-    });
+    const [allAgentsComparison, setAllAgentsComparison] = useState<any[]>([]);
+    const [selectedAgentForModal, setSelectedAgentForModal] = useState<string | null>(null);
+    const [agentModalData, setAgentModalData] = useState<any>(null);
 
-    // Agent Filter States
+
+    // Agent Filter States (default to current month)
+    const currentMonth = new Date().toISOString().slice(0, 7);
     const [agentFilterType, setAgentFilterType] = useState<'month' | 'date' | 'range'>('month');
-    const [agentSelectedMonth, setAgentSelectedMonth] = useState<string>(selectedMonth);
-    const [agentSelectedDate, setAgentSelectedDate] = useState<Date | undefined>(selectedDate);
-    const [agentDateRange, setAgentDateRange] = useState<DateRange | undefined>(dateRange);
+    const [agentSelectedMonth, setAgentSelectedMonth] = useState<string>(currentMonth);
+    const [agentSelectedDate, setAgentSelectedDate] = useState<Date | undefined>(undefined);
+    const [agentDateRange, setAgentDateRange] = useState<DateRange | undefined>(undefined);
 
     // Generate last 12 months for filter
     const availableMonths = Array.from({ length: 12 }, (_, i) => {
@@ -111,10 +104,8 @@ const CentreEmplisseurView = ({
     }, [dateRange, filterType, selectedDate, selectedMonth]);
 
     useEffect(() => {
-        if (selectedAgentId) {
-            fetchAgentStats();
-        }
-    }, [selectedAgentId, agentFilterType, agentSelectedMonth, agentSelectedDate, agentDateRange]);
+        fetchAllAgentsComparison();
+    }, [agentFilterType, agentSelectedMonth, agentSelectedDate, agentDateRange]);
 
     const fetchStats = async () => {
         setLoading(true);
@@ -346,44 +337,153 @@ const CentreEmplisseurView = ({
         }
     };
 
-    const fetchAgentStats = async () => {
-        if (!selectedAgentId) return;
-
+    const fetchAllAgentsComparison = async () => {
         try {
-            // Query both tables simultaneously
-            let shiftsQuery = supabase
-                .from('production_shifts')
-                .select('*, lignes_production(*), arrets_production(*)')
-                .eq('chef_quart_id', selectedAgentId);
+            // Get all agents
+            const [quartsResult, lignesResult] = await Promise.all([
+                supabase.from('chefs_quart').select('id, nom, prenom'),
+                supabase.from('chefs_ligne').select('id, nom, prenom')
+            ]);
 
-            let lignesQuery = supabase
-                .from('lignes_production')
-                .select('*, production_shifts!inner(date, shift_type)')
-                .eq('chef_ligne_id', selectedAgentId);
+            if (quartsResult.error) throw quartsResult.error;
+            if (lignesResult.error) throw lignesResult.error;
 
-            // Apply filters to both queries
+            const allAgentsList = [
+                ...(quartsResult.data || []).map(a => ({ ...a, role: 'chef_quart' })),
+                ...(lignesResult.data || []).map(a => ({ ...a, role: 'chef_ligne' }))
+            ];
+
+            // For each agent, calculate their tonnage on the selected period
+            const agentsWithTonnage = await Promise.all(
+                allAgentsList.map(async (agent) => {
+                    // Query shifts as chef de quart
+                    let shiftsQuery = supabase
+                        .from('production_shifts')
+                        .select('tonnage_total')
+                        .eq('chef_quart_id', agent.id);
+
+                    // Query lignes as chef de ligne
+                    let lignesQuery = supabase
+                        .from('lignes_production')
+                        .select('tonnage_ligne, production_shifts!inner(date)')
+                        .eq('chef_ligne_id', agent.id);
+
+                    // Apply filters
+                    if (agentFilterType === 'month') {
+                        const startDate = `${agentSelectedMonth}-01`;
+                        const [y, m] = agentSelectedMonth.split('-').map(Number);
+                        const endDate = new Date(y, m, 0).toISOString().split('T')[0];
+                        shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
+                        lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
+                    } else if (agentFilterType === 'date' && agentSelectedDate) {
+                        const dateStr = format(agentSelectedDate, 'yyyy-MM-dd');
+                        shiftsQuery = shiftsQuery.eq('date', dateStr);
+                        lignesQuery = lignesQuery.eq('production_shifts.date', dateStr);
+                    } else if (agentFilterType === 'range' && agentDateRange?.from) {
+                        const fromStr = format(agentDateRange.from, 'yyyy-MM-dd');
+                        const toStr = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : fromStr;
+                        shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
+                        lignesQuery = lignesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
+                    }
+
+                    const [shiftsResult, lignesResult] = await Promise.all([shiftsQuery, lignesQuery]);
+
+                    const shiftsTonnage = (shiftsResult.data || []).reduce((sum, s) => sum + (Number(s.tonnage_total) || 0), 0);
+                    const lignesTonnage = (lignesResult.data || []).reduce((sum, l) => sum + (Number(l.tonnage_ligne) || 0), 0);
+
+                    return {
+                        id: agent.id,
+                        nom: agent.nom,
+                        prenom: agent.prenom,
+                        tonnage: shiftsTonnage + lignesTonnage, // in tonnes from DB
+                        role: agent.role
+                    };
+                })
+            );
+
+            // Sort by tonnage descending
+            const sorted = agentsWithTonnage.sort((a, b) => b.tonnage - a.tonnage);
+            setAllAgentsComparison(sorted);
+
+        } catch (error) {
+            console.error('Error fetching agents comparison:', error);
+        }
+    };
+
+    const fetchAgentDetailedStats = async (agentId: string) => {
+        try {
+            // Helper to build queries
+            const buildQueries = (start: string, end: string) => {
+                let shiftsQuery = supabase
+                    .from('production_shifts')
+                    .select('*, lignes_production(*), arrets_production(*)')
+                    .eq('chef_quart_id', agentId)
+                    .gte('date', start)
+                    .lte('date', end);
+
+                let lignesQuery = supabase
+                    .from('lignes_production')
+                    .select('*, production_shifts!inner(date, shift_type)')
+                    .eq('chef_ligne_id', agentId)
+                    .gte('production_shifts.date', start)
+                    .lte('production_shifts.date', end);
+
+                return [shiftsQuery, lignesQuery];
+            };
+
+            // Determine current period dates
+            let startDate, endDate;
             if (agentFilterType === 'month') {
-                const startDate = `${agentSelectedMonth}-01`;
+                startDate = `${agentSelectedMonth}-01`;
                 const [y, m] = agentSelectedMonth.split('-').map(Number);
-                const endDate = new Date(y, m, 0).toISOString().split('T')[0];
-                shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
-                lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
+                endDate = new Date(y, m, 0).toISOString().split('T')[0];
             } else if (agentFilterType === 'date' && agentSelectedDate) {
-                const dateStr = format(agentSelectedDate, 'yyyy-MM-dd');
-                shiftsQuery = shiftsQuery.eq('date', dateStr);
-                lignesQuery = lignesQuery.eq('production_shifts.date', dateStr);
+                startDate = format(agentSelectedDate, 'yyyy-MM-dd');
+                endDate = startDate;
             } else if (agentFilterType === 'range' && agentDateRange?.from) {
-                const fromStr = format(agentDateRange.from, 'yyyy-MM-dd');
-                const toStr = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : fromStr;
-                shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
-                lignesQuery = lignesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
+                startDate = format(agentDateRange.from, 'yyyy-MM-dd');
+                endDate = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : startDate;
+            } else {
+                return null;
             }
 
-            // Execute both queries
+            // Determine previous period dates for trend calculation
+            let prevStartDate, prevEndDate;
+            const startD = new Date(startDate);
+            const endD = new Date(endDate);
+
+            if (agentFilterType === 'month') {
+                const prevMonthDate = new Date(startD);
+                prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+                const prevY = prevMonthDate.getFullYear();
+                const prevM = prevMonthDate.getMonth() + 1;
+                prevStartDate = `${prevY}-${String(prevM).padStart(2, '0')}-01`;
+                prevEndDate = new Date(prevY, prevM, 0).toISOString().split('T')[0];
+            } else {
+                // For date and range, shift back by duration + 1 day to avoid overlap? No, just duration.
+                // E.g. if range is 1st-5th (5 days), prev is 26th-30th of prev month? Or just shift back by 5 days.
+                const durationMs = endD.getTime() - startD.getTime();
+                const diffDays = Math.round(durationMs / (1000 * 60 * 60 * 24)) + 1;
+
+                const pStart = new Date(startD);
+                pStart.setDate(pStart.getDate() - diffDays);
+                const pEnd = new Date(endD);
+                pEnd.setDate(pEnd.getDate() - diffDays);
+
+                prevStartDate = pStart.toISOString().split('T')[0];
+                prevEndDate = pEnd.toISOString().split('T')[0];
+            }
+
+            // Fetch Current Period
+            const [shiftsQuery, lignesQuery] = buildQueries(startDate, endDate);
             const [shiftsResult, lignesResult] = await Promise.all([shiftsQuery, lignesQuery]);
 
             if (shiftsResult.error) throw shiftsResult.error;
             if (lignesResult.error) throw lignesResult.error;
+
+            // Fetch Previous Period (for trend)
+            const [prevShiftsQuery, prevLignesQuery] = buildQueries(prevStartDate, prevEndDate);
+            const [prevShiftsResult, prevLignesResult] = await Promise.all([prevShiftsQuery, prevLignesQuery]);
 
             const shifts = shiftsResult.data || [];
             const lignes = lignesResult.data || [];
@@ -396,10 +496,22 @@ const CentreEmplisseurView = ({
             let totalEffectif = 0;
             let totalTempsArret = 0;
 
+            // Daily history for heatmap
+            const dailyHistory: Record<string, { tonnage: number; tauxPerformance: number }> = {};
+
             // Stats from chef de quart role
             shifts.forEach(shift => {
-                totalTonnage += Number(shift.tonnage_total) || 0;
+                const date = shift.date;
+                const shiftTonnage = Number(shift.tonnage_total) || 0;
+
+                totalTonnage += shiftTonnage;
                 totalBouteilles += Number(shift.bouteilles_produites) || 0;
+
+                // Add to daily history
+                if (!dailyHistory[date]) {
+                    dailyHistory[date] = { tonnage: 0, tauxPerformance: 0 };
+                }
+                dailyHistory[date].tonnage += shiftTonnage;
 
                 const shiftLignes = shift.lignes_production || [];
                 shiftLignes.forEach((l: any) => {
@@ -425,7 +537,19 @@ const CentreEmplisseurView = ({
 
             // Stats from chef de ligne role
             lignes.forEach(l => {
-                totalTonnage += Number(l.tonnage_ligne) || 0;
+                const date = l.production_shifts?.date;
+                const ligneTonnage = Number(l.tonnage_ligne) || 0;
+
+                totalTonnage += ligneTonnage;
+
+                // Add to daily history
+                if (date) {
+                    if (!dailyHistory[date]) {
+                        dailyHistory[date] = { tonnage: 0, tauxPerformance: 0 };
+                    }
+                    dailyHistory[date].tonnage += ligneTonnage;
+                }
+
                 totalRecharges += (l.cumul_recharges_b6 || 0) + (l.cumul_recharges_b12 || 0) +
                     (l.cumul_recharges_b28 || 0) + (l.cumul_recharges_b38 || 0);
                 totalConsignes += (l.cumul_consignes_b6 || 0) + (l.cumul_consignes_b12 || 0) +
@@ -470,7 +594,24 @@ const CentreEmplisseurView = ({
 
             const tauxPerformance = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
 
-            setAgentStats({
+            // Calculate performance for each day in daily history
+            Object.keys(dailyHistory).forEach(date => {
+                // Simplified performance calculation for daily view
+                const dayTonnage = dailyHistory[date].tonnage;
+                const dayPerf = productionTheorique > 0 ? (dayTonnage / (productionTheorique / totalSessions)) * 100 : 0;
+                dailyHistory[date].tauxPerformance = dayPerf;
+            });
+
+            // Calculate Trend
+            const prevShifts = prevShiftsResult.data || [];
+            const prevLignes = prevLignesResult.data || [];
+            const prevTonnage = prevShifts.reduce((sum: number, s: any) => sum + (Number(s.tonnage_total) || 0), 0) +
+                prevLignes.reduce((sum: number, l: any) => sum + (Number(l.tonnage_ligne) || 0), 0);
+
+            const tonnageTrend = prevTonnage > 0 ? ((totalTonnage - prevTonnage) / prevTonnage) * 100 : 0;
+
+            // Return data for modal
+            return {
                 tonnage: totalTonnage,
                 bouteilles: totalBouteilles,
                 recharges: totalRecharges,
@@ -480,11 +621,15 @@ const CentreEmplisseurView = ({
                 effectifTotal: totalEffectif,
                 tempsArretMinutes: totalTempsArret,
                 tauxPerformance,
-                lignesOccupees
-            });
+                lignesOccupees,
+                dailyHistory,
+                trend: tonnageTrend,
+                prevTonnage
+            };
 
         } catch (error) {
-            console.error('Error fetching agent stats:', error);
+            console.error('Error fetching agent detailed stats:', error);
+            return null;
         }
     };
 
@@ -812,19 +957,17 @@ const CentreEmplisseurView = ({
             </Card >
 
             {/* 2. PRODUCTIVITÉ PAR AGENT */}
-            < Card className="border-l-4 border-l-primary" >
-                <CardHeader>
+            <Card className="border-l-4 border-l-primary">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-xl flex items-center gap-2">
                         <Users className="h-5 w-5" />
                         PRODUCTIVITÉ PAR AGENT
                     </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Agent Filters */}
-                    <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-muted/20 rounded-lg">
-                        <span className="text-sm font-medium text-muted-foreground mr-2">Période :</span>
+
+                    {/* Filter in Header */}
+                    <div className="flex items-center gap-2">
                         <Select value={agentFilterType} onValueChange={(value: 'month' | 'date' | 'range') => setAgentFilterType(value)}>
-                            <SelectTrigger className="w-[140px] h-8 text-sm">
+                            <SelectTrigger className="w-[130px] h-8 text-sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -836,7 +979,7 @@ const CentreEmplisseurView = ({
 
                         {agentFilterType === 'month' && (
                             <Select value={agentSelectedMonth} onValueChange={setAgentSelectedMonth}>
-                                <SelectTrigger className="w-[160px] h-8 text-sm">
+                                <SelectTrigger className="w-[150px] h-8 text-sm">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -852,26 +995,13 @@ const CentreEmplisseurView = ({
                         {agentFilterType === 'date' && (
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className={cn(
-                                            "w-[200px] justify-start text-left font-normal h-8 text-sm",
-                                            !agentSelectedDate && "text-muted-foreground"
-                                        )}
-                                    >
+                                    <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal h-8 text-sm", !agentSelectedDate && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-3 w-3" />
-                                        {agentSelectedDate ? format(agentSelectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                                        {agentSelectedDate ? format(agentSelectedDate, "dd/MM/yyyy") : "Date"}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={agentSelectedDate}
-                                        onSelect={setAgentSelectedDate}
-                                        locale={fr}
-                                        disabled={{ after: new Date() }}
-                                        className="pointer-events-auto"
-                                    />
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar mode="single" selected={agentSelectedDate} onSelect={setAgentSelectedDate} locale={fr} disabled={{ after: new Date() }} />
                                 </PopoverContent>
                             </Popover>
                         )}
@@ -879,181 +1009,174 @@ const CentreEmplisseurView = ({
                         {agentFilterType === 'range' && (
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className={cn(
-                                            "w-[240px] justify-start text-left font-normal h-8 text-sm",
-                                            !agentDateRange && "text-muted-foreground"
-                                        )}
-                                    >
+                                    <Button variant="outline" className={cn("w-[200px] justify-start text-left font-normal h-8 text-sm", !agentDateRange && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-3 w-3" />
-                                        {agentDateRange?.from ? (
-                                            agentDateRange.to ? (
-                                                <>
-                                                    {format(agentDateRange.from, "dd/MM/yyyy")} - {format(agentDateRange.to, "dd/MM/yyyy")}
-                                                </>
-                                            ) : (
-                                                format(agentDateRange.from, "dd/MM/yyyy")
-                                            )
-                                        ) : (
-                                            "Sélectionner une période"
-                                        )}
+                                        {agentDateRange?.from ? (agentDateRange.to ? `${format(agentDateRange.from, "dd/MM/yyyy")} - ${format(agentDateRange.to, "dd/MM/yyyy")}` : format(agentDateRange.from, "dd/MM/yyyy")) : "Période"}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="range"
-                                        selected={agentDateRange}
-                                        onSelect={setAgentDateRange}
-                                        locale={fr}
-                                        disabled={{ after: new Date() }}
-                                        numberOfMonths={2}
-                                        className="pointer-events-auto"
-                                    />
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar mode="range" selected={agentDateRange} onSelect={setAgentDateRange} locale={fr} disabled={{ after: new Date() }} numberOfMonths={2} />
                                 </PopoverContent>
                             </Popover>
                         )}
                     </div>
+                </CardHeader>
 
-                    {/* Agent Selection */}
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Choisissez un agent</label>
-                        <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Sélectionner un agent" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {allAgents.map(agent => (
-                                    <SelectItem key={`${agent.role}-${agent.id}`} value={agent.id}>
-                                        {agent.prenom} {agent.nom}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                <CardContent className="space-y-8 pt-6">
+                    {/* Comparison Chart */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Comparaison de tous les agents</h3>
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                            {allAgentsComparison.map((agent) => {
+                                const maxTonnage = allAgentsComparison[0]?.tonnage || 1;
+                                const percentage = (agent.tonnage / maxTonnage) * 100;
+                                const colorClass = percentage >= 80 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+
+                                return (
+                                    <div
+                                        key={agent.id}
+                                        className="group relative flex items-center gap-4 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                                        onClick={async () => {
+                                            setSelectedAgentForModal(agent.id);
+                                            const data = await fetchAgentDetailedStats(agent.id);
+                                            setAgentModalData(data);
+                                        }}
+                                    >
+                                        <div className="w-32 text-sm font-medium truncate">{agent.prenom} {agent.nom}</div>
+                                        <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full ${colorClass} transition-all duration-500`}
+                                                style={{ width: `${percentage}%` }}
+                                            />
+                                        </div>
+                                        <div className="w-24 text-right text-sm font-bold">
+                                            {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-
-                    {/* KPIs Display */}
-                    {selectedAgentId && (
-                        <div className="mt-4 space-y-4">
-                            {/* Performance Globale */}
-                            <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Performance Globale</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {/* Tonnage */}
-                                    <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                                        <p className="text-xs text-muted-foreground mb-1">Tonnage Total</p>
-                                        <p className="text-3xl font-extrabold text-primary">
-                                            {(agentStats.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">Kg</p>
-                                    </div>
-
-                                    {/* Taux de Performance avec code couleur */}
-                                    <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                                        <p className="text-xs text-muted-foreground mb-1">Taux de Performance</p>
-                                        <p className={`text-3xl font-extrabold ${agentStats.tauxPerformance >= 90 ? 'text-green-600' :
-                                            agentStats.tauxPerformance >= 70 ? 'text-orange-500' :
-                                                'text-red-600'
-                                            }`}>
-                                            {agentStats.tauxPerformance.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {agentStats.tauxPerformance >= 90 ? '🟢 Excellent' :
-                                                agentStats.tauxPerformance >= 70 ? '🟡 Bon' :
-                                                    '🔴 À améliorer'}
-                                        </p>
-                                    </div>
-
-                                    {/* Temps d'Arrêt */}
-                                    {agentStats.tempsArretMinutes > 0 ? (
-                                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                                            <p className="text-xs text-muted-foreground mb-1">Temps d'Arrêt</p>
-                                            <p className="text-3xl font-extrabold text-orange-600">
-                                                {Math.floor(agentStats.tempsArretMinutes / 60)}h{Math.round(agentStats.tempsArretMinutes % 60)}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">minutes</p>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-                                            <p className="text-xs text-muted-foreground mb-1">Temps d'Arrêt</p>
-                                            <p className="text-3xl font-extrabold text-green-600">0</p>
-                                            <p className="text-xs text-muted-foreground mt-1">🟢 Aucun arrêt</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Activité */}
-                            <div className="p-4 bg-muted/30 rounded-lg border">
-                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Activité</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {/* Chef de Quart */}
-                                    {agentStats.nombreShifts > 0 && (
-                                        <div className="p-3 bg-white rounded-lg border border-primary/20">
-                                            <p className="text-xs text-muted-foreground mb-2">👔 Chef de Quart</p>
-                                            <p className="text-2xl font-bold text-foreground">{agentStats.nombreShifts}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">shifts (toutes lignes)</p>
-                                        </div>
-                                    )}
-
-                                    {/* Chef de Ligne */}
-                                    {agentStats.nombreLignes > 0 && (
-                                        <div className="p-3 bg-white rounded-lg border border-primary/20">
-                                            <p className="text-xs text-muted-foreground mb-2">🔧 Chef de Ligne</p>
-                                            <p className="text-2xl font-bold text-foreground">{agentStats.nombreLignes}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                sessions sur {agentStats.lignesOccupees.length > 0 ? `L${agentStats.lignesOccupees.join(', L')}` : 'lignes'}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Effectif Total */}
-                                    <div className="p-3 bg-white rounded-lg border border-primary/20">
-                                        <p className="text-xs text-muted-foreground mb-2">👥 Effectif Total</p>
-                                        <p className="text-2xl font-bold text-foreground">{agentStats.effectifTotal}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">agents mobilisés</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Production Détaillée */}
-                            <div className="p-4 bg-muted/30 rounded-lg border">
-                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Production Détaillée</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    <div className="text-center p-3 bg-white rounded-lg">
-                                        <p className="text-xs text-muted-foreground mb-1">Bouteilles Totales</p>
-                                        <p className="text-xl font-bold text-foreground">
-                                            {agentStats.bouteilles.toLocaleString('fr-FR')}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">Btl</p>
-                                    </div>
-                                    <div className="text-center p-3 bg-white rounded-lg">
-                                        <p className="text-xs text-muted-foreground mb-1">Recharges</p>
-                                        <p className="text-xl font-bold text-blue-600">
-                                            {agentStats.recharges.toLocaleString('fr-FR')}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">Btl</p>
-                                    </div>
-                                    <div className="text-center p-3 bg-white rounded-lg">
-                                        <p className="text-xs text-muted-foreground mb-1">Consignes</p>
-                                        <p className="text-xl font-bold text-green-600">
-                                            {agentStats.consignes.toLocaleString('fr-FR')}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">Btl</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {!selectedAgentId && (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                            <p>Sélectionnez un agent pour voir ses indicateurs de productivité</p>
-                        </div>
-                    )}
                 </CardContent>
-            </Card >
+            </Card>
+
+            {/* Agent Details Modal */}
+            <Dialog open={!!selectedAgentForModal} onOpenChange={(open) => !open && setSelectedAgentForModal(null)}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl flex items-center gap-2">
+                            <Users className="h-6 w-6 text-primary" />
+                            {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.prenom} {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.nom}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {agentModalData ? (
+                        <div className="space-y-6 py-4">
+                            {/* Key Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 text-center">
+                                    <p className="text-sm text-muted-foreground mb-1">Tonnage Total</p>
+                                    <p className="text-3xl font-bold text-primary">{(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg</p>
+                                    {agentModalData.trend !== undefined && (
+                                        <div className={`flex items-center justify-center gap-1 mt-2 text-sm font-medium ${agentModalData.trend > 0 ? 'text-green-600' : agentModalData.trend < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                            {agentModalData.trend > 0 ? <ArrowUp className="h-4 w-4" /> : agentModalData.trend < 0 ? <ArrowDown className="h-4 w-4" /> : null}
+                                            <span>{Math.abs(agentModalData.trend).toFixed(1)}%</span>
+                                            <span className="text-xs text-muted-foreground font-normal">vs préc.</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-4 bg-white rounded-xl border text-center shadow-sm">
+                                    <p className="text-sm text-muted-foreground mb-1">Taux de Performance</p>
+                                    <p className={`text-3xl font-bold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
+                                        agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
+                                        }`}>
+                                        {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}%
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-white rounded-xl border text-center shadow-sm">
+                                    <p className="text-sm text-muted-foreground mb-1">Temps d'Arrêt</p>
+                                    <p className="text-3xl font-bold text-orange-600">
+                                        {Math.floor(agentModalData.tempsArretMinutes / 60)}h{Math.round(agentModalData.tempsArretMinutes % 60)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Performance Calendar Heatmap */}
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Calendrier de Performance</h3>
+                                <div className="p-4 border rounded-xl bg-white">
+                                    <div className="grid grid-cols-7 gap-1 mb-2">
+                                        {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
+                                            <div key={day} className="text-xs text-center text-muted-foreground font-medium py-1">{day}</div>
+                                        ))}
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2">
+                                        {/* We need to generate calendar days here. For simplicity, we'll just map the history keys sorted */}
+                                        {/* A proper calendar would need more logic, but let's show the days we have data for plus placeholders */}
+                                        {Object.keys(agentModalData.dailyHistory).sort().map(date => {
+                                            const dayData = agentModalData.dailyHistory[date];
+                                            const perf = dayData.tauxPerformance;
+                                            const colorClass = perf >= 90 ? 'bg-green-500' : perf >= 70 ? 'bg-yellow-500' : 'bg-red-500';
+
+                                            return (
+                                                <div key={date} className="aspect-square rounded-md border p-1 flex flex-col items-center justify-center gap-1 hover:ring-2 ring-primary/50 transition-all cursor-help" title={`${date}: ${dayData.tonnage.toFixed(0)}T (${perf.toFixed(1)}%)`}>
+                                                    <span className="text-[10px] text-muted-foreground">{new Date(date).getDate()}</span>
+                                                    <div className={`w-full h-full rounded-sm ${colorClass} opacity-80`}></div>
+                                                </div>
+                                            );
+                                        })}
+                                        {Object.keys(agentModalData.dailyHistory).length === 0 && (
+                                            <div className="col-span-7 text-center py-8 text-muted-foreground text-sm">Aucune donnée sur cette période</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Detailed Production */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="p-4 border rounded-xl bg-muted/20">
+                                    <h3 className="text-sm font-semibold mb-3">Activité</h3>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Shifts (Chef de Quart)</span>
+                                            <span className="font-medium">{agentModalData.nombreShifts}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Sessions (Chef de Ligne)</span>
+                                            <span className="font-medium">{agentModalData.nombreLignes}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Lignes gérées</span>
+                                            <span className="font-medium">{agentModalData.lignesOccupees.length > 0 ? `L${agentModalData.lignesOccupees.join(', L')}` : '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-4 border rounded-xl bg-muted/20">
+                                    <h3 className="text-sm font-semibold mb-3">Production</h3>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Bouteilles</span>
+                                            <span className="font-medium">{agentModalData.bouteilles.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Recharges</span>
+                                            <span className="font-medium text-blue-600">{agentModalData.recharges.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Consignes</span>
+                                            <span className="font-medium text-green-600">{agentModalData.consignes.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center h-64">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
 
         </div >
     );
