@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
 import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -610,6 +610,131 @@ const CentreEmplisseurView = ({
 
             const tonnageTrend = prevTonnage > 0 ? ((totalTonnage - prevTonnage) / prevTonnage) * 100 : 0;
 
+            // ===== NEW CALCULATIONS FOR MODAL IMPROVEMENTS =====
+
+            // 1. Weekly Data (current calendar week: Mon-Sun)
+            const now = new Date();
+            const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Get to Monday
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() + mondayOffset);
+            weekStart.setHours(0, 0, 0, 0);
+
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6); // Sunday
+            weekEnd.setHours(23, 59, 59, 999);
+
+            const weeklyData = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day, index) => {
+                const date = new Date(weekStart);
+                date.setDate(weekStart.getDate() + index);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayData = dailyHistory[dateStr];
+                return {
+                    day,
+                    date: dateStr,
+                    tonnage: dayData ? dayData.tonnage * 1000 : 0, // Convert to Kg
+                    productivite: dayData ? dayData.tauxPerformance : 0
+                };
+            });
+
+            // 2. Last 3 Months Data
+            const getMonthData = async (monthOffset: number) => {
+                const targetDate = new Date(now);
+                targetDate.setMonth(now.getMonth() - monthOffset);
+                const year = targetDate.getFullYear();
+                const month = targetDate.getMonth() + 1;
+                const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+                const monthStart = `${monthStr}-01`;
+                const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+
+                const [mShiftsQuery, mLignesQuery] = buildQueries(monthStart, monthEnd);
+                const [mShiftsResult, mLignesResult] = await Promise.all([mShiftsQuery, mLignesQuery]);
+
+                const mShifts = mShiftsResult.data || [];
+                const mLignes = mLignesResult.data || [];
+                const monthTonnage = mShifts.reduce((sum: number, s: any) => sum + (Number(s.tonnage_total) || 0), 0) +
+                    mLignes.reduce((sum: number, l: any) => sum + (Number(l.tonnage_ligne) || 0), 0);
+
+                return {
+                    month: targetDate.toLocaleDateString('fr-FR', { month: 'short' }),
+                    tonnage: monthTonnage
+                };
+            };
+
+            const last3Months = await Promise.all([
+                getMonthData(2),
+                getMonthData(1),
+                getMonthData(0)
+            ]);
+
+            // 3. Best/Worst Day of the Month
+            const daysWithData = Object.entries(dailyHistory)
+                .filter(([date]) => {
+                    const d = new Date(date);
+                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                })
+                .map(([date, data]) => ({
+                    date,
+                    tonnage: data.tonnage * 1000, // Convert to Kg
+                    productivite: data.tauxPerformance
+                }));
+
+            const bestDay = daysWithData.length > 0
+                ? daysWithData.reduce((best, current) => current.tonnage > best.tonnage ? current : best)
+                : null;
+
+            const worstDay = daysWithData.length > 0
+                ? daysWithData.reduce((worst, current) => current.tonnage < worst.tonnage ? current : worst)
+                : null;
+
+            // 4. Breakdown by Shift
+            const shiftBreakdown = [
+                {
+                    shift: 'Shift 1',
+                    sessions: shifts.filter((s: any) => s.shift_type === 1).length,
+                    tonnage: shifts.filter((s: any) => s.shift_type === 1).reduce((sum: number, s: any) => sum + (Number(s.tonnage_total) || 0), 0)
+                },
+                {
+                    shift: 'Shift 2',
+                    sessions: shifts.filter((s: any) => s.shift_type === 2).length,
+                    tonnage: shifts.filter((s: any) => s.shift_type === 2).reduce((sum: number, s: any) => sum + (Number(s.tonnage_total) || 0), 0)
+                }
+            ].filter(s => s.sessions > 0); // Only include shifts with data
+
+            // 5. Breakdown by Line
+            const lineBreakdown: Record<number, { sessions: number; tonnage: number }> = {};
+
+            // From shifts (chef de quart manages all lines)
+            shifts.forEach((shift: any) => {
+                const shiftLignes = shift.lignes_production || [];
+                shiftLignes.forEach((l: any) => {
+                    const lineNum = l.numero_ligne;
+                    if (!lineBreakdown[lineNum]) {
+                        lineBreakdown[lineNum] = { sessions: 0, tonnage: 0 };
+                    }
+                    lineBreakdown[lineNum].sessions += 1;
+                    lineBreakdown[lineNum].tonnage += Number(l.tonnage_ligne) || 0;
+                });
+            });
+
+            // From lignes (chef de ligne manages specific lines)
+            lignes.forEach((l: any) => {
+                const lineNum = l.numero_ligne;
+                if (!lineBreakdown[lineNum]) {
+                    lineBreakdown[lineNum] = { sessions: 0, tonnage: 0 };
+                }
+                lineBreakdown[lineNum].sessions += 1;
+                lineBreakdown[lineNum].tonnage += Number(l.tonnage_ligne) || 0;
+            });
+
+            const lineBreakdownArray = Object.entries(lineBreakdown)
+                .map(([line, data]) => ({
+                    ligne: `Ligne ${line}`,
+                    sessions: data.sessions,
+                    tonnage: data.tonnage
+                }))
+                .sort((a, b) => b.tonnage - a.tonnage); // Sort by tonnage descending
+
             // Return data for modal
             return {
                 tonnage: totalTonnage,
@@ -624,7 +749,14 @@ const CentreEmplisseurView = ({
                 lignesOccupees,
                 dailyHistory,
                 trend: tonnageTrend,
-                prevTonnage
+                prevTonnage,
+                // New data
+                weeklyData,
+                last3Months,
+                bestDay,
+                worstDay,
+                shiftBreakdown,
+                lineBreakdown: lineBreakdownArray
             };
 
         } catch (error) {
@@ -1086,7 +1218,7 @@ const CentreEmplisseurView = ({
                                     )}
                                 </div>
                                 <div className="p-4 bg-white rounded-xl border text-center shadow-sm">
-                                    <p className="text-sm text-muted-foreground mb-1">Taux de Performance</p>
+                                    <p className="text-sm text-muted-foreground mb-1">Productivité</p>
                                     <p className={`text-3xl font-bold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
                                         agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
                                         }`}>
@@ -1101,36 +1233,167 @@ const CentreEmplisseurView = ({
                                 </div>
                             </div>
 
-                            {/* Performance Calendar Heatmap */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Calendrier de Performance</h3>
-                                <div className="p-4 border rounded-xl bg-white">
-                                    <div className="grid grid-cols-7 gap-1 mb-2">
-                                        {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
-                                            <div key={day} className="text-xs text-center text-muted-foreground font-medium py-1">{day}</div>
-                                        ))}
-                                    </div>
-                                    <div className="grid grid-cols-7 gap-2">
-                                        {/* We need to generate calendar days here. For simplicity, we'll just map the history keys sorted */}
-                                        {/* A proper calendar would need more logic, but let's show the days we have data for plus placeholders */}
-                                        {Object.keys(agentModalData.dailyHistory).sort().map(date => {
-                                            const dayData = agentModalData.dailyHistory[date];
-                                            const perf = dayData.tauxPerformance;
-                                            const colorClass = perf >= 90 ? 'bg-green-500' : perf >= 70 ? 'bg-yellow-500' : 'bg-red-500';
 
-                                            return (
-                                                <div key={date} className="aspect-square rounded-md border p-1 flex flex-col items-center justify-center gap-1 hover:ring-2 ring-primary/50 transition-all cursor-help" title={`${date}: ${dayData.tonnage.toFixed(0)}T (${perf.toFixed(1)}%)`}>
-                                                    <span className="text-[10px] text-muted-foreground">{new Date(date).getDate()}</span>
-                                                    <div className={`w-full h-full rounded-sm ${colorClass} opacity-80`}></div>
-                                                </div>
-                                            );
-                                        })}
-                                        {Object.keys(agentModalData.dailyHistory).length === 0 && (
-                                            <div className="col-span-7 text-center py-8 text-muted-foreground text-sm">Aucune donnée sur cette période</div>
-                                        )}
+                            {/* Weekly Tonnage Chart */}
+                            {agentModalData.weeklyData && agentModalData.weeklyData.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Évolution Semaine en Cours</h3>
+                                    <div className="p-4 border rounded-xl bg-white">
+                                        <ResponsiveContainer width="100%" height={200}>
+                                            <BarChart data={agentModalData.weeklyData}>
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="day" />
+                                                <YAxis />
+                                                <Tooltip
+                                                    formatter={(value: number) => `${value.toLocaleString('fr-FR')} Kg`}
+                                                    labelFormatter={(label) => `${label}`}
+                                                />
+                                                <Bar dataKey="tonnage" radius={[8, 8, 0, 0]}>
+                                                    {agentModalData.weeklyData.map((entry: any, index: number) => (
+                                                        <Cell
+                                                            key={`cell-${index}`}
+                                                            fill={entry.productivite >= 90 ? '#22c55e' : entry.productivite >= 70 ? '#eab308' : '#ef4444'}
+                                                        />
+                                                    ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
                                     </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* 3-Month Sparkline */}
+                            {agentModalData.last3Months && agentModalData.last3Months.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Tendance 3 Derniers Mois</h3>
+                                    <div className="p-4 border rounded-xl bg-white flex items-center gap-4">
+                                        <div className="flex-1">
+                                            <ResponsiveContainer width="100%" height={60}>
+                                                <AreaChart data={agentModalData.last3Months}>
+                                                    <defs>
+                                                        <linearGradient id="colorTonnage" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="5%" stopColor="#0088FE" stopOpacity={0.8} />
+                                                            <stop offset="95%" stopColor="#0088FE" stopOpacity={0} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <Area type="monotone" dataKey="tonnage" stroke="#0088FE" fillOpacity={1} fill="url(#colorTonnage)" />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <div className="text-right">
+                                            {agentModalData.last3Months.map((m: any, i: number) => (
+                                                <div key={i} className="text-xs">
+                                                    <span className="font-medium text-muted-foreground">{m.month}:</span>{' '}
+                                                    <span className="font-bold">{(m.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Best/Worst Day Badges */}
+                            {(agentModalData.bestDay || agentModalData.worstDay) && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {agentModalData.bestDay && (
+                                        <div className="p-4 border-l-4 border-l-green-500 bg-green-50/50 rounded-lg">
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-2xl">🏆</span>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-green-700 uppercase">Meilleure Journée</p>
+                                                    <p className="text-sm font-medium mt-1">
+                                                        {new Date(agentModalData.bestDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                                                    </p>
+                                                    <p className="text-lg font-bold text-green-600">
+                                                        {agentModalData.bestDay.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                    </p>
+                                                    <p className="text-xs text-green-600">
+                                                        ({agentModalData.bestDay.productivite.toFixed(1)}%)
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {agentModalData.worstDay && (
+                                        <div className="p-4 border-l-4 border-l-red-500 bg-red-50/50 rounded-lg">
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-2xl">⚠️</span>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-red-700 uppercase">Pire Journée</p>
+                                                    <p className="text-sm font-medium mt-1">
+                                                        {new Date(agentModalData.worstDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                                                    </p>
+                                                    <p className="text-lg font-bold text-red-600">
+                                                        {agentModalData.worstDay.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                    </p>
+                                                    <p className="text-xs text-red-600">
+                                                        ({agentModalData.worstDay.productivite.toFixed(1)}%)
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Shift Breakdown */}
+                            {agentModalData.shiftBreakdown && agentModalData.shiftBreakdown.length > 1 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Répartition par Shift</h3>
+                                    <div className="p-4 border rounded-xl bg-white">
+                                        <ResponsiveContainer width="100%" height={agentModalData.shiftBreakdown.length * 60}>
+                                            <BarChart data={agentModalData.shiftBreakdown} layout="vertical">
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis type="number" />
+                                                <YAxis dataKey="shift" type="category" width={80} />
+                                                <Tooltip
+                                                    formatter={(value: number) => `${(value * 1000).toLocaleString('fr-FR')} Kg`}
+                                                    labelFormatter={(label) => `${label}`}
+                                                />
+                                                <Bar dataKey="tonnage" fill="#0088FE" radius={[0, 8, 8, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                        <div className="mt-4 space-y-2">
+                                            {agentModalData.shiftBreakdown.map((s: any, i: number) => (
+                                                <div key={i} className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground">{s.shift}</span>
+                                                    <span className="font-medium">{s.sessions} sessions</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Line Breakdown */}
+                            {agentModalData.lineBreakdown && agentModalData.lineBreakdown.length > 1 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Répartition par Ligne</h3>
+                                    <div className="p-4 border rounded-xl bg-white">
+                                        <ResponsiveContainer width="100%" height={agentModalData.lineBreakdown.length * 60}>
+                                            <BarChart data={agentModalData.lineBreakdown} layout="vertical">
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis type="number" />
+                                                <YAxis dataKey="ligne" type="category" width={80} />
+                                                <Tooltip
+                                                    formatter={(value: number) => `${(value * 1000).toLocaleString('fr-FR')} Kg`}
+                                                    labelFormatter={(label) => `${label}`}
+                                                />
+                                                <Bar dataKey="tonnage" fill="#00C49F" radius={[0, 8, 8, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                        <div className="mt-4 space-y-2">
+                                            {agentModalData.lineBreakdown.map((l: any, i: number) => (
+                                                <div key={i} className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground">{l.ligne}</span>
+                                                    <span className="font-medium">{l.sessions} sessions</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
 
                             {/* Detailed Production */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
