@@ -367,6 +367,50 @@ export type Database = {
           },
         ]
       }
+      production_modifications: {
+        Row: {
+          changes: Json
+          created_at: string | null
+          id: string
+          modification_type: string
+          modified_at: string | null
+          modified_by: string | null
+          previous_values: Json
+          reason: string
+          shift_id: string
+        }
+        Insert: {
+          changes: Json
+          created_at?: string | null
+          id?: string
+          modification_type: string
+          modified_at?: string | null
+          modified_by?: string | null
+          previous_values: Json
+          reason: string
+          shift_id: string
+        }
+        Update: {
+          changes?: Json
+          created_at?: string | null
+          id?: string
+          modification_type?: string
+          modified_at?: string | null
+          modified_by?: string | null
+          previous_values?: Json
+          reason?: string
+          shift_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_modifications_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "production_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_shifts: {
         Row: {
           agent_atelier: number | null
