@@ -12,6 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ProductionHistory from './ProductionHistory';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -91,6 +92,19 @@ const CentreEmplisseurView = ({
     const [agentSelectedDate, setAgentSelectedDate] = useState<Date | undefined>(undefined);
     const [agentDateRange, setAgentDateRange] = useState<DateRange | undefined>(undefined);
 
+    // Production History States
+    const [productionHistory, setProductionHistory] = useState<any[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [selectedShiftForEdit, setSelectedShiftForEdit] = useState<string | null>(null);
+    const [editModalData, setEditModalData] = useState<any>(null);
+    const [historyFilterType, setHistoryFilterType] = useState<'month' | 'date' | 'range'>('month');
+    const [historySelectedMonth, setHistorySelectedMonth] = useState<string>(currentMonth);
+    const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(undefined);
+    const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
+    const [historyShiftFilter, setHistoryShiftFilter] = useState<string>('all');
+    const [historyLigneFilter, setHistoryLigneFilter] = useState<string>('all');
+    const [historyChefFilter, setHistoryChefFilter] = useState<string>('all');
+
     // Generate last 12 months for filter
     const availableMonths = Array.from({ length: 12 }, (_, i) => {
         const d = new Date();
@@ -106,6 +120,11 @@ const CentreEmplisseurView = ({
     useEffect(() => {
         fetchAllAgentsComparison();
     }, [agentFilterType, agentSelectedMonth, agentSelectedDate, agentDateRange]);
+
+    // Load production history when filters change
+    useEffect(() => {
+        fetchProductionHistory();
+    }, [historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
 
     const fetchStats = async () => {
         setLoading(true);
@@ -764,6 +783,163 @@ const CentreEmplisseurView = ({
             return null;
         }
     };
+
+    // ===== PRODUCTION HISTORY FUNCTIONS =====
+
+    const fetchProductionHistory = async () => {
+        try {
+            setHistoryLoading(true);
+
+            // Determine date range based on filter type
+            let startDate, endDate;
+            if (historyFilterType === 'month') {
+                startDate = `${historySelectedMonth}-01`;
+                const [y, m] = historySelectedMonth.split('-').map(Number);
+                endDate = new Date(y, m, 0).toISOString().split('T')[0];
+            } else if (historyFilterType === 'date' && historySelectedDate) {
+                startDate = format(historySelectedDate, 'yyyy-MM-dd');
+                endDate = startDate;
+            } else if (historyFilterType === 'range' && historyDateRange?.from) {
+                startDate = format(historyDateRange.from, 'yyyy-MM-dd');
+                endDate = historyDateRange.to ? format(historyDateRange.to, 'yyyy-MM-dd') : startDate;
+            } else {
+                setHistoryLoading(false);
+                return;
+            }
+
+            // Build query
+            let query = supabase
+                .from('production_shifts')
+                .select(`
+                    *,
+                    chef_quart:chefs_quart!production_shifts_chef_quart_id_fkey(id, nom, prenom),
+                    lignes_production(*),
+                    arrets_production(*)
+                `)
+                .gte('date', startDate)
+                .lte('date', endDate)
+                .order('date', { ascending: false })
+                .order('shift_type', { ascending: false });
+
+            // Apply filters
+            if (historyShiftFilter !== 'all') {
+                const shiftValue = historyShiftFilter === '1' ? '10h-19h' : '20h-5h';
+                query = query.eq('shift_type', shiftValue);
+            }
+
+            if (historyChefFilter !== 'all') {
+                query = query.eq('chef_quart_id', historyChefFilter);
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+
+            // Filter by ligne if needed (post-query since it's in related table)
+            let filteredData = data || [];
+            if (historyLigneFilter !== 'all') {
+                filteredData = filteredData.filter((shift: any) => {
+                    const lignes = shift.lignes_production || [];
+                    return lignes.some((l: any) => l.numero_ligne === parseInt(historyLigneFilter));
+                });
+            }
+
+            setProductionHistory(filteredData);
+        } catch (error) {
+            console.error('Error fetching production history:', error);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const updateProductionShift = async (shiftId: string, updates: any, reason: string) => {
+        try {
+            // 1. Get current values
+            const { data: currentShift, error: fetchError } = await supabase
+                .from('production_shifts')
+                .select('*')
+                .eq('id', shiftId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // 2. Create audit trail entry (TODO: Implement when production_modifications table is created)
+            // const { data: { user } } = await supabase.auth.getUser();
+            // await supabase.from('production_modifications').insert({ ... });
+
+            // 3. Update production_shifts
+            const { error: updateError } = await supabase
+                .from('production_shifts')
+                .update(updates)
+                .eq('id', shiftId);
+
+            if (updateError) throw updateError;
+
+            // 4. Refresh history
+            await fetchProductionHistory();
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error updating production shift:', error);
+            return { success: false, error };
+        }
+    };
+
+    const deleteProductionShift = async (shiftId: string, reason: string) => {
+        try {
+            // 1. Get current values for audit
+            const { data: currentShift, error: fetchError } = await supabase
+                .from('production_shifts')
+                .select('*')
+                .eq('id', shiftId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // 2. Create audit trail entry (TODO: Implement when production_modifications table is created)
+            // const { data: { user } } = await supabase.auth.getUser();
+            // await supabase.from('production_modifications').insert({ ... });
+
+            // 3. Delete production_shifts (cascade will delete related records)
+            const { error: deleteError } = await supabase
+                .from('production_shifts')
+                .delete()
+                .eq('id', shiftId);
+
+            if (deleteError) throw deleteError;
+
+            // 4. Refresh history
+            await fetchProductionHistory();
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error deleting production shift:', error);
+            return { success: false, error };
+        }
+    };
+
+    const fetchShiftDetailsForEdit = async (shiftId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('production_shifts')
+                .select(`
+                    *,
+                    chef_quart:chefs_quart!production_shifts_chef_quart_id_fkey(id, nom, prenom),
+                    lignes_production(*),
+                    arrets_production(*)
+                `)
+                .eq('id', shiftId)
+                .single();
+
+            if (error) throw error;
+
+            return data;
+        } catch (error) {
+            console.error('Error fetching shift details:', error);
+            return null;
+        }
+    };
+
 
     if (loading) {
         return (
@@ -1440,6 +1616,39 @@ const CentreEmplisseurView = ({
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* 3. HISTORIQUE DES SAISIES */}
+            <ProductionHistory
+                history={productionHistory}
+                loading={historyLoading}
+                filterType={historyFilterType}
+                setFilterType={setHistoryFilterType}
+                selectedMonth={historySelectedMonth}
+                setSelectedMonth={setHistorySelectedMonth}
+                selectedDate={historySelectedDate}
+                setSelectedDate={setHistorySelectedDate}
+                dateRange={historyDateRange}
+                setDateRange={setHistoryDateRange}
+                shiftFilter={historyShiftFilter}
+                setShiftFilter={setHistoryShiftFilter}
+                ligneFilter={historyLigneFilter}
+                setLigneFilter={setHistoryLigneFilter}
+                chefFilter={historyChefFilter}
+                setChefFilter={setHistoryChefFilter}
+                availableMonths={availableMonths}
+                allAgents={allAgents}
+                onEdit={async (shiftId) => {
+                    const data = await fetchShiftDetailsForEdit(shiftId);
+                    setEditModalData(data);
+                    setSelectedShiftForEdit(shiftId);
+                }}
+                onDelete={async (shiftId) => {
+                    const reason = prompt("Raison de la suppression :");
+                    if (reason) {
+                        await deleteProductionShift(shiftId, reason);
+                    }
+                }}
+            />
 
         </div >
     );
