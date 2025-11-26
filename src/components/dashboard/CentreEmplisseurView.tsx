@@ -751,35 +751,60 @@ const CentreEmplisseurView = ({
                     <div className="space-y-3">
                         <h3 className="font-semibold text-muted-foreground uppercase text-xs tracking-wider mb-2">Détail par Ligne</h3>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            {stats.lines.map((line) => (
-                                <div key={line.id} className="p-4 bg-card border border-primary/20 rounded-lg shadow-sm hover:shadow-md transition-all border-l-4 border-l-primary">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-primary text-primary-foreground font-bold px-3 py-1 rounded-md text-sm shadow-sm">
-                                                Ligne {line.id}
+                            {stats.lines.map((line) => {
+                                const isBest = line.id === stats.maxLine.id && line.tonnage > 0;
+                                const isWorst = line.id === stats.minLine.id && line.tonnage > 0 && stats.lines.filter(l => l.tonnage > 0).length > 1;
+
+                                return (
+                                    <div key={line.id} className={`p-4 bg-card border rounded-lg shadow-sm hover:shadow-md transition-all border-l-4 ${isBest ? 'border-l-green-500 bg-green-50/50' :
+                                        isWorst ? 'border-l-red-500 bg-red-50/50' :
+                                            'border-l-blue-500'
+                                        }`}>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`font-bold px-3 py-1 rounded-md text-sm shadow-sm ${isBest ? 'bg-green-600 text-white' :
+                                                    isWorst ? 'bg-red-600 text-white' :
+                                                        'bg-blue-600 text-white'
+                                                    }`}>
+                                                    Ligne {line.id}
+                                                </div>
+                                                {isBest && (
+                                                    <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded">
+                                                        🏆 Meilleure
+                                                    </span>
+                                                )}
+                                                {isWorst && (
+                                                    <span className="text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded">
+                                                        ⚠️ À améliorer
+                                                    </span>
+                                                )}
+                                                <span className={`font-extrabold text-2xl tracking-tight ${isBest ? 'text-green-600' :
+                                                    isWorst ? 'text-red-600' :
+                                                        'text-blue-600'
+                                                    }`}>
+                                                    {(line.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                                    <span className="text-lg opacity-70 ml-1">Kg</span>
+                                                </span>
                                             </div>
-                                            <span className="font-extrabold text-2xl text-primary tracking-tight">{(line.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} <span className="text-lg text-primary/70">Kg</span></span>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-sm bg-muted/30 p-3 rounded-md border">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-muted-foreground uppercase font-semibold">Recharges:</span>
+                                                <span className="font-bold text-foreground text-base">{line.recharges.toLocaleString('fr-FR')}</span>
+                                                <span className="text-muted-foreground mx-1">•</span>
+                                                <span className="font-bold text-blue-600">{line.rechargesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+                                            </div>
+                                            <div className="h-4 w-px bg-border"></div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-muted-foreground uppercase font-semibold">Consignes:</span>
+                                                <span className="font-bold text-foreground text-base">{line.consignes.toLocaleString('fr-FR')}</span>
+                                                <span className="text-muted-foreground mx-1">•</span>
+                                                <span className="font-bold text-green-600">{line.consignesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4 text-sm bg-primary/5 p-3 rounded-md border border-primary/10">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-muted-foreground uppercase font-semibold">Recharges:</span>
-                                            <span className="font-bold text-foreground text-base">{line.recharges.toLocaleString('fr-FR')}</span>
-                                            <span className="text-muted-foreground text-xs">Btl</span>
-                                            <span className="text-muted-foreground mx-1">•</span>
-                                            <span className="font-bold text-primary">{line.rechargesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
-                                        </div>
-                                        <div className="h-4 w-px bg-primary/20"></div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-muted-foreground uppercase font-semibold">Consignes:</span>
-                                            <span className="font-bold text-foreground text-base">{line.consignes.toLocaleString('fr-FR')}</span>
-                                            <span className="text-muted-foreground text-xs">Btl</span>
-                                            <span className="text-muted-foreground mx-1">•</span>
-                                            <span className="font-bold text-primary">{line.consignesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -927,8 +952,8 @@ const CentreEmplisseurView = ({
                                     <div className="text-center p-3 bg-white rounded-lg shadow-sm">
                                         <p className="text-xs text-muted-foreground mb-1">Taux de Performance</p>
                                         <p className={`text-3xl font-extrabold ${agentStats.tauxPerformance >= 90 ? 'text-green-600' :
-                                                agentStats.tauxPerformance >= 70 ? 'text-orange-500' :
-                                                    'text-red-600'
+                                            agentStats.tauxPerformance >= 70 ? 'text-orange-500' :
+                                                'text-red-600'
                                             }`}>
                                             {agentStats.tauxPerformance.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                                         </p>
