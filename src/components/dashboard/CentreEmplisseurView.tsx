@@ -575,9 +575,9 @@ const CentreEmplisseurView = ({
                 const shiftLignes = shift.lignes_production || [];
                 shiftLignes.forEach((l: any) => {
                     if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
-                        productionTheorique += 1600 * 6 * (heuresProductives / totalSessions);
+                        productionTheorique += (1600 * 6 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
                     } else if (l.numero_ligne === 5) {
-                        productionTheorique += 900 * 12.5 * (heuresProductives / totalSessions);
+                        productionTheorique += (900 * 12.5 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
                     }
                 });
             });
@@ -586,9 +586,9 @@ const CentreEmplisseurView = ({
             const uniqueLines = new Set(lignes.map(l => l.numero_ligne));
             uniqueLines.forEach(numeroLigne => {
                 if (numeroLigne >= 1 && numeroLigne <= 4) {
-                    productionTheorique += 1600 * 6 * (heuresProductives / totalSessions);
+                    productionTheorique += (1600 * 6 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
                 } else if (numeroLigne === 5) {
-                    productionTheorique += 900 * 12.5 * (heuresProductives / totalSessions);
+                    productionTheorique += (900 * 12.5 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
                 }
             });
 
