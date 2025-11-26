@@ -97,7 +97,7 @@ const CentreEmplisseurView = ({
     const [historyLoading, setHistoryLoading] = useState(false);
     const [selectedShiftForEdit, setSelectedShiftForEdit] = useState<string | null>(null);
     const [editModalData, setEditModalData] = useState<any>(null);
-    const [historyFilterType, setHistoryFilterType] = useState<'month' | 'date' | 'range'>('month');
+    const [historyFilterType, setHistoryFilterType] = useState<'all' | 'month' | 'date' | 'range'>('all');
     const [historySelectedMonth, setHistorySelectedMonth] = useState<string>(currentMonth);
     const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(undefined);
     const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
@@ -791,7 +791,8 @@ const CentreEmplisseurView = ({
             setHistoryLoading(true);
 
             // Determine date range based on filter type
-            let startDate, endDate;
+            let startDate: string | undefined;
+            let endDate: string | undefined;
             if (historyFilterType === 'month') {
                 startDate = `${historySelectedMonth}-01`;
                 const [y, m] = historySelectedMonth.split('-').map(Number);
@@ -802,9 +803,6 @@ const CentreEmplisseurView = ({
             } else if (historyFilterType === 'range' && historyDateRange?.from) {
                 startDate = format(historyDateRange.from, 'yyyy-MM-dd');
                 endDate = historyDateRange.to ? format(historyDateRange.to, 'yyyy-MM-dd') : startDate;
-            } else {
-                setHistoryLoading(false);
-                return;
             }
 
             // Build query
@@ -817,10 +815,13 @@ const CentreEmplisseurView = ({
                     arrets_production(*),
                     production_modifications(*)
                 `)
-                .gte('date', startDate)
-                .lte('date', endDate)
                 .order('date', { ascending: false })
                 .order('shift_type', { ascending: false });
+
+            // Apply date filters only if a period is defined
+            if (startDate && endDate) {
+                query = query.gte('date', startDate).lte('date', endDate);
+            }
 
             // Apply filters
             if (historyShiftFilter !== 'all') {

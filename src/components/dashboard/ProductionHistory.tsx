@@ -17,8 +17,8 @@ import { DateRange } from 'react-day-picker';
 interface ProductionHistoryProps {
     history: any[];
     loading: boolean;
-    filterType: 'month' | 'date' | 'range';
-    setFilterType: (type: 'month' | 'date' | 'range') => void;
+    filterType: 'all' | 'month' | 'date' | 'range';
+    setFilterType: (type: 'all' | 'month' | 'date' | 'range') => void;
     selectedMonth: string;
     setSelectedMonth: (month: string) => void;
     selectedDate: Date | undefined;
@@ -85,11 +85,12 @@ const ProductionHistory = ({
 
                 {/* Filters */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
+                    <Select value={filterType} onValueChange={(value: 'all' | 'month' | 'date' | 'range') => setFilterType(value)}>
                         <SelectTrigger className="w-[130px] h-8 text-sm">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem value="all">Toutes les dates</SelectItem>
                             <SelectItem value="month">Par mois</SelectItem>
                             <SelectItem value="date">Par date</SelectItem>
                             <SelectItem value="range">Par période</SelectItem>
