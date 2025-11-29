@@ -31,7 +31,14 @@ import {
   SHIFT_HOURS
 } from "@/types/production";
 
-export const ProductionShiftForm = () => {
+interface ProductionShiftFormProps {
+  editMode?: boolean;
+  initialData?: any;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, onCancel }: ProductionShiftFormProps = {}) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [activeLineIndex, setActiveLineIndex] = useState<number | null>(null);
@@ -146,6 +153,42 @@ export const ProductionShiftForm = () => {
       heure_fin_reelle: hours.fin
     }));
   }, [shift.shift_type]);
+
+  // Initialize form with existing data when in edit mode
+  useEffect(() => {
+    if (editMode && initialData) {
+      console.log('Initializing form with data:', initialData);
+
+      setShift({
+        date: initialData.date || new Date().toISOString().split('T')[0],
+        shift_type: initialData.shift_type || '10h-19h',
+        chef_quart_id: initialData.chef_quart_id || '',
+        heure_debut_theorique: initialData.heure_debut_theorique || '10:00',
+        heure_fin_theorique: initialData.heure_fin_theorique || '19:00',
+        heure_debut_reelle: initialData.heure_debut_reelle || '10:00',
+        heure_fin_reelle: initialData.heure_fin_reelle || '19:00',
+        bouteilles_produites: initialData.bouteilles_produites || 0,
+        chariste: initialData.chariste || 0,
+        chariot: initialData.chariot || 0,
+        agent_quai: initialData.agent_quai || 0,
+        agent_saisie: initialData.agent_saisie || 0,
+        agent_atelier: initialData.agent_atelier || 0
+      });
+
+      if (initialData.lignes_production && initialData.lignes_production.length > 0) {
+        // Ensure each line has an arrets array to prevent crashes
+        const safeLignes = initialData.lignes_production.map((ligne: any) => ({
+          ...ligne,
+          arrets: ligne.arrets || []
+        }));
+        setLignes(safeLignes);
+      }
+
+      if (initialData.arrets_production && initialData.arrets_production.length > 0) {
+        setArrets(initialData.arrets_production);
+      }
+    }
+  }, [editMode, initialData]);
 
   const loadChefsLigne = async () => {
     const { data, error } = await (supabase as any)
@@ -307,22 +350,24 @@ export const ProductionShiftForm = () => {
     setLoading(true);
 
     try {
-      // Vérifier si un shift existe déjà pour cette date et ce type
-      const { data: existingShift, error: checkError } = await (supabase as any)
-        .from('production_shifts')
-        .select('id')
-        .eq('date', shift.date)
-        .eq('shift_type', shift.shift_type)
-        .maybeSingle();
+      // Vérifier si un shift existe déjà pour cette date et ce type (skip in edit mode)
+      if (!editMode) {
+        const { data: existingShift, error: checkError } = await (supabase as any)
+          .from('production_shifts')
+          .select('id')
+          .eq('date', shift.date)
+          .eq('shift_type', shift.shift_type)
+          .maybeSingle();
 
-      if (checkError) {
-        throw checkError;
-      }
+        if (checkError) {
+          throw checkError;
+        }
 
-      if (existingShift) {
-        setShowDuplicateAlert(true);
-        setLoading(false);
-        return;
+        if (existingShift) {
+          setShowDuplicateAlert(true);
+          setLoading(false);
+          return;
+        }
       }
       // Calculer les totaux à partir des lignes de production
       let tonnageTotal = 0;
@@ -371,23 +416,52 @@ export const ProductionShiftForm = () => {
         temps_arret_total_minutes: tempsArretTotalMinutes
       };
 
-      const { data: insertedShift, error: shiftError } = await (supabase as any)
-        .from('production_shifts')
-        .insert(shiftData)
-        .select()
-        .single();
+      let insertedShift: any;
 
-      if (shiftError) {
-        if (shiftError.code === '23505') {
-          toast({
-            title: "Erreur",
-            description: "Un shift existe déjà pour cette date, type et ligne.",
-            variant: "destructive"
-          });
-        } else {
-          throw shiftError;
+      if (editMode && initialData?.id) {
+        // UPDATE existing shift
+        const { data: updatedShift, error: shiftError } = await (supabase as any)
+          .from('production_shifts')
+          .update(shiftData)
+          .eq('id', initialData.id)
+          .select()
+          .single();
+
+        if (shiftError) throw shiftError;
+        insertedShift = updatedShift;
+
+        // Delete existing lignes and arrets before inserting new ones
+        await (supabase as any)
+          .from('lignes_production')
+          .delete()
+          .eq('shift_id', initialData.id);
+
+        await (supabase as any)
+          .from('arrets_production')
+          .delete()
+          .eq('shift_id', initialData.id);
+
+      } else {
+        // INSERT new shift
+        const { data: newShift, error: shiftError } = await (supabase as any)
+          .from('production_shifts')
+          .insert(shiftData)
+          .select()
+          .single();
+
+        if (shiftError) {
+          if (shiftError.code === '23505') {
+            toast({
+              title: "Erreur",
+              description: "Un shift existe déjà pour cette date, type et ligne.",
+              variant: "destructive"
+            });
+          } else {
+            throw shiftError;
+          }
+          return;
         }
-        return;
+        insertedShift = newShift;
       }
 
       // Enregistrer les lignes de production avec tous les champs
@@ -438,116 +512,126 @@ export const ProductionShiftForm = () => {
 
       toast({
         title: "Succès",
-        description: "Données de production enregistrées avec succès",
+        description: editMode ? "Données de production modifiées avec succès" : "Données de production enregistrées avec succès",
         className: "bg-green-500 text-white border-green-600"
       });
 
-      // Réinitialiser tous les champs du formulaire
-      setShift({
-        date: new Date().toISOString().split('T')[0],
-        shift_type: '10h-19h',
-        chef_quart_id: '',
-        heure_debut_theorique: '10:00',
-        heure_fin_theorique: '19:00',
-        heure_debut_reelle: '10:00',
-        heure_fin_reelle: '19:00',
-        bouteilles_produites: 0
-      });
+      // Call onSuccess callback if provided (for modal close)
+      if (onSuccess) {
+        onSuccess();
+      }
 
-      // Réinitialiser les 5 lignes
-      setLignes([
-        {
-          numero_ligne: 1,
-          chef_ligne_id: '',
-          nombre_agents: 0,
-          recharges_petro_b6: undefined,
-          recharges_petro_b12: undefined,
-          recharges_total_b6: undefined,
-          recharges_total_b12: undefined,
-          recharges_vivo_b6: undefined,
-          recharges_vivo_b12: undefined,
-          consignes_petro_b6: undefined,
-          consignes_petro_b12: undefined,
-          consignes_total_b6: undefined,
-          consignes_total_b12: undefined,
-          consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined,
-          arrets: []
-        },
-        {
-          numero_ligne: 2,
-          chef_ligne_id: '',
-          nombre_agents: 0,
-          recharges_petro_b6: undefined,
-          recharges_petro_b12: undefined,
-          recharges_total_b6: undefined,
-          recharges_total_b12: undefined,
-          recharges_vivo_b6: undefined,
-          recharges_vivo_b12: undefined,
-          consignes_petro_b6: undefined,
-          consignes_petro_b12: undefined,
-          consignes_total_b6: undefined,
-          consignes_total_b12: undefined,
-          consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined,
-          arrets: []
-        },
-        {
-          numero_ligne: 3,
-          chef_ligne_id: '',
-          nombre_agents: 0,
-          recharges_petro_b6: undefined,
-          recharges_petro_b12: undefined,
-          recharges_total_b6: undefined,
-          recharges_total_b12: undefined,
-          recharges_vivo_b6: undefined,
-          recharges_vivo_b12: undefined,
-          consignes_petro_b6: undefined,
-          consignes_petro_b12: undefined,
-          consignes_total_b6: undefined,
-          consignes_total_b12: undefined,
-          consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined,
-          arrets: []
-        },
-        {
-          numero_ligne: 4,
-          chef_ligne_id: '',
-          nombre_agents: 0,
-          recharges_petro_b6: undefined,
-          recharges_petro_b12: undefined,
-          recharges_total_b6: undefined,
-          recharges_total_b12: undefined,
-          recharges_vivo_b6: undefined,
-          recharges_vivo_b12: undefined,
-          consignes_petro_b6: undefined,
-          consignes_petro_b12: undefined,
-          consignes_total_b6: undefined,
-          consignes_total_b12: undefined,
-          consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined,
-          arrets: []
-        },
-        {
-          numero_ligne: 5,
-          chef_ligne_id: '',
-          nombre_agents: 0,
-          recharges_petro_b6: undefined,
-          recharges_petro_b12: undefined,
-          recharges_total_b6: undefined,
-          recharges_total_b12: undefined,
-          recharges_vivo_b6: undefined,
-          recharges_vivo_b12: undefined,
-          consignes_petro_b6: undefined,
-          consignes_petro_b12: undefined,
-          consignes_total_b6: undefined,
-          consignes_total_b12: undefined,
-          consignes_vivo_b6: undefined,
-          consignes_vivo_b12: undefined,
-          arrets: []
-        }
-      ]);
-      setArrets([]);
+      // Réinitialiser tous les champs du formulaire (only in creation mode)
+      if (!editMode) {
+        setShift({
+          date: new Date().toISOString().split('T')[0],
+          shift_type: '10h-19h',
+          chef_quart_id: '',
+          heure_debut_theorique: '10:00',
+          heure_fin_theorique: '19:00',
+          heure_debut_reelle: '10:00',
+          heure_fin_reelle: '19:00',
+          bouteilles_produites: 0,
+          chariste: 0,
+          chariot: 0,
+          agent_quai: 0,
+          agent_saisie: 0,
+          agent_atelier: 0
+        });
+        setLignes([
+          {
+            numero_ligne: 1,
+            chef_ligne_id: '',
+            nombre_agents: 0,
+            recharges_petro_b6: undefined,
+            recharges_petro_b12: undefined,
+            recharges_total_b6: undefined,
+            recharges_total_b12: undefined,
+            recharges_vivo_b6: undefined,
+            recharges_vivo_b12: undefined,
+            consignes_petro_b6: undefined,
+            consignes_petro_b12: undefined,
+            consignes_total_b6: undefined,
+            consignes_total_b12: undefined,
+            consignes_vivo_b6: undefined,
+            consignes_vivo_b12: undefined,
+            arrets: []
+          },
+          {
+            numero_ligne: 2,
+            chef_ligne_id: '',
+            nombre_agents: 0,
+            recharges_petro_b6: undefined,
+            recharges_petro_b12: undefined,
+            recharges_total_b6: undefined,
+            recharges_total_b12: undefined,
+            recharges_vivo_b6: undefined,
+            recharges_vivo_b12: undefined,
+            consignes_petro_b6: undefined,
+            consignes_petro_b12: undefined,
+            consignes_total_b6: undefined,
+            consignes_total_b12: undefined,
+            consignes_vivo_b6: undefined,
+            consignes_vivo_b12: undefined,
+            arrets: []
+          },
+          {
+            numero_ligne: 3,
+            chef_ligne_id: '',
+            nombre_agents: 0,
+            recharges_petro_b6: undefined,
+            recharges_petro_b12: undefined,
+            recharges_total_b6: undefined,
+            recharges_total_b12: undefined,
+            recharges_vivo_b6: undefined,
+            recharges_vivo_b12: undefined,
+            consignes_petro_b6: undefined,
+            consignes_petro_b12: undefined,
+            consignes_total_b6: undefined,
+            consignes_total_b12: undefined,
+            consignes_vivo_b6: undefined,
+            consignes_vivo_b12: undefined,
+            arrets: []
+          },
+          {
+            numero_ligne: 4,
+            chef_ligne_id: '',
+            nombre_agents: 0,
+            recharges_petro_b6: undefined,
+            recharges_petro_b12: undefined,
+            recharges_total_b6: undefined,
+            recharges_total_b12: undefined,
+            recharges_vivo_b6: undefined,
+            recharges_vivo_b12: undefined,
+            consignes_petro_b6: undefined,
+            consignes_petro_b12: undefined,
+            consignes_total_b6: undefined,
+            consignes_total_b12: undefined,
+            consignes_vivo_b6: undefined,
+            consignes_vivo_b12: undefined,
+            arrets: []
+          },
+          {
+            numero_ligne: 5,
+            chef_ligne_id: '',
+            nombre_agents: 0,
+            recharges_petro_b6: undefined,
+            recharges_petro_b12: undefined,
+            recharges_total_b6: undefined,
+            recharges_total_b12: undefined,
+            recharges_vivo_b6: undefined,
+            recharges_vivo_b12: undefined,
+            consignes_petro_b6: undefined,
+            consignes_petro_b12: undefined,
+            consignes_total_b6: undefined,
+            consignes_total_b12: undefined,
+            consignes_vivo_b6: undefined,
+            consignes_vivo_b12: undefined,
+            arrets: []
+          }
+        ]);
+        setArrets([]);
+      }
 
     } catch (error: any) {
       console.error('Error saving production data:', error);
@@ -560,6 +644,8 @@ export const ProductionShiftForm = () => {
       setLoading(false);
     }
   };
+
+  console.log('Rendering ProductionShiftForm, loading:', loading, 'editMode:', editMode);
 
   return (
     <>
@@ -581,17 +667,16 @@ export const ProductionShiftForm = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex flex-col lg:flex-row min-h-screen bg-background">
-        {/* Sidebar Recapitulatif - Fixed on Desktop */}
-        <aside className="w-full lg:w-80 lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r bg-background z-20 overflow-y-auto">
+      <div className={`flex flex-col ${editMode ? '' : 'lg:flex-row min-h-screen'} bg-background`}>
+        {/* Sidebar Recapitulatif - Fixed on Desktop only in full page mode */}
+        <aside className={`w-full ${editMode ? 'mb-6 border-b pb-4' : 'lg:w-80 lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r'} bg-background z-20 overflow-y-auto`}>
           <ProductionRecapitulatif lignes={lignes} arrets={arrets} />
         </aside>
 
         {/* Main Content - Scrollable */}
-        <main className="flex-1 lg:ml-80 p-4 md:p-6">
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 -mt-4 pt-4 md:-mx-6 md:px-6 md:-mt-6 md:pt-6 mb-6 border-b pb-4 flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-tight">Saisie Production</h1>
-
+        <main className={`flex-1 ${editMode ? '' : 'lg:ml-80'} p-4 md:p-6`}>
+          <div className={`${editMode ? '' : 'sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 -mt-4 pt-4 md:-mx-6 md:px-6 md:-mt-6 md:pt-6 mb-6 border-b pb-4'} flex items-center justify-between`}>
+            {!editMode && <h1 className="text-2xl font-bold tracking-tight">Saisie Production</h1>}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6 max-w-[1600px] mx-auto">

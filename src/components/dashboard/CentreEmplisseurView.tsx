@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ProductionHistory from './ProductionHistory';
+import { ProductionShiftForm } from '../ProductionShiftForm';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -101,12 +102,12 @@ const CentreEmplisseurView = ({
     const [historyLigneFilter, setHistoryLigneFilter] = useState<string>('all');
     const [historyChefFilter, setHistoryChefFilter] = useState<string>('all');
 
-    // Generate last 12 months for filter
-    const availableMonths = Array.from({ length: 12 }, (_, i) => {
+    // Generate last 12 months for filter (memoized to avoid duplicates)
+    const availableMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
         const d = new Date();
         d.setMonth(d.getMonth() - i);
         return d.toISOString().slice(0, 7);
-    });
+    }), []);
 
     useEffect(() => {
         fetchStats();
@@ -1135,7 +1136,6 @@ const CentreEmplisseurView = ({
                 .from('production_shifts')
                 .select(`
                     *,
-                    chef_quart:chefs_quart!production_shifts_chef_quart_id_fkey(id, nom, prenom),
                     lignes_production(*),
                     arrets_production(*),
                     production_modifications(*)
@@ -1162,8 +1162,26 @@ const CentreEmplisseurView = ({
 
             if (error) throw error;
 
+            // Fetch chef_quart data separately since FK relationship doesn't exist
+            let shiftsWithChefs = data || [];
+            if (shiftsWithChefs.length > 0) {
+                const chefIds = [...new Set(shiftsWithChefs.map((s: any) => s.chef_quart_id).filter(Boolean))];
+                if (chefIds.length > 0) {
+                    const { data: chefsData } = await supabase
+                        .from('chefs_quart')
+                        .select('id, nom, prenom')
+                        .in('id', chefIds);
+
+                    const chefsMap = new Map((chefsData || []).map((c: any) => [c.id, c]));
+                    shiftsWithChefs = shiftsWithChefs.map((shift: any) => ({
+                        ...shift,
+                        chef_quart: shift.chef_quart_id ? chefsMap.get(shift.chef_quart_id) : null
+                    }));
+                }
+            }
+
             // Filter by ligne if needed (post-query since it's in related table)
-            let filteredData = data || [];
+            let filteredData = shiftsWithChefs;
             if (historyLigneFilter !== 'all') {
                 filteredData = filteredData.filter((shift: any) => {
                     const lignes = shift.lignes_production || [];
@@ -1247,11 +1265,13 @@ const CentreEmplisseurView = ({
 
     const fetchShiftDetailsForEdit = async (shiftId: string) => {
         try {
+            // Fetch shift with related lines and stops
+            // Note: We don't need to join chef_quart here as the form only needs chef_quart_id
+            // and loads the list of chefs separately
             const { data, error } = await supabase
                 .from('production_shifts')
                 .select(`
                     *,
-                    chef_quart:chefs_quart!production_shifts_chef_quart_id_fkey(id, nom, prenom),
                     lignes_production(*),
                     arrets_production(*)
                 `)
@@ -1267,6 +1287,12 @@ const CentreEmplisseurView = ({
         }
     };
 
+
+    // Effect to fetch production history when filters change
+    useEffect(() => {
+        fetchProductionHistory();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
 
     if (loading) {
         return (
@@ -1548,6 +1574,7 @@ const CentreEmplisseurView = ({
                                                     }`}>
                                                     Ligne {line.id}
                                                 </div>
+
                                                 {isBest && (
                                                     <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded">
                                                         🏆 Meilleure
@@ -1566,6 +1593,9 @@ const CentreEmplisseurView = ({
                                                     <span className="text-lg opacity-70 ml-1">Kg</span>
                                                 </span>
                                             </div>
+                                            <span className="text-sm font-extrabold text-primary bg-primary/5 px-3 py-1.5 rounded-md border border-primary/10">
+                                                {stats.totalTonnage > 0 ? ((line.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%
+                                            </span>
                                         </div>
                                         <div className="flex items-center gap-4 text-sm bg-muted/30 p-3 rounded-md border">
                                             <div className="flex items-center gap-2">
@@ -1764,7 +1794,10 @@ const CentreEmplisseurView = ({
                                                             {(line.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">Kg</p>
-                                                        <p className="text-xs text-muted-foreground mt-1">{line.sessions} session{line.sessions > 1 ? 's' : ''}</p>
+                                                        <p className="text-xs font-medium text-blue-600 mt-0.5">
+                                                            {agentModalData.tonnage > 0 ? ((line.tonnage / agentModalData.tonnage) * 100).toFixed(1) : 0}%
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground mt-1">{line.sessions} shift{line.sessions > 1 ? 's' : ''}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -1952,7 +1985,7 @@ const CentreEmplisseurView = ({
                                             <p className="text-2xl font-bold text-green-600">{agentModalData.actualHours.toFixed(1)}h</p>
                                         </div>
                                         <div className="p-3 border rounded-lg text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Sessions Travaillées</p>
+                                            <p className="text-xs text-muted-foreground mb-1">Shifts Travaillés</p>
                                             <p className="text-2xl font-bold text-purple-600">{agentModalData.nombreShifts + agentModalData.nombreLignes}</p>
                                         </div>
                                     </div>
@@ -2002,6 +2035,35 @@ const CentreEmplisseurView = ({
                     }
                 }}
             />
+
+            {/* Edit Modal */}
+            <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
+                if (!open) {
+                    setSelectedShiftForEdit(null);
+                    setEditModalData(null);
+                }
+            }}>
+                <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Modifier la saisie de production</DialogTitle>
+                    </DialogHeader>
+                    {editModalData && (
+                        <ProductionShiftForm
+                            editMode={true}
+                            initialData={editModalData}
+                            onSuccess={() => {
+                                setSelectedShiftForEdit(null);
+                                setEditModalData(null);
+                                fetchProductionHistory();
+                            }}
+                            onCancel={() => {
+                                setSelectedShiftForEdit(null);
+                                setEditModalData(null);
+                            }}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
 
         </div >
     );
