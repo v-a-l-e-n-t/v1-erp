@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
@@ -121,6 +121,19 @@ const CentreEmplisseurView = ({
     useEffect(() => {
         fetchProductionHistory();
     }, [historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
+
+    // Fetch agent details when modal opens
+    useEffect(() => {
+        const loadAgentDetails = async () => {
+            if (selectedAgentForModal) {
+                const data = await fetchAgentDetailedStats(selectedAgentForModal);
+                setAgentModalData(data);
+            } else {
+                setAgentModalData(null);
+            }
+        };
+        loadAgentDetails();
+    }, [selectedAgentForModal, filterType, selectedMonth, selectedDate, dateRange]);
 
     const fetchStats = async () => {
         setLoading(true);
@@ -383,7 +396,7 @@ const CentreEmplisseurView = ({
                     // Query lignes as chef de ligne
                     let lignesQuery = supabase
                         .from('lignes_production')
-                        .select('tonnage_ligne, numero_ligne, production_shifts!inner(date)')
+                        .select('tonnage_ligne, numero_ligne, production_shifts!inner(date, shift_type)')
                         .eq('chef_ligne_id', agent.id);
 
                     // Apply filters
@@ -466,18 +479,71 @@ const CentreEmplisseurView = ({
                         productivite = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
                     }
 
+                    // 4. Collect Lines (for Chef de Ligne)
+                    const linesSet = new Set<string>();
+                    (lignesData as any[]).forEach((l: any) => {
+                        if (l.numero_ligne && l.production_shifts?.shift_type) {
+                            const shiftLabel = l.production_shifts.shift_type === '10h-19h' ? 'Shift 1' :
+                                l.production_shifts.shift_type === '20h-5h' ? 'Shift 2' : l.production_shifts.shift_type;
+                            linesSet.add(`${shiftLabel} - L${l.numero_ligne}`);
+                        } else if (l.numero_ligne) {
+                            linesSet.add(`L${l.numero_ligne}`);
+                        }
+                    });
+                    const lines = Array.from(linesSet).sort();
+
                     return {
                         id: agent.id,
                         nom: agent.nom,
                         prenom: agent.prenom,
                         tonnage: totalTonnage,
                         displayRole,
-                        productivite
+                        productivite,
+                        lines
                     };
                 })
             );
 
-            const sorted = agentsWithStats.sort((a, b) => b.tonnage - a.tonnage);
+            const sorted = agentsWithStats.sort((a, b) => {
+                // 1. Primary Sort: Role Group
+                // Group 1: Chef de Quart
+                // Group 2: Chef de Ligne
+                // Group 3: Others
+                const getRoleWeight = (role: string | null) => {
+                    if (role === 'chef_quart') return 1;
+                    if (role === 'chef_ligne') return 2;
+                    return 3;
+                };
+
+                const weightA = getRoleWeight(a.displayRole);
+                const weightB = getRoleWeight(b.displayRole);
+
+                if (weightA !== weightB) {
+                    return weightA - weightB;
+                }
+
+                // 2. Secondary Sort: Based on Role
+                if (a.displayRole === 'chef_ligne' && b.displayRole === 'chef_ligne') {
+                    // Sort by Line then Shift
+                    const getLineShiftKey = (agent: any) => {
+                        if (!agent.lines || agent.lines.length === 0) return 999999;
+
+                        const firstLine = agent.lines[0];
+                        const lineMatch = firstLine.match(/L(\d+)/);
+                        const shiftMatch = firstLine.match(/Shift (\d+)/);
+
+                        const lineNum = lineMatch ? parseInt(lineMatch[1]) : 99;
+                        const shiftNum = shiftMatch ? parseInt(shiftMatch[1]) : 99;
+
+                        return lineNum * 100 + shiftNum;
+                    };
+
+                    return getLineShiftKey(a) - getLineShiftKey(b);
+                }
+
+                // Default Sort: Tonnage Descending
+                return b.tonnage - a.tonnage;
+            });
             setAllAgentsComparison(sorted);
 
         } catch (error) {
@@ -1333,7 +1399,7 @@ const CentreEmplisseurView = ({
                 <CardContent className="space-y-8 pt-6">
                     {/* Comparison Chart */}
                     <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Comparaison de tous les agents</h3>
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Stat des agents</h3>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             {allAgentsComparison.map((agent, index) => {
                                 const isFirst = index === 0;
@@ -1350,7 +1416,7 @@ const CentreEmplisseurView = ({
                                     allAgentsComparison[index - 1].displayRole === 'chef_quart';
 
                                 return (
-                                    <>
+                                    <Fragment key={agent.id}>
                                         {needsSeparator && (
                                             <div className="col-span-1 lg:col-span-2 flex items-center gap-4 my-4">
                                                 <div className="h-px bg-border flex-1" />
@@ -1362,14 +1428,12 @@ const CentreEmplisseurView = ({
                                         )}
 
                                         <Card
-                                            key={agent.id}
                                             className={cn(
                                                 "cursor-pointer transition-all hover:shadow-md border-l-4",
                                                 borderColor
                                             )}
                                             onClick={() => {
                                                 setSelectedAgentForModal(agent.id);
-                                                fetchAgentDetailedStats(agent.id).then(data => setAgentModalData(data));
                                             }}
                                         >
                                             <CardContent className="p-4">
@@ -1395,6 +1459,13 @@ const CentreEmplisseurView = ({
                                                                 </span>
                                                             )}
                                                         </div>
+
+                                                        {/* Lines Display below name/role */}
+                                                        {agent.displayRole === 'chef_ligne' && agent.lines && agent.lines.length > 0 && (
+                                                            <div className="text-xs font-medium text-muted-foreground mb-2">
+                                                                ( {agent.lines.join(' | ')} )
+                                                            </div>
+                                                        )}
 
                                                         {isFirst && (
                                                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -1439,7 +1510,7 @@ const CentreEmplisseurView = ({
                                                 </div>
                                             </CardContent>
                                         </Card>
-                                    </>
+                                    </Fragment>
                                 );
                             })}
                         </div>
