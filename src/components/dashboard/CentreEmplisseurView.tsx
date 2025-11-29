@@ -1893,7 +1893,7 @@ const CentreEmplisseurView = ({
                                     </div>
 
                                     {/* Downtime per Line */}
-                                    {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (
+                                    {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (filterType === 'month' || filterType === 'range') && (
                                         <div>
                                             <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Ligne</h4>
                                             <div className="space-y-2">
