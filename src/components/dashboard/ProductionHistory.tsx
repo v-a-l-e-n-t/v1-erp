@@ -222,7 +222,7 @@ const ProductionHistory = ({
                                             {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
                                         </td>
                                         <td className="p-2 text-right font-bold">
-                                            {shift.tonnage_total?.toLocaleString('fr-FR')} T
+                                            {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                         </td>
                                         <td className="p-2 text-right">
                                             {shift.cumul_recharges_total?.toLocaleString('fr-FR')}
