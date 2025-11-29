@@ -84,18 +84,21 @@ const ProductionHistory = ({
                 </CardTitle>
 
                 {/* Filters */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Select value={filterType} onValueChange={(value: 'all' | 'month' | 'date' | 'range') => setFilterType(value)}>
-                        <SelectTrigger className="w-[130px] h-8 text-sm">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Toutes les dates</SelectItem>
-                            <SelectItem value="month">Par mois</SelectItem>
-                            <SelectItem value="date">Par date</SelectItem>
-                            <SelectItem value="range">Par période</SelectItem>
-                        </SelectContent>
-                    </Select>
+                <div className="flex items-end gap-4 flex-wrap">
+                    <div className="flex flex-col gap-1">
+                        <Label className="text-xs font-semibold">Période</Label>
+                        <Select value={filterType} onValueChange={(value: 'all' | 'month' | 'date' | 'range') => setFilterType(value)}>
+                            <SelectTrigger className="w-[130px] h-8 text-sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Toutes les dates</SelectItem>
+                                <SelectItem value="month">Par mois</SelectItem>
+                                <SelectItem value="date">Par date</SelectItem>
+                                <SelectItem value="range">Par période</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     {filterType === 'month' && (
                         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -140,47 +143,58 @@ const ProductionHistory = ({
                         </Popover>
                     )}
 
-                    <Select value={shiftFilter} onValueChange={setShiftFilter}>
-                        <SelectTrigger className="w-[100px] h-8 text-sm">
-                            <SelectValue placeholder="Shift" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tous</SelectItem>
-                            <SelectItem value="1">Shift 1</SelectItem>
-                            <SelectItem value="2">Shift 2</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col gap-1">
+                        <Label className="text-xs font-semibold">Shift</Label>
+                        <Select value={shiftFilter} onValueChange={setShiftFilter}>
+                            <SelectTrigger className="w-[100px] h-8 text-sm">
+                                <SelectValue placeholder="Tous" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tous</SelectItem>
+                                <SelectItem value="1">Shift 1</SelectItem>
+                                <SelectItem value="2">Shift 2</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                    <Select value={ligneFilter} onValueChange={setLigneFilter}>
-                        <SelectTrigger className="w-[100px] h-8 text-sm">
-                            <SelectValue placeholder="Ligne" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Toutes</SelectItem>
-                            {[1, 2, 3, 4, 5].map(l => (
-                                <SelectItem key={l} value={l.toString()}>Ligne {l}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col gap-1">
+                        <Label className="text-xs font-semibold">Ligne</Label>
+                        <Select value={ligneFilter} onValueChange={setLigneFilter}>
+                            <SelectTrigger className="w-[100px] h-8 text-sm">
+                                <SelectValue placeholder="Toutes" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Toutes</SelectItem>
+                                {[1, 2, 3, 4, 5].map(l => (
+                                    <SelectItem key={l} value={l.toString()}>Ligne {l}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                    <Select value={chefFilter} onValueChange={setChefFilter}>
-                        <SelectTrigger className="w-[150px] h-8 text-sm">
-                            <SelectValue placeholder="Chef" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tous</SelectItem>
-                            {allAgents.map(agent => (
-                                <SelectItem key={agent.id} value={agent.id}>
-                                    {agent.prenom} {agent.nom}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col gap-1">
+                        <Label className="text-xs font-semibold">Agent</Label>
+                        <Select value={chefFilter} onValueChange={setChefFilter}>
+                            <SelectTrigger className="w-[150px] h-8 text-sm">
+                                <SelectValue placeholder="Tous" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tous</SelectItem>
+                                {allAgents.map(agent => (
+                                    <SelectItem key={agent.id} value={agent.id}>
+                                        {agent.prenom} {agent.nom}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </CardHeader>
 
-            <div className="px-6 pb-2 text-sm text-muted-foreground">
-                {history.length} résultat{history.length > 1 ? 's' : ''} trouvé{history.length > 1 ? 's' : ''}
+            <div className="px-6 pb-2 pt-4">
+                <div className="inline-block px-3 py-1.5 bg-primary/10 text-primary rounded-md font-semibold text-sm">
+                    {history.length} résultat{history.length > 1 ? 's' : ''} trouvé{history.length > 1 ? 's' : ''}
+                </div>
             </div>
 
             <CardContent className="pt-2">
@@ -200,7 +214,7 @@ const ProductionHistory = ({
                                     <th className="text-left p-2 font-semibold">Date</th>
                                     <th className="text-left p-2 font-semibold">Shift</th>
                                     <th className="text-left p-2 font-semibold">Chef de Quart</th>
-                                    <th className="text-right p-2 font-semibold">Tonnage</th>
+                                    <th className="text-right p-2 font-semibold">Tonnage (Kg)</th>
                                     <th className="text-right p-2 font-semibold">Recharges</th>
                                     <th className="text-right p-2 font-semibold">Consignes</th>
                                     <th className="text-right p-2 font-semibold">Actions</th>
@@ -222,7 +236,7 @@ const ProductionHistory = ({
                                             {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
                                         </td>
                                         <td className="p-2 text-right font-bold">
-                                            {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                            {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR')}
                                         </td>
                                         <td className="p-2 text-right">
                                             {shift.cumul_recharges_total?.toLocaleString('fr-FR')}
