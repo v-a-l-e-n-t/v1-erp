@@ -706,41 +706,239 @@ const CentreEmplisseurView = ({
             // Get unique lines occupied as chef de ligne
             const lignesOccupees = Array.from(new Set(lignes.map(l => l.numero_ligne))).sort();
 
-            // Calculate performance rate
-            const heuresProductives = totalSessions * 9 - (totalTempsArret / 60);
-            let productionTheorique = 0;
+            // NEW: Calculate productivity as average of individual session productivities
+            const sessionProductivities: number[] = [];
 
-            // From shifts (all lines)
+            // Calculate productivity for each Chef de Quart shift
             shifts.forEach(shift => {
+                const shiftTonnage = Number(shift.tonnage_total) || 0;
+                const shiftTempsArret = Number(shift.temps_arret_total_minutes) || 0;
+                const heuresProductives = 9 - (shiftTempsArret / 60);
+
+                // Production théorique for all lines in this shift
+                let productionTheorique = 0;
                 const shiftLignes = shift.lignes_production || [];
                 shiftLignes.forEach((l: any) => {
                     if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
-                        productionTheorique += (1600 * 6 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
+                        productionTheorique += (1600 * 6 * heuresProductives) / 1000; // Tonnes
                     } else if (l.numero_ligne === 5) {
-                        productionTheorique += (900 * 12.5 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
+                        productionTheorique += (900 * 12.5 * heuresProductives) / 1000; // Tonnes
+                    }
+                });
+
+                if (productionTheorique > 0) {
+                    const shiftProductivity = (shiftTonnage / productionTheorique) * 100;
+                    sessionProductivities.push(shiftProductivity);
+                }
+            });
+
+            // Calculate productivity for each Chef de Ligne session
+            lignes.forEach(ligne => {
+                const ligneTonnage = Number(ligne.tonnage_ligne) || 0;
+                const shift = ligne.production_shifts;
+
+                // Get downtime for this specific line from the shift's arrêts
+                let ligneTempsArret = 0;
+                const arrets = shift?.arrets_production || [];
+                arrets.forEach((arret: any) => {
+                    if (arret.lignes_concernees?.includes(ligne.numero_ligne) && arret.heure_debut && arret.heure_fin) {
+                        const debut = new Date(`2000-01-01T${arret.heure_debut}`);
+                        const fin = new Date(`2000-01-01T${arret.heure_fin}`);
+                        const diffMs = fin.getTime() - debut.getTime();
+                        ligneTempsArret += diffMs / 60000; // minutes
+                    }
+                });
+
+                const heuresProductives = 9 - (ligneTempsArret / 60);
+
+                // Production théorique for this specific line
+                let productionTheorique = 0;
+                if (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) {
+                    productionTheorique = (1600 * 6 * heuresProductives) / 1000; // Tonnes
+                } else if (ligne.numero_ligne === 5) {
+                    productionTheorique = (900 * 12.5 * heuresProductives) / 1000; // Tonnes
+                }
+
+                if (productionTheorique > 0) {
+                    const ligneProductivity = (ligneTonnage / productionTheorique) * 100;
+                    sessionProductivities.push(ligneProductivity);
+                }
+            });
+
+            // Calculate average productivity
+            const tauxPerformance = sessionProductivities.length > 0
+                ? sessionProductivities.reduce((sum, p) => sum + p, 0) / sessionProductivities.length
+                : 0;
+
+            // Calculate ACTUAL performance for each day in daily history
+            Object.keys(dailyHistory).forEach(date => {
+                const dayProductivities: number[] = [];
+
+                // Get productivities from shifts on this date
+                shifts.forEach(shift => {
+                    if (shift.date === date) {
+                        const shiftTonnage = Number(shift.tonnage_total) || 0;
+                        const shiftTempsArret = Number(shift.temps_arret_total_minutes) || 0;
+                        const heuresProductives = 9 - (shiftTempsArret / 60);
+
+                        let productionTheorique = 0;
+                        const shiftLignes = shift.lignes_production || [];
+                        shiftLignes.forEach((l: any) => {
+                            if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
+                                productionTheorique += (1600 * 6 * heuresProductives) / 1000;
+                            } else if (l.numero_ligne === 5) {
+                                productionTheorique += (900 * 12.5 * heuresProductives) / 1000;
+                            }
+                        });
+
+                        if (productionTheorique > 0) {
+                            dayProductivities.push((shiftTonnage / productionTheorique) * 100);
+                        }
+                    }
+                });
+
+                // Get productivities from lignes on this date
+                lignes.forEach(ligne => {
+                    if (ligne.production_shifts?.date === date) {
+                        const ligneTonnage = Number(ligne.tonnage_ligne) || 0;
+                        const shift = ligne.production_shifts;
+
+                        let ligneTempsArret = 0;
+                        const arrets = shift?.arrets_production || [];
+                        arrets.forEach((arret: any) => {
+                            if (arret.lignes_concernees?.includes(ligne.numero_ligne) && arret.heure_debut && arret.heure_fin) {
+                                const debut = new Date(`2000-01-01T${arret.heure_debut}`);
+                                const fin = new Date(`2000-01-01T${arret.heure_fin}`);
+                                const diffMs = fin.getTime() - debut.getTime();
+                                ligneTempsArret += diffMs / 60000;
+                            }
+                        });
+
+                        const heuresProductives = 9 - (ligneTempsArret / 60);
+
+                        let productionTheorique = 0;
+                        if (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) {
+                            productionTheorique = (1600 * 6 * heuresProductives) / 1000;
+                        } else if (ligne.numero_ligne === 5) {
+                            productionTheorique = (900 * 12.5 * heuresProductives) / 1000;
+                        }
+
+                        if (productionTheorique > 0) {
+                            dayProductivities.push((ligneTonnage / productionTheorique) * 100);
+                        }
+                    }
+                });
+
+                // Calculate average productivity for this day
+                const dayPerf = dayProductivities.length > 0
+                    ? dayProductivities.reduce((sum, p) => sum + p, 0) / dayProductivities.length
+                    : 0;
+
+                dailyHistory[date].tauxPerformance = dayPerf;
+            });
+
+            // NEW: Client Breakdown (Recharges + Consignes per client)
+            const clientBreakdown = {
+                petro: { recharges: 0, consignes: 0, total: 0 },
+                vivo: { recharges: 0, consignes: 0, total: 0 },
+                total: { recharges: 0, consignes: 0, total: 0 }
+            };
+
+            // From lignes (Chef de Ligne)
+            lignes.forEach(l => {
+                clientBreakdown.petro.recharges += (l.recharges_petro_b6 || 0) + (l.recharges_petro_b12 || 0) +
+                    (l.recharges_petro_b28 || 0) + (l.recharges_petro_b38 || 0);
+                clientBreakdown.petro.consignes += (l.consignes_petro_b6 || 0) + (l.consignes_petro_b12 || 0) +
+                    (l.consignes_petro_b28 || 0) + (l.consignes_petro_b38 || 0);
+
+                clientBreakdown.vivo.recharges += (l.recharges_vivo_b6 || 0) + (l.recharges_vivo_b12 || 0) +
+                    (l.recharges_vivo_b28 || 0) + (l.recharges_vivo_b38 || 0);
+                clientBreakdown.vivo.consignes += (l.consignes_vivo_b6 || 0) + (l.consignes_vivo_b12 || 0) +
+                    (l.consignes_vivo_b28 || 0) + (l.consignes_vivo_b38 || 0);
+
+                clientBreakdown.total.recharges += (l.recharges_total_b6 || 0) + (l.recharges_total_b12 || 0) +
+                    (l.recharges_total_b28 || 0) + (l.recharges_total_b38 || 0);
+                clientBreakdown.total.consignes += (l.consignes_total_b6 || 0) + (l.consignes_total_b12 || 0) +
+                    (l.consignes_total_b28 || 0) + (l.consignes_total_b38 || 0);
+            });
+
+            // From shifts (Chef de Quart - aggregate from lignes_production)
+            shifts.forEach(shift => {
+                const shiftLignes = shift.lignes_production || [];
+                shiftLignes.forEach((l: any) => {
+                    clientBreakdown.petro.recharges += (l.recharges_petro_b6 || 0) + (l.recharges_petro_b12 || 0) +
+                        (l.recharges_petro_b28 || 0) + (l.recharges_petro_b38 || 0);
+                    clientBreakdown.petro.consignes += (l.consignes_petro_b6 || 0) + (l.consignes_petro_b12 || 0) +
+                        (l.consignes_petro_b28 || 0) + (l.consignes_petro_b38 || 0);
+
+                    clientBreakdown.vivo.recharges += (l.recharges_vivo_b6 || 0) + (l.recharges_vivo_b12 || 0) +
+                        (l.recharges_vivo_b28 || 0) + (l.recharges_vivo_b38 || 0);
+                    clientBreakdown.vivo.consignes += (l.consignes_vivo_b6 || 0) + (l.consignes_vivo_b12 || 0) +
+                        (l.consignes_vivo_b28 || 0) + (l.consignes_vivo_b38 || 0);
+
+                    clientBreakdown.total.recharges += (l.recharges_total_b6 || 0) + (l.recharges_total_b12 || 0) +
+                        (l.recharges_total_b28 || 0) + (l.recharges_total_b38 || 0);
+                    clientBreakdown.total.consignes += (l.consignes_total_b6 || 0) + (l.consignes_total_b12 || 0) +
+                        (l.consignes_total_b28 || 0) + (l.consignes_total_b38 || 0);
+                });
+            });
+
+            // Calculate totals
+            clientBreakdown.petro.total = clientBreakdown.petro.recharges + clientBreakdown.petro.consignes;
+            clientBreakdown.vivo.total = clientBreakdown.vivo.recharges + clientBreakdown.vivo.consignes;
+            clientBreakdown.total.total = clientBreakdown.total.recharges + clientBreakdown.total.consignes;
+
+            // NEW: Downtime per Line
+            const downtimeByLine: Record<number, number> = {}; // Line number -> minutes
+
+            // From shifts (Chef de Quart - arrêts affect specified lines)
+            shifts.forEach(shift => {
+                const arrets = shift.arrets_production || [];
+                arrets.forEach((arret: any) => {
+                    if (arret.heure_debut && arret.heure_fin) {
+                        const debut = new Date(`2000-01-01T${arret.heure_debut}`);
+                        const fin = new Date(`2000-01-01T${arret.heure_fin}`);
+                        const diffMs = fin.getTime() - debut.getTime();
+                        const duration = diffMs / 60000; // minutes
+
+                        const lignesConcernees = arret.lignes_concernees || [];
+                        lignesConcernees.forEach((lineNum: number) => {
+                            downtimeByLine[lineNum] = (downtimeByLine[lineNum] || 0) + duration;
+                        });
                     }
                 });
             });
 
-            // From lignes (specific lines)
-            const uniqueLines = new Set(lignes.map(l => l.numero_ligne));
-            uniqueLines.forEach(numeroLigne => {
-                if (numeroLigne >= 1 && numeroLigne <= 4) {
-                    productionTheorique += (1600 * 6 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
-                } else if (numeroLigne === 5) {
-                    productionTheorique += (900 * 12.5 * (heuresProductives / totalSessions)) / 1000; // Convert to Tonnes
-                }
+            // From lignes (Chef de Ligne - get arrêts from parent shift affecting this line)
+            lignes.forEach(ligne => {
+                const shift = ligne.production_shifts;
+                const arrets = shift?.arrets_production || [];
+                arrets.forEach((arret: any) => {
+                    if (arret.heure_debut && arret.heure_fin && arret.lignes_concernees?.includes(ligne.numero_ligne)) {
+                        const debut = new Date(`2000-01-01T${arret.heure_debut}`);
+                        const fin = new Date(`2000-01-01T${arret.heure_fin}`);
+                        const diffMs = fin.getTime() - debut.getTime();
+                        const duration = diffMs / 60000; // minutes
+
+                        downtimeByLine[ligne.numero_ligne] = (downtimeByLine[ligne.numero_ligne] || 0) + duration;
+                    }
+                });
             });
 
-            const tauxPerformance = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
+            // NEW: Daily Productivity Array (sorted by date)
+            const dailyProductivity = Object.entries(dailyHistory)
+                .map(([date, data]) => ({
+                    date,
+                    productivite: data.tauxPerformance
+                }))
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-            // Calculate performance for each day in daily history
-            Object.keys(dailyHistory).forEach(date => {
-                // Simplified performance calculation for daily view
-                const dayTonnage = dailyHistory[date].tonnage;
-                const dayPerf = productionTheorique > 0 ? (dayTonnage / (productionTheorique / totalSessions)) * 100 : 0;
-                dailyHistory[date].tauxPerformance = dayPerf;
-            });
+            // NEW: Taux de Présence (Attendance Rate)
+            const totalShiftsWorked = nombreShifts + nombreLignes;
+            const expectedHours = totalShiftsWorked * 9; // 9 hours per shift
+            const downtimeHours = totalTempsArret / 60; // Convert minutes to hours
+            const actualHours = expectedHours - downtimeHours;
+            const tauxPresence = expectedHours > 0 ? (actualHours / expectedHours) * 100 : 0;
 
             // Calculate Trend
             const prevShifts = prevShiftsResult.data || [];
@@ -890,7 +1088,13 @@ const CentreEmplisseurView = ({
                 dailyHistory,
                 trend: tonnageTrend,
                 prevTonnage,
-                // New data
+                // New data for advanced cards
+                clientBreakdown,
+                downtimeByLine,
+                dailyProductivity,
+                tauxPresence,
+                expectedHours,
+                actualHours,
                 weeklyData,
                 last3Months,
                 bestDay,
@@ -1530,205 +1734,231 @@ const CentreEmplisseurView = ({
 
                     {agentModalData ? (
                         <div className="space-y-6 py-4">
-                            {/* Key Stats */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 text-center">
-                                    <p className="text-sm text-muted-foreground mb-1">Tonnage Total</p>
-                                    <p className="text-3xl font-bold text-primary">{(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg</p>
-                                    {agentModalData.trend !== undefined && (
-                                        <div className={`flex items-center justify-center gap-1 mt-2 text-sm font-medium ${agentModalData.trend > 0 ? 'text-green-600' : agentModalData.trend < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                                            {agentModalData.trend > 0 ? <ArrowUp className="h-4 w-4" /> : agentModalData.trend < 0 ? <ArrowDown className="h-4 w-4" /> : null}
-                                            <span>{Math.abs(agentModalData.trend).toFixed(1)}%</span>
-                                            <span className="text-xs text-muted-foreground font-normal">vs préc.</span>
+
+                            {/* CARD 1: Volume Produit */}
+                            <Card className="border-l-4 border-l-blue-500">
+                                <CardHeader>
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <Package className="h-5 w-5 text-blue-600" />
+                                        Volume Produit
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Main Tonnage */}
+                                    <div className="text-center p-4 bg-blue-50/50 rounded-lg">
+                                        <p className="text-sm text-muted-foreground mb-1">Volume Produit</p>
+                                        <p className="text-4xl font-extrabold text-blue-600">
+                                            {(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} <span className="text-2xl">Kg</span>
+                                        </p>
+                                    </div>
+
+                                    {/* Répartition par Ligne */}
+                                    {agentModalData.lineBreakdown && agentModalData.lineBreakdown.length > 0 && (filterType === 'month' || filterType === 'range') && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Ligne</h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                                {agentModalData.lineBreakdown.map((line: any, i: number) => (
+                                                    <div key={i} className="p-3 border rounded-lg text-center bg-white hover:shadow-md transition-shadow">
+                                                        <p className="text-xs font-semibold text-muted-foreground mb-1">{line.ligne}</p>
+                                                        <p className="text-lg font-bold text-blue-600">
+                                                            {(line.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">Kg</p>
+                                                        <p className="text-xs text-muted-foreground mt-1">{line.sessions} session{line.sessions > 1 ? 's' : ''}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
-                                </div>
-                                <div className="p-4 bg-white rounded-xl border text-center shadow-sm">
-                                    <p className="text-sm text-muted-foreground mb-1">Productivité</p>
-                                    <p className={`text-3xl font-bold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
-                                        agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
-                                        }`}>
-                                        {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}%
-                                    </p>
-                                </div>
-                                <div className="p-4 bg-white rounded-xl border text-center shadow-sm">
-                                    <p className="text-sm text-muted-foreground mb-1">Temps d'Arrêt</p>
-                                    <p className="text-3xl font-bold text-orange-600">
-                                        {Math.floor(agentModalData.tempsArretMinutes / 60)}h{Math.round(agentModalData.tempsArretMinutes % 60)}
-                                    </p>
-                                </div>
-                            </div>
 
-                            {/* 3-Month Sparkline */}
-                            {agentModalData.last3Months && agentModalData.last3Months.length > 0 && (
-                                <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Tendance 3 Derniers Mois</h3>
-                                    <div className="p-4 border rounded-xl bg-white flex items-center gap-4">
-                                        <div className="flex-1">
-                                            <ResponsiveContainer width="100%" height={60}>
-                                                <AreaChart data={agentModalData.last3Months}>
-                                                    <defs>
-                                                        <linearGradient id="colorTonnage" x1="0" y1="0" x2="0" y2="1">
-                                                            <stop offset="5%" stopColor="#0088FE" stopOpacity={0.8} />
-                                                            <stop offset="95%" stopColor="#0088FE" stopOpacity={0} />
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <Area type="monotone" dataKey="tonnage" stroke="#0088FE" fillOpacity={1} fill="url(#colorTonnage)" />
-                                                </AreaChart>
+                                    {/* Répartition par Client */}
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Client</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                            <div className="p-3 border rounded-lg bg-orange-50/50">
+                                                <p className="text-xs font-semibold text-orange-700 uppercase mb-2">Petro Ivoire</p>
+                                                <div className="space-y-1 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Recharges:</span>
+                                                        <span className="font-bold">{agentModalData.clientBreakdown.petro.recharges.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Consignes:</span>
+                                                        <span className="font-bold">{agentModalData.clientBreakdown.petro.consignes.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pt-1 border-t">
+                                                        <span className="font-semibold">Cumul:</span>
+                                                        <span className="font-extrabold text-orange-700">{agentModalData.clientBreakdown.petro.total.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="p-3 border rounded-lg bg-green-50/50">
+                                                <p className="text-xs font-semibold text-green-700 uppercase mb-2">Vivo Energies</p>
+                                                <div className="space-y-1 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Recharges:</span>
+                                                        <span className="font-bold">{agentModalData.clientBreakdown.vivo.recharges.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Consignes:</span>
+                                                        <span className="font-bold">{agentModalData.clientBreakdown.vivo.consignes.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pt-1 border-t">
+                                                        <span className="font-semibold">Cumul:</span>
+                                                        <span className="font-extrabold text-green-700">{agentModalData.clientBreakdown.vivo.total.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="p-3 border rounded-lg bg-purple-50/50">
+                                                <p className="text-xs font-semibold text-purple-700 uppercase mb-2">Total Energies</p>
+                                                <div className="space-y-1 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Recharges:</span>
+                                                        <span className="font-bold">{agentModalData.clientBreakdown.total.recharges.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">Consignes:</span>
+                                                        <span className="font-bold">{agentModalData.clientBreakdown.total.consignes.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pt-1 border-t">
+                                                        <span className="font-semibold">Cumul:</span>
+                                                        <span className="font-extrabold text-purple-700">{agentModalData.clientBreakdown.total.total.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* CARD 2: Productivité */}
+                            <Card className="border-l-4 border-l-green-500">
+                                <CardHeader>
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <ArrowUp className="h-5 w-5 text-green-600" />
+                                        Productivité
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Main Productivity */}
+                                    <div className="text-center p-4 bg-green-50/50 rounded-lg">
+                                        <p className="text-sm text-muted-foreground mb-1">Taux de Performance</p>
+                                        <p className={`text-4xl font-extrabold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
+                                            agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
+                                            }`}>
+                                            {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} <span className="text-2xl">%</span>
+                                        </p>
+                                    </div>
+
+                                    {/* Daily Evolution Curve */}
+                                    {agentModalData.dailyProductivity && agentModalData.dailyProductivity.length > 0 && (filterType === 'month' || filterType === 'range') && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Évolution sur la Période</h4>
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <LineChart data={agentModalData.dailyProductivity}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        tickFormatter={(date) => new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                                                    />
+                                                    <YAxis />
+                                                    <Tooltip
+                                                        labelFormatter={(date) => new Date(date).toLocaleDateString('fr-FR')}
+                                                        formatter={(value: number) => [`${value.toFixed(1)}%`, 'Productivité']}
+                                                    />
+                                                    <Line type="monotone" dataKey="productivite" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981' }} />
+                                                </LineChart>
                                             </ResponsiveContainer>
                                         </div>
-                                        <div className="text-right">
-                                            {agentModalData.last3Months.map((m: any, i: number) => (
-                                                <div key={i} className="text-xs">
-                                                    <span className="font-medium text-muted-foreground">{m.month}:</span>{' '}
-                                                    <span className="font-bold">{(m.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                                    )}
+                                </CardContent>
+                            </Card>
 
-                            {/* Best/Worst Day Badges */}
-                            {(agentModalData.bestDay || agentModalData.worstDay) && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {agentModalData.bestDay && (
-                                        <div className="p-4 border-l-4 border-l-green-500 bg-green-50/50 rounded-lg">
-                                            <div className="flex items-start gap-2">
-                                                <span className="text-2xl">🏆</span>
-                                                <div>
-                                                    <p className="text-xs font-semibold text-green-700 uppercase">Meilleure Journée</p>
-                                                    <p className="text-sm font-medium mt-1">
-                                                        {new Date(agentModalData.bestDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                                                    </p>
-                                                    <p className="text-lg font-bold text-green-600">
-                                                        {agentModalData.bestDay.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                                    </p>
-                                                    <p className="text-xs text-green-600">
-                                                        ({agentModalData.bestDay.productivite.toFixed(1)}%)
-                                                    </p>
-                                                </div>
+                            {/* CARD 3: Temps d'Arrêt */}
+                            <Card className="border-l-4 border-l-orange-500">
+                                <CardHeader>
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <ArrowDown className="h-5 w-5 text-orange-600" />
+                                        Temps d'Arrêt
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Main Downtime */}
+                                    <div className="text-center p-4 bg-orange-50/50 rounded-lg">
+                                        <p className="text-sm text-muted-foreground mb-1">Temps d'Arrêt Cumulé</p>
+                                        <p className="text-4xl font-extrabold text-orange-600">
+                                            {Math.floor(agentModalData.tempsArretMinutes / 60)}<span className="text-2xl">h</span>
+                                            {Math.round(agentModalData.tempsArretMinutes % 60)}<span className="text-2xl">m</span>
+                                        </p>
+                                    </div>
+
+                                    {/* Downtime per Line */}
+                                    {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Ligne</h4>
+                                            <div className="space-y-2">
+                                                {Object.entries(agentModalData.downtimeByLine)
+                                                    .sort((a, b) => (b[1] as number) - (a[1] as number))
+                                                    .map(([line, minutes]) => (
+                                                        <div key={line} className="flex items-center gap-3">
+                                                            <span className="text-sm font-semibold text-muted-foreground w-16">Ligne {line}</span>
+                                                            <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
+                                                                <div
+                                                                    className="bg-orange-500 h-6 rounded-full flex items-center justify-end pr-2"
+                                                                    style={{
+                                                                        width: `${Math.min(100, ((minutes as number) / agentModalData.tempsArretMinutes) * 100)}%`
+                                                                    }}
+                                                                >
+                                                                    <span className="text-xs font-bold text-white">
+                                                                        {Math.floor((minutes as number) / 60)}h{Math.round((minutes as number) % 60)}m
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                             </div>
                                         </div>
                                     )}
-                                    {agentModalData.worstDay && (
-                                        <div className="p-4 border-l-4 border-l-red-500 bg-red-50/50 rounded-lg">
-                                            <div className="flex items-start gap-2">
-                                                <span className="text-2xl">⚠️</span>
-                                                <div>
-                                                    <p className="text-xs font-semibold text-red-700 uppercase">Pire Journée</p>
-                                                    <p className="text-sm font-medium mt-1">
-                                                        {new Date(agentModalData.worstDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                                                    </p>
-                                                    <p className="text-lg font-bold text-red-600">
-                                                        {agentModalData.worstDay.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                                    </p>
-                                                    <p className="text-xs text-red-600">
-                                                        ({agentModalData.worstDay.productivite.toFixed(1)}%)
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                </CardContent>
+                            </Card>
 
-                            {/* Shift Breakdown */}
-                            {agentModalData.shiftBreakdown && agentModalData.shiftBreakdown.length > 1 && (
-                                <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Répartition par Shift</h3>
-                                    <div className="p-4 border rounded-xl bg-white">
-                                        <ResponsiveContainer width="100%" height={agentModalData.shiftBreakdown.length * 60}>
-                                            <BarChart data={agentModalData.shiftBreakdown} layout="vertical">
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis type="number" />
-                                                <YAxis dataKey="shift" type="category" width={80} />
-                                                <Tooltip
-                                                    formatter={(value: number) => `${(value * 1000).toLocaleString('fr-FR')} Kg`}
-                                                    labelFormatter={(label) => `${label}`}
-                                                />
-                                                <Bar dataKey="tonnage" fill="#0088FE" radius={[0, 8, 8, 0]} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                        <div className="mt-4 space-y-2">
-                                            {agentModalData.shiftBreakdown.map((s: any, i: number) => (
-                                                <div key={i} className="flex justify-between text-sm">
-                                                    <span className="text-muted-foreground">{s.shift}</span>
-                                                    <span className="font-medium">{s.sessions} sessions</span>
-                                                </div>
-                                            ))}
+                            {/* CARD 4: Taux de Présence */}
+                            <Card className="border-l-4 border-l-purple-500">
+                                <CardHeader>
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <Users className="h-5 w-5 text-purple-600" />
+                                        Taux de Présence
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Main Attendance Rate */}
+                                    <div className="text-center p-4 bg-purple-50/50 rounded-lg">
+                                        <p className="text-sm text-muted-foreground mb-1">Taux de Présence</p>
+                                        <p className={`text-4xl font-extrabold ${agentModalData.tauxPresence >= 95 ? 'text-green-600' :
+                                            agentModalData.tauxPresence >= 85 ? 'text-orange-500' : 'text-red-600'
+                                            }`}>
+                                            {agentModalData.tauxPresence.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} <span className="text-2xl">%</span>
+                                        </p>
+                                    </div>
+
+                                    {/* Breakdown */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        <div className="p-3 border rounded-lg text-center">
+                                            <p className="text-xs text-muted-foreground mb-1">Heures Attendues</p>
+                                            <p className="text-2xl font-bold text-primary">{agentModalData.expectedHours}h</p>
+                                        </div>
+                                        <div className="p-3 border rounded-lg text-center">
+                                            <p className="text-xs text-muted-foreground mb-1">Heures Réelles</p>
+                                            <p className="text-2xl font-bold text-green-600">{agentModalData.actualHours.toFixed(1)}h</p>
+                                        </div>
+                                        <div className="p-3 border rounded-lg text-center">
+                                            <p className="text-xs text-muted-foreground mb-1">Sessions Travaillées</p>
+                                            <p className="text-2xl font-bold text-purple-600">{agentModalData.nombreShifts + agentModalData.nombreLignes}</p>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                </CardContent>
+                            </Card>
 
-                            {/* Line Breakdown */}
-                            {agentModalData.lineBreakdown && agentModalData.lineBreakdown.length > 1 && (
-                                <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Répartition par Ligne</h3>
-                                    <div className="p-4 border rounded-xl bg-white">
-                                        <ResponsiveContainer width="100%" height={agentModalData.lineBreakdown.length * 60}>
-                                            <BarChart data={agentModalData.lineBreakdown} layout="vertical">
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis type="number" />
-                                                <YAxis dataKey="ligne" type="category" width={80} />
-                                                <Tooltip
-                                                    formatter={(value: number) => `${(value * 1000).toLocaleString('fr-FR')} Kg`}
-                                                    labelFormatter={(label) => `${label}`}
-                                                />
-                                                <Bar dataKey="tonnage" fill="#00C49F" radius={[0, 8, 8, 0]} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                        <div className="mt-4 space-y-2">
-                                            {agentModalData.lineBreakdown.map((l: any, i: number) => (
-                                                <div key={i} className="flex justify-between text-sm">
-                                                    <span className="text-muted-foreground">{l.ligne}</span>
-                                                    <span className="font-medium">{l.sessions} sessions</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-
-                            {/* Detailed Production */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="p-4 border rounded-xl bg-muted/20">
-                                    <h3 className="text-sm font-semibold mb-3">Activité</h3>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Shifts (Chef de Quart)</span>
-                                            <span className="font-medium">{agentModalData.nombreShifts}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Sessions (Chef de Ligne)</span>
-                                            <span className="font-medium">{agentModalData.nombreLignes}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Lignes gérées</span>
-                                            <span className="font-medium">{agentModalData.lignesOccupees.length > 0 ? `L${agentModalData.lignesOccupees.join(', L')}` : '-'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-4 border rounded-xl bg-muted/20">
-                                    <h3 className="text-sm font-semibold mb-3">Production</h3>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Bouteilles</span>
-                                            <span className="font-medium">{agentModalData.bouteilles.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Recharges</span>
-                                            <span className="font-medium text-blue-600">{agentModalData.recharges.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Consignes</span>
-                                            <span className="font-medium text-green-600">{agentModalData.consignes.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-64">
@@ -1737,6 +1967,8 @@ const CentreEmplisseurView = ({
                     )}
                 </DialogContent>
             </Dialog>
+
+
 
             {/* 3. HISTORIQUE DES SAISIES */}
             <ProductionHistory
