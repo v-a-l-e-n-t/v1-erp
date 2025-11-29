@@ -87,10 +87,6 @@ const CentreEmplisseurView = ({
 
     // Agent Filter States (default to current month)
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const [agentFilterType, setAgentFilterType] = useState<'month' | 'date' | 'range'>('month');
-    const [agentSelectedMonth, setAgentSelectedMonth] = useState<string>(currentMonth);
-    const [agentSelectedDate, setAgentSelectedDate] = useState<Date | undefined>(undefined);
-    const [agentDateRange, setAgentDateRange] = useState<DateRange | undefined>(undefined);
 
     // Production History States
     const [productionHistory, setProductionHistory] = useState<any[]>([]);
@@ -119,7 +115,7 @@ const CentreEmplisseurView = ({
 
     useEffect(() => {
         fetchAllAgentsComparison();
-    }, [agentFilterType, agentSelectedMonth, agentSelectedDate, agentDateRange]);
+    }, [filterType, selectedMonth, selectedDate, dateRange]);
 
     // Load production history when filters change
     useEffect(() => {
@@ -367,61 +363,121 @@ const CentreEmplisseurView = ({
             if (quartsResult.error) throw quartsResult.error;
             if (lignesResult.error) throw lignesResult.error;
 
-            const allAgentsList = [
-                ...(quartsResult.data || []).map(a => ({ ...a, role: 'chef_quart' })),
-                ...(lignesResult.data || []).map(a => ({ ...a, role: 'chef_ligne' }))
-            ];
+            // Merge agents by ID
+            const agentsMap = new Map();
+            (quartsResult.data || []).forEach(a => agentsMap.set(a.id, a));
+            (lignesResult.data || []).forEach(a => {
+                if (!agentsMap.has(a.id)) agentsMap.set(a.id, a);
+            });
+            const uniqueAgents = Array.from(agentsMap.values());
 
-            // For each agent, calculate their tonnage on the selected period
-            const agentsWithTonnage = await Promise.all(
-                allAgentsList.map(async (agent) => {
+            // For each agent, calculate stats
+            const agentsWithStats = await Promise.all(
+                uniqueAgents.map(async (agent) => {
                     // Query shifts as chef de quart
                     let shiftsQuery = supabase
                         .from('production_shifts')
-                        .select('tonnage_total')
+                        .select('tonnage_total, arrets_production(*), lignes_production(numero_ligne)')
                         .eq('chef_quart_id', agent.id);
 
                     // Query lignes as chef de ligne
                     let lignesQuery = supabase
                         .from('lignes_production')
-                        .select('tonnage_ligne, production_shifts!inner(date)')
+                        .select('tonnage_ligne, numero_ligne, production_shifts!inner(date)')
                         .eq('chef_ligne_id', agent.id);
 
                     // Apply filters
-                    if (agentFilterType === 'month') {
-                        const startDate = `${agentSelectedMonth}-01`;
-                        const [y, m] = agentSelectedMonth.split('-').map(Number);
+                    if (filterType === 'month') {
+                        const startDate = `${selectedMonth}-01`;
+                        const [y, m] = selectedMonth.split('-').map(Number);
                         const endDate = new Date(y, m, 0).toISOString().split('T')[0];
                         shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
                         lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
-                    } else if (agentFilterType === 'date' && agentSelectedDate) {
-                        const dateStr = format(agentSelectedDate, 'yyyy-MM-dd');
+                    } else if (filterType === 'date' && selectedDate) {
+                        const dateStr = format(selectedDate, 'yyyy-MM-dd');
                         shiftsQuery = shiftsQuery.eq('date', dateStr);
                         lignesQuery = lignesQuery.eq('production_shifts.date', dateStr);
-                    } else if (agentFilterType === 'range' && agentDateRange?.from) {
-                        const fromStr = format(agentDateRange.from, 'yyyy-MM-dd');
-                        const toStr = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : fromStr;
+                    } else if (filterType === 'range' && dateRange?.from) {
+                        const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+                        const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
                         shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
                         lignesQuery = lignesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
                     }
 
                     const [shiftsResult, lignesResult] = await Promise.all([shiftsQuery, lignesQuery]);
+                    const shiftsData = shiftsResult.data || [];
+                    const lignesData = lignesResult.data || [];
 
-                    const shiftsTonnage = (shiftsResult.data || []).reduce((sum, s) => sum + (Number(s.tonnage_total) || 0), 0);
-                    const lignesTonnage = (lignesResult.data || []).reduce((sum, l) => sum + (Number(l.tonnage_ligne) || 0), 0);
+                    // 1. Tonnage
+                    const shiftsTonnage = shiftsData.reduce((sum, s) => sum + (Number(s.tonnage_total) || 0), 0);
+                    const lignesTonnage = lignesData.reduce((sum, l) => sum + (Number(l.tonnage_ligne) || 0), 0);
+                    const totalTonnage = shiftsTonnage + lignesTonnage;
+
+                    // 2. Role
+                    const countQuart = shiftsData.length;
+                    const countLigne = lignesData.length;
+                    let displayRole = null;
+                    if (countQuart > 0 && countLigne === 0) displayRole = 'chef_quart';
+                    else if (countQuart === 0 && countLigne > 0) displayRole = 'chef_ligne';
+                    else if (countQuart > 0 && countLigne > 0) {
+                        // Mixed roles
+                        if (filterType === 'date') {
+                            displayRole = 'both';
+                        } else {
+                            // For interval/month: "si il a occupé les 2 postes... n'affiche rien"
+                            displayRole = null;
+                        }
+                    }
+
+                    // 3. Productivity
+                    let totalTempsArret = 0;
+                    // Cast to any to avoid TS errors with joined tables
+                    (shiftsData as any[]).forEach((s: any) => {
+                        (s.arrets_production || []).forEach((a: any) => {
+                            if (a.heure_debut && a.heure_fin) {
+                                const debut = new Date(`2000-01-01T${a.heure_debut}`);
+                                const fin = new Date(`2000-01-01T${a.heure_fin}`);
+                                totalTempsArret += (fin.getTime() - debut.getTime()) / 60000;
+                            }
+                        });
+                    });
+
+                    const totalSessions = countQuart + countLigne;
+                    let productivite = 0;
+
+                    if (totalSessions > 0) {
+                        const heuresProductives = totalSessions * 9 - (totalTempsArret / 60);
+                        let productionTheorique = 0;
+
+                        // From shifts
+                        (shiftsData as any[]).forEach((s: any) => {
+                            (s.lignes_production || []).forEach((l: any) => {
+                                const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                                productionTheorique += (rate * (heuresProductives / totalSessions)) / 1000;
+                            });
+                        });
+
+                        // From lignes
+                        (lignesData as any[]).forEach((l: any) => {
+                            const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                            productionTheorique += (rate * (heuresProductives / totalSessions)) / 1000;
+                        });
+
+                        productivite = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
+                    }
 
                     return {
                         id: agent.id,
                         nom: agent.nom,
                         prenom: agent.prenom,
-                        tonnage: shiftsTonnage + lignesTonnage, // in tonnes from DB
-                        role: agent.role
+                        tonnage: totalTonnage,
+                        displayRole,
+                        productivite
                     };
                 })
             );
 
-            // Sort by tonnage descending
-            const sorted = agentsWithTonnage.sort((a, b) => b.tonnage - a.tonnage);
+            const sorted = agentsWithStats.sort((a, b) => b.tonnage - a.tonnage);
             setAllAgentsComparison(sorted);
 
         } catch (error) {
@@ -452,16 +508,16 @@ const CentreEmplisseurView = ({
 
             // Determine current period dates
             let startDate, endDate;
-            if (agentFilterType === 'month') {
-                startDate = `${agentSelectedMonth}-01`;
-                const [y, m] = agentSelectedMonth.split('-').map(Number);
+            if (filterType === 'month') {
+                startDate = `${selectedMonth}-01`;
+                const [y, m] = selectedMonth.split('-').map(Number);
                 endDate = new Date(y, m, 0).toISOString().split('T')[0];
-            } else if (agentFilterType === 'date' && agentSelectedDate) {
-                startDate = format(agentSelectedDate, 'yyyy-MM-dd');
+            } else if (filterType === 'date' && selectedDate) {
+                startDate = format(selectedDate, 'yyyy-MM-dd');
                 endDate = startDate;
-            } else if (agentFilterType === 'range' && agentDateRange?.from) {
-                startDate = format(agentDateRange.from, 'yyyy-MM-dd');
-                endDate = agentDateRange.to ? format(agentDateRange.to, 'yyyy-MM-dd') : startDate;
+            } else if (filterType === 'range' && dateRange?.from) {
+                startDate = format(dateRange.from, 'yyyy-MM-dd');
+                endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : startDate;
             } else {
                 return null;
             }
@@ -471,7 +527,7 @@ const CentreEmplisseurView = ({
             const startD = new Date(startDate);
             const endD = new Date(endDate);
 
-            if (agentFilterType === 'month') {
+            if (filterType === 'month') {
                 const prevMonthDate = new Date(startD);
                 prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
                 const prevY = prevMonthDate.getFullYear();
@@ -479,8 +535,7 @@ const CentreEmplisseurView = ({
                 prevStartDate = `${prevY}-${String(prevM).padStart(2, '0')}-01`;
                 prevEndDate = new Date(prevY, prevM, 0).toISOString().split('T')[0];
             } else {
-                // For date and range, shift back by duration + 1 day to avoid overlap? No, just duration.
-                // E.g. if range is 1st-5th (5 days), prev is 26th-30th of prev month? Or just shift back by 5 days.
+                // For date and range, shift back by duration
                 const durationMs = endD.getTime() - startD.getTime();
                 const diffDays = Math.round(durationMs / (1000 * 60 * 60 * 24)) + 1;
 
@@ -1268,101 +1323,123 @@ const CentreEmplisseurView = ({
 
             {/* 2. PRODUCTIVITÉ PAR AGENT */}
             <Card className="border-l-4 border-l-primary">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
                         <Users className="h-5 w-5" />
                         PRODUCTIVITÉ PAR AGENT
                     </CardTitle>
-
-                    {/* Filter in Header */}
-                    <div className="flex items-center gap-2">
-                        <Select value={agentFilterType} onValueChange={(value: 'month' | 'date' | 'range') => setAgentFilterType(value)}>
-                            <SelectTrigger className="w-[130px] h-8 text-sm">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="month">Par mois</SelectItem>
-                                <SelectItem value="date">Par date</SelectItem>
-                                <SelectItem value="range">Par période</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        {agentFilterType === 'month' && (
-                            <Select value={agentSelectedMonth} onValueChange={setAgentSelectedMonth}>
-                                <SelectTrigger className="w-[150px] h-8 text-sm">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableMonths.map(month => (
-                                        <SelectItem key={month} value={month}>
-                                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-
-                        {agentFilterType === 'date' && (
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal h-8 text-sm", !agentSelectedDate && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-3 w-3" />
-                                        {agentSelectedDate ? format(agentSelectedDate, "dd/MM/yyyy") : "Date"}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="end">
-                                    <Calendar mode="single" selected={agentSelectedDate} onSelect={setAgentSelectedDate} locale={fr} disabled={{ after: new Date() }} />
-                                </PopoverContent>
-                            </Popover>
-                        )}
-
-                        {agentFilterType === 'range' && (
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className={cn("w-[200px] justify-start text-left font-normal h-8 text-sm", !agentDateRange && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-3 w-3" />
-                                        {agentDateRange?.from ? (agentDateRange.to ? `${format(agentDateRange.from, "dd/MM/yyyy")} - ${format(agentDateRange.to, "dd/MM/yyyy")}` : format(agentDateRange.from, "dd/MM/yyyy")) : "Période"}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="end">
-                                    <Calendar mode="range" selected={agentDateRange} onSelect={setAgentDateRange} locale={fr} disabled={{ after: new Date() }} numberOfMonths={2} />
-                                </PopoverContent>
-                            </Popover>
-                        )}
-                    </div>
                 </CardHeader>
 
                 <CardContent className="space-y-8 pt-6">
                     {/* Comparison Chart */}
                     <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Comparaison de tous les agents</h3>
-                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                            {allAgentsComparison.map((agent) => {
-                                const maxTonnage = allAgentsComparison[0]?.tonnage || 1;
-                                const percentage = (agent.tonnage / maxTonnage) * 100;
-                                const colorClass = percentage >= 80 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {allAgentsComparison.map((agent, index) => {
+                                const isFirst = index === 0;
+                                const isLast = index === allAgentsComparison.length - 1 && allAgentsComparison.length > 1;
+
+                                // Determine border color
+                                let borderColor = "border-l-blue-500";
+                                if (isFirst) borderColor = "border-l-green-500";
+                                if (isLast) borderColor = "border-l-red-500";
+
+                                // Determine separator
+                                const needsSeparator = index > 0 &&
+                                    agent.displayRole === 'chef_ligne' &&
+                                    allAgentsComparison[index - 1].displayRole === 'chef_quart';
 
                                 return (
-                                    <div
-                                        key={agent.id}
-                                        className="group relative flex items-center gap-4 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
-                                        onClick={async () => {
-                                            setSelectedAgentForModal(agent.id);
-                                            const data = await fetchAgentDetailedStats(agent.id);
-                                            setAgentModalData(data);
-                                        }}
-                                    >
-                                        <div className="w-32 text-sm font-medium truncate">{agent.prenom} {agent.nom}</div>
-                                        <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${colorClass} transition-all duration-500`}
-                                                style={{ width: `${percentage}%` }}
-                                            />
-                                        </div>
-                                        <div className="w-24 text-right text-sm font-bold">
-                                            {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                        </div>
-                                    </div>
+                                    <>
+                                        {needsSeparator && (
+                                            <div className="col-span-1 lg:col-span-2 flex items-center gap-4 my-4">
+                                                <div className="h-px bg-border flex-1" />
+                                                <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                                    Chefs de Ligne
+                                                </span>
+                                                <div className="h-px bg-border flex-1" />
+                                            </div>
+                                        )}
+
+                                        <Card
+                                            key={agent.id}
+                                            className={cn(
+                                                "cursor-pointer transition-all hover:shadow-md border-l-4",
+                                                borderColor
+                                            )}
+                                            onClick={() => {
+                                                setSelectedAgentForModal(agent.id);
+                                                fetchAgentDetailedStats(agent.id).then(data => setAgentModalData(data));
+                                            }}
+                                        >
+                                            <CardContent className="p-4">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={cn(
+                                                                "font-bold text-lg",
+                                                                isFirst ? "text-green-600" : isLast ? "text-red-600" : "text-foreground"
+                                                            )}>
+                                                                {agent.prenom} {agent.nom}
+                                                            </span>
+
+                                                            {/* Role Badge */}
+                                                            {agent.displayRole === 'chef_quart' && (
+                                                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-medium border border-blue-200">
+                                                                    Chef de Quart
+                                                                </span>
+                                                            )}
+                                                            {agent.displayRole === 'chef_ligne' && (
+                                                                <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 text-xs font-medium border border-orange-200">
+                                                                    Chef de Ligne
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {isFirst && (
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                                🏆 Meilleur
+                                                            </span>
+                                                        )}
+                                                        {isLast && (
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                                ⚠️ À améliorer
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-2xl font-extrabold">
+                                                            {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                        </div>
+                                                        {/* Productivity Display */}
+                                                        <div className={cn(
+                                                            "text-sm font-medium mt-1",
+                                                            agent.productivite >= 90 ? "text-green-600" :
+                                                                agent.productivite >= 70 ? "text-orange-600" : "text-red-600"
+                                                        )}>
+                                                            Prod: {(agent.productivite || 0).toFixed(1)}%
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress Bar */}
+                                                <div className="mt-3">
+                                                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                                                        <span>Contribution</span>
+                                                        <span>{stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                                                        <div
+                                                            className={cn("h-full rounded-full transition-all",
+                                                                isFirst ? "bg-green-500" : isLast ? "bg-red-500" : "bg-blue-500"
+                                                            )}
+                                                            style={{ width: `${stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </>
                                 );
                             })}
                         </div>
@@ -1410,35 +1487,6 @@ const CentreEmplisseurView = ({
                                     </p>
                                 </div>
                             </div>
-
-
-                            {/* Weekly Tonnage Chart */}
-                            {agentModalData.weeklyData && agentModalData.weeklyData.length > 0 && (
-                                <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Évolution Semaine en Cours</h3>
-                                    <div className="p-4 border rounded-xl bg-white">
-                                        <ResponsiveContainer width="100%" height={200}>
-                                            <BarChart data={agentModalData.weeklyData}>
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="day" />
-                                                <YAxis />
-                                                <Tooltip
-                                                    formatter={(value: number) => `${value.toLocaleString('fr-FR')} Kg`}
-                                                    labelFormatter={(label) => `${label}`}
-                                                />
-                                                <Bar dataKey="tonnage" radius={[8, 8, 0, 0]}>
-                                                    {agentModalData.weeklyData.map((entry: any, index: number) => (
-                                                        <Cell
-                                                            key={`cell-${index}`}
-                                                            fill={entry.productivite >= 90 ? '#22c55e' : entry.productivite >= 70 ? '#eab308' : '#ef4444'}
-                                                        />
-                                                    ))}
-                                                </Bar>
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            )}
 
                             {/* 3-Month Sparkline */}
                             {agentModalData.last3Months && agentModalData.last3Months.length > 0 && (
