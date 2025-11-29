@@ -179,7 +179,11 @@ const ProductionHistory = ({
                 </div>
             </CardHeader>
 
-            <CardContent className="pt-6">
+            <div className="px-6 pb-2 text-sm text-muted-foreground">
+                {history.length} résultat{history.length > 1 ? 's' : ''} trouvé{history.length > 1 ? 's' : ''}
+            </div>
+
+            <CardContent className="pt-2">
                 {loading ? (
                     <div className="flex items-center justify-center h-64">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -197,77 +201,65 @@ const ProductionHistory = ({
                                     <th className="text-left p-2 font-semibold">Shift</th>
                                     <th className="text-left p-2 font-semibold">Chef de Quart</th>
                                     <th className="text-right p-2 font-semibold">Tonnage</th>
-                                    <th className="text-right p-2 font-semibold">Bouteilles</th>
-                                    <th className="text-center p-2 font-semibold">Statut</th>
-                                    <th className="text-center p-2 font-semibold">Actions</th>
+                                    <th className="text-right p-2 font-semibold">Recharges</th>
+                                    <th className="text-right p-2 font-semibold">Consignes</th>
+                                    <th className="text-right p-2 font-semibold">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {history.map((shift: any) => {
-                                    const hasModifications = shift.production_modifications && shift.production_modifications.length > 0;
-                                    const totalBouteilles = (shift.bouteilles_produites || 0);
-
-                                    return (
-                                        <tr key={shift.id} className="border-b hover:bg-muted/50">
-                                            <td className="p-2">
-                                                {new Date(shift.date).toLocaleDateString('fr-FR')}
-                                            </td>
-                                            <td className="p-2">
-                                                <span className="px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium">
-                                                    {shift.shift_type === '10h-19h' ? 'Shift 1' : 'Shift 2'}
-                                                </span>
-                                            </td>
-                                            <td className="p-2">
-                                                {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
-                                            </td>
-                                            <td className="p-2 text-right font-bold">
-                                                {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                            </td>
-                                            <td className="p-2 text-right">
-                                                {totalBouteilles.toLocaleString('fr-FR')}
-                                            </td>
-                                            <td className="p-2 text-center">
-                                                {hasModifications ? (
-                                                    <span className="px-2 py-1 rounded bg-orange-100 text-orange-700 text-xs font-medium">
-                                                        Modifié
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-medium">
-                                                        Validé
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="p-2 text-center">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => onEdit(shift.id)}
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDeleteClick(shift.id)}
-                                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                {history.map((shift: any) => (
+                                    <tr key={shift.id} className="border-b hover:bg-muted/50">
+                                        <td className="p-2">{format(new Date(shift.date), 'dd/MM/yyyy')}</td>
+                                        <td className="p-2">
+                                            <span className={cn(
+                                                "px-2 py-1 rounded-full text-xs font-medium",
+                                                shift.shift_type === '10h-19h' ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                                            )}>
+                                                {shift.shift_type}
+                                            </span>
+                                        </td>
+                                        <td className="p-2 font-medium">
+                                            {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
+                                        </td>
+                                        <td className="p-2 text-right font-bold">
+                                            {shift.tonnage_total?.toLocaleString('fr-FR')} T
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {shift.cumul_recharges_total?.toLocaleString('fr-FR')}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {shift.cumul_consignes_total?.toLocaleString('fr-FR')}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => onEdit(shift.id)}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteClick(shift.id)}
+                                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
-                    </div>
+                    </div >
                 )}
-            </CardContent>
+            </CardContent >
 
             {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            < Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Confirmer la suppression</DialogTitle>
@@ -287,8 +279,8 @@ const ProductionHistory = ({
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
-        </Card>
+            </Dialog >
+        </Card >
     );
 };
 

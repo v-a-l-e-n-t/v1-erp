@@ -1154,9 +1154,12 @@ const CentreEmplisseurView = ({
                 query = query.eq('shift_type', shiftValue);
             }
 
-            if (historyChefFilter !== 'all') {
-                query = query.eq('chef_quart_id', historyChefFilter);
+            if (historyShiftFilter !== 'all') {
+                const shiftValue = historyShiftFilter === '1' ? '10h-19h' : '20h-5h';
+                query = query.eq('shift_type', shiftValue);
             }
+
+            // Note: Chef filter is applied in memory to handle both Chef de Quart and Chef de Ligne roles
 
             const { data, error } = await query;
 
@@ -1182,6 +1185,21 @@ const CentreEmplisseurView = ({
 
             // Filter by ligne if needed (post-query since it's in related table)
             let filteredData = shiftsWithChefs;
+
+            // Filter by Agent (Chef de Quart OR Chef de Ligne)
+            if (historyChefFilter !== 'all') {
+                filteredData = filteredData.filter((shift: any) => {
+                    // Check if agent is Chef de Quart
+                    const isChefQuart = shift.chef_quart_id === historyChefFilter;
+
+                    // Check if agent is Chef de Ligne on any line
+                    const lignes = shift.lignes_production || [];
+                    const isChefLigne = lignes.some((l: any) => l.chef_ligne_id === historyChefFilter);
+
+                    return isChefQuart || isChefLigne;
+                });
+            }
+
             if (historyLigneFilter !== 'all') {
                 filteredData = filteredData.filter((shift: any) => {
                     const lignes = shift.lignes_production || [];
