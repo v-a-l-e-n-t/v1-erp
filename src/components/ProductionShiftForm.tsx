@@ -667,14 +667,14 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className={`flex flex-col ${editMode ? '' : 'lg:flex-row min-h-screen'} bg-background`}>
+      <div className={`flex flex-col lg:flex-row ${editMode ? '' : 'min-h-screen'} bg-background`}>
         {/* Sidebar Recapitulatif - Fixed on Desktop only in full page mode */}
-        <aside className={`w-full ${editMode ? 'mb-6 border-b pb-4' : 'lg:w-80 lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r'} bg-background z-20 overflow-y-auto`}>
+        <aside className={`w-full lg:w-80 bg-background z-20 overflow-y-auto ${editMode ? 'border-b lg:border-b-0 lg:border-r' : 'lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r'}`}>
           <ProductionRecapitulatif lignes={lignes} arrets={arrets} />
         </aside>
 
         {/* Main Content - Scrollable */}
-        <main className={`flex-1 ${editMode ? '' : 'lg:ml-80'} p-4 md:p-6`}>
+        <main className={`flex-1 p-4 md:p-6 ${editMode ? '' : 'lg:ml-80'}`}>
           <div className={`${editMode ? '' : 'sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 -mt-4 pt-4 md:-mx-6 md:px-6 md:-mt-6 md:pt-6 mb-6 border-b pb-4'} flex items-center justify-between`}>
             {!editMode && <h1 className="text-2xl font-bold tracking-tight">Saisie Production</h1>}
           </div>
