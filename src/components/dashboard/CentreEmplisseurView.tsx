@@ -1,8 +1,8 @@
-import { useState, useEffect, Fragment, useMemo } from 'react';
+import { useState, useEffect, Fragment, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
-import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package } from 'lucide-react';
+import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ProductionHistory from './ProductionHistory';
 import { ProductionShiftForm } from '../ProductionShiftForm';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -34,6 +36,58 @@ const CentreEmplisseurView = ({
     selectedDate, setSelectedDate,
     selectedMonth, setSelectedMonth
 }: CentreEmplisseurViewProps) => {
+    // Refs for exportable sections
+    const section1Ref = useRef<HTMLDivElement>(null);
+    const section2Ref = useRef<HTMLDivElement>(null);
+    const section3Ref = useRef<HTMLDivElement>(null);
+
+    // Export utility functions
+    const exportSectionAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+        if (!ref.current) return;
+
+        try {
+            const canvas = await html2canvas(ref.current, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                logging: false
+            } as any);
+
+            const link = document.createElement('a');
+            link.download = `${filename}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (error) {
+            console.error('Error exporting image:', error);
+        }
+    };
+
+    const exportSectionAsPDF = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+        if (!ref.current) return;
+
+        try {
+            const canvas = await html2canvas(ref.current, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                logging: false
+            } as any);
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const imgWidth = 297; // A4 landscape width in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`${filename}.pdf`);
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+        }
+    };
+
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         // Global
@@ -1425,12 +1479,32 @@ const CentreEmplisseurView = ({
             {/* 1. PRODUCTION GLOBALE - NEW LAYOUT */}
             <Card className="border-l-4 border-l-primary">
                 <CardHeader>
-                    <CardTitle className="text-xl flex items-center gap-2">
-                        <Factory className="h-5 w-5" />
-                        PRODUCTION GLOBALE
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-xl flex items-center gap-2">
+                            <Factory className="h-5 w-5" />
+                            PRODUCTION GLOBALE
+                        </CardTitle>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsImage(section1Ref, 'production-globale')}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Image
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsPDF(section1Ref, 'production-globale')}
+                            >
+                                <FileDown className="h-4 w-4 mr-2" />
+                                PDF
+                            </Button>
+                        </div>
+                    </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6" ref={section1Ref}>
                     {/* Global Tonnage with Recharges, Consignes and Clients */}
                     {/* Global Tonnage with Recharges, Consignes and Clients */}
                     {/* Global Tonnage with Recharges, Consignes and Clients */}
@@ -1572,8 +1646,28 @@ const CentreEmplisseurView = ({
                     <div className="border-t my-4"></div>
 
                     {/* Lines Breakdown */}
-                    <div className="space-y-3">
-                        <h3 className="font-semibold text-muted-foreground uppercase text-xs tracking-wider mb-2">Détail par Ligne</h3>
+                    <div className="space-y-3" ref={section2Ref}>
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">Détail par Ligne</h3>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => exportSectionAsImage(section2Ref, 'detail-par-ligne')}
+                                >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Image
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => exportSectionAsPDF(section2Ref, 'detail-par-ligne')}
+                                >
+                                    <FileDown className="h-4 w-4 mr-2" />
+                                    PDF
+                                </Button>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             {stats.lines.map((line) => {
                                 const isBest = line.id === stats.maxLine.id && line.tonnage > 0;
@@ -1642,13 +1736,33 @@ const CentreEmplisseurView = ({
             {/* 2. PRODUCTIVITÉ PAR AGENT */}
             <Card className="border-l-4 border-l-primary">
                 <CardHeader>
-                    <CardTitle className="text-xl flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        PRODUCTIVITÉ PAR AGENT
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-xl flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            PRODUCTIVITÉ PAR AGENT
+                        </CardTitle>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsImage(section3Ref, 'productivite-par-agent')}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Image
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsPDF(section3Ref, 'productivite-par-agent')}
+                            >
+                                <FileDown className="h-4 w-4 mr-2" />
+                                PDF
+                            </Button>
+                        </div>
+                    </div>
                 </CardHeader>
 
-                <CardContent className="space-y-8 pt-6">
+                <CardContent className="space-y-8 pt-6" ref={section3Ref}>
                     {/* Comparison Chart */}
                     <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Stat des agents</h3>
@@ -1681,80 +1795,75 @@ const CentreEmplisseurView = ({
 
                                         <Card
                                             className={cn(
-                                                "cursor-pointer transition-all hover:shadow-md border-l-4",
-                                                borderColor
+                                                "cursor-pointer transition-all hover:shadow-md border-l-4 group",
+                                                borderColor,
+                                                isFirst && agent.displayRole === 'chef_ligne' ? "bg-green-50/50" : "",
+                                                isLast && agent.displayRole === 'chef_ligne' ? "bg-red-50/50" : ""
                                             )}
                                             onClick={() => {
                                                 setSelectedAgentForModal(agent.id);
                                             }}
                                         >
                                             <CardContent className="p-4">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
+                                                <div className="flex items-center gap-4">
+                                                    {/* 1. RANK */}
+                                                    <div className={cn(
+                                                        "flex-shrink-0 w-14 h-14 flex items-center justify-center rounded-full font-extrabold text-2xl border-4 shadow-sm",
+                                                        isFirst ? "bg-yellow-100 text-yellow-700 border-yellow-400" :
+                                                            index === 1 ? "bg-slate-100 text-slate-700 border-slate-300" :
+                                                                index === 2 ? "bg-orange-100 text-orange-800 border-orange-300" :
+                                                                    "bg-muted/30 text-muted-foreground border-transparent"
+                                                    )}>
+                                                        {agent.displayRole === 'chef_quart' ?
+                                                            `#${allAgentsComparison.filter(a => a.displayRole === 'chef_quart').findIndex(a => a.id === agent.id) + 1}` :
+                                                            `#${allAgentsComparison.filter(a => a.displayRole === 'chef_ligne').findIndex(a => a.id === agent.id) + 1}`
+                                                        }
+                                                    </div>
+
+                                                    {/* 2. INFO (Name) */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex flex-col">
                                                             <span className={cn(
-                                                                "font-bold text-lg",
-                                                                isFirst ? "text-green-600" : isLast ? "text-red-600" : "text-foreground"
+                                                                "font-bold text-lg truncate group-hover:text-primary transition-colors"
                                                             )}>
                                                                 {agent.prenom} {agent.nom}
                                                             </span>
-
-                                                            {/* Role Badge */}
-                                                            {agent.displayRole === 'chef_quart' && (
-                                                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-medium border border-blue-200">
-                                                                    Chef de Quart
-                                                                </span>
-                                                            )}
-                                                            {agent.displayRole === 'chef_ligne' && (
-                                                                <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 text-xs font-medium border border-orange-200">
-                                                                    Chef de Ligne
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Lines Display below name/role */}
-                                                        {agent.displayRole === 'chef_ligne' && agent.lines && agent.lines.length > 0 && (
-                                                            <div className="text-xs font-medium text-muted-foreground mb-2">
-                                                                ( {agent.lines.join(' | ')} )
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                {agent.displayRole === 'chef_ligne' && agent.lines && agent.lines.length > 0 && (
+                                                                    <span className="text-xs text-muted-foreground truncate">
+                                                                        ({agent.lines.join(', ')})
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        )}
-
-                                                        {isFirst && (
-                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                                🏆 Meilleur
-                                                            </span>
-                                                        )}
-                                                        {isLast && (
-                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                                                ⚠️ À améliorer
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="text-2xl font-extrabold">
-                                                            {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                         </div>
-                                                        {/* Productivity Display */}
+                                                    </div>
+
+                                                    {/* 3. STATS (Prod & Tonnage) */}
+                                                    <div className="text-right flex-shrink-0">
                                                         <div className={cn(
-                                                            "text-sm font-medium mt-1",
+                                                            "text-xl font-extrabold",
                                                             agent.productivite >= 90 ? "text-green-600" :
                                                                 agent.productivite >= 70 ? "text-orange-600" : "text-red-600"
                                                         )}>
-                                                            Prod: {(agent.productivite || 0).toFixed(1)}%
+                                                            {(agent.productivite || 0).toFixed(1)}%
+                                                        </div>
+                                                        <div className="text-xs font-medium text-muted-foreground mt-0.5">
+                                                            {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Progress Bar */}
-                                                <div className="mt-3">
-                                                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                                                        <span>Contribution</span>
+                                                {/* 4. PROGRESS BAR */}
+                                                <div className="mt-4 space-y-1.5">
+                                                    <div className="flex justify-between text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+                                                        <span>Contribution au volume total</span>
                                                         <span>{stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%</span>
                                                     </div>
-                                                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                                                    <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
                                                         <div
                                                             className={cn("h-full rounded-full transition-all",
-                                                                isFirst ? "bg-green-500" : isLast ? "bg-red-500" : "bg-blue-500"
+                                                                agent.productivite >= 90 ? "bg-green-500" :
+                                                                    agent.productivite >= 70 ? "bg-orange-500" : "bg-red-500"
                                                             )}
                                                             style={{ width: `${stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0}%` }}
                                                         />
