@@ -1856,7 +1856,7 @@ const CentreEmplisseurView = ({
                                                 {/* 4. PROGRESS BAR */}
                                                 <div className="mt-4 space-y-1.5">
                                                     <div className="flex justify-between text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                                                        <span>Contribution au volume total</span>
+                                                        <span>Contribution au volume produit</span>
                                                         <span>{stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%</span>
                                                     </div>
                                                     <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
