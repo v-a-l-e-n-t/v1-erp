@@ -18,6 +18,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx-js-style';
 import { toast } from 'sonner';
+import { UpdateAgents } from '../UpdateAgents';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -2417,6 +2418,8 @@ const CentreEmplisseurView = ({
                 </DialogContent>
             </Dialog>
 
+            {/* Temporary Update Script */}
+            <UpdateAgents />
         </div >
     );
 };
