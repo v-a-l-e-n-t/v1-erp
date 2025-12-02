@@ -58,11 +58,13 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
         spheres_initial: editEntry.spheres_initial.toString(),
         bouteilles_initial: editEntry.bouteilles_initial.toString(),
         reservoirs_initial: editEntry.reservoirs_initial.toString(),
-        receptions: editEntry.receptions.map(r => ({
+        receptions: (editEntry.receptions && Array.isArray(editEntry.receptions))
+  ? editEntry.receptions.map(r => ({
           quantity: r.quantity.toString(),
           navire: r.navire || '',
           reception_no: r.reception_no || ''
-        })),
+                    }))
+          : [],
         sorties_vrac_simam: editEntry.sorties_vrac_simam.toString(),
         sorties_vrac_petro_ivoire: editEntry.sorties_vrac_petro_ivoire.toString(),
         sorties_vrac_vivo_energies: editEntry.sorties_vrac_vivo_energies.toString(),
