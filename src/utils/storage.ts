@@ -152,7 +152,7 @@ export const exportToCSV = (entries: BilanEntry[]): void => {
   ];
 
   const rows = entries.map(entry => {
-    const receptionsStr = entry.receptions.map(r => `${formatNumberValue(r.quantity)} Kg - Navire: ${r.navire} - N°${r.reception_no}`).join('; ');
+    const receptionsStr = entry.receptions.map(r => `${formatNumberValue(r.quantity)} Kg - ${r.provenance}`).join('; ');
     return [
       entry.date,
       formatNumberValue(entry.stock_initial),
@@ -210,7 +210,7 @@ export const exportToExcel = (entries: BilanEntry[]): void => {
   // Add data rows
   entries.forEach(entry => {
     const receptionsStr = entry.receptions
-      .map(r => `${formatNumberValue(r.quantity)} Kg - Navire: ${r.navire} - N°${r.reception_no}`)
+      .map(r => `${formatNumberValue(r.quantity)} Kg - ${r.provenance}`)
       .join('; ');
     
     worksheetData.push([
@@ -284,7 +284,7 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
     entry.receptions.forEach((r, idx) => {
       tableData.push([
         `  Réception ${idx + 1}`,
-        `${r.quantity.toFixed(3)}kg - Navire: ${r.navire} - N°${r.reception_no}`
+        `${r.quantity.toFixed(3)}kg - ${r.provenance}`
       ]);
     });
   }
@@ -394,7 +394,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
   // Prepare table data
   const tableData = entries.map(entry => {
     const receptionsStr = entry.receptions
-      .map(r => `${formatNumberValue(r.quantity)} Kg - Navire: ${r.navire} - N°${r.reception_no}`)
+      .map(r => `${formatNumberValue(r.quantity)} Kg - ${r.provenance}`)
       .join('\n');
     
     return [
