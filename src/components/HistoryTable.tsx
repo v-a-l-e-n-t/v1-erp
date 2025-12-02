@@ -187,7 +187,7 @@ const HistoryTable = ({ entries, onDelete, onEdit, onExport, onPrint }: HistoryT
                         <div className="space-y-1 text-sm">
                           {entry.receptions.map((r, i) => (
                             <div key={i} className="truncate">
-                              {formatNumber(r.quantity)}kg - Navire: {r.navire} - N°{r.reception_no}
+                              {formatNumber(r.quantity)}kg - {r.provenance}
                             </div>
                           ))}
                         </div>

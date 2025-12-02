@@ -12,8 +12,7 @@ export interface BilanEntry {
   // Réceptions (en kilogrammes - kg)
   receptions: Array<{
     quantity: number; // en kg
-    navire: string;
-    reception_no: string;
+    provenance: string; // ex: "RECEPTION 54_Pompage N°02_PETROCI"
   }>;
   reception_gpl: number; // Total des réceptions en kg
   
@@ -65,8 +64,7 @@ export interface BilanFormData {
   reservoirs_initial: string;
   receptions: Array<{
     quantity: string;
-    navire: string;
-    reception_no: string;
+    provenance: string;
   }>;
   // Sorties vrac
   sorties_vrac_simam: string;
