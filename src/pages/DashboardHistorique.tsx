@@ -215,7 +215,7 @@ const DashboardHistorique = () => {
                     </Select>
                   </div>
                   <p className="text-4xl font-extrabold text-primary tracking-tight">
-                    {productionAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                    {(productionAnnuelle * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     <span className="text-lg font-semibold text-primary/60 ml-2">Kg</span>
                   </p>
                 </div>
