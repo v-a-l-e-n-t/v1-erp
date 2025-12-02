@@ -16,7 +16,7 @@ import ProductionHistory from './ProductionHistory';
 import { ProductionShiftForm } from '../ProductionShiftForm';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { toast } from 'sonner';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -414,7 +414,8 @@ const CentreEmplisseurView = ({
                         b6: cl_total.b6, b12: cl_total.b12, b28: cl_total.b28, b38: cl_total.b38
                     },
                     global: globalClients
-                }
+                },
+                dailyHistory: {}
             });
 
         } catch (error) {
@@ -1393,32 +1394,98 @@ const CentreEmplisseurView = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
 
+
     const exportDashboardToExcel = () => {
         try {
             const wb = XLSX.utils.book_new();
 
+            // Styling Constants
+            const headerStyle = {
+                font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
+                fill: { fgColor: { rgb: "EA580C" } }, // orange-600
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                    top: { style: "thin" },
+                    bottom: { style: "thin" },
+                    left: { style: "thin" },
+                    right: { style: "thin" }
+                }
+            };
+
+            const subHeaderStyle = {
+                font: { bold: true, color: { rgb: "000000" } },
+                fill: { fgColor: { rgb: "FFEDD5" } }, // orange-100
+                border: {
+                    top: { style: "thin" },
+                    bottom: { style: "thin" },
+                    left: { style: "thin" },
+                    right: { style: "thin" }
+                }
+            };
+
+            const cellStyle = {
+                alignment: { horizontal: "center" },
+                border: {
+                    top: { style: "thin" },
+                    bottom: { style: "thin" },
+                    left: { style: "thin" },
+                    right: { style: "thin" }
+                }
+            };
+
+            const titleStyle = {
+                font: { bold: true, sz: 16, color: { rgb: "EA580C" } },
+                alignment: { horizontal: "center" }
+            };
+
+            // Helper to apply style to a range
+            const applyStyle = (ws: any, range: { s: { r: number, c: number }, e: { r: number, c: number } }, style: any) => {
+                for (let R = range.s.r; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' }; // Ensure cell exists
+                        ws[cellAddress].s = style;
+                    }
+                }
+            };
+
             // --- SHEET 1: VUE GLOBALE ---
             const globalData = [
-                ['RAPPORT CENTRE EMPLISSEUR', ''],
-                ['Date générée:', new Date().toLocaleString('fr-FR')],
-                ['Période:', filterType === 'month' ? selectedMonth : filterType === 'date' ? (selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '-') : (dateRange?.from ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : ''}` : '-')],
-                ['', ''],
-                ['PRODUCTION TOTALE', ''],
-                ['Volume Total (Kg)', stats.totalTonnage * 1000],
-                ['', ''],
-                ['SHIFTS', 'Tonnage (Kg)', 'Recharges', 'Consignes'],
-                ['Shift 1', stats.shift1.tonnage * 1000, stats.shift1.recharges, stats.shift1.consignes],
-                ['Shift 2', stats.shift2.tonnage * 1000, stats.shift2.recharges, stats.shift2.consignes],
-                ['', ''],
+                ['RAPPORT CENTRE EMPLISSEUR', '', '', '', '', '', ''],
+                ['Date générée:', new Date().toLocaleString('fr-FR'), '', '', '', '', ''],
+                ['Période:', filterType === 'month' ? selectedMonth : filterType === 'date' ? (selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '-') : (dateRange?.from ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : ''}` : '-'), '', '', '', '', ''],
+                ['', '', '', '', '', '', ''],
+                ['PRODUCTION TOTALE', '', '', '', '', '', ''],
+                ['Volume Total (Kg)', stats.totalTonnage * 1000, '', '', '', '', ''],
+                ['', '', '', '', '', '', ''],
+                ['SHIFTS', 'Tonnage (Kg)', 'Recharges', 'Consignes', '', '', ''],
+                ['Shift 1', stats.shift1.tonnage * 1000, stats.shift1.recharges, stats.shift1.consignes, '', '', ''],
+                ['Shift 2', stats.shift2.tonnage * 1000, stats.shift2.recharges, stats.shift2.consignes, '', '', ''],
+                ['', '', '', '', '', '', ''],
                 ['CLIENTS', 'Tonnage (Kg)', 'Part (%)', 'B6', 'B12', 'B28', 'B38'],
                 ['Petro Ivoire', stats.clients.petro.tonnage, stats.clients.petro.pct, stats.clients.petro.b6, stats.clients.petro.b12, stats.clients.petro.b28, stats.clients.petro.b38],
                 ['Vivo Energies', stats.clients.vivo.tonnage, stats.clients.vivo.pct, stats.clients.vivo.b6, stats.clients.vivo.b12, stats.clients.vivo.b28, stats.clients.vivo.b38],
                 ['Total Energies', stats.clients.total.tonnage, stats.clients.total.pct, stats.clients.total.b6, stats.clients.total.b12, stats.clients.total.b28, stats.clients.total.b38],
             ];
-            const wsGlobal = XLSX.utils.aoa_to_sheet(globalData);
 
-            // Styling columns
+            const wsGlobal = XLSX.utils.aoa_to_sheet(globalData);
             wsGlobal['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+
+            // Apply Styles to Global Sheet
+            // Title
+            wsGlobal['A1'].s = titleStyle;
+            wsGlobal['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }]; // Merge title
+
+            // Section Headers
+            applyStyle(wsGlobal, { s: { r: 4, c: 0 }, e: { r: 4, c: 6 } }, subHeaderStyle); // Production Totale
+            applyStyle(wsGlobal, { s: { r: 7, c: 0 }, e: { r: 7, c: 6 } }, headerStyle); // Shifts Header
+            applyStyle(wsGlobal, { s: { r: 11, c: 0 }, e: { r: 11, c: 6 } }, headerStyle); // Clients Header
+
+            // Data Borders
+            applyStyle(wsGlobal, { s: { r: 5, c: 0 }, e: { r: 5, c: 1 } }, cellStyle); // Vol Total
+            applyStyle(wsGlobal, { s: { r: 8, c: 0 }, e: { r: 9, c: 3 } }, cellStyle); // Shifts Data
+            applyStyle(wsGlobal, { s: { r: 12, c: 0 }, e: { r: 14, c: 6 } }, cellStyle); // Clients Data
+
             XLSX.utils.book_append_sheet(wb, wsGlobal, 'Vue Globale');
 
             // --- SHEET 2: DÉTAIL LIGNES ---
@@ -1432,6 +1499,11 @@ const CentreEmplisseurView = ({
             ]);
             const wsLines = XLSX.utils.aoa_to_sheet([linesHeader, ...linesData]);
             wsLines['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+
+            // Apply Styles to Lines Sheet
+            applyStyle(wsLines, { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, headerStyle); // Header
+            applyStyle(wsLines, { s: { r: 1, c: 0 }, e: { r: linesData.length, c: 4 } }, cellStyle); // Data
+
             XLSX.utils.book_append_sheet(wb, wsLines, 'Détail Lignes');
 
             // --- SHEET 3: PERFORMANCE AGENTS ---
@@ -1448,20 +1520,14 @@ const CentreEmplisseurView = ({
             ]);
             const wsAgents = XLSX.utils.aoa_to_sheet([agentsHeader, ...agentsData]);
             wsAgents['!cols'] = [{ wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+
+            // Apply Styles to Agents Sheet
+            applyStyle(wsAgents, { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, headerStyle); // Header
+            applyStyle(wsAgents, { s: { r: 1, c: 0 }, e: { r: agentsData.length, c: 7 } }, cellStyle); // Data
+
             XLSX.utils.book_append_sheet(wb, wsAgents, 'Performance Agents');
 
-            // --- SHEET 4: DONNÉES GRAPHIQUES (Daily History) ---
-            const graphHeader = ['Date', 'Tonnage (Kg)', 'Productivité (%)', 'Temps Arrêt (min)'];
-            const graphData = Object.entries(stats.dailyHistory || {}).map(([date, data]: [string, any]) => [
-                date,
-                data.tonnage * 1000,
-                data.tauxPerformance,
-                data.tempsArret
-            ]).sort((a, b) => new Date(a[0] as string).getTime() - new Date(b[0] as string).getTime());
 
-            const wsGraph = XLSX.utils.aoa_to_sheet([graphHeader, ...graphData]);
-            wsGraph['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
-            XLSX.utils.book_append_sheet(wb, wsGraph, 'Données Graphiques');
 
             // Generate filename with timestamp
             const now = new Date();
@@ -1478,6 +1544,14 @@ const CentreEmplisseurView = ({
             toast.error("Erreur lors de la génération du rapport Excel");
         }
     };
+
+
+
+
+
+
+
+
 
     if (loading) {
         return (
