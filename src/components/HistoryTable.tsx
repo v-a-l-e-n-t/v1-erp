@@ -30,25 +30,21 @@ const HistoryTable = ({ entries, onDelete, onEdit, onExport, onPrint }: HistoryT
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
       const entryDate = new Date(entry.date);
-      
+
       // Date range filter
       if (startDate && entryDate < startDate) return false;
       if (endDate && entryDate > endDate) return false;
-      
+
       // Nature filter
       if (filterNature !== 'all' && entry.nature !== filterNature) return false;
-      
+
       return true;
     });
   }, [entries, startDate, endDate, filterNature]);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Historique des bilans</CardTitle>
-        <CardDescription>Consultez et filtrez l'historique complet</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
@@ -77,7 +73,7 @@ const HistoryTable = ({ entries, onDelete, onEdit, onExport, onPrint }: HistoryT
               </PopoverContent>
             </Popover>
           </div>
-          
+
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Date fin</label>
             <Popover>
@@ -104,7 +100,7 @@ const HistoryTable = ({ entries, onDelete, onEdit, onExport, onPrint }: HistoryT
               </PopoverContent>
             </Popover>
           </div>
-          
+
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Nature du bilan</label>
             <Select value={filterNature} onValueChange={setFilterNature}>
@@ -119,23 +115,23 @@ const HistoryTable = ({ entries, onDelete, onEdit, onExport, onPrint }: HistoryT
               </SelectContent>
             </Select>
           </div>
-          
+
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Export</label>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onExport('excel')} 
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onExport('excel')}
                 className="flex-1"
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Excel
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onExport('pdf')} 
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onExport('pdf')}
                 className="flex-1"
               >
                 <FileText className="mr-2 h-4 w-4" />

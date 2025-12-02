@@ -12,8 +12,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ProductionHistory from './ProductionHistory';
-import { ProductionShiftForm } from '../ProductionShiftForm';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx-js-style';
@@ -170,19 +168,6 @@ const CentreEmplisseurView = ({
     // Agent Filter States (default to current month)
     const currentMonth = new Date().toISOString().slice(0, 7);
 
-    // Production History States
-    const [productionHistory, setProductionHistory] = useState<any[]>([]);
-    const [historyLoading, setHistoryLoading] = useState(false);
-    const [selectedShiftForEdit, setSelectedShiftForEdit] = useState<string | null>(null);
-    const [editModalData, setEditModalData] = useState<any>(null);
-    const [historyFilterType, setHistoryFilterType] = useState<'all' | 'month' | 'date' | 'range'>('all');
-    const [historySelectedMonth, setHistorySelectedMonth] = useState<string>(currentMonth);
-    const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(undefined);
-    const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
-    const [historyShiftFilter, setHistoryShiftFilter] = useState<string>('all');
-    const [historyLigneFilter, setHistoryLigneFilter] = useState<string>('all');
-    const [historyChefFilter, setHistoryChefFilter] = useState<string>('all');
-
     // Generate last 12 months for filter (memoized to avoid duplicates)
     const availableMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
         const d = new Date();
@@ -190,19 +175,6 @@ const CentreEmplisseurView = ({
         return d.toISOString().slice(0, 7);
     }), []);
 
-    useEffect(() => {
-        fetchStats();
-        fetchAgents();
-    }, [dateRange, filterType, selectedDate, selectedMonth]);
-
-    useEffect(() => {
-        fetchAllAgentsComparison();
-    }, [filterType, selectedMonth, selectedDate, dateRange]);
-
-    // Load production history when filters change
-    useEffect(() => {
-        fetchProductionHistory();
-    }, [historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
 
     // Fetch agent details when modal opens
     useEffect(() => {
@@ -216,6 +188,18 @@ const CentreEmplisseurView = ({
         };
         loadAgentDetails();
     }, [selectedAgentForModal, filterType, selectedMonth, selectedDate, dateRange]);
+
+    // Load stats and agents when filters change
+    useEffect(() => {
+        fetchStats();
+        fetchAgents();
+    }, [dateRange, filterType, selectedDate, selectedMonth]);
+
+    // Load agents comparison when filters change
+    useEffect(() => {
+        fetchAllAgentsComparison();
+    }, [filterType, selectedMonth, selectedDate, dateRange]);
+
 
     const fetchStats = async () => {
         setLoading(true);
@@ -1175,207 +1159,6 @@ const CentreEmplisseurView = ({
         }
     };
 
-    // ===== PRODUCTION HISTORY FUNCTIONS =====
-
-    const fetchProductionHistory = async () => {
-        try {
-            setHistoryLoading(true);
-
-            // Determine date range based on filter type
-            let startDate: string | undefined;
-            let endDate: string | undefined;
-            if (historyFilterType === 'month') {
-                startDate = `${historySelectedMonth}-01`;
-                const [y, m] = historySelectedMonth.split('-').map(Number);
-                endDate = new Date(y, m, 0).toISOString().split('T')[0];
-            } else if (historyFilterType === 'date' && historySelectedDate) {
-                startDate = format(historySelectedDate, 'yyyy-MM-dd');
-                endDate = startDate;
-            } else if (historyFilterType === 'range' && historyDateRange?.from) {
-                startDate = format(historyDateRange.from, 'yyyy-MM-dd');
-                endDate = historyDateRange.to ? format(historyDateRange.to, 'yyyy-MM-dd') : startDate;
-            }
-
-            // Build query
-            let query = supabase
-                .from('production_shifts')
-                .select(`
-                    *,
-                    lignes_production(*),
-                    arrets_production(*),
-                    production_modifications(*)
-                `)
-                .order('date', { ascending: false })
-                .order('shift_type', { ascending: false });
-
-            // Apply date filters only if a period is defined
-            if (startDate && endDate) {
-                query = query.gte('date', startDate).lte('date', endDate);
-            }
-
-            // Apply filters
-            if (historyShiftFilter !== 'all') {
-                const shiftValue = historyShiftFilter === '1' ? '10h-19h' : '20h-5h';
-                query = query.eq('shift_type', shiftValue);
-            }
-
-            if (historyShiftFilter !== 'all') {
-                const shiftValue = historyShiftFilter === '1' ? '10h-19h' : '20h-5h';
-                query = query.eq('shift_type', shiftValue);
-            }
-
-            // Note: Chef filter is applied in memory to handle both Chef de Quart and Chef de Ligne roles
-
-            const { data, error } = await query;
-
-            if (error) throw error;
-
-            // Fetch chef_quart data separately since FK relationship doesn't exist
-            let shiftsWithChefs = data || [];
-            if (shiftsWithChefs.length > 0) {
-                const chefIds = [...new Set(shiftsWithChefs.map((s: any) => s.chef_quart_id).filter(Boolean))];
-                if (chefIds.length > 0) {
-                    const { data: chefsData } = await supabase
-                        .from('chefs_quart')
-                        .select('id, nom, prenom')
-                        .in('id', chefIds);
-
-                    const chefsMap = new Map((chefsData || []).map((c: any) => [c.id, c]));
-                    shiftsWithChefs = shiftsWithChefs.map((shift: any) => ({
-                        ...shift,
-                        chef_quart: shift.chef_quart_id ? chefsMap.get(shift.chef_quart_id) : null
-                    }));
-                }
-            }
-
-            // Filter by ligne if needed (post-query since it's in related table)
-            let filteredData = shiftsWithChefs;
-
-            // Filter by Agent (Chef de Quart OR Chef de Ligne)
-            if (historyChefFilter !== 'all') {
-                filteredData = filteredData.filter((shift: any) => {
-                    // Check if agent is Chef de Quart
-                    const isChefQuart = shift.chef_quart_id === historyChefFilter;
-
-                    // Check if agent is Chef de Ligne on any line
-                    const lignes = shift.lignes_production || [];
-                    const isChefLigne = lignes.some((l: any) => l.chef_ligne_id === historyChefFilter);
-
-                    return isChefQuart || isChefLigne;
-                });
-            }
-
-            if (historyLigneFilter !== 'all') {
-                filteredData = filteredData.filter((shift: any) => {
-                    const lignes = shift.lignes_production || [];
-                    return lignes.some((l: any) => l.numero_ligne === parseInt(historyLigneFilter));
-                });
-            }
-
-            setProductionHistory(filteredData);
-        } catch (error) {
-            console.error('Error fetching production history:', error);
-        } finally {
-            setHistoryLoading(false);
-        }
-    };
-
-    const updateProductionShift = async (shiftId: string, updates: any, reason: string) => {
-        try {
-            // 1. Get current values
-            const { data: currentShift, error: fetchError } = await supabase
-                .from('production_shifts')
-                .select('*')
-                .eq('id', shiftId)
-                .single();
-
-            if (fetchError) throw fetchError;
-
-            // 2. Create audit trail entry (TODO: Implement when production_modifications table is created)
-            // const { data: { user } } = await supabase.auth.getUser();
-            // await supabase.from('production_modifications').insert({ ... });
-
-            // 3. Update production_shifts
-            const { error: updateError } = await supabase
-                .from('production_shifts')
-                .update(updates)
-                .eq('id', shiftId);
-
-            if (updateError) throw updateError;
-
-            // 4. Refresh history
-            await fetchProductionHistory();
-
-            return { success: true };
-        } catch (error) {
-            console.error('Error updating production shift:', error);
-            return { success: false, error };
-        }
-    };
-
-    const deleteProductionShift = async (shiftId: string, reason: string) => {
-        try {
-            // 1. Get current values for audit
-            const { data: currentShift, error: fetchError } = await supabase
-                .from('production_shifts')
-                .select('*')
-                .eq('id', shiftId)
-                .single();
-
-            if (fetchError) throw fetchError;
-
-            // 2. Create audit trail entry (TODO: Implement when production_modifications table is created)
-            // const { data: { user } } = await supabase.auth.getUser();
-            // await supabase.from('production_modifications').insert({ ... });
-
-            // 3. Delete production_shifts (cascade will delete related records)
-            const { error: deleteError } = await supabase
-                .from('production_shifts')
-                .delete()
-                .eq('id', shiftId);
-
-            if (deleteError) throw deleteError;
-
-            // 4. Refresh history
-            await fetchProductionHistory();
-
-            return { success: true };
-        } catch (error) {
-            console.error('Error deleting production shift:', error);
-            return { success: false, error };
-        }
-    };
-
-    const fetchShiftDetailsForEdit = async (shiftId: string) => {
-        try {
-            // Fetch shift with related lines and stops
-            // Note: We don't need to join chef_quart here as the form only needs chef_quart_id
-            // and loads the list of chefs separately
-            const { data, error } = await supabase
-                .from('production_shifts')
-                .select(`
-                    *,
-                    lignes_production(*),
-                    arrets_production(*)
-                `)
-                .eq('id', shiftId)
-                .single();
-
-            if (error) throw error;
-
-            return data;
-        } catch (error) {
-            console.error('Error fetching shift details:', error);
-            return null;
-        }
-    };
-
-
-    // Effect to fetch production history when filters change
-    useEffect(() => {
-        fetchProductionHistory();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
 
 
     const exportDashboardToExcel = () => {
@@ -2354,68 +2137,6 @@ const CentreEmplisseurView = ({
             </Dialog>
 
 
-
-            {/* 3. HISTORIQUE DES SAISIES */}
-            <ProductionHistory
-                history={productionHistory}
-                loading={historyLoading}
-                filterType={historyFilterType}
-                setFilterType={setHistoryFilterType}
-                selectedMonth={historySelectedMonth}
-                setSelectedMonth={setHistorySelectedMonth}
-                selectedDate={historySelectedDate}
-                setSelectedDate={setHistorySelectedDate}
-                dateRange={historyDateRange}
-                setDateRange={setHistoryDateRange}
-                shiftFilter={historyShiftFilter}
-                setShiftFilter={setHistoryShiftFilter}
-                ligneFilter={historyLigneFilter}
-                setLigneFilter={setHistoryLigneFilter}
-                chefFilter={historyChefFilter}
-                setChefFilter={setHistoryChefFilter}
-                availableMonths={availableMonths}
-                allAgents={allAgents}
-                onEdit={async (shiftId) => {
-                    const data = await fetchShiftDetailsForEdit(shiftId);
-                    setEditModalData(data);
-                    setSelectedShiftForEdit(shiftId);
-                }}
-                onDelete={async (shiftId) => {
-                    const reason = prompt("Raison de la suppression :");
-                    if (reason) {
-                        await deleteProductionShift(shiftId, reason);
-                    }
-                }}
-            />
-
-            {/* Edit Modal */}
-            <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
-                if (!open) {
-                    setSelectedShiftForEdit(null);
-                    setEditModalData(null);
-                }
-            }}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Modifier la saisie de production</DialogTitle>
-                    </DialogHeader>
-                    {editModalData && (
-                        <ProductionShiftForm
-                            editMode={true}
-                            initialData={editModalData}
-                            onSuccess={() => {
-                                setSelectedShiftForEdit(null);
-                                setEditModalData(null);
-                                fetchProductionHistory();
-                            }}
-                            onCancel={() => {
-                                setSelectedShiftForEdit(null);
-                                setEditModalData(null);
-                            }}
-                        />
-                    )}
-                </DialogContent>
-            </Dialog>
         </div >
     );
 };
