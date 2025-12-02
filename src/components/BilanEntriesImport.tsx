@@ -98,7 +98,13 @@ export function BilanEntriesImport({ onImportComplete }: BilanEntriesImportProps
             entry[header] = value;
           } else if (header === 'receptions') {
             try {
-              entry[header] = value ? JSON.parse(value) : [];
+              const parsedReceptions = value ? JSON.parse(value) : [];
+              // Mapper l'ancien format (provenance) vers le nouveau format (navire, reception_no)
+              entry[header] = parsedReceptions.map((r: any) => ({
+                quantity: r.quantity || 0,
+                navire: r.navire || r.provenance || '', // Si ancien format, provenance -> navire
+                reception_no: r.reception_no || '' // reception_no à remplir manuellement
+              }));
             } catch {
               entry[header] = [];
             }
