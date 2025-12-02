@@ -605,24 +605,7 @@ const CentreEmplisseurView = ({
                     return weightA - weightB;
                 }
 
-                // 2. Secondary Sort: Based on Role
-                if (a.displayRole === 'chef_ligne' && b.displayRole === 'chef_ligne') {
-                    // Sort by Line then Shift
-                    const getLineShiftKey = (agent: any) => {
-                        if (!agent.lines || agent.lines.length === 0) return 999999;
 
-                        const firstLine = agent.lines[0];
-                        const lineMatch = firstLine.match(/L(\d+)/);
-                        const shiftMatch = firstLine.match(/Shift (\d+)/);
-
-                        const lineNum = lineMatch ? parseInt(lineMatch[1]) : 99;
-                        const shiftNum = shiftMatch ? parseInt(shiftMatch[1]) : 99;
-
-                        return lineNum * 100 + shiftNum;
-                    };
-
-                    return getLineShiftKey(a) - getLineShiftKey(b);
-                }
 
                 // Default Sort: Tonnage Descending
                 return b.tonnage - a.tonnage;
