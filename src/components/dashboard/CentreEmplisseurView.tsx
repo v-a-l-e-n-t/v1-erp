@@ -2025,7 +2025,7 @@ const CentreEmplisseurView = ({
                                                         )}>
                                                             {(agent.productivite || 0).toFixed(1)}%
                                                         </div>
-                                                        <div className="text-xs font-medium text-muted-foreground mt-0.5">
+                                                        <div className="text-sm font-bold text-foreground mt-0.5">
                                                             {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                         </div>
                                                     </div>
@@ -2033,9 +2033,9 @@ const CentreEmplisseurView = ({
 
                                                 {/* 4. PROGRESS BAR */}
                                                 <div className="mt-4 space-y-1.5">
-                                                    <div className="flex justify-between text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                                                        <span>Contribution au volume produit</span>
-                                                        <span>{stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%</span>
+                                                    <div className="flex justify-between text-xs uppercase tracking-wider font-bold text-foreground">
+                                                        <span className="text-muted-foreground font-semibold text-[10px]">Contribution</span>
+                                                        <span className="text-primary">{stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%</span>
                                                     </div>
                                                     <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
                                                         <div
