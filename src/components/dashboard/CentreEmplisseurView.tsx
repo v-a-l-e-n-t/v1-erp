@@ -2037,7 +2037,7 @@ const CentreEmplisseurView = ({
                                                         <span className="text-muted-foreground font-semibold text-[10px]">Contribution</span>
                                                         <span className="text-primary">{stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%</span>
                                                     </div>
-                                                    <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
+                                                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
                                                         <div
                                                             className={cn("h-full rounded-full transition-all",
                                                                 agent.productivite >= 90 ? "bg-green-500" :
