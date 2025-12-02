@@ -52,8 +52,17 @@ const CentreEmplisseurView = ({
                 logging: false
             } as any);
 
+            // Generate timestamp
+            const now = new Date();
+            const timestamp = now.getFullYear() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0') + '_' +
+                String(now.getHours()).padStart(2, '0') +
+                String(now.getMinutes()).padStart(2, '0') +
+                String(now.getSeconds()).padStart(2, '0');
+
             const link = document.createElement('a');
-            link.download = `${filename}.png`;
+            link.download = `${filename}_${timestamp}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
         } catch (error) {
@@ -82,7 +91,17 @@ const CentreEmplisseurView = ({
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            pdf.save(`${filename}.pdf`);
+
+            // Generate timestamp
+            const now = new Date();
+            const timestamp = now.getFullYear() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0') + '_' +
+                String(now.getHours()).padStart(2, '0') +
+                String(now.getMinutes()).padStart(2, '0') +
+                String(now.getSeconds()).padStart(2, '0');
+
+            pdf.save(`${filename}_${timestamp}.pdf`);
         } catch (error) {
             console.error('Error exporting PDF:', error);
         }
@@ -1504,141 +1523,141 @@ const CentreEmplisseurView = ({
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-6" ref={section1Ref}>
-                    {/* Global Tonnage with Recharges, Consignes and Clients */}
-                    {/* Global Tonnage with Recharges, Consignes and Clients */}
-                    {/* Global Tonnage with Recharges, Consignes and Clients */}
-                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
-                        <div className="text-center mb-3">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Production Totale</p>
-                            <p className="text-4xl font-extrabold text-primary tracking-tight">
-                                {(stats.totalTonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                <span className="text-xl text-primary/60 ml-2">Kg</span>
-                            </p>
-                        </div>
-
-                        {/* Total Recharges et Consignes */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-primary/20">
-                            <div className="bg-card p-3 rounded-md border shadow-sm">
-                                <div className="text-center mb-2">
-                                    <p className="text-xs text-muted-foreground uppercase font-bold">Recharges</p>
-                                </div>
-                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B6</span>
-                                        <span className="font-bold">{stats.recharges.b6.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B12</span>
-                                        <span className="font-bold">{stats.recharges.b12.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B28</span>
-                                        <span className="font-bold">{stats.recharges.b28.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B38</span>
-                                        <span className="font-bold">{stats.recharges.b38.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                </div>
+                <CardContent className="space-y-6">
+                    {/* Production and Shifts - Section for Export */}
+                    <div ref={section1Ref}>
+                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
+                            <div className="text-center mb-3">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Production</p>
+                                <p className="text-4xl font-extrabold text-primary tracking-tight">
+                                    {(stats.totalTonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                    <span className="text-xl text-primary/60 ml-2">Kg</span>
+                                </p>
                             </div>
-                            <div className="bg-card p-3 rounded-md border shadow-sm">
-                                <div className="text-center mb-2">
-                                    <p className="text-xs text-muted-foreground uppercase font-bold">Consignes</p>
-                                </div>
-                                <div className="grid grid-cols-4 gap-1 text-center text-xs">
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B6</span>
-                                        <span className="font-bold">{stats.consignes.b6.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B12</span>
-                                        <span className="font-bold">{stats.consignes.b12.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B28</span>
-                                        <span className="font-bold">{stats.consignes.b28.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                    <div className="bg-muted/30 p-1 rounded">
-                                        <span className="block font-semibold text-muted-foreground">B38</span>
-                                        <span className="font-bold">{stats.consignes.b38.qty.toLocaleString('fr-FR')}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Production par Client */}
-                        <div className="mt-4 pt-3 border-t border-primary/20">
-                            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <Users className="h-3 w-3" />
-                                Production par Client
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                {['petro', 'vivo', 'total'].map((client) => {
-                                    const cStats = stats.clients[client as keyof typeof stats.clients] as any;
-                                    const names = { petro: 'Petro Ivoire', vivo: 'Vivo Energies', total: 'Total Energies' };
-                                    const logos = { petro: '/images/logo-petro.png', vivo: '/images/logo-vivo.png', total: '/images/logo-total.png' };
-
-                                    return (
-                                        <div key={client} className="p-3 bg-white/50 rounded-lg border border-primary/20 hover:shadow-sm transition-shadow">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="h-16 w-16 relative flex-shrink-0">
-                                                    <img
-                                                        src={logos[client as keyof typeof logos]}
-                                                        alt={names[client as keyof typeof names]}
-                                                        className="h-full w-full object-contain"
-                                                    />
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm font-extrabold text-foreground">{cStats.pct.toFixed(1)}%</p>
-                                                    <p className="text-sm font-extrabold text-primary">{cStats.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</p>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
-                                                <div className="bg-primary/5 p-1 rounded">
-                                                    <span className="block text-muted-foreground">B6</span>
-                                                    <span className="font-bold">{cStats.b6.toLocaleString('fr-FR')}</span>
-                                                </div>
-                                                <div className="bg-primary/5 p-1 rounded">
-                                                    <span className="block text-muted-foreground">B12</span>
-                                                    <span className="font-bold">{cStats.b12.toLocaleString('fr-FR')}</span>
-                                                </div>
-                                                <div className="bg-primary/5 p-1 rounded">
-                                                    <span className="block text-muted-foreground">B28</span>
-                                                    <span className="font-bold">{cStats.b28.toLocaleString('fr-FR')}</span>
-                                                </div>
-                                                <div className="bg-primary/5 p-1 rounded">
-                                                    <span className="block text-muted-foreground">B38</span>
-                                                    <span className="font-bold">{cStats.b38.toLocaleString('fr-FR')}</span>
-                                                </div>
-                                            </div>
+                            {/* Total Recharges et Consignes */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-primary/20">
+                                <div className="bg-card p-3 rounded-md border shadow-sm">
+                                    <div className="text-center mb-2">
+                                        <p className="text-xs text-muted-foreground uppercase font-bold">Recharges</p>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B6</span>
+                                            <span className="font-bold">{stats.recharges.b6.qty.toLocaleString('fr-FR')}</span>
                                         </div>
-                                    );
-                                })}
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B12</span>
+                                            <span className="font-bold">{stats.recharges.b12.qty.toLocaleString('fr-FR')}</span>
+                                        </div>
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B28</span>
+                                            <span className="font-bold">{stats.recharges.b28.qty.toLocaleString('fr-FR')}</span>
+                                        </div>
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B38</span>
+                                            <span className="font-bold">{stats.recharges.b38.qty.toLocaleString('fr-FR')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-card p-3 rounded-md border shadow-sm">
+                                    <div className="text-center mb-2">
+                                        <p className="text-xs text-muted-foreground uppercase font-bold">Consignes</p>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-1 text-center text-xs">
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B6</span>
+                                            <span className="font-bold">{stats.consignes.b6.qty.toLocaleString('fr-FR')}</span>
+                                        </div>
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B12</span>
+                                            <span className="font-bold">{stats.consignes.b12.qty.toLocaleString('fr-FR')}</span>
+                                        </div>
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B28</span>
+                                            <span className="font-bold">{stats.consignes.b28.qty.toLocaleString('fr-FR')}</span>
+                                        </div>
+                                        <div className="bg-muted/30 p-1 rounded">
+                                            <span className="block font-semibold text-muted-foreground">B38</span>
+                                            <span className="font-bold">{stats.consignes.b38.qty.toLocaleString('fr-FR')}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Shifts Breakdown */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-muted/30 rounded-lg border">
-                            <div className="flex justify-between items-center mb-3">
-                                <span className="font-bold text-lg">Shift 1</span>
-                                <span className="font-bold text-xl text-primary">{(stats.shift1.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
-                            </div>
-                            <div className="flex justify-between text-sm text-muted-foreground">
-                                <span>Recharges: <span className="font-medium text-foreground">{stats.shift1.recharges.toLocaleString('fr-FR')}</span></span>
-                                <span>Consignes: <span className="font-medium text-foreground">{stats.shift1.consignes.toLocaleString('fr-FR')}</span></span>
+                            {/* Production par Client */}
+                            <div className="mt-4 pt-3 border-t border-primary/20">
+                                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+                                    <Users className="h-3 w-3" />
+                                    Production par Client
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {['petro', 'vivo', 'total'].map((client) => {
+                                        const cStats = stats.clients[client as keyof typeof stats.clients] as any;
+                                        const names = { petro: 'Petro Ivoire', vivo: 'Vivo Energies', total: 'Total Energies' };
+                                        const logos = { petro: '/images/logo-petro.png', vivo: '/images/logo-vivo.png', total: '/images/logo-total.png' };
+
+                                        return (
+                                            <div key={client} className="p-3 bg-white/50 rounded-lg border border-primary/20 hover:shadow-sm transition-shadow">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="h-16 w-16 relative flex-shrink-0">
+                                                        <img
+                                                            src={logos[client as keyof typeof logos]}
+                                                            alt={names[client as keyof typeof names]}
+                                                            className="h-full w-full object-contain"
+                                                        />
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-extrabold text-foreground">{cStats.pct.toFixed(1)}%</p>
+                                                        <p className="text-sm font-extrabold text-primary">{cStats.tonnage.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</p>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
+                                                    <div className="bg-primary/5 p-1 rounded">
+                                                        <span className="block text-muted-foreground">B6</span>
+                                                        <span className="font-bold">{cStats.b6.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="bg-primary/5 p-1 rounded">
+                                                        <span className="block text-muted-foreground">B12</span>
+                                                        <span className="font-bold">{cStats.b12.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="bg-primary/5 p-1 rounded">
+                                                        <span className="block text-muted-foreground">B28</span>
+                                                        <span className="font-bold">{cStats.b28.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                    <div className="bg-primary/5 p-1 rounded">
+                                                        <span className="block text-muted-foreground">B38</span>
+                                                        <span className="font-bold">{cStats.b38.toLocaleString('fr-FR')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
-                        <div className="p-4 bg-muted/30 rounded-lg border">
-                            <div className="flex justify-between items-center mb-3">
-                                <span className="font-bold text-lg">Shift 2</span>
-                                <span className="font-bold text-xl text-primary">{(stats.shift2.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+
+                        {/* Shifts Breakdown */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                            <div className="p-4 bg-muted/30 rounded-lg border">
+                                <div className="flex justify-between items-center mb-3">
+                                    <span className="font-bold text-lg">Shift 1</span>
+                                    <span className="font-bold text-xl text-primary">{(stats.shift1.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Recharges: <span className="font-medium text-foreground">{stats.shift1.recharges.toLocaleString('fr-FR')}</span></span>
+                                    <span>Consignes: <span className="font-medium text-foreground">{stats.shift1.consignes.toLocaleString('fr-FR')}</span></span>
+                                </div>
                             </div>
-                            <div className="flex justify-between text-sm text-muted-foreground">
-                                <span>Recharges: <span className="font-medium text-foreground">{stats.shift2.recharges.toLocaleString('fr-FR')}</span></span>
-                                <span>Consignes: <span className="font-medium text-foreground">{stats.shift2.consignes.toLocaleString('fr-FR')}</span></span>
+                            <div className="p-4 bg-muted/30 rounded-lg border">
+                                <div className="flex justify-between items-center mb-3">
+                                    <span className="font-bold text-lg">Shift 2</span>
+                                    <span className="font-bold text-xl text-primary">{(stats.shift2.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Recharges: <span className="font-medium text-foreground">{stats.shift2.recharges.toLocaleString('fr-FR')}</span></span>
+                                    <span>Consignes: <span className="font-medium text-foreground">{stats.shift2.consignes.toLocaleString('fr-FR')}</span></span>
+                                </div>
                             </div>
                         </div>
                     </div>
