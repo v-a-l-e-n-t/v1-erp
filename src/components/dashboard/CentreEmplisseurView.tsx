@@ -1949,15 +1949,36 @@ const CentreEmplisseurView = ({
                                 const isFirst = index === 0;
                                 const isLast = index === allAgentsComparison.length - 1 && allAgentsComparison.length > 1;
 
-                                // Determine border color
-                                let borderColor = "border-l-blue-500";
-                                if (isFirst) borderColor = "border-l-green-500";
-                                if (isLast) borderColor = "border-l-red-500";
-
                                 // Determine separator
                                 const needsSeparator = index > 0 &&
                                     agent.displayRole === 'chef_ligne' &&
                                     allAgentsComparison[index - 1].displayRole === 'chef_quart';
+
+                                // Calculate Contribution Color Status
+                                const contribution = stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0;
+                                let statusColor = "red"; // default
+                                if (agent.displayRole === 'chef_quart') {
+                                    statusColor = contribution > 50 ? "green" : "red";
+                                } else {
+                                    // Chef de Ligne
+                                    if (contribution > 8) statusColor = "green";
+                                    else if (contribution >= 5) statusColor = "orange";
+                                    else statusColor = "red";
+                                }
+
+                                // Map status to Tailwind classes
+                                const borderClass = statusColor === 'green' ? 'border-l-green-500' :
+                                    statusColor === 'orange' ? 'border-l-orange-500' : 'border-l-red-500';
+
+                                const bgClass = statusColor === 'green' ? 'bg-green-50/50' :
+                                    statusColor === 'orange' ? 'bg-orange-50/50' : 'bg-red-50/50';
+
+                                const rankClass = statusColor === 'green' ? 'bg-green-100 text-green-700 border-green-400' :
+                                    statusColor === 'orange' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                                        'bg-red-100 text-red-700 border-red-300';
+
+                                const barClass = statusColor === 'green' ? 'bg-green-500' :
+                                    statusColor === 'orange' ? 'bg-orange-500' : 'bg-red-500';
 
                                 return (
                                     <Fragment key={agent.id}>
@@ -1974,9 +1995,11 @@ const CentreEmplisseurView = ({
                                         <Card
                                             className={cn(
                                                 "cursor-pointer transition-all hover:shadow-md border-l-4 group",
-                                                borderColor,
-                                                isFirst && agent.displayRole === 'chef_ligne' ? "bg-green-50/50" : "",
-                                                isLast && agent.displayRole === 'chef_ligne' ? "bg-red-50/50" : ""
+                                                borderClass,
+                                                // Only apply background tint if it was previously applied logic (first/last) OR we can apply it to all based on status?
+                                                // User asked for border and rank. Let's keep background subtle or remove specific first/last logic to be consistent with color.
+                                                // Let's apply the tint based on status for consistency as requested "harmoniser tout ça"
+                                                bgClass
                                             )}
                                             onClick={() => {
                                                 setSelectedAgentForModal(agent.id);
@@ -1987,10 +2010,7 @@ const CentreEmplisseurView = ({
                                                     {/* 1. RANK */}
                                                     <div className={cn(
                                                         "flex-shrink-0 w-14 h-14 flex items-center justify-center rounded-full font-extrabold text-2xl border-4 shadow-sm",
-                                                        isFirst ? "bg-yellow-100 text-yellow-700 border-yellow-400" :
-                                                            index === 1 ? "bg-slate-100 text-slate-700 border-slate-300" :
-                                                                index === 2 ? "bg-orange-100 text-orange-800 border-orange-300" :
-                                                                    "bg-muted/30 text-muted-foreground border-transparent"
+                                                        rankClass
                                                     )}>
                                                         {agent.displayRole === 'chef_quart' ?
                                                             `#${allAgentsComparison.filter(a => a.displayRole === 'chef_quart').findIndex(a => a.id === agent.id) + 1}` :
@@ -2033,16 +2053,15 @@ const CentreEmplisseurView = ({
 
                                                 {/* 4. PROGRESS BAR */}
                                                 <div className="mt-4 space-y-1.5">
-                                                    <div className="flex justify-between text-xs uppercase tracking-wider font-bold text-foreground">
-                                                        <span className="text-muted-foreground font-semibold text-[10px]">Contribution</span>
-                                                        <span className="text-primary">{stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%</span>
+                                                    <div className="flex justify-between text-xs uppercase tracking-wider font-bold text-foreground items-end">
+                                                        <span className="text-muted-foreground font-semibold text-[10px] mb-0.5">Contribution</span>
+                                                        <span className="text-primary text-lg font-extrabold leading-none">
+                                                            {stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%
+                                                        </span>
                                                     </div>
                                                     <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
                                                         <div
-                                                            className={cn("h-full rounded-full transition-all",
-                                                                agent.productivite >= 90 ? "bg-green-500" :
-                                                                    agent.productivite >= 70 ? "bg-orange-500" : "bg-red-500"
-                                                            )}
+                                                            className={cn("h-full rounded-full transition-all", barClass)}
                                                             style={{ width: `${stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0}%` }}
                                                         />
                                                     </div>
