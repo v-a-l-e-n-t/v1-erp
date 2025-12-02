@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
-import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown } from 'lucide-react';
+import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown, FileSpreadsheet } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -16,6 +16,8 @@ import ProductionHistory from './ProductionHistory';
 import { ProductionShiftForm } from '../ProductionShiftForm';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -40,6 +42,7 @@ const CentreEmplisseurView = ({
     const section1Ref = useRef<HTMLDivElement>(null);
     const section2Ref = useRef<HTMLDivElement>(null);
     const section3Ref = useRef<HTMLDivElement>(null);
+    const agentModalRef = useRef<HTMLDivElement>(null);
 
     // Export utility functions
     const exportSectionAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
@@ -107,6 +110,10 @@ const CentreEmplisseurView = ({
         }
     };
 
+
+
+
+
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         // Global
@@ -149,7 +156,8 @@ const CentreEmplisseurView = ({
             vivo: { qty: 0, pct: 0, tonnage: 0, b6: 0, b12: 0, b28: 0, b38: 0 },
             total: { qty: 0, pct: 0, tonnage: 0, b6: 0, b12: 0, b28: 0, b38: 0 },
             global: 0
-        }
+        },
+        dailyHistory: {} as Record<string, any>
     });
 
     // Agent productivity states
@@ -1385,6 +1393,92 @@ const CentreEmplisseurView = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
 
+    const exportDashboardToExcel = () => {
+        try {
+            const wb = XLSX.utils.book_new();
+
+            // --- SHEET 1: VUE GLOBALE ---
+            const globalData = [
+                ['RAPPORT CENTRE EMPLISSEUR', ''],
+                ['Date générée:', new Date().toLocaleString('fr-FR')],
+                ['Période:', filterType === 'month' ? selectedMonth : filterType === 'date' ? (selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '-') : (dateRange?.from ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : ''}` : '-')],
+                ['', ''],
+                ['PRODUCTION TOTALE', ''],
+                ['Volume Total (Kg)', stats.totalTonnage * 1000],
+                ['', ''],
+                ['SHIFTS', 'Tonnage (Kg)', 'Recharges', 'Consignes'],
+                ['Shift 1', stats.shift1.tonnage * 1000, stats.shift1.recharges, stats.shift1.consignes],
+                ['Shift 2', stats.shift2.tonnage * 1000, stats.shift2.recharges, stats.shift2.consignes],
+                ['', ''],
+                ['CLIENTS', 'Tonnage (Kg)', 'Part (%)', 'B6', 'B12', 'B28', 'B38'],
+                ['Petro Ivoire', stats.clients.petro.tonnage, stats.clients.petro.pct, stats.clients.petro.b6, stats.clients.petro.b12, stats.clients.petro.b28, stats.clients.petro.b38],
+                ['Vivo Energies', stats.clients.vivo.tonnage, stats.clients.vivo.pct, stats.clients.vivo.b6, stats.clients.vivo.b12, stats.clients.vivo.b28, stats.clients.vivo.b38],
+                ['Total Energies', stats.clients.total.tonnage, stats.clients.total.pct, stats.clients.total.b6, stats.clients.total.b12, stats.clients.total.b28, stats.clients.total.b38],
+            ];
+            const wsGlobal = XLSX.utils.aoa_to_sheet(globalData);
+
+            // Styling columns
+            wsGlobal['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, wsGlobal, 'Vue Globale');
+
+            // --- SHEET 2: DÉTAIL LIGNES ---
+            const linesHeader = ['Ligne', 'Tonnage (Kg)', 'Part (%)', 'Recharges', 'Consignes'];
+            const linesData = stats.lines.map(line => [
+                `Ligne ${line.id}`,
+                line.tonnage * 1000,
+                line.percentage,
+                line.recharges,
+                line.consignes
+            ]);
+            const wsLines = XLSX.utils.aoa_to_sheet([linesHeader, ...linesData]);
+            wsLines['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, wsLines, 'Détail Lignes');
+
+            // --- SHEET 3: PERFORMANCE AGENTS ---
+            const agentsHeader = ['Rang', 'Nom', 'Prénom', 'Rôle', 'Tonnage (Kg)', 'Productivité (%)', 'Temps Arrêt (min)', 'Contribution (%)'];
+            const agentsData = allAgentsComparison.map((agent, index) => [
+                index + 1,
+                agent.nom,
+                agent.prenom,
+                agent.displayRole === 'chef_quart' ? 'Chef de Quart' : 'Chef de Ligne',
+                agent.tonnage * 1000,
+                agent.productivite,
+                agent.tempsArret,
+                stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(2) : 0
+            ]);
+            const wsAgents = XLSX.utils.aoa_to_sheet([agentsHeader, ...agentsData]);
+            wsAgents['!cols'] = [{ wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+            XLSX.utils.book_append_sheet(wb, wsAgents, 'Performance Agents');
+
+            // --- SHEET 4: DONNÉES GRAPHIQUES (Daily History) ---
+            const graphHeader = ['Date', 'Tonnage (Kg)', 'Productivité (%)', 'Temps Arrêt (min)'];
+            const graphData = Object.entries(stats.dailyHistory || {}).map(([date, data]: [string, any]) => [
+                date,
+                data.tonnage * 1000,
+                data.tauxPerformance,
+                data.tempsArret
+            ]).sort((a, b) => new Date(a[0] as string).getTime() - new Date(b[0] as string).getTime());
+
+            const wsGraph = XLSX.utils.aoa_to_sheet([graphHeader, ...graphData]);
+            wsGraph['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+            XLSX.utils.book_append_sheet(wb, wsGraph, 'Données Graphiques');
+
+            // Generate filename with timestamp
+            const now = new Date();
+            const timestamp = now.getFullYear() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0') + '_' +
+                String(now.getHours()).padStart(2, '0') +
+                String(now.getMinutes()).padStart(2, '0');
+
+            XLSX.writeFile(wb, `rapport-centre-emplisseur-${timestamp}.xlsx`);
+            toast.success("Rapport Excel complet généré avec succès");
+        } catch (error) {
+            console.error("Erreur lors de l'export Excel:", error);
+            toast.error("Erreur lors de la génération du rapport Excel");
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -1402,6 +1496,14 @@ const CentreEmplisseurView = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        variant="outline"
+                        className="h-9 gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
+                        onClick={exportDashboardToExcel}
+                    >
+                        <FileSpreadsheet className="h-4 w-4" />
+                        Rapport Excel
+                    </Button>
                     <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
                         <SelectTrigger className="w-[160px]">
                             <SelectValue />
@@ -1902,14 +2004,42 @@ const CentreEmplisseurView = ({
             <Dialog open={!!selectedAgentForModal} onOpenChange={(open) => !open && setSelectedAgentForModal(null)}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl flex items-center gap-2">
-                            <Users className="h-6 w-6 text-primary" />
-                            {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.prenom} {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.nom}
-                        </DialogTitle>
+                        <div className="flex items-center justify-between">
+                            <DialogTitle className="text-2xl flex items-center gap-2">
+                                <Users className="h-6 w-6 text-primary" />
+                                {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.prenom} {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.nom}
+                            </DialogTitle>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const agent = allAgentsComparison.find(a => a.id === selectedAgentForModal);
+                                        const filename = `statistiques-${agent?.prenom}-${agent?.nom}`.toLowerCase().replace(/\s+/g, '-');
+                                        exportSectionAsImage(agentModalRef, filename);
+                                    }}
+                                >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Image
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const agent = allAgentsComparison.find(a => a.id === selectedAgentForModal);
+                                        const filename = `statistiques-${agent?.prenom}-${agent?.nom}`.toLowerCase().replace(/\s+/g, '-');
+                                        exportSectionAsPDF(agentModalRef, filename);
+                                    }}
+                                >
+                                    <FileDown className="h-4 w-4 mr-2" />
+                                    PDF
+                                </Button>
+                            </div>
+                        </div>
                     </DialogHeader>
 
                     {agentModalData ? (
-                        <div className="space-y-6 py-4">
+                        <div className="space-y-6 py-4" ref={agentModalRef}>
 
                             {/* CARD 1: Volume Produit */}
                             <Card className="border-l-4 border-l-blue-500">
