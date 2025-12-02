@@ -13,7 +13,8 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
   // Process receptions with precise decimal arithmetic (already in kg)
   const receptions = formData.receptions.map(r => ({
     quantity: new Decimal(r.quantity || 0).toNumber(),
-    provenance: r.provenance
+    navire: r.navire || '',
+    reception_no: r.reception_no || ''
   }));
   const reception_gpl = receptions.reduce((sum, r) => sum.plus(r.quantity), new Decimal(0));
   

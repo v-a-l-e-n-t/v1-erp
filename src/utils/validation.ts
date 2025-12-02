@@ -7,10 +7,16 @@ export const receptionSchema = z.object({
     .refine(val => !isNaN(parseFloat(val)), 'Quantité invalide')
     .refine(val => parseFloat(val) >= 0, 'La quantité doit être positive')
     .refine(val => parseFloat(val) <= 10000000, 'Quantité trop élevée (max 10 000 000 kg)'),
-  provenance: z.string()
+  navire: z.string()
     .trim()
-    .min(1, 'La provenance est requise')
-    .max(200, 'La provenance ne peut pas dépasser 200 caractères')
+    .max(200, 'Le navire ne peut pas dépasser 200 caractères')
+    .optional()
+    .default(''),
+  reception_no: z.string()
+    .trim()
+    .max(100, 'Le N° réception ne peut pas dépasser 100 caractères')
+    .optional()
+    .default('')
 });
 
 // Schema for the full bilan form

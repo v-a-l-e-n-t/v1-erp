@@ -60,7 +60,8 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
         reservoirs_initial: editEntry.reservoirs_initial.toString(),
         receptions: editEntry.receptions.map(r => ({
           quantity: r.quantity.toString(),
-          provenance: r.provenance || ''
+          navire: r.navire || '',
+          reception_no: r.reception_no || ''
         })),
         sorties_vrac_simam: editEntry.sorties_vrac_simam.toString(),
         sorties_vrac_petro_ivoire: editEntry.sorties_vrac_petro_ivoire.toString(),
@@ -138,7 +139,7 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
   const addReception = () => {
     setFormData(prev => ({
       ...prev,
-      receptions: [...prev.receptions, { quantity: '', provenance: '' }]
+      receptions: [...prev.receptions, { quantity: '', navire: '', reception_no: '' }]
     }));
   };
 
@@ -149,7 +150,7 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
     }));
   };
 
-  const updateReception = (index: number, field: 'quantity' | 'provenance', value: string) => {
+  const updateReception = (index: number, field: 'quantity' | 'navire' | 'reception_no', value: string) => {
     setFormData(prev => ({
       ...prev,
       receptions: prev.receptions.map((r, i) => 
@@ -299,8 +300,8 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
             </p>
           ) : (
             formData.receptions.map((reception, index) => (
-              <div key={index} className="flex gap-4 items-end">
-                <div className="w-40 space-y-2">
+              <div key={index} className="flex gap-4 items-end flex-wrap">
+                <div className="w-32 space-y-2">
                   <Label>Quantité (kg)</Label>
                   <Input
                     type="number"
@@ -310,13 +311,22 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                     placeholder="0.000"
                   />
                 </div>
-                <div className="flex-1 space-y-2">
-                  <Label>Provenance</Label>
+                <div className="w-32 space-y-2">
+                  <Label>N° Réception</Label>
                   <Input
                     type="text"
-                    value={reception.provenance}
-                    onChange={(e) => updateReception(index, 'provenance', e.target.value)}
-                    placeholder="Ex: RECEPTION 54_Pompage N°02_PETROCI"
+                    value={reception.reception_no}
+                    onChange={(e) => updateReception(index, 'reception_no', e.target.value)}
+                    placeholder="Ex: RECEPTION 54"
+                  />
+                </div>
+                <div className="flex-1 min-w-[200px] space-y-2">
+                  <Label>Navire</Label>
+                  <Input
+                    type="text"
+                    value={reception.navire}
+                    onChange={(e) => updateReception(index, 'navire', e.target.value)}
+                    placeholder="Ex: Pompage N°02_PETROCI"
                   />
                 </div>
                 <Button
