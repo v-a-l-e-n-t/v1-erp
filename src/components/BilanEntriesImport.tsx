@@ -59,52 +59,57 @@ export function BilanEntriesImport({ onImportComplete }: BilanEntriesImportProps
       
       const bilansData: any[] = [];
       
+      // Liste des champs numériques
+      const numericFields = [
+        'stock_initial', 'reception_gpl', 'sorties_vrac', 'sorties_conditionnees', 
+        'fuyardes', 'cumul_sorties', 'stock_theorique', 'stock_final', 'bilan',
+        'spheres_initial', 'bouteilles_initial', 'reservoirs_initial',
+        'spheres_final', 'bouteilles_final', 'reservoirs_final',
+        // Nouveaux champs par client (peuvent être absents dans l'ancien CSV)
+        'sorties_vrac_simam', 'sorties_vrac_petro_ivoire', 'sorties_vrac_vivo_energies', 'sorties_vrac_total_energies',
+        'sorties_conditionnees_petro_ivoire', 'sorties_conditionnees_vivo_energies', 'sorties_conditionnees_total_energies',
+        'fuyardes_petro_ivoire', 'fuyardes_vivo_energies', 'fuyardes_total_energies'
+      ];
+      
       for (const line of dataLines) {
         const values = parseCSVLine(line);
         if (values.length < headers.length) continue;
         
         const entry: any = {};
+        
+        // Initialiser tous les champs par client à 0 par défaut
+        entry.sorties_vrac_simam = 0;
+        entry.sorties_vrac_petro_ivoire = 0;
+        entry.sorties_vrac_vivo_energies = 0;
+        entry.sorties_vrac_total_energies = 0;
+        entry.sorties_conditionnees_petro_ivoire = 0;
+        entry.sorties_conditionnees_vivo_energies = 0;
+        entry.sorties_conditionnees_total_energies = 0;
+        entry.fuyardes_petro_ivoire = 0;
+        entry.fuyardes_vivo_energies = 0;
+        entry.fuyardes_total_energies = 0;
+        
         headers.forEach((header, index) => {
           const value = values[index]?.trim();
           
-          switch (header) {
-            case 'id':
-            case 'user_id':
-              entry[header] = value || null;
-              break;
-            case 'date':
-              entry[header] = value;
-              break;
-            case 'receptions':
-              try {
-                entry[header] = value ? JSON.parse(value) : [];
-              } catch {
-                entry[header] = [];
-              }
-              break;
-            case 'stock_initial':
-            case 'reception_gpl':
-            case 'sorties_vrac':
-            case 'sorties_conditionnees':
-            case 'fuyardes':
-            case 'cumul_sorties':
-            case 'stock_theorique':
-            case 'stock_final':
-            case 'bilan':
-            case 'spheres_initial':
-            case 'bouteilles_initial':
-            case 'reservoirs_initial':
-            case 'spheres_final':
-            case 'bouteilles_final':
-            case 'reservoirs_final':
-              entry[header] = value ? parseFloat(value) : 0;
-              break;
-            case 'created_at':
-            case 'updated_at':
-              entry[header] = value;
-              break;
-            default:
-              entry[header] = value || null;
+          if (header === 'id' || header === 'user_id') {
+            entry[header] = value || null;
+          } else if (header === 'date') {
+            entry[header] = value;
+          } else if (header === 'receptions') {
+            try {
+              entry[header] = value ? JSON.parse(value) : [];
+            } catch {
+              entry[header] = [];
+            }
+          } else if (header === 'nature' || header === 'notes') {
+            entry[header] = value || (header === 'nature' ? 'Neutre' : null);
+          } else if (header === 'created_at' || header === 'updated_at') {
+            entry[header] = value;
+          } else if (numericFields.includes(header)) {
+            entry[header] = value ? parseFloat(value) : 0;
+          } else {
+            entry[header] = value || null;
           }
         });
         
