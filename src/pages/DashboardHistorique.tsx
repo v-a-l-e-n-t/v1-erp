@@ -9,7 +9,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,7 +18,7 @@ import CentreEmplisseurView from '@/components/dashboard/CentreEmplisseurView';
 const DashboardHistorique = () => {
   const navigate = useNavigate();
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur' | 'sorties'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -173,14 +173,14 @@ const DashboardHistorique = () => {
               <h1 className="text-3xl font-bold text-primary">GazPilote</h1>
             </div>
             <div className="flex items-center gap-4">
-              {(activeView === 'overview' || activeView === 'vrac') && (
-                <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-6 py-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs font-semibold text-orange-600/70 uppercase tracking-wider">
+              {(activeView === 'overview' || activeView === 'sorties' || activeView === 'vrac') && (
+                <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-3 py-1 shadow-sm">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
                       SORTIE VRAC ANNUELLE :
                     </p>
                     <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-6 w-20 text-xs font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-16 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -190,21 +190,21 @@ const DashboardHistorique = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <p className="text-4xl font-extrabold text-orange-600 tracking-tight">
-                    {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
-                    <span className="text-lg font-semibold text-orange-600/60 ml-2">Kg</span>
+                  <p className="text-2xl font-extrabold text-orange-600 tracking-tight">
+                    {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                    <span className="text-sm font-semibold text-orange-600/60 ml-1.5">Kg</span>
                   </p>
                 </div>
               )}
 
-              {(activeView === 'overview' || activeView === 'emplisseur') && (
-                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-6 py-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider">
+              {(activeView === 'overview' || activeView === 'emplisseur' || activeView === 'vrac') && (
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-3 py-1 shadow-sm">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
                       PRODUCTION ANNUELLE CE :
                     </p>
                     <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-6 w-20 text-xs font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-16 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -214,9 +214,9 @@ const DashboardHistorique = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <p className="text-4xl font-extrabold text-primary tracking-tight">
-                    {(productionAnnuelle * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
-                    <span className="text-lg font-semibold text-primary/60 ml-2">Kg</span>
+                  <p className="text-2xl font-extrabold text-primary tracking-tight">
+                    {(productionAnnuelle * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                    <span className="text-sm font-semibold text-primary/60 ml-1.5">Kg</span>
                   </p>
                 </div>
               )}
@@ -227,7 +227,7 @@ const DashboardHistorique = () => {
 
       <main className="container mx-auto px-4 py-8">
         {/* Navigation Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Button
             variant={activeView === 'overview' ? 'default' : 'outline'}
             size="lg"
@@ -245,7 +245,7 @@ const DashboardHistorique = () => {
             onClick={() => setActiveView('vrac')}
           >
             <FileText className="mr-3 h-6 w-6" />
-            Dépôt Vrac
+            Historique des saisies
           </Button>
 
           <Button
@@ -255,7 +255,17 @@ const DashboardHistorique = () => {
             onClick={() => setActiveView('emplisseur')}
           >
             <Calculator className="mr-3 h-6 w-6" />
-            Centre Emplisseur
+            PRODUCTION
+          </Button>
+
+          <Button
+            variant={activeView === 'sorties' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('sorties')}
+          >
+            <ArrowUpRight className="mr-3 h-6 w-6" />
+            SORTIES
           </Button>
         </div>
 
@@ -268,7 +278,7 @@ const DashboardHistorique = () => {
           {activeView === 'vrac' && (
             <div className="space-y-6">
               <div className="bg-card rounded-lg p-6 border shadow-sm">
-                <h2 className="text-2xl font-bold mb-4">Gestion Dépôt Vrac</h2>
+                <h2 className="text-2xl font-bold mb-4">Historique des saisies</h2>
                 <p className="text-muted-foreground mb-6">Historique des mouvements de stock et bilans matière.</p>
                 <HistoryTable
                   entries={entries}
@@ -292,6 +302,18 @@ const DashboardHistorique = () => {
               selectedMonth={selectedMonth}
               setSelectedMonth={setSelectedMonth}
             />
+          )}
+
+          {activeView === 'sorties' && (
+            <div className="flex flex-col items-center justify-center min-h-[400px] bg-card rounded-lg border shadow-sm p-8 text-center">
+              <div className="bg-primary/10 p-4 rounded-full mb-4">
+                <ArrowUpRight className="h-12 w-12 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Espace SORTIES</h2>
+              <p className="text-muted-foreground max-w-md">
+                Cette section est en cours de construction. Elle permettra de gérer et visualiser les sorties de stock.
+              </p>
+            </div>
           )}
         </div>
       </main>
