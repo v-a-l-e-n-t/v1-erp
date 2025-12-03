@@ -79,7 +79,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
         if (shiftsResult.error) throw shiftsResult.error;
         if (lignesResult.error) throw lignesResult.error;
 
-        const totalTonnage = shiftsResult.data?.reduce((sum, row) => sum + (Number(row.tonnage_total) || 0), 0) || 0;
+        const totalTonnage = (shiftsResult.data?.reduce((sum, row) => sum + (Number(row.tonnage_total) || 0), 0) || 0) * 1000;
         const totalBouteilles = shiftsResult.data?.reduce((sum, row) => sum + (row.bouteilles_produites || 0), 0) || 0;
 
         // Calculate bottles by type
