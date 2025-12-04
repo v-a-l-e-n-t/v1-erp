@@ -79,8 +79,7 @@ const VentesView = ({
     setSelectedMonth
 }: VentesViewProps) => {
     const [loading, setLoading] = useState(false);
-    const [clientFilter, setClientFilter] = useState<string>('all');
-    const [typeFilter, setTypeFilter] = useState<string>('all');
+
     const [ventesData, setVentesData] = useState<VentesData>({
         totalVentes: 0,
         totalVrac: 0,
@@ -388,29 +387,7 @@ const VentesView = ({
                         </Popover>
                     )}
 
-                    <Select value={clientFilter} onValueChange={setClientFilter}>
-                        <SelectTrigger className="w-[160px]">
-                            <SelectValue placeholder="Tous les clients" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tous les clients</SelectItem>
-                            <SelectItem value="simam">Simam</SelectItem>
-                            <SelectItem value="petro">Petro Ivoire</SelectItem>
-                            <SelectItem value="vivo">Vivo Energies</SelectItem>
-                            <SelectItem value="total">Total Energies</SelectItem>
-                        </SelectContent>
-                    </Select>
 
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
-                        <SelectTrigger className="w-[160px]">
-                            <SelectValue placeholder="Tous les types" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tous les types</SelectItem>
-                            <SelectItem value="vrac">Vrac</SelectItem>
-                            <SelectItem value="conditionne">Conditionné</SelectItem>
-                        </SelectContent>
-                    </Select>
                 </div>
             </div>
 
