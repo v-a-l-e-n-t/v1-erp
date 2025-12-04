@@ -441,21 +441,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
       </div>
 
       <div className="space-y-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Bilan Matière */}
-          <Card className="flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Bilan Matière</CardTitle>
-              <TrendingUpDown className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className={`text-2xl font-bold ${totalBilan > 0 ? 'text-success' : totalBilan < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                {formatNumber(totalBilan)} Kg
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Réception Navire */}
           <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
