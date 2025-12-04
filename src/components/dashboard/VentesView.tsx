@@ -95,7 +95,15 @@ const VentesView = ({
             const canvas = await html2canvas(ref.current, {
                 scale: 2,
                 backgroundColor: '#ffffff',
-                logging: false
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                onclone: (document) => {
+                    const element = document.getElementById(ref.current?.id || '');
+                    if (element) {
+                        element.style.transform = 'none';
+                    }
+                }
             } as any);
 
             const now = new Date();
@@ -121,7 +129,15 @@ const VentesView = ({
             const canvas = await html2canvas(ref.current, {
                 scale: 2,
                 backgroundColor: '#ffffff',
-                logging: false
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                onclone: (document) => {
+                    const element = document.getElementById(ref.current?.id || '');
+                    if (element) {
+                        element.style.transform = 'none';
+                    }
+                }
             } as any);
 
             const imgData = canvas.toDataURL('image/png');
@@ -474,7 +490,7 @@ const VentesView = ({
             {/* Ventes Globales Section Wrapper for Export */}
             <div ref={ventesGlobalesRef} className="space-y-4 p-2 bg-background/50 rounded-xl">
                 {/* Ventes Globales - Total */}
-                <Card className="bg-gradient-to-br from-primary/5 via-background to-background border-primary/20">
+                <Card className="bg-orange-50/30 border-orange-200">
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2">

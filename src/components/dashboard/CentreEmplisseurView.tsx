@@ -50,7 +50,17 @@ const CentreEmplisseurView = ({
             const canvas = await html2canvas(ref.current, {
                 scale: 2,
                 backgroundColor: '#ffffff',
-                logging: false
+                useCORS: true,
+                logging: false,
+                onclone: (document) => {
+                    // Fix for text alignment issues
+                    const elements = document.querySelectorAll('*');
+                    elements.forEach((el: any) => {
+                        if (el.style) {
+                            el.style.fontVariant = 'normal';
+                        }
+                    });
+                }
             } as any);
 
             // Generate timestamp
@@ -78,7 +88,17 @@ const CentreEmplisseurView = ({
             const canvas = await html2canvas(ref.current, {
                 scale: 2,
                 backgroundColor: '#ffffff',
-                logging: false
+                useCORS: true,
+                logging: false,
+                onclone: (document) => {
+                    // Fix for text alignment issues
+                    const elements = document.querySelectorAll('*');
+                    elements.forEach((el: any) => {
+                        if (el.style) {
+                            el.style.fontVariant = 'normal';
+                        }
+                    });
+                }
             } as any);
 
             const imgData = canvas.toDataURL('image/png');
