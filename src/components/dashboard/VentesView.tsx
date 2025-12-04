@@ -23,8 +23,8 @@ import {
     PieChart,
     Pie,
     Cell,
-    LineChart,
-    Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -63,8 +63,9 @@ interface VentesData {
         total: number;
     };
     monthlyEvolution: Array<{
-        month: string;
-        ventes: number;
+        day: string;
+        vrac: number;
+        conditionne: number;
     }>;
     productionTotal: number;
 }
@@ -174,20 +175,24 @@ const VentesView = ({
                 const productionTotal = (production?.reduce((sum: number, p: any) =>
                     sum + (Number(p.tonnage_total) || 0), 0) || 0) * 1000;
 
-                // Calculate monthly evolution (last 6 months)
-                const monthlyEvolution: Array<{ month: string; ventes: number }> = [];
-                for (let i = 5; i >= 0; i--) {
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - i);
-                    const monthStr = d.toISOString().slice(0, 7);
+                // Calculate daily evolution for the selected month
+                const monthlyEvolution: Array<{ day: string; vrac: number; conditionne: number }> = [];
 
-                    const monthBilans = bilans?.filter((b: any) => b.date.startsWith(monthStr)) || [];
-                    const monthVentes = monthBilans.reduce((sum: number, b: any) =>
-                        sum + (b.sorties_vrac || 0) + (b.sorties_conditionnees || 0), 0);
+                // Determine the number of days in the selected month
+                const [year, month] = selectedMonth.split('-').map(Number);
+                const daysInMonth = new Date(year, month, 0).getDate();
+
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dayStr = i.toString().padStart(2, '0');
+                    const dateStr = `${selectedMonth}-${dayStr}`;
+
+                    // Find bilan for this specific date
+                    const dayBilan = bilans?.find((b: any) => b.date === dateStr);
 
                     monthlyEvolution.push({
-                        month: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
-                        ventes: monthVentes
+                        day: dayStr,
+                        vrac: dayBilan ? (dayBilan.sorties_vrac || 0) : 0,
+                        conditionne: dayBilan ? (dayBilan.sorties_conditionnees || 0) : 0
                     });
                 }
 
@@ -603,24 +608,57 @@ const VentesView = ({
             </div>
 
             {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
 
-                {/* Line Chart */}
+                {/* Daily Evolution Area Chart */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Évolution Mensuelle</CardTitle>
+                        <CardTitle>Évolution Journalière - {format(new Date(selectedMonth), 'MMMM yyyy', { locale: fr })}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={ventesData.monthlyEvolution}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="month" />
-                                <YAxis />
-                                <Tooltip formatter={(value: number) => formatNumber(value) + ' Kg'} />
-                                <Legend />
-                                <Line type="monotone" dataKey="ventes" stroke="#3b82f6" strokeWidth={2} name="Ventes" />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <div className="h-[400px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={ventesData.monthlyEvolution} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorVrac" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorCond" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="day" />
+                                    <YAxis />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                        formatter={(value: number, name: string) => [formatNumber(value) + ' Kg', name === 'vrac' ? 'Vrac' : 'Conditionné']}
+                                        labelFormatter={(label) => `Jour ${label}`}
+                                    />
+                                    <Legend verticalAlign="top" height={36} />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="vrac"
+                                        stroke="#f97316"
+                                        fillOpacity={1}
+                                        fill="url(#colorVrac)"
+                                        name="Vrac"
+                                        stackId="1"
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="conditionne"
+                                        stroke="#3b82f6"
+                                        fillOpacity={1}
+                                        fill="url(#colorCond)"
+                                        name="Conditionné"
+                                        stackId="1"
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
