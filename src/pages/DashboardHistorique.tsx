@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import Dashboard from '@/components/Dashboard';
 import HistoryTable from '@/components/HistoryTable';
 import BilanForm from '@/components/BilanForm';
@@ -536,6 +538,57 @@ const DashboardHistorique = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                  )}
+                  {bilanFilterType === 'date' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                        >
+                          {bilanSelectedDate ? format(bilanSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={bilanSelectedDate}
+                          onSelect={setBilanSelectedDate}
+                          locale={fr}
+                          disabled={{ after: new Date() }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  {bilanFilterType === 'range' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                        >
+                          {bilanDateRange?.from ? (
+                            bilanDateRange.to ? (
+                              `${format(bilanDateRange.from, 'dd/MM')} - ${format(bilanDateRange.to, 'dd/MM')}`
+                            ) : (
+                              format(bilanDateRange.from, 'dd/MM/yyyy')
+                            )
+                          ) : (
+                            'Sélectionner'
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="range"
+                          selected={bilanDateRange}
+                          onSelect={setBilanDateRange}
+                          locale={fr}
+                          disabled={{ after: new Date() }}
+                          numberOfMonths={2}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   )}
                 </div>
                 <p className={`text-2xl font-extrabold ${getBilanColor().textBold} tracking-tight`}>
