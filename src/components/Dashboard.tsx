@@ -1,12 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BilanEntry } from '@/types/balance';
 import { formatNumber, getNatureColor } from '@/utils/calculations';
-import { TrendingUp, TrendingDown, TrendingUpDown, Calendar as CalendarIcon, Weight, Package, Factory } from 'lucide-react';
+import { TrendingUp, TrendingDown, TrendingUpDown, Calendar as CalendarIcon, Weight, Package, Factory, Settings } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { DayContentProps, DateRange } from 'react-day-picker';
 import { fr } from 'date-fns/locale';
@@ -39,6 +42,11 @@ const Dashboard = ({ entries }: DashboardProps) => {
     bottlesByClient: { petro: 0, vivo: 0, total: 0 },
     loading: false
   });
+
+  // Monthly objective state
+  const [showObjectiveDialog, setShowObjectiveDialog] = useState(false);
+  const [objectiveValue, setObjectiveValue] = useState('');
+  const [currentObjective, setCurrentObjective] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchProductionStats = async () => {
@@ -140,6 +148,68 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Get available months from entries
   const availableMonths = Array.from(new Set(entries.map(e => e.date.substring(0, 7)))).sort().reverse();
+
+  // Check for current month objective
+  useEffect(() => {
+    const checkMonthlyObjective = async () => {
+      const currentMonth = new Date().toISOString().substring(0, 7);
+
+      try {
+        const { data, error } = await supabase
+          .from('objectifs_mensuels' as any)
+          .select('objectif_receptions')
+          .eq('mois', currentMonth)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching objective:', error);
+          return;
+        }
+
+        if (data) {
+          setCurrentObjective((data as any).objectif_receptions);
+        } else {
+          // No objective for this month, show dialog
+          setShowObjectiveDialog(true);
+        }
+      } catch (error) {
+        console.error('Error checking objective:', error);
+      }
+    };
+
+    checkMonthlyObjective();
+  }, []);
+
+  // Save monthly objective
+  const saveMonthlyObjective = async () => {
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    const objective = parseFloat(objectiveValue);
+
+    if (isNaN(objective) || objective <= 0) {
+      alert('Veuillez entrer un objectif valide');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('objectifs_mensuels' as any)
+        .upsert({
+          mois: currentMonth,
+          objectif_receptions: objective
+        }, {
+          onConflict: 'mois'
+        });
+
+      if (error) throw error;
+
+      setCurrentObjective(objective);
+      setShowObjectiveDialog(false);
+      setObjectiveValue('');
+    } catch (error) {
+      console.error('Error saving objective:', error);
+      alert('Erreur lors de l\'enregistrement de l\'objectif');
+    }
+  };
 
 
 
@@ -453,14 +523,38 @@ const Dashboard = ({ entries }: DashboardProps) => {
               <p className="text-xs text-muted-foreground mt-1">
                 {nombreReceptions} réception{nombreReceptions > 1 ? 's' : ''} {getPeriodText()}
               </p>
+
+              {/* Monthly Objective Progress */}
+              {currentObjective && filterType === 'month' && selectedMonth === new Date().toISOString().substring(0, 7) && (
+                <div className="mt-4 space-y-2 border-t pt-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Objectif du mois</span>
+                    <span className="font-bold">{formatNumber(currentObjective)} Kg</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${totalReceptions >= currentObjective ? 'bg-green-500' : totalReceptions >= currentObjective * 0.8 ? 'bg-orange-500' : 'bg-red-500'}`}
+                      style={{ width: `${Math.min((totalReceptions / currentObjective) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className={`font-semibold ${totalReceptions >= currentObjective ? 'text-green-600' : 'text-orange-600'}`}>
+                      {((totalReceptions / currentObjective) * 100).toFixed(1)}%
+                    </span>
+                    <span className="text-muted-foreground">
+                      Reste: {formatNumber(Math.max(0, currentObjective - totalReceptions))} Kg
+                    </span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Ventes & Corrélation */}
+          {/* Analyse des Ventes */}
           <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Analyse des Ventes</CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-2">
               <div className="space-y-4">
@@ -741,6 +835,37 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Monthly Objective Dialog */}
+      <Dialog open={showObjectiveDialog} onOpenChange={setShowObjectiveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Objectif mensuel de réceptions</DialogTitle>
+            <DialogDescription>
+              Définissez l'objectif de réceptions pour le mois de {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="objective" className="text-right">
+                Objectif (Kg)
+              </Label>
+              <Input
+                id="objective"
+                type="number"
+                value={objectiveValue}
+                onChange={(e) => setObjectiveValue(e.target.value)}
+                className="col-span-3"
+                placeholder="Ex: 500000"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={saveMonthlyObjective}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
