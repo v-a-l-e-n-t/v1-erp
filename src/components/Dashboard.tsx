@@ -150,15 +150,20 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const availableMonths = Array.from(new Set(entries.map(e => e.date.substring(0, 7)))).sort().reverse();
 
   // Check for current month objective
+  // Check for monthly objective based on selection
   useEffect(() => {
     const checkMonthlyObjective = async () => {
-      const currentMonth = new Date().toISOString().substring(0, 7);
+      // Only check if we are in month view
+      if (filterType !== 'month' || !selectedMonth) {
+        setCurrentObjective(null);
+        return;
+      }
 
       try {
         const { data, error } = await supabase
           .from('objectifs_mensuels' as any)
           .select('objectif_receptions')
-          .eq('mois', currentMonth)
+          .eq('mois', selectedMonth)
           .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
@@ -169,7 +174,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
         if (data) {
           setCurrentObjective((data as any).objectif_receptions);
         } else {
-          // No objective for this month, show dialog
+          setCurrentObjective(null);
+          // Show dialog automatically if no objective exists for the selected month
           setShowObjectiveDialog(true);
         }
       } catch (error) {
@@ -178,11 +184,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
     };
 
     checkMonthlyObjective();
-  }, []);
+  }, [selectedMonth, filterType]);
 
   // Save monthly objective
   const saveMonthlyObjective = async () => {
-    const currentMonth = new Date().toISOString().substring(0, 7);
+    // Use selectedMonth if available, otherwise fallback to current month
+    const targetMonth = selectedMonth || new Date().toISOString().substring(0, 7);
     const objective = parseFloat(objectiveValue);
 
     if (isNaN(objective) || objective <= 0) {
@@ -194,7 +201,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
       const { error } = await supabase
         .from('objectifs_mensuels' as any)
         .upsert({
-          mois: currentMonth,
+          mois: targetMonth,
           objectif_receptions: objective
         }, {
           onConflict: 'mois'
@@ -525,24 +532,24 @@ const Dashboard = ({ entries }: DashboardProps) => {
               </p>
 
               {/* Monthly Objective Progress */}
-              {currentObjective && filterType === 'month' && selectedMonth === new Date().toISOString().substring(0, 7) && (
+              {currentObjective && filterType === 'month' && selectedMonth && (
                 <div className="mt-4 space-y-2 border-t pt-3">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Objectif du mois</span>
+                    <span className="text-muted-foreground">Objectif ventes</span>
                     <span className="font-bold">{formatNumber(currentObjective)} Kg</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full ${totalReceptions >= currentObjective ? 'bg-green-500' : totalReceptions >= currentObjective * 0.8 ? 'bg-orange-500' : 'bg-red-500'}`}
-                      style={{ width: `${Math.min((totalReceptions / currentObjective) * 100, 100)}%` }}
+                      className={`h-2 rounded-full ${totalSorties >= currentObjective ? 'bg-green-500' : totalSorties >= currentObjective * 0.8 ? 'bg-orange-500' : 'bg-red-500'}`}
+                      style={{ width: `${Math.min((totalSorties / currentObjective) * 100, 100)}%` }}
                     />
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className={`font-semibold ${totalReceptions >= currentObjective ? 'text-green-600' : 'text-orange-600'}`}>
-                      {((totalReceptions / currentObjective) * 100).toFixed(1)}%
+                    <span className={`font-semibold ${totalSorties >= currentObjective ? 'text-green-600' : 'text-orange-600'}`}>
+                      {((totalSorties / currentObjective) * 100).toFixed(1)}%
                     </span>
                     <span className="text-muted-foreground">
-                      Reste: {formatNumber(Math.max(0, currentObjective - totalReceptions))} Kg
+                      Reste: {formatNumber(Math.max(0, currentObjective - totalSorties))} Kg
                     </span>
                   </div>
                 </div>
@@ -840,9 +847,9 @@ const Dashboard = ({ entries }: DashboardProps) => {
       <Dialog open={showObjectiveDialog} onOpenChange={setShowObjectiveDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Objectif mensuel de réceptions</DialogTitle>
+            <DialogTitle>Objectif mensuel de ventes</DialogTitle>
             <DialogDescription>
-              Définissez l'objectif de réceptions pour le mois de {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+              Définissez l'objectif de ventes pour le mois de {selectedMonth ? new Date(selectedMonth + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
