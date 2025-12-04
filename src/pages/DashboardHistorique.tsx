@@ -9,7 +9,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +32,7 @@ const DashboardHistorique = () => {
   const [showImport, setShowImport] = useState(false);
   const [isBilansExpanded, setIsBilansExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
 
   // Filter state for Centre Emplisseur
   const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
@@ -254,6 +255,37 @@ const DashboardHistorique = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Handle ESC key for presentation mode
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isPresentationMode) {
+        setIsPresentationMode(false);
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isPresentationMode]);
+
+  const togglePresentationMode = async () => {
+    if (!isPresentationMode) {
+      setIsPresentationMode(true);
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch (err) {
+        console.error('Error entering fullscreen:', err);
+      }
+    } else {
+      setIsPresentationMode(false);
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    }
+  };
+
   useEffect(() => {
     loadProductionAnnuelle();
     loadSortieVracAnnuelle();
@@ -419,6 +451,16 @@ const DashboardHistorique = () => {
                   </p>
                 </div>
               )}
+              
+              <Button
+                onClick={togglePresentationMode}
+                variant={isPresentationMode ? "default" : "outline"}
+                size="lg"
+                className="gap-2 font-bold"
+              >
+                <Presentation className="h-5 w-5" />
+                {isPresentationMode ? 'QUITTER' : 'PRÉSENTER'}
+              </Button>
             </div>
           </div>
         </div>
