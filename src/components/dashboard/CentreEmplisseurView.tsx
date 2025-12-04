@@ -1630,64 +1630,66 @@ const CentreEmplisseurView = ({
                             </div>
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            {stats.lines.map((line) => {
-                                const isBest = line.id === stats.maxLine.id && line.tonnage > 0;
-                                const isWorst = line.id === stats.minLine.id && line.tonnage > 0 && stats.lines.filter(l => l.tonnage > 0).length > 1;
+                            {[...stats.lines]
+                                .sort((a, b) => b.tonnage - a.tonnage)
+                                .map((line, index) => {
+                                    const rank = index + 1;
+                                    let statusColor = "red";
+                                    if (rank === 1) statusColor = "green";
+                                    else if (rank >= 2 && rank <= 4) statusColor = "orange";
+                                    else statusColor = "red";
 
-                                return (
-                                    <div key={line.id} className={`p-4 bg-card border rounded-lg shadow-sm hover:shadow-md transition-all border-l-4 ${isBest ? 'border-l-green-500 bg-green-50/50' :
-                                        isWorst ? 'border-l-red-500 bg-red-50/50' :
-                                            'border-l-blue-500'
-                                        }`}>
-                                        <div className="flex justify-between items-center mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`font-bold px-3 py-1 rounded-md text-sm shadow-sm ${isBest ? 'bg-green-600 text-white' :
-                                                    isWorst ? 'bg-red-600 text-white' :
-                                                        'bg-blue-600 text-white'
-                                                    }`}>
-                                                    Ligne {line.id}
+                                    const borderClass = statusColor === 'green' ? 'border-l-green-500' :
+                                        statusColor === 'orange' ? 'border-l-orange-500' : 'border-l-red-500';
+
+                                    const bgClass = statusColor === 'green' ? 'bg-green-50/50' :
+                                        statusColor === 'orange' ? 'bg-orange-50/50' : 'bg-red-50/50';
+
+                                    const badgeClass = statusColor === 'green' ? 'bg-green-600 text-white' :
+                                        statusColor === 'orange' ? 'bg-orange-600 text-white' : 'bg-red-600 text-white';
+
+                                    const textClass = statusColor === 'green' ? 'text-green-600' :
+                                        statusColor === 'orange' ? 'text-orange-600' : 'text-red-600';
+
+                                    return (
+                                        <div key={line.id} className={`p-4 bg-card border rounded-lg shadow-sm hover:shadow-md transition-all border-l-4 ${borderClass} ${bgClass}`}>
+                                            <div className="flex justify-between items-center mb-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`font-bold px-3 py-1 rounded-md text-sm shadow-sm ${badgeClass}`}>
+                                                        {rank === 1 ? '1er' : `${rank}e`}
+                                                    </div>
+
+                                                    <span className="font-bold text-muted-foreground text-sm uppercase tracking-wider mx-1">
+                                                        Ligne {line.id}
+                                                    </span>
+
+                                                    <span className={`font-extrabold text-2xl tracking-tight ${textClass}`}>
+                                                        {(line.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                                        <span className="text-lg opacity-70 ml-1">Kg</span>
+                                                    </span>
                                                 </div>
-
-                                                {isBest && (
-                                                    <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded">
-                                                        🏆 Meilleure
-                                                    </span>
-                                                )}
-                                                {isWorst && (
-                                                    <span className="text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded">
-                                                        ⚠️ À améliorer
-                                                    </span>
-                                                )}
-                                                <span className={`font-extrabold text-2xl tracking-tight ${isBest ? 'text-green-600' :
-                                                    isWorst ? 'text-red-600' :
-                                                        'text-blue-600'
-                                                    }`}>
-                                                    {(line.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                                    <span className="text-lg opacity-70 ml-1">Kg</span>
+                                                <span className="text-sm font-extrabold text-primary bg-primary/5 px-3 py-1.5 rounded-md border border-primary/10">
+                                                    {stats.totalTonnage > 0 ? ((line.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%
                                                 </span>
                                             </div>
-                                            <span className="text-sm font-extrabold text-primary bg-primary/5 px-3 py-1.5 rounded-md border border-primary/10">
-                                                {stats.totalTonnage > 0 ? ((line.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-sm bg-muted/30 p-3 rounded-md border">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-muted-foreground uppercase font-semibold">Recharges:</span>
-                                                <span className="font-bold text-foreground text-base">{line.recharges.toLocaleString('fr-FR')}</span>
-                                                <span className="text-muted-foreground mx-1">•</span>
-                                                <span className="font-bold text-blue-600">{line.rechargesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
-                                            </div>
-                                            <div className="h-4 w-px bg-border"></div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-muted-foreground uppercase font-semibold">Consignes:</span>
-                                                <span className="font-bold text-foreground text-base">{line.consignes.toLocaleString('fr-FR')}</span>
-                                                <span className="text-muted-foreground mx-1">•</span>
-                                                <span className="font-bold text-green-600">{line.consignesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+                                            <div className="flex items-center gap-4 text-sm bg-muted/30 p-3 rounded-md border">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground uppercase font-semibold">Recharges:</span>
+                                                    <span className="font-bold text-foreground text-base">{line.recharges.toLocaleString('fr-FR')}</span>
+                                                    <span className="text-muted-foreground mx-1">•</span>
+                                                    <span className="font-bold text-blue-600">{line.rechargesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+                                                </div>
+                                                <div className="h-4 w-px bg-border"></div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground uppercase font-semibold">Consignes:</span>
+                                                    <span className="font-bold text-foreground text-base">{line.consignes.toLocaleString('fr-FR')}</span>
+                                                    <span className="text-muted-foreground mx-1">•</span>
+                                                    <span className="font-bold text-green-600">{line.consignesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
                         </div>
                     </div>
 
