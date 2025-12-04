@@ -367,6 +367,30 @@ export type Database = {
           },
         ]
       }
+      objectifs_mensuels: {
+        Row: {
+          created_at: string | null
+          id: string
+          mois: string
+          objectif_receptions: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mois: string
+          objectif_receptions: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mois?: string
+          objectif_receptions?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       production_modifications: {
         Row: {
           changes: Json
