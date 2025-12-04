@@ -15,6 +15,7 @@ import {
     TrendingDown,
     Calendar as CalendarIcon,
     Package,
+    Users,
     ArrowUpRight,
     ArrowDownRight
 } from 'lucide-react';
@@ -49,8 +50,13 @@ interface VentesData {
     totalConditionne: number;
     variationVracPct: number;
     variationConditionnePct: number;
-    clientBreakdown: {
+    vracClients: {
         simam: number;
+        petro: number;
+        vivo: number;
+        total: number;
+    };
+    conditionnéClients: {
         petro: number;
         vivo: number;
         total: number;
@@ -81,7 +87,8 @@ const VentesView = ({
         totalConditionne: 0,
         variationVracPct: 0,
         variationConditionnePct: 0,
-        clientBreakdown: { simam: 0, petro: 0, vivo: 0, total: 0 },
+        vracClients: { simam: 0, petro: 0, vivo: 0, total: 0 },
+        conditionnéClients: { petro: 0, vivo: 0, total: 0 },
         monthlyEvolution: [],
         productionTotal: 0
     });
@@ -143,13 +150,23 @@ const VentesView = ({
                 const totalConditionne = bilans?.reduce((sum: number, b: any) => sum + (b.sorties_conditionnees || 0), 0) || 0;
                 const totalVentes = totalVrac + totalConditionne;
 
-                // Calculate client breakdown (Simam = Vrac, others = Conditionné)
-                const simam = totalVrac;
-                const petro = bilans?.reduce((sum: number, b: any) =>
+                // Calculate client breakdown
+                // VRAC clients: Simam, Petro, Vivo, Total
+                const vracSimam = bilans?.reduce((sum: number, b: any) =>
+                    sum + (b.sorties_vrac_simam || 0), 0) || 0;
+                const vracPetro = bilans?.reduce((sum: number, b: any) =>
+                    sum + (b.sorties_vrac_petro_ivoire || 0), 0) || 0;
+                const vracVivo = bilans?.reduce((sum: number, b: any) =>
+                    sum + (b.sorties_vrac_vivo_energies || 0), 0) || 0;
+                const vracTotal = bilans?.reduce((sum: number, b: any) =>
+                    sum + (b.sorties_vrac_total_energies || 0), 0) || 0;
+
+                // CONDITIONNÉ clients: Petro, Vivo, Total (no Simam)
+                const conditionnéPetro = bilans?.reduce((sum: number, b: any) =>
                     sum + (b.sorties_conditionnees_petro_ivoire || 0), 0) || 0;
-                const vivo = bilans?.reduce((sum: number, b: any) =>
+                const conditionnéVivo = bilans?.reduce((sum: number, b: any) =>
                     sum + (b.sorties_conditionnees_vivo_energies || 0), 0) || 0;
-                const total = bilans?.reduce((sum: number, b: any) =>
+                const conditionnéTotal = bilans?.reduce((sum: number, b: any) =>
                     sum + (b.sorties_conditionnees_total_energies || 0), 0) || 0;
 
                 // Calculate production total (convert from Tonnes to Kg)
@@ -221,7 +238,8 @@ const VentesView = ({
                     totalConditionne,
                     variationVracPct,
                     variationConditionnePct,
-                    clientBreakdown: { simam, petro, vivo, total },
+                    vracClients: { simam: vracSimam, petro: vracPetro, vivo: vracVivo, total: vracTotal },
+                    conditionnéClients: { petro: conditionnéPetro, vivo: conditionnéVivo, total: conditionnéTotal },
                     monthlyEvolution,
                     productionTotal
                 });
@@ -242,15 +260,25 @@ const VentesView = ({
         { name: 'Conditionné', value: ventesData.totalConditionne, color: '#3b82f6' }
     ].filter(item => item.value > 0);
 
-    // Client percentages
-    const totalClients = ventesData.clientBreakdown.simam + ventesData.clientBreakdown.petro +
-        ventesData.clientBreakdown.vivo + ventesData.clientBreakdown.total;
+    // Client percentages for Vrac
+    const totalVracClients = ventesData.vracClients.simam + ventesData.vracClients.petro +
+        ventesData.vracClients.vivo + ventesData.vracClients.total;
 
-    const clientPct = {
-        simam: totalClients > 0 ? (ventesData.clientBreakdown.simam / totalClients) * 100 : 0,
-        petro: totalClients > 0 ? (ventesData.clientBreakdown.petro / totalClients) * 100 : 0,
-        vivo: totalClients > 0 ? (ventesData.clientBreakdown.vivo / totalClients) * 100 : 0,
-        total: totalClients > 0 ? (ventesData.clientBreakdown.total / totalClients) * 100 : 0
+    const vracClientPct = {
+        simam: totalVracClients > 0 ? (ventesData.vracClients.simam / totalVracClients) * 100 : 0,
+        petro: totalVracClients > 0 ? (ventesData.vracClients.petro / totalVracClients) * 100 : 0,
+        vivo: totalVracClients > 0 ? (ventesData.vracClients.vivo / totalVracClients) * 100 : 0,
+        total: totalVracClients > 0 ? (ventesData.vracClients.total / totalVracClients) * 100 : 0
+    };
+
+    // Client percentages for Conditionné
+    const totalConditionnéClients = ventesData.conditionnéClients.petro + ventesData.conditionnéClients.vivo +
+        ventesData.conditionnéClients.total;
+
+    const conditionnéClientPct = {
+        petro: totalConditionnéClients > 0 ? (ventesData.conditionnéClients.petro / totalConditionnéClients) * 100 : 0,
+        vivo: totalConditionnéClients > 0 ? (ventesData.conditionnéClients.vivo / totalConditionnéClients) * 100 : 0,
+        total: totalConditionnéClients > 0 ? (ventesData.conditionnéClients.total / totalConditionnéClients) * 100 : 0
     };
 
     // Correlation data
@@ -386,116 +414,192 @@ const VentesView = ({
                 </div>
             </div>
 
-            {/* Global Indicators - First Row: Total, Vrac, Conditionné */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ventes</CardTitle>
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatNumber(ventesData.totalVentes)} Kg</div>
-                        <div className="mt-4 space-y-2 border-t pt-3">
-                            <div className="flex items-center gap-2">
-                                <span className="text-orange-600 font-semibold text-sm min-w-[90px]">Vrac</span>
-                                <span className="text-base font-bold text-orange-600">{formatNumber(ventesData.totalVrac)} Kg</span>
-                                <span className="text-muted-foreground">|</span>
-                                <span className="text-base font-bold text-orange-600">{ventesData.totalVentes > 0 ? ((ventesData.totalVrac / ventesData.totalVentes) * 100).toFixed(1) : 0}%</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-blue-600 font-semibold text-sm min-w-[90px]">Conditionné</span>
-                                <span className="text-base font-bold text-blue-600">{formatNumber(ventesData.totalConditionne)} Kg</span>
-                                <span className="text-muted-foreground">|</span>
-                                <span className="text-base font-bold text-blue-600">{ventesData.totalVentes > 0 ? ((ventesData.totalConditionne / ventesData.totalVentes) * 100).toFixed(1) : 0}%</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Vrac</CardTitle>
-                        <TrendingDown className="h-4 w-4 text-orange-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-orange-600">{formatNumber(ventesData.totalVrac)} Kg</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            {ventesData.totalVentes > 0 ? ((ventesData.totalVrac / ventesData.totalVentes) * 100).toFixed(1) : 0}% des ventes
-                        </p>
-                        <div className={`text-sm font-semibold mt-2 ${ventesData.variationVracPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {ventesData.variationVracPct >= 0 ? '↗' : '↘'} {ventesData.variationVracPct >= 0 ? '+' : ''}{ventesData.variationVracPct.toFixed(1)}% vs période précédente
-                        </div>
-                    </CardContent>
-                </Card>
+            {/* Ventes Overview - Two Column Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* VRAC Column */}
+                <div className="space-y-4">
+                    {/* Vrac Card */}
+                    <Card className="bg-gradient-to-br from-orange-50 via-background to-background border-orange-200">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-orange-600">
+                                <Package className="h-5 w-5" />
+                                Vrac
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-center p-3 bg-orange-100 rounded-lg">
+                                <p className="text-2xl font-extrabold text-orange-600">{formatNumber(ventesData.totalVrac)} Kg</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {ventesData.totalVentes > 0 ? ((ventesData.totalVrac / ventesData.totalVentes) * 100).toFixed(1) : 0}% des ventes
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Conditionné</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-blue-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">{formatNumber(ventesData.totalConditionne)} Kg</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            {ventesData.totalVentes > 0 ? ((ventesData.totalConditionne / ventesData.totalVentes) * 100).toFixed(1) : 0}% des ventes
-                        </p>
-                        <div className={`text-sm font-semibold mt-2 ${ventesData.variationConditionnePct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {ventesData.variationConditionnePct >= 0 ? '↗' : '↘'} {ventesData.variationConditionnePct >= 0 ? '+' : ''}{ventesData.variationConditionnePct.toFixed(1)}% vs période précédente
-                        </div>
-                    </CardContent>
-                </Card>
+                    {/* Vrac Clients */}
+                    <Card className="border-orange-200">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Users className="h-4 w-4 text-orange-600" />
+                                Clients Vrac
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                {/* Simam */}
+                                <div className="p-2 bg-orange-50/50 rounded-lg border border-orange-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-12 relative flex-shrink-0">
+                                            <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-muted-foreground truncate">Simam</p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-extrabold text-orange-600">{formatNumber(ventesData.vracClients.simam)} Kg</p>
+                                                <p className="text-xs font-bold text-foreground">{vracClientPct.simam.toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Petro Ivoire */}
+                                <div className="p-2 bg-blue-50/50 rounded-lg border border-blue-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-12 relative flex-shrink-0">
+                                            <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-muted-foreground truncate">Petro Ivoire</p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-extrabold text-blue-600">{formatNumber(ventesData.vracClients.petro)} Kg</p>
+                                                <p className="text-xs font-bold text-foreground">{vracClientPct.petro.toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Vivo Energies */}
+                                <div className="p-2 bg-green-50/50 rounded-lg border border-green-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-12 relative flex-shrink-0">
+                                            <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-muted-foreground truncate">Vivo Energies</p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-extrabold text-green-600">{formatNumber(ventesData.vracClients.vivo)} Kg</p>
+                                                <p className="text-xs font-bold text-foreground">{vracClientPct.vivo.toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Total Energies */}
+                                <div className="p-2 bg-purple-50/50 rounded-lg border border-purple-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-12 relative flex-shrink-0">
+                                            <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-muted-foreground truncate">Total Energies</p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-extrabold text-purple-600">{formatNumber(ventesData.vracClients.total)} Kg</p>
+                                                <p className="text-xs font-bold text-foreground">{vracClientPct.total.toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* CONDITIONNÉ Column */}
+                <div className="space-y-4">
+                    {/* Conditionné Card */}
+                    <Card className="bg-gradient-to-br from-blue-50 via-background to-background border-blue-200">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-blue-600">
+                                <Package className="h-5 w-5" />
+                                Conditionné
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-center p-3 bg-blue-100 rounded-lg">
+                                <p className="text-2xl font-extrabold text-blue-600">{formatNumber(ventesData.totalConditionne)} Kg</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {ventesData.totalVentes > 0 ? ((ventesData.totalConditionne / ventesData.totalVentes) * 100).toFixed(1) : 0}% des ventes
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Conditionné Clients */}
+                    <Card className="border-blue-200">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Users className="h-4 w-4 text-blue-600" />
+                                Clients Conditionné
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                {/* Petro Ivoire */}
+                                <div className="p-2 bg-blue-50/50 rounded-lg border border-blue-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-12 relative flex-shrink-0">
+                                            <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-muted-foreground truncate">Petro Ivoire</p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-extrabold text-blue-600">{formatNumber(ventesData.conditionnéClients.petro)} Kg</p>
+                                                <p className="text-xs font-bold text-foreground">{conditionnéClientPct.petro.toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Vivo Energies */}
+                                <div className="p-2 bg-green-50/50 rounded-lg border border-green-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-12 relative flex-shrink-0">
+                                            <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-muted-foreground truncate">Vivo Energies</p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-extrabold text-green-600">{formatNumber(ventesData.conditionnéClients.vivo)} Kg</p>
+                                                <p className="text-xs font-bold text-foreground">{conditionnéClientPct.vivo.toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Total Energies */}
+                                <div className="p-2 bg-purple-50/50 rounded-lg border border-purple-100">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-12 relative flex-shrink-0">
+                                            <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-muted-foreground truncate">Total Energies</p>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-extrabold text-purple-600">{formatNumber(ventesData.conditionnéClients.total)} Kg</p>
+                                                <p className="text-xs font-bold text-foreground">{conditionnéClientPct.total.toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Client Analysis with Logos */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Analyse par Client</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 gap-3">
-                            {/* Simam */}
-                            <div className="flex flex-col items-center p-3 border rounded-lg hover:shadow-md transition-shadow">
-                                <img src="/images/logo-simam.png" alt="Simam" className="h-12 w-auto mb-2 object-contain" />
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Simam (Vrac)</p>
-                                    <p className="text-lg font-bold">{formatNumber(ventesData.clientBreakdown.simam)} Kg</p>
-                                    <p className="text-xs text-orange-600 font-semibold">{clientPct.simam.toFixed(1)}%</p>
-                                </div>
-                            </div>
-
-                            {/* Petro Ivoire */}
-                            <div className="flex flex-col items-center p-3 border rounded-lg hover:shadow-md transition-shadow">
-                                <img src="/images/logo-petro.png" alt="Petro Ivoire" className="h-12 w-auto mb-2 object-contain" />
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Petro Ivoire</p>
-                                    <p className="text-lg font-bold">{formatNumber(ventesData.clientBreakdown.petro)} Kg</p>
-                                    <p className="text-xs text-blue-600 font-semibold">{clientPct.petro.toFixed(1)}%</p>
-                                </div>
-                            </div>
-
-                            {/* Vivo Energies */}
-                            <div className="flex flex-col items-center p-3 border rounded-lg hover:shadow-md transition-shadow">
-                                <img src="/images/logo-vivo.png" alt="Vivo Energies" className="h-12 w-auto mb-2 object-contain" />
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Vivo Energies</p>
-                                    <p className="text-lg font-bold">{formatNumber(ventesData.clientBreakdown.vivo)} Kg</p>
-                                    <p className="text-xs text-green-600 font-semibold">{clientPct.vivo.toFixed(1)}%</p>
-                                </div>
-                            </div>
-
-                            {/* Total Energies */}
-                            <div className="flex flex-col items-center p-3 border rounded-lg hover:shadow-md transition-shadow">
-                                <img src="/images/logo-total.png" alt="Total Energies" className="h-12 w-auto mb-2 object-contain" />
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground mb-1">Total Energies</p>
-                                    <p className="text-lg font-bold">{formatNumber(ventesData.clientBreakdown.total)} Kg</p>
-                                    <p className="text-xs text-purple-600 font-semibold">{clientPct.total.toFixed(1)}%</p>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
 
                 {/* Line Chart */}
                 <Card>
