@@ -345,60 +345,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
     },
   };
 
-  const modifiersStyles = {
-    positif: {
-      backgroundColor: 'hsl(var(--success))',
-      color: 'hsl(var(--success-foreground))',
-      fontWeight: 'bold',
-    },
-    negatif: {
-      backgroundColor: 'hsl(var(--destructive))',
-      color: 'hsl(var(--destructive-foreground))',
-      fontWeight: 'bold',
-    },
-    neutre: {
-      backgroundColor: 'hsl(var(--muted))',
-      color: 'hsl(var(--muted-foreground))',
-      fontWeight: 'bold',
-    },
-  };
 
-  // Parse selected month for calendar and get 3 months
-  const [year, month] = selectedMonth.split('-').map(Number);
-  const currentMonth = new Date(year, month - 1, 1);
-  const previousMonth1 = new Date(year, month - 2, 1);
-  const previousMonth2 = new Date(year, month - 3, 1);
-
-  // Get entries for each of the 3 months
-  const getEntriesForMonth = (monthDate: Date) => {
-    const monthStr = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
-    return entries.filter(entry => entry.date.substring(0, 7) === monthStr);
-  };
-
-  const currentMonthEntries = getEntriesForMonth(currentMonth);
-  const previousMonth1Entries = getEntriesForMonth(previousMonth1);
-  const previousMonth2Entries = getEntriesForMonth(previousMonth2);
-
-  // Create modifiers for each month
-  const createModifiersForMonth = (monthEntries: BilanEntry[]) => {
-    const entriesMap = new Map<string, BilanEntry>();
-    monthEntries.forEach(entry => entriesMap.set(entry.date, entry));
-
-    return {
-      positif: (date: Date) => {
-        const dateStr = date.toISOString().split('T')[0];
-        return entriesMap.get(dateStr)?.nature === 'Positif';
-      },
-      negatif: (date: Date) => {
-        const dateStr = date.toISOString().split('T')[0];
-        return entriesMap.get(dateStr)?.nature === 'Négatif';
-      },
-      neutre: (date: Date) => {
-        const dateStr = date.toISOString().split('T')[0];
-        return entriesMap.get(dateStr)?.nature === 'Neutre';
-      },
-    };
-  };
 
   // Calculate total sales per client
   const totalSimam = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_simam || 0), 0);
@@ -791,57 +738,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </div>
       </div>
 
-      {/* Calendar Heatmap - 3 Derniers Mois */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2">
-            <CalendarIcon className="h-6 w-6" />
-            Calendrier des bilans - 3 derniers mois
-          </CardTitle>
-          <CardDescription className="text-base">
-            Vert: Positif | Rouge: Négatif | Gris: Bilan non calculé
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Mois -2 */}
-            <div className="flex flex-col items-center">
-              <Calendar
-                month={previousMonth2}
-                modifiers={createModifiersForMonth(previousMonth2Entries)}
-                modifiersStyles={modifiersStyles}
-                locale={fr}
-                className="rounded-md border [&_.rdp-caption]:hidden [&_.rdp-nav]:hidden"
-                disabled={{ after: new Date() }}
-              />
-            </div>
 
-            {/* Mois -1 */}
-            <div className="flex flex-col items-center">
-              <Calendar
-                month={previousMonth1}
-                modifiers={createModifiersForMonth(previousMonth1Entries)}
-                modifiersStyles={modifiersStyles}
-                locale={fr}
-                className="rounded-md border [&_.rdp-caption]:hidden [&_.rdp-nav]:hidden"
-                disabled={{ after: new Date() }}
-              />
-            </div>
-
-            {/* Mois actuel */}
-            <div className="flex flex-col items-center">
-              <Calendar
-                month={currentMonth}
-                modifiers={createModifiersForMonth(currentMonthEntries)}
-                modifiersStyles={modifiersStyles}
-                locale={fr}
-                className="rounded-md border [&_.rdp-caption]:hidden [&_.rdp-nav]:hidden"
-                disabled={{ after: new Date() }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Monthly Objective Dialog */}
       <Dialog open={showObjectiveDialog} onOpenChange={setShowObjectiveDialog}>
