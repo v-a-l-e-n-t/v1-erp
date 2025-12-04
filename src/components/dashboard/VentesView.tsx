@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
+import { format, subDays, differenceInDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,6 +48,7 @@ interface VentesData {
     totalVentes: number;
     totalVrac: number;
     totalConditionne: number;
+    variationTotalVentesPct: number;
     variationVracPct: number;
     variationConditionnePct: number;
     vracClients: {
@@ -84,6 +85,7 @@ const VentesView = ({
         totalVentes: 0,
         totalVrac: 0,
         totalConditionne: 0,
+        variationTotalVentesPct: 0,
         variationVracPct: 0,
         variationConditionnePct: 0,
         vracClients: { simam: 0, petro: 0, vivo: 0, total: 0 },
@@ -190,6 +192,7 @@ const VentesView = ({
                 }
 
                 // Calculate variation vs previous period
+                let variationTotalVentesPct = 0;
                 let variationVracPct = 0;
                 let variationConditionnePct = 0;
 
@@ -199,23 +202,24 @@ const VentesView = ({
                 if (filterType === 'month') {
                     // Previous month
                     const [y, m] = selectedMonth.split('-').map(Number);
-                    const prevDate = new Date(y, m - 2, 1); // m-2 because month is 1-indexed
-                    const prevMonth = prevDate.toISOString().slice(0, 7);
-                    const prevStartDate = `${prevMonth}-01`;
-                    const [py, pm] = prevMonth.split('-').map(Number);
-                    const prevEndDate = new Date(py, pm, 0).toISOString().split('T')[0];
+                    const prevDate = subMonths(new Date(y, m - 1, 1), 1);
+                    const prevStartDate = format(startOfMonth(prevDate), 'yyyy-MM-dd');
+                    const prevEndDate = format(endOfMonth(prevDate), 'yyyy-MM-dd');
                     prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
                 } else if (filterType === 'date' && selectedDate) {
                     // Previous day
-                    const prevDay = new Date(selectedDate);
-                    prevDay.setDate(prevDay.getDate() - 1);
-                    const prevDateStr = format(prevDay, 'yyyy-MM-dd');
+                    const prevDate = subDays(selectedDate, 1);
+                    const prevDateStr = format(prevDate, 'yyyy-MM-dd');
                     prevQuery = prevQuery.eq('date', prevDateStr);
-                } else if (filterType === 'range' && dateRange?.from && dateRange?.to) {
+                } else if (filterType === 'range' && dateRange?.from) {
                     // Previous range (same duration)
-                    const duration = dateRange.to.getTime() - dateRange.from.getTime();
-                    const prevTo = new Date(dateRange.from.getTime() - 1);
-                    const prevFrom = new Date(prevTo.getTime() - duration);
+                    const from = dateRange.from;
+                    const to = dateRange.to || dateRange.from;
+                    const daysDiff = differenceInDays(to, from) + 1;
+
+                    const prevTo = subDays(from, 1);
+                    const prevFrom = subDays(prevTo, daysDiff - 1);
+
                     const prevFromStr = format(prevFrom, 'yyyy-MM-dd');
                     const prevToStr = format(prevTo, 'yyyy-MM-dd');
                     prevQuery = prevQuery.gte('date', prevFromStr).lte('date', prevToStr);
@@ -226,15 +230,18 @@ const VentesView = ({
                 if (prevBilans && prevBilans.length > 0) {
                     const prevVrac = prevBilans.reduce((sum: number, b: any) => sum + (b.sorties_vrac || 0), 0);
                     const prevConditionne = prevBilans.reduce((sum: number, b: any) => sum + (b.sorties_conditionnees || 0), 0);
+                    const prevTotal = prevVrac + prevConditionne;
 
                     variationVracPct = prevVrac > 0 ? ((totalVrac - prevVrac) / prevVrac) * 100 : 0;
                     variationConditionnePct = prevConditionne > 0 ? ((totalConditionne - prevConditionne) / prevConditionne) * 100 : 0;
+                    variationTotalVentesPct = prevTotal > 0 ? ((totalVentes - prevTotal) / prevTotal) * 100 : 0;
                 }
 
                 setVentesData({
                     totalVentes,
                     totalVrac,
                     totalConditionne,
+                    variationTotalVentesPct,
                     variationVracPct,
                     variationConditionnePct,
                     vracClients: { simam: vracSimam, petro: vracPetro, vivo: vracVivo, total: vracTotal },
@@ -404,6 +411,10 @@ const VentesView = ({
                     <div className="text-center p-4 bg-primary/10 rounded-lg">
                         <p className="text-sm text-muted-foreground uppercase font-bold mb-1">Cumul des ventes</p>
                         <p className="text-3xl font-extrabold text-primary">{formatNumber(ventesData.totalVentes)} Kg</p>
+                        <div className={cn("flex items-center justify-center text-xs font-medium mt-1", ventesData.variationTotalVentesPct >= 0 ? "text-green-600" : "text-red-600")}>
+                            {ventesData.variationTotalVentesPct >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                            {Math.abs(ventesData.variationTotalVentesPct).toFixed(1)}% vs période préc.
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -429,6 +440,10 @@ const VentesView = ({
                                     </span>
                                     <span className="text-xs text-muted-foreground ml-1">des ventes</span>
                                 </p>
+                                <div className={cn("flex items-center justify-center text-xs font-medium mt-2", ventesData.variationVracPct >= 0 ? "text-green-600" : "text-red-600")}>
+                                    {ventesData.variationVracPct >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                                    {Math.abs(ventesData.variationVracPct).toFixed(1)}% vs période préc.
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -522,6 +537,10 @@ const VentesView = ({
                                     </span>
                                     <span className="text-xs text-muted-foreground ml-1">des ventes</span>
                                 </p>
+                                <div className={cn("flex items-center justify-center text-xs font-medium mt-2", ventesData.variationConditionnePct >= 0 ? "text-green-600" : "text-red-600")}>
+                                    {ventesData.variationConditionnePct >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                                    {Math.abs(ventesData.variationConditionnePct).toFixed(1)}% vs période préc.
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
