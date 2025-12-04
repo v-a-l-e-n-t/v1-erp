@@ -47,6 +47,15 @@ const DashboardHistorique = () => {
     return { from: yesterday, to: today };
   });
 
+  // Bilan Matière filter state
+  const [bilanFilterType, setBilanFilterType] = useState<'month' | 'date' | 'range'>('month');
+  const [bilanSelectedMonth, setBilanSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [bilanSelectedDate, setBilanSelectedDate] = useState<Date | undefined>(undefined);
+  const [bilanDateRange, setBilanDateRange] = useState<DateRange | undefined>(undefined);
+
   // Production History States
   const currentMonth = new Date().toISOString().slice(0, 7);
   const [productionHistory, setProductionHistory] = useState<any[]>([]);
@@ -238,6 +247,52 @@ const DashboardHistorique = () => {
     }
   };
 
+  // Helper function to get filtered bilan based on filter type
+  const getFilteredBilan = () => {
+    let filteredEntries = entries;
+
+    if (bilanFilterType === 'month') {
+      filteredEntries = entries.filter(e => e.date.substring(0, 7) === bilanSelectedMonth);
+    } else if (bilanFilterType === 'date' && bilanSelectedDate) {
+      const dateStr = format(bilanSelectedDate, 'yyyy-MM-dd');
+      filteredEntries = entries.filter(e => e.date === dateStr);
+    } else if (bilanFilterType === 'range' && bilanDateRange?.from) {
+      const fromStr = format(bilanDateRange.from, 'yyyy-MM-dd');
+      const toStr = bilanDateRange.to ? format(bilanDateRange.to, 'yyyy-MM-dd') : fromStr;
+      filteredEntries = entries.filter(e => e.date >= fromStr && e.date <= toStr);
+    }
+
+    return filteredEntries.reduce((sum, e) => sum + e.bilan, 0);
+  };
+
+  // Helper function to get color scheme based on bilan value
+  const getBilanColor = () => {
+    const bilan = getFilteredBilan();
+
+    if (bilan > 0) {
+      return {
+        gradient: 'from-green-500/10 to-green-500/5',
+        border: 'border-green-500/20',
+        textLight: 'text-green-600/70',
+        textBold: 'text-green-600'
+      };
+    } else if (bilan < 0) {
+      return {
+        gradient: 'from-red-500/10 to-red-500/5',
+        border: 'border-red-500/20',
+        textLight: 'text-red-600/70',
+        textBold: 'text-red-600'
+      };
+    } else {
+      return {
+        gradient: 'from-gray-500/10 to-gray-500/5',
+        border: 'border-gray-500/20',
+        textLight: 'text-gray-600/70',
+        textBold: 'text-gray-600'
+      };
+    }
+  };
+
   // Year selection for header KPIs
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const availableYears = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
@@ -408,7 +463,7 @@ const DashboardHistorique = () => {
                 <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-3 py-1 shadow-sm">
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
-                      SORTIE VRAC ANNUELLE :
+                      VENTES VRAC ANNUELLE :
                     </p>
                     <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
                       <SelectTrigger className="h-5 w-16 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
@@ -451,7 +506,44 @@ const DashboardHistorique = () => {
                   </p>
                 </div>
               )}
-              
+
+              {/* Bilan Matière - Always visible */}
+              <div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-3 py-1 shadow-sm`}>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className={`text-[10px] font-semibold ${getBilanColor().textLight} uppercase tracking-wider`}>
+                    BILAN MATIÈRE :
+                  </p>
+                  <Select value={bilanFilterType} onValueChange={(v: 'month' | 'date' | 'range') => setBilanFilterType(v)}>
+                    <SelectTrigger className="h-5 w-20 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="month">Mois</SelectItem>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="range">Période</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {bilanFilterType === 'month' && (
+                    <Select value={bilanSelectedMonth} onValueChange={setBilanSelectedMonth}>
+                      <SelectTrigger className="h-5 w-24 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableMonths.map(month => (
+                          <SelectItem key={month} value={month}>
+                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <p className={`text-2xl font-extrabold ${getBilanColor().textBold} tracking-tight`}>
+                  {getFilteredBilan().toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                  <span className={`text-sm font-semibold ${getBilanColor().textLight} ml-1.5`}>Kg</span>
+                </p>
+              </div>
+
               <Button
                 onClick={togglePresentationMode}
                 variant={isPresentationMode ? "default" : "outline"}

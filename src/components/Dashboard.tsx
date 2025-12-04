@@ -217,7 +217,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const pctProdTotal = totalProdClients > 0 ? (productionStats.bottlesByClient.total / totalProdClients) * 100 : 0;
 
   // Correlation Production vs Sorties Conditionnées
-  const correlation = totalConditionne > 0 ? (productionStats.tonnage / totalConditionne) * 100 : 0;
+  // Correlation Ventes Conditionnées vs Production
+  const correlation = productionStats.tonnage > 0 ? (totalConditionne / productionStats.tonnage) * 100 : 0;
 
   // Create a map of dates to entries for the heatmap
   const entriesByDate = new Map<string, BilanEntry>();
@@ -322,14 +323,26 @@ const Dashboard = ({ entries }: DashboardProps) => {
     };
   };
 
+  // Calculate total sales per client
+  const totalSimam = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_simam || 0), 0);
+  const totalPetro = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_petro_ivoire || 0) + (e.sorties_conditionnees_petro_ivoire || 0), 0);
+  const totalVivo = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_vivo_energies || 0) + (e.sorties_conditionnees_vivo_energies || 0), 0);
+  const totalTotalEnergies = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_total_energies || 0) + (e.sorties_conditionnees_total_energies || 0), 0);
+
+  const totalSalesAll = totalSimam + totalPetro + totalVivo + totalTotalEnergies;
+
+  const pctSimam = totalSalesAll > 0 ? (totalSimam / totalSalesAll) * 100 : 0;
+  const pctPetro = totalSalesAll > 0 ? (totalPetro / totalSalesAll) * 100 : 0;
+  const pctVivo = totalSalesAll > 0 ? (totalVivo / totalSalesAll) * 100 : 0;
+  const pctTotalEnergies = totalSalesAll > 0 ? (totalTotalEnergies / totalSalesAll) * 100 : 0;
+
   return (
     <div className="space-y-6">
       {/* Filter Selector */}
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold">Vue d'ensemble des opérations</h2>
-            <p className="text-muted-foreground">Sélectionnez une période pour filtrer les statistiques</p>
+            <h2 className="text-2xl font-bold">Synthèse des activités</h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -427,9 +440,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </div>
       </div>
 
-      {/* Row 1: Bilan Matière */}
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-muted-foreground">Bilan Matière</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Bilan Matière */}
           <Card className="flex flex-col justify-between h-full">
@@ -454,50 +465,107 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <CardContent className="pt-2">
               <div className="text-2xl font-bold">{formatNumber(totalReceptions)} Kg</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {nombreReceptions} réception{nombreReceptions > 1 ? 's' : ''}
+                {nombreReceptions} réception{nombreReceptions > 1 ? 's' : ''} {getPeriodText()}
               </p>
             </CardContent>
           </Card>
 
-          {/* Sorties */}
+          {/* Ventes & Corrélation */}
           <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sorties</CardTitle>
+              <CardTitle className="text-sm font-medium">Analyse des Ventes</CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-2">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Dépôt VRAC</span>
-                  <span className="text-base font-bold">{formatNumber(totalVrac)} Kg | {pourcentageVrac.toFixed(1)}%</span>
+              <div className="space-y-4">
+                {/* Total Cumulé */}
+                <div>
+                  <div className="text-2xl font-bold">{formatNumber(totalSorties)} Kg</div>
                 </div>
-                <div className="flex justify-between items-center border-t pt-2">
-                  <span className="text-xs text-muted-foreground">Conditionné</span>
-                  <span className="text-base font-bold">{formatNumber(totalConditionne)} Kg | {pourcentageConditionne.toFixed(1)}%</span>
+
+                {/* Breakdown Vrac / Conditionné */}
+                <div className="space-y-2 border-t pt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Dépôt VRAC</span>
+                    <span className="text-sm font-bold">{formatNumber(totalVrac)} Kg</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground"></span>
+                    <span className="text-xs font-semibold text-primary">{pourcentageVrac.toFixed(1)}%</span>
+                  </div>
+
+                  <div className="flex justify-between items-center border-t border-dashed pt-2 mt-2">
+                    <span className="text-xs text-muted-foreground">Conditionné</span>
+                    <span className="text-sm font-bold">{formatNumber(totalConditionne)} Kg</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground"></span>
+                    <span className="text-xs font-semibold text-primary">{pourcentageConditionne.toFixed(1)}%</span>
+                  </div>
+                </div>
+
+                {/* Corrélation Section */}
+                <div className="bg-muted/30 rounded-md p-3 border border-muted">
+                  <div className="flex flex-col items-center text-center">
+                    <span className="text-sm text-muted-foreground">Ventes représentent</span>
+                    <span className="text-3xl font-bold text-orange-600 my-1">{correlation.toFixed(1)}%</span>
+                    <span className="text-sm text-muted-foreground">de la production</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Sorties par Client */}
+          {/* Ventes par Client */}
           <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sorties par Client</CardTitle>
+              <CardTitle className="text-sm font-medium">Ventes par Client</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-1">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Petro Ivoire</span>
-                  <span className="text-base font-bold">{pctSortiesPetro.toFixed(1)}%</span>
+            <CardContent className="pt-4">
+              <div className="space-y-6">
+                {/* Simam */}
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
+                    <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalSimam)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
+                    <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{pctSimam.toFixed(1)}%</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Vivo Energies</span>
-                  <span className="text-base font-bold">{pctSortiesVivo.toFixed(1)}%</span>
+
+                {/* Petro Ivoire */}
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
+                    <img src="/images/logo-petro.png" alt="Petro Ivoire" className="h-full w-full object-contain" />
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalPetro)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
+                    <span className="text-sm font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">{pctPetro.toFixed(1)}%</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Total Energies</span>
-                  <span className="text-base font-bold">{pctSortiesTotal.toFixed(1)}%</span>
+
+                {/* Vivo Energies */}
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
+                    <img src="/images/logo-vivo.png" alt="Vivo Energies" className="h-full w-full object-contain" />
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalVivo)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
+                    <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{pctVivo.toFixed(1)}%</span>
+                  </div>
+                </div>
+
+                {/* Total Energies */}
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
+                    <img src="/images/logo-total.png" alt="Total Energies" className="h-full w-full object-contain" />
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalTotalEnergies)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
+                    <span className="text-sm font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{pctTotalEnergies.toFixed(1)}%</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -540,8 +608,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
               </div>
             </CardContent>
           </Card>
-
-          {/* Nombre Bouteilles Produites */}
           <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-primary">Bouteilles Produites</CardTitle>
@@ -572,44 +638,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
             </CardContent>
           </Card>
 
-          {/* Corrélation Production vs Sorties Conditionnées */}
-          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-primary">Corrélation Prod. vs Sorties</CardTitle>
-              <TrendingUpDown className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-2">
-                <div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Production représente </span>
-                    <span className="text-2xl font-bold text-foreground">{correlation.toFixed(1)}%</span>
-                    <span className="text-muted-foreground"> des sorties conditionnées</span>
-                  </div>
-                </div>
 
-                <div className="mt-3 space-y-1 text-xs border-t pt-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Production</span>
-                    <span className="text-base font-bold">{formatNumber(productionStats.tonnage)} Kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sorties Cond.</span>
-                    <span className="text-base font-bold">{formatNumber(totalConditionne)} Kg</span>
-                  </div>
-                </div>
-
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Différence</span>
-                    <span className={`text-lg font-bold ${(productionStats.tonnage - totalConditionne) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatNumber(productionStats.tonnage - totalConditionne)} Kg
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Production par Client */}
           <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
@@ -630,6 +659,44 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Total Energies</span>
                   <span className="text-base font-bold text-primary">{pctProdTotal.toFixed(1)}%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Fuyarde with client breakdown */}
+          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-primary">Fuyarde</CardTitle>
+              <TrendingDown className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Total</span>
+                  <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">% des sorties</span>
+                  <span className="text-xs font-semibold text-destructive">
+                    {totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%
+                  </span>
+                </div>
+
+                <div className="border-t pt-2 space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">Par client:</p>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-orange-600">Petro</span>
+                    <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-green-600">Vivo</span>
+                    <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-purple-600">Total E.</span>
+                    <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
