@@ -19,6 +19,7 @@ import { ProductionShiftForm } from '@/components/ProductionShiftForm';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useMemo } from 'react';
+import VentesView from '@/components/dashboard/VentesView';
 
 const DashboardHistorique = () => {
   const navigate = useNavigate();
@@ -600,15 +601,16 @@ const DashboardHistorique = () => {
           )}
 
           {activeView === 'sorties' && (
-            <div className="flex flex-col items-center justify-center min-h-[400px] bg-card rounded-lg border shadow-sm p-8 text-center">
-              <div className="bg-primary/10 p-4 rounded-full mb-4">
-                <ArrowUpRight className="h-12 w-12 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Espace SORTIES</h2>
-              <p className="text-muted-foreground max-w-md">
-                Cette section est en cours de construction. Elle permettra de gérer et visualiser les sorties de stock.
-              </p>
-            </div>
+            <VentesView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+            />
           )}
         </div>
       </main>
