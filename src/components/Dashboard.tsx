@@ -43,6 +43,17 @@ const Dashboard = ({ entries }: DashboardProps) => {
     loading: false
   });
 
+  // Top performers state
+  const [topPerformers, setTopPerformers] = useState<{
+    topLine: { name: string; tonnage: number; percentage: number } | null;
+    topChef: { name: string; tonnage: number; percentage: number } | null;
+    topAgent: { name: string; tonnage: number; percentage: number } | null;
+  }>({
+    topLine: null,
+    topChef: null,
+    topAgent: null
+  });
+
   // Monthly objective state
   const [showObjectiveDialog, setShowObjectiveDialog] = useState(false);
   const [objectiveValue, setObjectiveValue] = useState('');
@@ -117,6 +128,131 @@ const Dashboard = ({ entries }: DashboardProps) => {
           bottlesByClient: { petro, vivo, total },
           loading: false
         });
+
+        // Calculate top performers using independent queries (robust method)
+        const calculateTopPerformers = async () => {
+          try {
+            // 1. Fetch Agents Directories
+            const [chefsQuartResult, chefsLigneResult] = await Promise.all([
+              supabase.from('chefs_quart').select('id, nom, prenom'),
+              supabase.from('chefs_ligne').select('id, nom, prenom')
+            ]);
+
+            const chefsQuartMap = new Map(chefsQuartResult.data?.map(c => [c.id, `${c.nom} ${c.prenom || ''}`.trim()]) || []);
+            const chefsLigneMap = new Map(chefsLigneResult.data?.map(c => [c.id, `${c.nom} ${c.prenom || ''}`.trim()]) || []);
+
+            // 2. Build Range Filters
+            let dateFilter: any = {};
+            if (filterType === 'month') {
+              const startDate = `${selectedMonth}-01`;
+              const [y, m] = selectedMonth.split('-').map(Number);
+              const endDate = new Date(y, m, 0).toISOString().split('T')[0];
+              dateFilter = { gte: startDate, lte: endDate };
+            } else if (filterType === 'date' && selectedDate) {
+              const dateStr = format(selectedDate, 'yyyy-MM-dd');
+              dateFilter = { eq: dateStr };
+            } else if (filterType === 'range' && dateRange?.from) {
+              const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+              const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+              dateFilter = { gte: fromStr, lte: toStr };
+            }
+
+            // 3. Fetch Production Data
+            let shiftsQuery = supabase
+              .from('production_shifts')
+              .select('chef_quart_id, tonnage_total');
+
+            let linesQuery = supabase
+              .from('lignes_production')
+              .select('numero_ligne, tonnage_ligne, chef_ligne_id, production_shifts!inner(date)');
+
+            if (dateFilter.gte && dateFilter.lte) {
+              shiftsQuery = shiftsQuery.gte('date', dateFilter.gte).lte('date', dateFilter.lte);
+              linesQuery = linesQuery.gte('production_shifts.date', dateFilter.gte).lte('production_shifts.date', dateFilter.lte);
+            } else if (dateFilter.eq) {
+              shiftsQuery = shiftsQuery.eq('date', dateFilter.eq);
+              linesQuery = linesQuery.eq('production_shifts.date', dateFilter.eq);
+            }
+
+            const [shiftsResult, linesResult] = await Promise.all([shiftsQuery, linesQuery]);
+
+            if (shiftsResult.error) throw shiftsResult.error;
+            if (linesResult.error) throw linesResult.error;
+
+            const shifts = shiftsResult.data || [];
+            const lines = linesResult.data || [];
+
+            // 4. Aggregate Data
+
+            // Top Chef de Quart
+            const agentQuartStats = new Map<string, number>();
+            shifts.forEach((shift: any) => {
+              if (shift.chef_quart_id && chefsQuartMap.has(shift.chef_quart_id)) {
+                const name = chefsQuartMap.get(shift.chef_quart_id)!;
+                const current = agentQuartStats.get(name) || 0;
+                agentQuartStats.set(name, current + (Number(shift.tonnage_total) || 0) * 1000);
+              }
+            });
+
+            // Top Chef de Ligne
+            const agentLigneStats = new Map<string, number>();
+            lines.forEach((ligne: any) => {
+              if (ligne.chef_ligne_id && chefsLigneMap.has(ligne.chef_ligne_id)) {
+                const name = chefsLigneMap.get(ligne.chef_ligne_id)!;
+                const current = agentLigneStats.get(name) || 0;
+                agentLigneStats.set(name, current + (Number(ligne.tonnage_ligne) || 0) * 1000);
+              }
+            });
+
+            // Top Ligne
+            const lineStats = new Map<number, number>();
+            lines.forEach((ligne: any) => {
+              if (ligne.numero_ligne) {
+                const current = lineStats.get(ligne.numero_ligne) || 0;
+                lineStats.set(ligne.numero_ligne, current + (Number(ligne.tonnage_ligne) || 0) * 1000);
+              }
+            });
+
+
+            // Calculate Total Period Tonnage
+            const totalPeriodTonnage = shifts.reduce((sum, s) => sum + (Number(s.tonnage_total) || 0), 0) * 1000 +
+              lines.reduce((sum, l) => sum + (Number(l.tonnage_ligne) || 0), 0) * 1000;
+
+            // 5. Determine Winners
+            let topChef = null;
+            let maxChefTonnage = 0;
+            agentQuartStats.forEach((tonnage, name) => {
+              if (tonnage > maxChefTonnage) {
+                maxChefTonnage = tonnage;
+                topChef = { name, tonnage, percentage: totalPeriodTonnage > 0 ? (tonnage / totalPeriodTonnage) * 100 : 0 };
+              }
+            });
+
+            let topChefLigne = null;
+            let maxChefLigneTonnage = 0;
+            agentLigneStats.forEach((tonnage, name) => {
+              if (tonnage > maxChefLigneTonnage) {
+                maxChefLigneTonnage = tonnage;
+                topChefLigne = { name, tonnage, percentage: totalPeriodTonnage > 0 ? (tonnage / totalPeriodTonnage) * 100 : 0 };
+              }
+            });
+
+            let topLine = null;
+            let maxLineTonnage = 0;
+            lineStats.forEach((tonnage, num) => {
+              if (tonnage > maxLineTonnage) {
+                maxLineTonnage = tonnage;
+                topLine = { name: `Ligne ${num}`, tonnage, percentage: totalPeriodTonnage > 0 ? (tonnage / totalPeriodTonnage) * 100 : 0 };
+              }
+            });
+
+            setTopPerformers({ topLine, topChef, topAgent: topChefLigne });
+          } catch (error) {
+            console.error('Error calculating top performers:', error);
+          }
+        };
+
+        calculateTopPerformers();
       } catch (error) {
         console.error('Error fetching production stats:', error);
         setProductionStats(prev => ({ ...prev, loading: false }));
@@ -465,7 +601,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
       </div>
 
       <div className="space-y-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[0.85fr_1.05fr_1.05fr_1.05fr] gap-4">
           {/* Réception Navire */}
           <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -600,6 +736,71 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     <span className="text-xl font-bold tracking-tight">{formatNumber(totalTotalEnergies)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
                     <span className="text-sm font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{pctTotalEnergies.toFixed(1)}%</span>
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top Performers */}
+          <Card className="flex flex-col justify-between h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Top Performers</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-4">
+                {/* Meilleure Ligne */}
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Meilleure Ligne</p>
+                  {topPerformers.topLine ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold">{topPerformers.topLine.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                          {topPerformers.topLine.percentage.toFixed(1)}%
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Aucune donnée</p>
+                  )}
+                </div>
+
+                {/* Meilleur Chef de Quart */}
+                <div className="space-y-1 border-t pt-3">
+                  <p className="text-xs text-muted-foreground font-medium">Meilleur Chef de Quart</p>
+                  {topPerformers.topChef ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold">{topPerformers.topChef.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                          {topPerformers.topChef.percentage.toFixed(1)}%
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topChef.tonnage)} Kg</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Aucune donnée</p>
+                  )}
+                </div>
+
+                {/* Meilleur Chef de Ligne */}
+                <div className="space-y-1 border-t pt-3">
+                  <p className="text-xs text-muted-foreground font-medium">Meilleur Chef de Ligne</p>
+                  {topPerformers.topAgent ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold">{topPerformers.topAgent.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                          {topPerformers.topAgent.percentage.toFixed(1)}%
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topAgent.tonnage)} Kg</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Aucune donnée</p>
+                  )}
                 </div>
               </div>
             </CardContent>
