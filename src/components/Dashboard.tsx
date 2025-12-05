@@ -22,11 +22,12 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ entries }: DashboardProps) => {
-  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range' | 'year'>('year');
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const today = new Date();
@@ -80,6 +81,11 @@ const Dashboard = ({ entries }: DashboardProps) => {
           const startDate = `${selectedMonth}-01`;
           const [y, m] = selectedMonth.split('-').map(Number);
           const endDate = new Date(y, m, 0).toISOString().split('T')[0];
+          shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
+          lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
+        } else if (filterType === 'year') {
+          const startDate = `${selectedYear}-01-01`;
+          const endDate = `${selectedYear}-12-31`;
           shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
           lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
         } else if (filterType === 'date' && selectedDate) {
@@ -148,6 +154,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
               const [y, m] = selectedMonth.split('-').map(Number);
               const endDate = new Date(y, m, 0).toISOString().split('T')[0];
               dateFilter = { gte: startDate, lte: endDate };
+            } else if (filterType === 'year') {
+              dateFilter = { gte: `${selectedYear}-01-01`, lte: `${selectedYear}-12-31` };
             } else if (filterType === 'date' && selectedDate) {
               const dateStr = format(selectedDate, 'yyyy-MM-dd');
               dateFilter = { eq: dateStr };
@@ -260,7 +268,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
     };
 
     fetchProductionStats();
-  }, [filterType, selectedMonth, selectedDate, dateRange]);
+  }, [filterType, selectedMonth, selectedYear, selectedDate, dateRange]);
 
 
 
@@ -271,6 +279,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
     if (filterType === 'month') {
       const entryMonth = entry.date.substring(0, 7);
       return entryMonth === selectedMonth;
+    } else if (filterType === 'year') {
+      return entry.date.startsWith(selectedYear);
     } else if (filterType === 'date' && selectedDate) {
       const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
       return entry.date === selectedDateStr;
@@ -284,6 +294,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Get available months from entries
   const availableMonths = Array.from(new Set(entries.map(e => e.date.substring(0, 7)))).sort().reverse();
+  const availableYears = Array.from(new Set(entries.map(e => e.date.substring(0, 4)))).sort().reverse();
 
   // Check for current month objective
   // Check for monthly objective based on selection
@@ -368,6 +379,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
     if (filterType === 'month') {
       const monthDate = new Date(selectedMonth + '-01');
       return `en ${monthDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+    } else if (filterType === 'year') {
+      return `en ${selectedYear}`;
     } else if (filterType === 'date' && selectedDate) {
       return `le ${format(selectedDate, 'dd/MM/yyyy', { locale: fr })}`;
     } else if (filterType === 'range' && dateRange?.from) {
@@ -506,16 +519,32 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
+            <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range' | 'year') => setFilterType(value)}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="year">Par année</SelectItem>
                 <SelectItem value="month">Par mois</SelectItem>
                 <SelectItem value="date">Par date</SelectItem>
                 <SelectItem value="range">Par période</SelectItem>
               </SelectContent>
             </Select>
+
+            {filterType === 'year' && (
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             {filterType === 'month' && (
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
