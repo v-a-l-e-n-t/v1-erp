@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BilanEntry } from '@/types/balance';
-import { formatNumber, getNatureColor } from '@/utils/calculations';
+import { formatNumber, getNatureColor, getWorkingDaysInMonth, getWorkingDaysPassed } from '@/utils/calculations';
 import { TrendingUp, TrendingDown, TrendingUpDown, Calendar as CalendarIcon, Weight, Package, Factory, Settings } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -631,41 +631,61 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
       <div className="space-y-2">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[0.85fr_1.05fr_1.05fr_1.05fr] gap-4">
-          {/* Réception Navire */}
+          {/* Analyse des Réceptions */}
           <Card className="flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Réception Navire</CardTitle>
+              <CardTitle className="text-sm font-medium">Analyse des Réceptions</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-2">
-              <div className="text-2xl font-bold">{formatNumber(totalReceptions)} Kg</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {nombreReceptions} réception{nombreReceptions > 1 ? 's' : ''} {getPeriodText()}
-              </p>
+              <div className="space-y-4">
+                {/* Total Réceptions */}
+                <div>
+                  <div className="text-2xl font-bold">{formatNumber(totalReceptions)} Kg</div>
+                </div>
 
-              {/* Monthly Objective Progress */}
-              {currentObjective && filterType === 'month' && selectedMonth && (
-                <div className="mt-4 space-y-2 border-t pt-3">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Objectif ventes</span>
-                    <span className="font-bold">{formatNumber(currentObjective)} Kg</span>
+                {/* Breakdown Details */}
+                <div className="space-y-2 border-t pt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Nombre de Réceptions</span>
+                    <span className="text-sm font-bold">{nombreReceptions}</span>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${totalSorties >= currentObjective ? 'bg-green-500' : totalSorties >= currentObjective * 0.8 ? 'bg-orange-500' : 'bg-red-500'}`}
-                      style={{ width: `${Math.min((totalSorties / currentObjective) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className={`font-semibold ${totalSorties >= currentObjective ? 'text-green-600' : 'text-orange-600'}`}>
-                      {((totalSorties / currentObjective) * 100).toFixed(1)}%
-                    </span>
-                    <span className="text-muted-foreground">
-                      Reste: {formatNumber(Math.max(0, currentObjective - totalSorties))} Kg
-                    </span>
+
+                  {currentObjective && filterType === 'month' && selectedMonth && (() => {
+                    const dateObj = new Date(selectedMonth + '-01');
+                    const workingDaysInMonth = getWorkingDaysInMonth(dateObj);
+                    const dailyObjective = currentObjective / workingDaysInMonth;
+                    return (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Objectif du mois</span>
+                          <span className="text-sm font-bold">{formatNumber(currentObjective)} Kg</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Objectif journalier</span>
+                          <span className="text-sm font-bold text-primary">{formatNumber(dailyObjective)} Kg</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Corrélation Section */}
+                <div className="bg-muted/30 rounded-md p-3 border border-muted">
+                  <div className="flex flex-col items-center text-center">
+                    <span className="text-sm text-muted-foreground">Ventes représentent</span>
+                    {(() => {
+                      const totalStockOutput = totalSorties + (totalFuyardes || 0); // Using Vision Stock logic as contextually appropriate
+                      return (
+                        <span className="text-3xl font-bold text-orange-600 my-1">
+                          {totalReceptions > 0 ? ((totalStockOutput / totalReceptions) * 100).toFixed(1) : '0.0'}%
+                        </span>
+                      );
+                    })()}
+                    <span className="text-sm text-muted-foreground">de la réception du mois</span>
                   </div>
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
 

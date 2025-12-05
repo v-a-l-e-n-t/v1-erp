@@ -9,7 +9,7 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
   const spheres_initial = new Decimal(formData.spheres_initial || 0);
   const bouteilles_initial = new Decimal(formData.bouteilles_initial || 0);
   const reservoirs_initial = new Decimal(formData.reservoirs_initial || 0);
-  
+
   // Process receptions with precise decimal arithmetic (already in kg)
   const receptions = formData.receptions.map(r => ({
     quantity: new Decimal(r.quantity || 0).toNumber(),
@@ -17,7 +17,7 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
     reception_no: r.reception_no || ''
   }));
   const reception_gpl = receptions.reduce((sum, r) => sum.plus(r.quantity), new Decimal(0));
-  
+
   // Calculate sorties vrac total
   const sorties_vrac_simam = new Decimal(formData.sorties_vrac_simam || 0);
   const sorties_vrac_petro_ivoire = new Decimal(formData.sorties_vrac_petro_ivoire || 0);
@@ -27,7 +27,7 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
     .plus(sorties_vrac_petro_ivoire)
     .plus(sorties_vrac_vivo_energies)
     .plus(sorties_vrac_total_energies);
-  
+
   // Calculate sorties conditionnées total
   const sorties_conditionnees_petro_ivoire = new Decimal(formData.sorties_conditionnees_petro_ivoire || 0);
   const sorties_conditionnees_vivo_energies = new Decimal(formData.sorties_conditionnees_vivo_energies || 0);
@@ -35,7 +35,7 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
   const sorties_conditionnees = sorties_conditionnees_petro_ivoire
     .plus(sorties_conditionnees_vivo_energies)
     .plus(sorties_conditionnees_total_energies);
-  
+
   // Calculate fuyardes total
   const fuyardes_petro_ivoire = new Decimal(formData.fuyardes_petro_ivoire || 0);
   const fuyardes_vivo_energies = new Decimal(formData.fuyardes_vivo_energies || 0);
@@ -107,12 +107,12 @@ export const formatNumber = (value: number): string => {
   const parts = value.toFixed(3).split('.');
   const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const decimalPart = parts[1];
-  
+
   // Si pas de décimales significatives, afficher sans décimales
   if (parseFloat('0.' + decimalPart) === 0) {
     return integerPart;
   }
-  
+
   return `${integerPart},${decimalPart}`;
 };
 
@@ -121,11 +121,11 @@ export const formatNumberValue = (value: number): string => {
   const parts = value.toFixed(3).split('.');
   const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const decimalPart = parts[1];
-  
+
   if (parseFloat('0.' + decimalPart) === 0) {
     return integerPart;
   }
-  
+
   return `${integerPart},${decimalPart}`;
 };
 
@@ -149,4 +149,39 @@ export const getNatureBadgeVariant = (nature: string): 'success' | 'destructive'
     default:
       return 'secondary';
   }
+};
+
+export const getWorkingDaysInMonth = (date: Date): number => {
+  const year = date.getFullYear();
+  const month = date.getMonth(); // 0-11
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let count = 0;
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(year, month, i).getDay();
+    if (d !== 0) count++; // 0 is Sunday
+  }
+  return count;
+};
+
+export const getWorkingDaysPassed = (date: Date): number => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const today = new Date();
+
+  // If selected month is future, return 0
+  if (today.getFullYear() < year || (today.getFullYear() === year && today.getMonth() < month)) return 0;
+
+  // If selected month is past, return total working days in that month
+  if (today.getFullYear() > year || (today.getFullYear() === year && today.getMonth() > month)) {
+    return getWorkingDaysInMonth(date);
+  }
+
+  // Current month: count working days up to today
+  const currentDay = today.getDate();
+  let count = 0;
+  for (let i = 1; i <= currentDay; i++) {
+    const d = new Date(year, month, i).getDay();
+    if (d !== 0) count++;
+  }
+  return count;
 };
