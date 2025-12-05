@@ -22,7 +22,7 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ entries }: DashboardProps) => {
-  const [filterType, setFilterType] = useState<'month' | 'date' | 'range' | 'year'>('year');
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range' | 'year'>('month');
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
