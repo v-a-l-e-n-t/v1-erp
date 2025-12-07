@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LigneProduction, ArretProduction } from "@/types/production";
+import { LigneProduction, ArretProduction, ARRET_LABELS } from "@/types/production";
 
 interface ProductionRecapitulatifProps {
   lignes: LigneProduction[];
@@ -148,35 +148,7 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
                 {heuresArret}h {minutesArret}min
               </p>
 
-              {/* Détails des arrêts par ligne */}
-              {arrets.length > 0 && (
-                <div className="mt-2 space-y-1 border-t border-destructive/20 pt-2">
-                  {arrets.map((arret, index) => {
-                    if (!arret.duree_minutes && (!arret.heure_debut || !arret.heure_fin)) return null;
-                    const linesStr = arret.lignes_concernees && arret.lignes_concernees.length > 0
-                      ? `Ligne(s) ${arret.lignes_concernees.join(', ')}`
-                      : "Ligne(s) -";
-
-                    let durationDisplay = "";
-                    if (arret.duree_minutes) {
-                      durationDisplay = `${arret.duree_minutes} minutes`;
-                    } else if (arret.heure_debut && arret.heure_fin) {
-                      const [hD, mD] = arret.heure_debut.split(':').map(Number);
-                      const [hF, mF] = arret.heure_fin.split(':').map(Number);
-                      let diff = (hF * 60 + mF) - (hD * 60 + mD);
-                      if (diff < 0) diff += 24 * 60;
-                      durationDisplay = `${diff} minutes`;
-                    }
-
-                    return (
-                      <div key={index} className="text-xs flex justify-between items-start text-muted-foreground">
-                        <span className="truncate max-w-[120px]">{linesStr}</span>
-                        <span className="font-mono">{durationDisplay}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {/* Détails des arrêts supprimés du récapitulatif car présents dans le formulaire principal */}
             </div>
           </div>
 

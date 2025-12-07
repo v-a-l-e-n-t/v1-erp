@@ -136,7 +136,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       arrets: []
     }
   ]);
-  const [arrets, setArrets] = useState<ArretProduction[]>([]);
+
 
   useEffect(() => {
     loadChefsLigne();
@@ -175,17 +175,37 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
         agent_atelier: initialData.agent_atelier || 0
       });
 
-      if (initialData.lignes_production && initialData.lignes_production.length > 0) {
-        // Ensure each line has an arrets array to prevent crashes
+      if (initialData.lignes_production) {
+        // Distribute arrets to lines
+        const arretsByLine: Record<number, ArretProduction[]> = {};
+
+        if (initialData.arrets_production) {
+          initialData.arrets_production.forEach((arret: ArretProduction) => {
+            // Calc duration if missing
+            let arretToUse = { ...arret };
+            if (!arretToUse.duree_minutes && arretToUse.heure_debut && arretToUse.heure_fin) {
+              const [hD, mD] = arretToUse.heure_debut.split(':').map(Number);
+              const [hF, mF] = arretToUse.heure_fin.split(':').map(Number);
+              let diff = (hF * 60 + mF) - (hD * 60 + mD);
+              if (diff < 0) diff += 24 * 60;
+              arretToUse.duree_minutes = diff;
+            }
+
+            if (arret.lignes_concernees) {
+              arret.lignes_concernees.forEach(lineNum => {
+                if (!arretsByLine[lineNum]) arretsByLine[lineNum] = [];
+                // Clone to avoid reference sharing issues between lines
+                arretsByLine[lineNum].push({ ...arretToUse });
+              });
+            }
+          });
+        }
+
         const safeLignes = initialData.lignes_production.map((ligne: any) => ({
           ...ligne,
-          arrets: ligne.arrets || []
+          arrets: arretsByLine[ligne.numero_ligne] || []
         }));
         setLignes(safeLignes);
-      }
-
-      if (initialData.arrets_production && initialData.arrets_production.length > 0) {
-        setArrets(initialData.arrets_production);
       }
     }
   }, [editMode, initialData]);
@@ -240,33 +260,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
   };
 
 
-  const addArret = () => {
-    setArrets(prev => [
-      ...prev,
-      ...prev,
-      {
-        duree_minutes: 0,
-        type_arret: 'maintenance_corrective',
-        lignes_concernees: [],
-        ordre_intervention: '',
-        etape_ligne: undefined,
-        description: '',
-        action_corrective: ''
-      }
-    ]);
-  };
 
-  const updateArret = (index: number, field: keyof ArretProduction, value: any) => {
-    setArrets(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
-
-  const removeArret = (index: number) => {
-    setArrets(prev => prev.filter((_, i) => i !== index));
-  };
 
   const validateForm = (): boolean => {
     // Validation des champs obligatoires du shift
@@ -309,33 +303,30 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       }
     }
 
-    for (let i = 0; i < arrets.length; i++) {
-      const arret = arrets[i];
-      if (!arret.duree_minutes || arret.duree_minutes <= 0) {
-        toast({
-          title: "Validation",
-          description: `Arrêt #${i + 1}: durée requise`,
-          variant: "destructive"
-        });
-        return false;
-      }
+    // Validation des arrêts par ligne
+    for (let i = 0; i < lignes.length; i++) {
+      const ligne = lignes[i];
+      if (ligne.arrets && ligne.arrets.length > 0) {
+        for (let j = 0; j < ligne.arrets.length; j++) {
+          const arret = ligne.arrets[j];
+          if (!arret.duree_minutes || arret.duree_minutes <= 0) {
+            toast({
+              title: "Validation",
+              description: `Ligne ${ligne.numero_ligne} - Arrêt #${j + 1}: durée requise`,
+              variant: "destructive"
+            });
+            return false;
+          }
 
-      if (!arret.lignes_concernees || arret.lignes_concernees.length === 0) {
-        toast({
-          title: "Validation",
-          description: `Arrêt #${i + 1}: veuillez sélectionner au moins une ligne`,
-          variant: "destructive"
-        });
-        return false;
-      }
-
-      if (arret.type_arret === 'panne_ligne' && !arret.etape_ligne) {
-        toast({
-          title: "Validation",
-          description: `Arrêt #${i + 1}: étape de ligne requise pour les pannes`,
-          variant: "destructive"
-        });
-        return false;
+          if (arret.type_arret === 'panne_ligne' && !arret.etape_ligne) {
+            toast({
+              title: "Validation",
+              description: `Ligne ${ligne.numero_ligne} - Arrêt #${j + 1}: étape de ligne requise`,
+              variant: "destructive"
+            });
+            return false;
+          }
+        }
       }
     }
 
@@ -385,6 +376,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
       // Calculer le temps d'arrêt total en minutes depuis toutes les lignes
       // Calculer le temps d'arrêt total en minutes (Somme des durées)
+      // Calculer le temps d'arrêt total en minutes (Somme des durées)
+      // Calculer le temps d'arrêt total en minutes depuis toutes les lignes
+      // Calculer le temps d'arrêt total en minutes (Somme des durées)
       let tempsArretTotalMinutes = 0;
       const allArrets: ArretProduction[] = [];
 
@@ -397,7 +391,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                 ...arret,
                 // Ensure legacy fields are null/empty if not used
                 heure_debut: arret.heure_debut || '',
-                heure_fin: arret.heure_fin || ''
+                heure_fin: arret.heure_fin || '',
+                // Force line association to current line
+                lignes_concernees: [ligne.numero_ligne]
               });
             }
           });
@@ -628,7 +624,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
             arrets: []
           }
         ]);
-        setArrets([]);
+
       }
 
     } catch (error: any) {
@@ -668,7 +664,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       <div className={`flex flex-col lg:flex-row ${editMode ? '' : 'min-h-screen'} bg-background`}>
         {/* Sidebar Recapitulatif - Fixed on Desktop only in full page mode */}
         <aside className={`w-full lg:w-80 bg-background z-20 overflow-y-auto ${editMode ? 'border-b lg:border-b-0 lg:border-r' : 'lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r'}`}>
-          <ProductionRecapitulatif lignes={lignes} arrets={arrets} />
+          <ProductionRecapitulatif lignes={lignes} arrets={[]} />
         </aside>
 
         {/* Main Content - Scrollable */}
