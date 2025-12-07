@@ -143,7 +143,7 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
 
             {/* Temps d'arrêt */}
             <div className="bg-card p-3 rounded-lg border shadow-sm">
-              <p className="text-xs text-muted-foreground mb-1">Temps d'Arrêt Total</p>
+              <p className="text-xs text-muted-foreground mb-1">Cumul Temps d'Arrêt</p>
               <p className="text-xl font-bold text-destructive">
                 {heuresArret}h {minutesArret}min
               </p>
@@ -157,22 +157,21 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
                       ? `Ligne(s) ${arret.lignes_concernees.join(', ')}`
                       : "Ligne(s) -";
 
-                    let timeDisplay = "";
+                    let durationDisplay = "";
                     if (arret.duree_minutes) {
-                      const h = Math.floor(arret.duree_minutes / 60);
-                      const m = arret.duree_minutes % 60;
-                      if (h > 0) timeDisplay = `${h}h ${m}m`;
-                      else timeDisplay = `${m} min`;
+                      durationDisplay = `${arret.duree_minutes} minutes`;
                     } else if (arret.heure_debut && arret.heure_fin) {
-                      const [hD, mD] = arret.heure_debut.split(':');
-                      const [hF, mF] = arret.heure_fin.split(':');
-                      timeDisplay = `${hD}:${mD}-${hF}:${mF}`;
+                      const [hD, mD] = arret.heure_debut.split(':').map(Number);
+                      const [hF, mF] = arret.heure_fin.split(':').map(Number);
+                      let diff = (hF * 60 + mF) - (hD * 60 + mD);
+                      if (diff < 0) diff += 24 * 60;
+                      durationDisplay = `${diff} minutes`;
                     }
 
                     return (
                       <div key={index} className="text-xs flex justify-between items-start text-muted-foreground">
                         <span className="truncate max-w-[120px]">{linesStr}</span>
-                        <span className="font-mono">{timeDisplay}</span>
+                        <span className="font-mono">{durationDisplay}</span>
                       </div>
                     );
                   })}
