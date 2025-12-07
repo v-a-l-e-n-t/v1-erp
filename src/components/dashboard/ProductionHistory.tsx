@@ -214,6 +214,7 @@ const ProductionHistory = ({
                                     <th className="text-left p-2 font-semibold">Date</th>
                                     <th className="text-left p-2 font-semibold">Shift</th>
                                     <th className="text-left p-2 font-semibold">Chef de Quart</th>
+                                    <th className="text-center p-2 font-semibold">Heure d'arrêt</th>
                                     <th className="text-right p-2 font-semibold">Tonnage (Kg)</th>
                                     <th className="text-right p-2 font-semibold">Recharges</th>
                                     <th className="text-right p-2 font-semibold">Consignes</th>
@@ -221,51 +222,65 @@ const ProductionHistory = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {history.map((shift: any) => (
-                                    <tr key={shift.id} className="border-b hover:bg-muted/50">
-                                        <td className="p-2">{format(new Date(shift.date), 'dd/MM/yyyy')}</td>
-                                        <td className="p-2">
-                                            <span className={cn(
-                                                "px-2 py-1 rounded-full text-xs font-medium",
-                                                shift.shift_type === '10h-19h' ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                                            )}>
-                                                {shift.shift_type}
-                                            </span>
-                                        </td>
-                                        <td className="p-2 font-medium">
-                                            {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
-                                        </td>
-                                        <td className="p-2 text-right font-bold">
-                                            {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR')}
-                                        </td>
-                                        <td className="p-2 text-right">
-                                            {shift.cumul_recharges_total?.toLocaleString('fr-FR')}
-                                        </td>
-                                        <td className="p-2 text-right">
-                                            {shift.cumul_consignes_total?.toLocaleString('fr-FR')}
-                                        </td>
-                                        <td className="p-2 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => onEdit(shift.id)}
-                                                    className="h-8 w-8 p-0"
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleDeleteClick(shift.id)}
-                                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {history.map((shift: any) => {
+                                    // Helper to format downtime
+                                    const formatDowntime = (minutes: number) => {
+                                        if (!minutes) return '-';
+                                        const h = Math.floor(minutes / 60);
+                                        const m = Math.round(minutes % 60);
+                                        if (h === 0) return `${m} min`;
+                                        return `${h}h ${m.toString().padStart(2, '0')}`;
+                                    };
+
+                                    return (
+                                        <tr key={shift.id} className="border-b hover:bg-muted/50">
+                                            <td className="p-2">{format(new Date(shift.date), 'dd/MM/yyyy')}</td>
+                                            <td className="p-2">
+                                                <span className={cn(
+                                                    "px-2 py-1 rounded-full text-xs font-medium",
+                                                    shift.shift_type === '10h-19h' ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                                                )}>
+                                                    {shift.shift_type}
+                                                </span>
+                                            </td>
+                                            <td className="p-2 font-medium">
+                                                {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
+                                            </td>
+                                            <td className="p-2 text-center text-red-600 font-medium">
+                                                {formatDowntime(shift.temps_arret_total_minutes)}
+                                            </td>
+                                            <td className="p-2 text-right font-bold">
+                                                {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR')}
+                                            </td>
+                                            <td className="p-2 text-right">
+                                                {shift.cumul_recharges_total?.toLocaleString('fr-FR')}
+                                            </td>
+                                            <td className="p-2 text-right">
+                                                {shift.cumul_consignes_total?.toLocaleString('fr-FR')}
+                                            </td>
+                                            <td className="p-2 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => onEdit(shift.id)}
+                                                        className="h-8 w-8 p-0"
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteClick(shift.id)}
+                                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div >

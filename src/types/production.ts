@@ -1,12 +1,12 @@
 export type ShiftType = '10h-19h' | '20h-5h';
 export type LigneType = 'B6_L1' | 'B6_L2' | 'B6_L3' | 'B6_L4' | 'B12';
-export type ArretType = 
+export type ArretType =
   | 'maintenance_corrective'
   | 'manque_personnel'
   | 'probleme_approvisionnement'
   | 'panne_ligne'
   | 'autre';
-export type EtapeLigne = 
+export type EtapeLigne =
   | 'BASCULES'
   | 'PURGE'
   | 'CONTROLE'
@@ -97,8 +97,9 @@ export interface ArretProduction {
   id?: string;
   shift_id?: string;
   lignes_concernees?: number[];
-  heure_debut: string;
-  heure_fin: string;
+  heure_debut?: string;
+  heure_fin?: string;
+  duree_minutes?: number;
   type_arret: ArretType;
   ordre_intervention?: string;
   etape_ligne?: EtapeLigne;

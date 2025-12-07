@@ -51,6 +51,10 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
 
   // Calcul du temps d'arrêt total
   const tempsArretTotal = arrets.reduce((total, arret) => {
+    if (arret.duree_minutes && arret.duree_minutes > 0) {
+      return total + arret.duree_minutes;
+    }
+
     if (!arret.heure_debut || !arret.heure_fin) return total;
 
     const [debutH, debutM] = arret.heure_debut.split(':').map(Number);
@@ -143,6 +147,37 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
               <p className="text-xl font-bold text-destructive">
                 {heuresArret}h {minutesArret}min
               </p>
+
+              {/* Détails des arrêts par ligne */}
+              {arrets.length > 0 && (
+                <div className="mt-2 space-y-1 border-t border-destructive/20 pt-2">
+                  {arrets.map((arret, index) => {
+                    if (!arret.duree_minutes && (!arret.heure_debut || !arret.heure_fin)) return null;
+                    const linesStr = arret.lignes_concernees && arret.lignes_concernees.length > 0
+                      ? `Ligne(s) ${arret.lignes_concernees.join(', ')}`
+                      : "Ligne(s) -";
+
+                    let timeDisplay = "";
+                    if (arret.duree_minutes) {
+                      const h = Math.floor(arret.duree_minutes / 60);
+                      const m = arret.duree_minutes % 60;
+                      if (h > 0) timeDisplay = `${h}h ${m}m`;
+                      else timeDisplay = `${m} min`;
+                    } else if (arret.heure_debut && arret.heure_fin) {
+                      const [hD, mD] = arret.heure_debut.split(':');
+                      const [hF, mF] = arret.heure_fin.split(':');
+                      timeDisplay = `${hD}:${mD}-${hF}:${mF}`;
+                    }
+
+                    return (
+                      <div key={index} className="text-xs flex justify-between items-start text-muted-foreground">
+                        <span className="truncate max-w-[120px]">{linesStr}</span>
+                        <span className="font-mono">{timeDisplay}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

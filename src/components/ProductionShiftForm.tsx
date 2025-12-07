@@ -243,9 +243,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
   const addArret = () => {
     setArrets(prev => [
       ...prev,
+      ...prev,
       {
-        heure_debut: '',
-        heure_fin: '',
+        duree_minutes: 0,
         type_arret: 'maintenance_corrective',
         lignes_concernees: [],
         ordre_intervention: '',
@@ -311,10 +311,10 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
     for (let i = 0; i < arrets.length; i++) {
       const arret = arrets[i];
-      if (!arret.heure_debut || !arret.heure_fin) {
+      if (!arret.duree_minutes || arret.duree_minutes <= 0) {
         toast({
           title: "Validation",
-          description: `Arrêt #${i + 1}: heures de début et fin requises`,
+          description: `Arrêt #${i + 1}: durée requise`,
           variant: "destructive"
         });
         return false;
@@ -384,23 +384,21 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       });
 
       // Calculer le temps d'arrêt total en minutes depuis toutes les lignes
+      // Calculer le temps d'arrêt total en minutes (Somme des durées)
       let tempsArretTotalMinutes = 0;
       const allArrets: ArretProduction[] = [];
 
       lignes.forEach(ligne => {
         if (ligne.arrets && ligne.arrets.length > 0) {
           ligne.arrets.forEach(arret => {
-            if (arret.heure_debut && arret.heure_fin) {
-              const [heureD, minD] = arret.heure_debut.split(':').map(Number);
-              const [heureF, minF] = arret.heure_fin.split(':').map(Number);
-              let dureeMinutes = (heureF * 60 + minF) - (heureD * 60 + minD);
-
-              if (dureeMinutes < 0) {
-                dureeMinutes += 24 * 60;
-              }
-
-              tempsArretTotalMinutes += dureeMinutes;
-              allArrets.push(arret);
+            if (arret.duree_minutes && arret.duree_minutes > 0) {
+              tempsArretTotalMinutes += arret.duree_minutes;
+              allArrets.push({
+                ...arret,
+                // Ensure legacy fields are null/empty if not used
+                heure_debut: arret.heure_debut || '',
+                heure_fin: arret.heure_fin || ''
+              });
             }
           });
         }
@@ -773,7 +771,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                   </div>
 
                   <div>
-                    <Label htmlFor="chariste">Chariste</Label>
+                    <Label htmlFor="chariste">Cariste</Label>
                     <Input
                       id="chariste"
                       type="number"

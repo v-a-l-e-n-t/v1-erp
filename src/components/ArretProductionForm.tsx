@@ -33,24 +33,15 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove, allowedL
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor={`arret-debut-${index}`}>Heure de début *</Label>
+        <div className="md:col-span-2">
+          <Label htmlFor={`arret-duree-${index}`}>Durée de l'arrêt (minutes) *</Label>
           <Input
-            id={`arret-debut-${index}`}
-            type="time"
-            value={arret.heure_debut}
-            onChange={(e) => onUpdate(index, 'heure_debut', e.target.value)}
-            required
-          />
-        </div>
-
-        <div>
-          <Label htmlFor={`arret-fin-${index}`}>Heure de fin *</Label>
-          <Input
-            id={`arret-fin-${index}`}
-            type="time"
-            value={arret.heure_fin}
-            onChange={(e) => onUpdate(index, 'heure_fin', e.target.value)}
+            id={`arret-duree-${index}`}
+            type="number"
+            min="1"
+            value={arret.duree_minutes || ''}
+            onChange={(e) => onUpdate(index, 'duree_minutes', parseInt(e.target.value) || 0)}
+            placeholder="Ex: 30"
             required
           />
         </div>
@@ -89,7 +80,7 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove, allowedL
                     }
                   }}
                 />
-                <Label 
+                <Label
                   htmlFor={`arret-ligne-${index}-${ligne}`}
                   className={`text-sm font-normal ${allowedLigne !== undefined && ligne !== allowedLigne ? 'text-muted-foreground cursor-not-allowed' : 'cursor-pointer'}`}
                 >

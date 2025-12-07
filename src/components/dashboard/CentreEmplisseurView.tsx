@@ -481,7 +481,7 @@ const CentreEmplisseurView = ({
                     // Query shifts as chef de quart
                     let shiftsQuery = supabase
                         .from('production_shifts')
-                        .select('tonnage_total, arrets_production(*), lignes_production(numero_ligne)')
+                        .select('tonnage_total, temps_arret_total_minutes, arrets_production(*), lignes_production(*)')
                         .eq('chef_quart_id', agent.id);
 
                     // Query lignes as chef de ligne
@@ -535,13 +535,24 @@ const CentreEmplisseurView = ({
 
                     // 3. Productivity
                     let totalTempsArret = 0;
-                    // Cast to any to avoid TS errors with joined tables
+                    // Calculate downtime from arrets, deduplicating by time range
                     (shiftsData as any[]).forEach((s: any) => {
+                        const uniqueArretsForShift = new Set<string>();
+
                         (s.arrets_production || []).forEach((a: any) => {
                             if (a.heure_debut && a.heure_fin) {
-                                const debut = new Date(`2000-01-01T${a.heure_debut}`);
-                                const fin = new Date(`2000-01-01T${a.heure_fin}`);
-                                totalTempsArret += (fin.getTime() - debut.getTime()) / 60000;
+                                // Deduplicate based on exact time window within the shift
+                                // This handles the case where the same stop is recorded multiple times (once per line)
+                                const key = `${a.heure_debut}-${a.heure_fin}`;
+                                if (!uniqueArretsForShift.has(key)) {
+                                    const [hD, mD] = a.heure_debut.split(':').map(Number);
+                                    const [hF, mF] = a.heure_fin.split(':').map(Number);
+                                    let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
+                                    if (diffMins < 0) diffMins += 24 * 60;
+
+                                    totalTempsArret += diffMins;
+                                    uniqueArretsForShift.add(key);
+                                }
                             }
                         });
                     });
@@ -549,25 +560,41 @@ const CentreEmplisseurView = ({
                     const totalSessions = countQuart + countLigne;
                     let productivite = 0;
 
+                    // DIAGNOSTIC LOGGING
+                    console.log(`[DIAGNOSTIC] Agent: ${agent.nom} ${agent.prenom}`);
+                    console.log(`[DIAGNOSTIC] Tonnage: ${totalTonnage} Kg`);
+                    console.log(`[DIAGNOSTIC] Sessions: ${totalSessions} (Quart: ${countQuart}, Ligne: ${countLigne})`);
+                    console.log(`[DIAGNOSTIC] Temps arrêt total: ${totalTempsArret} minutes`);
+
                     if (totalSessions > 0) {
                         const heuresProductives = totalSessions * 9 - (totalTempsArret / 60);
+                        console.log(`[DIAGNOSTIC] Heures productives: ${heuresProductives}h`);
+
                         let productionTheorique = 0;
 
                         // From shifts
                         (shiftsData as any[]).forEach((s: any) => {
+                            console.log(`[DIAGNOSTIC] Shift lignes_production:`, s.lignes_production);
                             (s.lignes_production || []).forEach((l: any) => {
                                 const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                                productionTheorique += (rate * (heuresProductives / totalSessions)) / 1000;
+                                const contrib = (rate * (heuresProductives / totalSessions)) / 1000;
+                                console.log(`[DIAGNOSTIC]   Ligne ${l.numero_ligne}: rate=${rate}, contrib=${contrib}T`);
+                                productionTheorique += contrib;
                             });
                         });
 
                         // From lignes
                         (lignesData as any[]).forEach((l: any) => {
                             const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                            productionTheorique += (rate * (heuresProductives / totalSessions)) / 1000;
+                            const contrib = (rate * (heuresProductives / totalSessions)) / 1000;
+                            console.log(`[DIAGNOSTIC]   Ligne ${l.numero_ligne} (chef ligne): rate=${rate}, contrib=${contrib}T`);
+                            productionTheorique += contrib;
                         });
 
+                        console.log(`[DIAGNOSTIC] Production théorique: ${productionTheorique}T`);
                         productivite = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
+                        console.log(`[DIAGNOSTIC] Productivité finale: ${productivite}%`);
+                        console.log(`[DIAGNOSTIC] =====================================`);
                     }
 
                     // 4. Collect Lines (for Chef de Ligne)
@@ -741,10 +768,11 @@ const CentreEmplisseurView = ({
                 const arrets = shift.arrets_production || [];
                 arrets.forEach((a: any) => {
                     if (a.heure_debut && a.heure_fin) {
-                        const debut = new Date(`2000-01-01T${a.heure_debut}`);
-                        const fin = new Date(`2000-01-01T${a.heure_fin}`);
-                        const diffMs = fin.getTime() - debut.getTime();
-                        totalTempsArret += diffMs / 60000;
+                        const [hD, mD] = a.heure_debut.split(':').map(Number);
+                        const [hF, mF] = a.heure_fin.split(':').map(Number);
+                        let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
+                        if (diffMins < 0) diffMins += 24 * 60;
+                        totalTempsArret += diffMins;
                     }
                 });
             });
@@ -816,10 +844,11 @@ const CentreEmplisseurView = ({
                 const arrets = shift?.arrets_production || [];
                 arrets.forEach((arret: any) => {
                     if (arret.lignes_concernees?.includes(ligne.numero_ligne) && arret.heure_debut && arret.heure_fin) {
-                        const debut = new Date(`2000-01-01T${arret.heure_debut}`);
-                        const fin = new Date(`2000-01-01T${arret.heure_fin}`);
-                        const diffMs = fin.getTime() - debut.getTime();
-                        ligneTempsArret += diffMs / 60000; // minutes
+                        const [hD, mD] = arret.heure_debut.split(':').map(Number);
+                        const [hF, mF] = arret.heure_fin.split(':').map(Number);
+                        let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
+                        if (diffMins < 0) diffMins += 24 * 60;
+                        ligneTempsArret += diffMins; // minutes
                     }
                 });
 
