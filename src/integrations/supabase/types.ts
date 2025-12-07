@@ -19,9 +19,10 @@ export type Database = {
           action_corrective: string | null
           created_at: string
           description: string | null
+          duree_minutes: number | null
           etape_ligne: Database["public"]["Enums"]["etape_ligne"] | null
-          heure_debut: string
-          heure_fin: string
+          heure_debut: string | null
+          heure_fin: string | null
           id: string
           lignes_concernees: number[] | null
           ordre_intervention: string | null
@@ -33,9 +34,10 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
+          duree_minutes?: number | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
-          heure_debut: string
-          heure_fin: string
+          heure_debut?: string | null
+          heure_fin?: string | null
           id?: string
           lignes_concernees?: number[] | null
           ordre_intervention?: string | null
@@ -47,9 +49,10 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
+          duree_minutes?: number | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
-          heure_debut?: string
-          heure_fin?: string
+          heure_debut?: string | null
+          heure_fin?: string | null
           id?: string
           lignes_concernees?: number[] | null
           ordre_intervention?: string | null
