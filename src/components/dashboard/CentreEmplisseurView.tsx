@@ -638,10 +638,12 @@ const CentreEmplisseurView = ({
             );
 
             const sorted = agentsWithStats.sort((a, b) => {
-                // 1. Primary Sort: Role Group
-                // Group 1: Chef de Quart
-                // Group 2: Chef de Ligne
-                // Group 3: Others
+                // 0. Primary: Active agents (tonnage > 0) first, inactive at bottom
+                const aActive = a.tonnage > 0 ? 0 : 1;
+                const bActive = b.tonnage > 0 ? 0 : 1;
+                if (aActive !== bActive) return aActive - bActive;
+
+                // 1. Secondary Sort: Role Group (Chef de Quart > Chef de Ligne > Others)
                 const getRoleWeight = (role: string | null) => {
                     if (role === 'chef_quart') return 1;
                     if (role === 'chef_ligne') return 2;
@@ -655,10 +657,13 @@ const CentreEmplisseurView = ({
                     return weightA - weightB;
                 }
 
+                // 2. Tertiary Sort: Productivity % Descending (for active agents)
+                if (a.tonnage > 0 && b.tonnage > 0) {
+                    return b.productivite - a.productivite;
+                }
 
-
-                // Default Sort: Tonnage Descending
-                return b.tonnage - a.tonnage;
+                // 3. Fallback: Alphabetical by name for inactive agents
+                return (a.nom || '').localeCompare(b.nom || '');
             });
             setAllAgentsComparison(sorted);
 
@@ -1818,10 +1823,15 @@ const CentreEmplisseurView = ({
                                         const isFirst = index === 0;
                                         const isLast = index === allAgentsComparison.length - 1 && allAgentsComparison.length > 1;
 
-                                        // Determine separator
-                                        const needsSeparator = index > 0 &&
+                                        // Determine separator for Chef de Ligne
+                                        const needsChefLigneSeparator = index > 0 &&
                                             agent.displayRole === 'chef_ligne' &&
                                             allAgentsComparison[index - 1].displayRole === 'chef_quart';
+
+                                        // Determine separator for inactive agents (tonnage = 0)
+                                        const needsInactiveSeparator = index > 0 &&
+                                            agent.tonnage === 0 &&
+                                            allAgentsComparison[index - 1].tonnage > 0;
 
                                         // Calculate Contribution Color Status
                                         const contribution = stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0;
@@ -1851,13 +1861,23 @@ const CentreEmplisseurView = ({
 
                                         return (
                                             <Fragment key={agent.id}>
-                                                {needsSeparator && (
+                                                {needsChefLigneSeparator && (
                                                     <div className="col-span-1 lg:col-span-2 flex items-center gap-4 my-4">
                                                         <div className="h-px bg-border flex-1" />
                                                         <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                                                             Chefs de Ligne
                                                         </span>
                                                         <div className="h-px bg-border flex-1" />
+                                                    </div>
+                                                )}
+
+                                                {needsInactiveSeparator && (
+                                                    <div className="col-span-1 lg:col-span-2 flex items-center gap-4 my-4">
+                                                        <div className="h-[1px] bg-muted-foreground/30 flex-1" />
+                                                        <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">
+                                                            Sans activité sur la période
+                                                        </span>
+                                                        <div className="h-[1px] bg-muted-foreground/30 flex-1" />
                                                     </div>
                                                 )}
 
