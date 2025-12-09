@@ -527,6 +527,26 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const pctSortiesVivo = totalSortiesClients > 0 ? (sortiesVivo / totalSortiesClients) * 100 : 0;
   const pctSortiesTotal = totalSortiesClients > 0 ? (sortiesTotal / totalSortiesClients) * 100 : 0;
 
+  // VRAC by client (Simam, Petro, Vivo, Total)
+  const vracSimam = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_simam || 0), 0);
+  const vracPetro = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_petro_ivoire || 0), 0);
+  const vracVivo = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_vivo_energies || 0), 0);
+  const vracTotalE = filteredEntries.reduce((sum, e) => sum + (e.sorties_vrac_total_energies || 0), 0);
+  const totalVracAll = vracSimam + vracPetro + vracVivo + vracTotalE;
+  const pctVracSimam = totalVracAll > 0 ? (vracSimam / totalVracAll) * 100 : 0;
+  const pctVracPetro = totalVracAll > 0 ? (vracPetro / totalVracAll) * 100 : 0;
+  const pctVracVivo = totalVracAll > 0 ? (vracVivo / totalVracAll) * 100 : 0;
+  const pctVracTotalE = totalVracAll > 0 ? (vracTotalE / totalVracAll) * 100 : 0;
+
+  // CONDITIONNÉ (CE) by client (Petro, Vivo, Total)
+  const cePetro = filteredEntries.reduce((sum, e) => sum + (e.sorties_conditionnees_petro_ivoire || 0), 0);
+  const ceVivo = filteredEntries.reduce((sum, e) => sum + (e.sorties_conditionnees_vivo_energies || 0), 0);
+  const ceTotalE = filteredEntries.reduce((sum, e) => sum + (e.sorties_conditionnees_total_energies || 0), 0);
+  const totalCeAll = cePetro + ceVivo + ceTotalE;
+  const pctCePetro = totalCeAll > 0 ? (cePetro / totalCeAll) * 100 : 0;
+  const pctCeVivo = totalCeAll > 0 ? (ceVivo / totalCeAll) * 100 : 0;
+  const pctCeTotalE = totalCeAll > 0 ? (ceTotalE / totalCeAll) * 100 : 0;
+
   // Calculate production percentages
   const totalBottles = productionStats.bottlesByType.b6 + productionStats.bottlesByType.b12 +
     productionStats.bottlesByType.b28 + productionStats.bottlesByType.b38;
@@ -728,264 +748,256 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[0.85fr_1.05fr_1.05fr_1.05fr] gap-4">
-          {/* Analyse des Réceptions */}
-          <Card className="flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Analyse des Réceptions</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-4">
-                {/* Total Réceptions */}
-                <div>
-                  <div className="text-2xl font-bold">{formatNumber(totalReceptions)} Kg</div>
+
+      {/* ROW 1: 4 cartes - Réception, Analyse Vente, Vente VRAC, Vente Conditionnée */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Analyse des Réceptions */}
+        <Card className="flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Réceptions</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="space-y-3">
+              <div className="text-2xl font-bold">{formatNumber(totalReceptions)} Kg</div>
+              <div className="space-y-1 border-t pt-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Nombre</span>
+                  <span className="font-bold">{nombreReceptions}</span>
                 </div>
-
-                {/* Breakdown Details */}
-                <div className="space-y-2 border-t pt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Nombre de Réceptions</span>
-                    <span className="text-sm font-bold">{nombreReceptions}</span>
+                {currentObjective && filterType === 'month' && (
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Objectif</span>
+                    <span className="font-bold text-primary">{formatNumber(currentObjective)} Kg</span>
                   </div>
+                )}
+              </div>
+              <div className="bg-muted/30 rounded-md p-2 border border-muted text-center">
+                <span className="text-xs text-muted-foreground">Ventes = </span>
+                <span className="text-lg font-bold text-orange-600">
+                  {totalReceptions > 0 ? (((totalSorties + totalFuyardes) / totalReceptions) * 100).toFixed(1) : '0.0'}%
+                </span>
+                <span className="text-xs text-muted-foreground"> des réceptions</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-                  {currentObjective && filterType === 'month' && selectedMonth && (() => {
-                    const dateObj = new Date(selectedMonth + '-01');
-                    const workingDaysInMonth = getWorkingDaysInMonth(dateObj);
-                    const dailyObjective = currentObjective / workingDaysInMonth;
-                    return (
-                      <>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Objectif du mois</span>
-                          <span className="text-sm font-bold">{formatNumber(currentObjective)} Kg</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Objectif journalier</span>
-                          <span className="text-sm font-bold text-primary">{formatNumber(dailyObjective)} Kg</span>
-                        </div>
-                      </>
-                    );
-                  })()}
+        {/* Analyse des Ventes */}
+        <Card className="flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Analyse Ventes</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="space-y-3">
+              <div className="text-2xl font-bold">{formatNumber(totalSorties)} Kg</div>
+              <div className="space-y-1 border-t pt-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Dépôt VRAC</span>
+                  <span className="font-bold">{formatNumber(totalVrac)} Kg <span className="text-primary">({pourcentageVrac.toFixed(0)}%)</span></span>
                 </div>
-
-                {/* Corrélation Section */}
-                <div className="bg-muted/30 rounded-md p-3 border border-muted">
-                  <div className="flex flex-col items-center text-center">
-                    <span className="text-sm text-muted-foreground">Ventes représentent</span>
-                    {(() => {
-                      const totalStockOutput = totalSorties + (totalFuyardes || 0); // Using Vision Stock logic as contextually appropriate
-                      return (
-                        <span className="text-3xl font-bold text-orange-600 my-1">
-                          {totalReceptions > 0 ? ((totalStockOutput / totalReceptions) * 100).toFixed(1) : '0.0'}%
-                        </span>
-                      );
-                    })()}
-                    <span className="text-sm text-muted-foreground">de la réception du mois</span>
-                  </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Conditionné</span>
+                  <span className="font-bold">{formatNumber(totalConditionne)} Kg <span className="text-primary">({pourcentageConditionne.toFixed(0)}%)</span></span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Analyse des Ventes */}
-          <Card className="flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Analyse des Ventes</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-4">
-                {/* Total Cumulé */}
-                <div>
-                  <div className="text-2xl font-bold">{formatNumber(totalSorties)} Kg</div>
-                </div>
-
-                {/* Breakdown Vrac / Conditionné */}
-                <div className="space-y-2 border-t pt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Dépôt VRAC</span>
-                    <span className="text-sm font-bold">{formatNumber(totalVrac)} Kg</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground"></span>
-                    <span className="text-xs font-semibold text-primary">{pourcentageVrac.toFixed(1)}%</span>
-                  </div>
-
-                  <div className="flex justify-between items-center border-t border-dashed pt-2 mt-2">
-                    <span className="text-xs text-muted-foreground">Conditionné</span>
-                    <span className="text-sm font-bold">{formatNumber(totalConditionne)} Kg</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground"></span>
-                    <span className="text-xs font-semibold text-primary">{pourcentageConditionne.toFixed(1)}%</span>
-                  </div>
-                </div>
-
-                {/* Corrélation Section */}
-                <div className="bg-muted/30 rounded-md p-3 border border-muted">
-                  <div className="flex flex-col items-center text-center">
-                    <span className="text-sm text-muted-foreground">Ventes représentent</span>
-                    <span className="text-3xl font-bold text-orange-600 my-1">{correlation.toFixed(1)}%</span>
-                    <span className="text-sm text-muted-foreground">de la production</span>
-                  </div>
-                </div>
+              <div className="bg-muted/30 rounded-md p-2 border border-muted text-center">
+                <span className="text-xs text-muted-foreground">Ventes = </span>
+                <span className="text-lg font-bold text-orange-600">{correlation.toFixed(1)}%</span>
+                <span className="text-xs text-muted-foreground"> de la production</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Ventes par Client */}
-          <Card className="flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ventes par Client</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-6">
-                {/* Simam */}
-                <div className="flex items-center justify-between">
-                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
-                    <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalSimam)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
-                    <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{pctSimam.toFixed(1)}%</span>
-                  </div>
+        {/* Vente VRAC */}
+        <Card className="flex flex-col justify-between h-full bg-amber-50/30 border-amber-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-amber-700">🛢️ Vente VRAC</CardTitle>
+            <span className="text-xs font-bold text-amber-700">{formatNumber(totalVracAll)} Kg</span>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="grid grid-cols-2 gap-2">
+              {/* Simam */}
+              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
+                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                 </div>
-
-                {/* Petro Ivoire */}
-                <div className="flex items-center justify-between">
-                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
-                    <img src="/images/logo-petro.png" alt="Petro Ivoire" className="h-full w-full object-contain" />
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalPetro)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
-                    <span className="text-sm font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">{pctPetro.toFixed(1)}%</span>
-                  </div>
-                </div>
-
-                {/* Vivo Energies */}
-                <div className="flex items-center justify-between">
-                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
-                    <img src="/images/logo-vivo.png" alt="Vivo Energies" className="h-full w-full object-contain" />
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalVivo)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
-                    <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{pctVivo.toFixed(1)}%</span>
-                  </div>
-                </div>
-
-                {/* Total Energies */}
-                <div className="flex items-center justify-between">
-                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border-2 border-gray-100 shadow-sm overflow-hidden p-1">
-                    <img src="/images/logo-total.png" alt="Total Energies" className="h-full w-full object-contain" />
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-xl font-bold tracking-tight">{formatNumber(totalTotalEnergies)} <span className="text-sm text-muted-foreground font-normal">Kg</span></span>
-                    <span className="text-sm font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{pctTotalEnergies.toFixed(1)}%</span>
-                  </div>
-                </div>
+                <span className="text-sm font-bold mt-1">{formatNumber(vracSimam)}</span>
+                <span className="text-xs text-amber-600">{pctVracSimam.toFixed(0)}%</span>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Top Performers - Split into Tonnage and Productivity */}
-          <Card className="flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Top Performers</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-4">
-                {/* Section 1: Par Tonnage */}
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1">
-                    📊 Par Tonnage
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* Meilleure Ligne */}
-                    <div className="bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                      <p className="text-[10px] text-muted-foreground mb-1">Meilleure Ligne</p>
-                      {topPerformers.topLine ? (
-                        <>
-                          <p className="text-sm font-bold text-blue-700">{topPerformers.topLine.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">-</p>
-                      )}
-                    </div>
-
-                    {/* Chef de Quart */}
-                    <div className="bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                      <p className="text-[10px] text-muted-foreground mb-1">Chef Quart</p>
-                      {topPerformers.topChefByTonnage ? (
-                        <>
-                          <p className="text-sm font-bold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">-</p>
-                      )}
-                    </div>
-
-                    {/* Chef de Ligne */}
-                    <div className="bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                      <p className="text-[10px] text-muted-foreground mb-1">Chef Ligne</p>
-                      {topPerformers.topAgentByTonnage ? (
-                        <>
-                          <p className="text-sm font-bold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">-</p>
-                      )}
-                    </div>
-                  </div>
+              {/* Petro */}
+              <div className="bg-white p-2 rounded-lg border border-orange-100 flex flex-col items-center">
+                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-
-                {/* Separator */}
-                <div className="border-t border-dashed" />
-
-                {/* Section 2: Par Productivité */}
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-green-600 uppercase tracking-wider flex items-center gap-1">
-                    🎯 Par Productivité
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Chef de Quart by Productivity */}
-                    <div className="bg-green-50/50 p-2 rounded-lg border border-green-100">
-                      <p className="text-[10px] text-muted-foreground mb-1">Chef de Quart</p>
-                      {topPerformers.topChefByProductivity ? (
-                        <>
-                          <p className="text-sm font-bold text-green-700 truncate">{topPerformers.topChefByProductivity.name}</p>
-                          <p className="text-lg font-bold text-green-600">{topPerformers.topChefByProductivity.productivity.toFixed(1)}%</p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">-</p>
-                      )}
-                    </div>
-
-                    {/* Chef de Ligne by Productivity */}
-                    <div className="bg-green-50/50 p-2 rounded-lg border border-green-100">
-                      <p className="text-[10px] text-muted-foreground mb-1">Chef de Ligne</p>
-                      {topPerformers.topAgentByProductivity ? (
-                        <>
-                          <p className="text-sm font-bold text-green-700 truncate">{topPerformers.topAgentByProductivity.name}</p>
-                          <p className="text-lg font-bold text-green-600">{topPerformers.topAgentByProductivity.productivity.toFixed(1)}%</p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">-</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <span className="text-sm font-bold mt-1">{formatNumber(vracPetro)}</span>
+                <span className="text-xs text-orange-600">{pctVracPetro.toFixed(0)}%</span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+
+              {/* Vivo */}
+              <div className="bg-white p-2 rounded-lg border border-green-100 flex flex-col items-center">
+                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-sm font-bold mt-1">{formatNumber(vracVivo)}</span>
+                <span className="text-xs text-green-600">{pctVracVivo.toFixed(0)}%</span>
+              </div>
+
+              {/* Total Energies */}
+              <div className="bg-white p-2 rounded-lg border border-purple-100 flex flex-col items-center">
+                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-sm font-bold mt-1">{formatNumber(vracTotalE)}</span>
+                <span className="text-xs text-purple-600">{pctVracTotalE.toFixed(0)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Vente Conditionnée */}
+        <Card className="flex flex-col justify-between h-full bg-primary/5 border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-primary">🏭 Vente Conditionnée</CardTitle>
+            <span className="text-xs font-bold text-primary">{formatNumber(totalCeAll)} Kg</span>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="space-y-2">
+              {/* Petro */}
+              <div className="bg-white p-2 rounded-lg border border-orange-100 flex items-center justify-between">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-sm font-bold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
+                <span className="text-sm font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded">{pctCePetro.toFixed(0)}%</span>
+              </div>
+
+              {/* Total Energies */}
+              <div className="bg-white p-2 rounded-lg border border-purple-100 flex items-center justify-between">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-sm font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
+                <span className="text-sm font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded">{pctCeTotalE.toFixed(0)}%</span>
+              </div>
+
+              {/* Vivo */}
+              <div className="bg-white p-2 rounded-lg border border-green-100 flex items-center justify-between">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-sm font-bold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
+                <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">{pctCeVivo.toFixed(0)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ROW 2: 2 cartes full-width - Top Productivité et Top Tonnage */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {/* Top Performers - Tonnage */}
+        <Card className="bg-blue-50/30 border-blue-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700">📊 Top Performers - Tonnage</CardTitle>
+            <TrendingUp className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="grid grid-cols-3 gap-3">
+              {/* Meilleure Ligne */}
+              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Meilleure Ligne</p>
+                {topPerformers.topLine ? (
+                  <>
+                    <p className="text-lg font-bold text-blue-700">{topPerformers.topLine.name}</p>
+                    <p className="text-sm text-muted-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">-</p>
+                )}
+              </div>
+
+              {/* Chef de Quart */}
+              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Chef de Quart</p>
+                {topPerformers.topChefByTonnage ? (
+                  <>
+                    <p className="text-lg font-bold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
+                    <p className="text-sm text-muted-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">-</p>
+                )}
+              </div>
+
+              {/* Chef de Ligne */}
+              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Chef de Ligne</p>
+                {topPerformers.topAgentByTonnage ? (
+                  <>
+                    <p className="text-lg font-bold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
+                    <p className="text-sm text-muted-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">-</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Performers - Productivité */}
+        <Card className="bg-green-50/30 border-green-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">🎯 Top Performers - Productivité</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="grid grid-cols-3 gap-3">
+              {/* Meilleure Ligne placeholder */}
+              <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Meilleure Ligne</p>
+                {topPerformers.topLine ? (
+                  <>
+                    <p className="text-lg font-bold text-green-700">{topPerformers.topLine.name}</p>
+                    <p className="text-sm text-muted-foreground">{topPerformers.topLine.percentage.toFixed(1)}%</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">-</p>
+                )}
+              </div>
+
+              {/* Chef de Quart by Productivity */}
+              <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Chef de Quart</p>
+                {topPerformers.topChefByProductivity ? (
+                  <>
+                    <p className="text-lg font-bold text-green-700 truncate">{topPerformers.topChefByProductivity.name}</p>
+                    <p className="text-xl font-bold text-green-600">{topPerformers.topChefByProductivity.productivity.toFixed(1)}%</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">-</p>
+                )}
+              </div>
+
+              {/* Chef de Ligne by Productivity */}
+              <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Chef de Ligne</p>
+                {topPerformers.topAgentByProductivity ? (
+                  <>
+                    <p className="text-lg font-bold text-green-700 truncate">{topPerformers.topAgentByProductivity.name}</p>
+                    <p className="text-xl font-bold text-green-600">{topPerformers.topAgentByProductivity.productivity.toFixed(1)}%</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">-</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Row 2: Production */}
