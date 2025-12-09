@@ -664,7 +664,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       <div className={`flex flex-col lg:flex-row ${editMode ? '' : 'min-h-screen'} bg-background`}>
         {/* Sidebar Recapitulatif - Fixed on Desktop only in full page mode */}
         <aside className={`w-full lg:w-80 bg-background z-20 overflow-y-auto ${editMode ? 'border-b lg:border-b-0 lg:border-r' : 'lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r'}`}>
-          <ProductionRecapitulatif lignes={lignes} arrets={[]} />
+          <ProductionRecapitulatif lignes={lignes} arrets={lignes.flatMap(l => l.arrets || [])} />
         </aside>
 
         {/* Main Content - Scrollable */}

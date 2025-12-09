@@ -75,6 +75,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
     const newArret: ArretProduction = {
       heure_debut: '',
       heure_fin: '',
+      duree_minutes: 0,
       type_arret: 'maintenance_corrective',
       lignes_concernees: [ligne.numero_ligne],
       ordre_intervention: '',
