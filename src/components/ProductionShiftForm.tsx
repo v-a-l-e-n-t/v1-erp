@@ -191,12 +191,32 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
               arretToUse.duree_minutes = diff;
             }
 
-            if (arret.lignes_concernees) {
-              arret.lignes_concernees.forEach(lineNum => {
-                if (!arretsByLine[lineNum]) arretsByLine[lineNum] = [];
+            let targetLines = arret.lignes_concernees;
+
+            // Robust parsing if string (legacy data)
+            if (typeof targetLines === 'string') {
+              try {
+                // Handle case where specific format might be used
+                if ((targetLines as string).startsWith('{')) {
+                  // Postgres array format {1,2,3}
+                  targetLines = (targetLines as string).replace('{', '[').replace('}', ']');
+                }
+                targetLines = JSON.parse(targetLines as unknown as string);
+              } catch (e) {
+                console.warn('Failed to parse lignes_concernees for arret:', arret);
+                targetLines = [];
+              }
+            }
+
+            if (Array.isArray(targetLines)) {
+              targetLines.forEach((lineNum: any) => {
+                const num = Number(lineNum);
+                if (!arretsByLine[num]) arretsByLine[num] = [];
                 // Clone to avoid reference sharing issues between lines
-                arretsByLine[lineNum].push({ ...arretToUse });
+                arretsByLine[num].push({ ...arretToUse });
               });
+            } else {
+              console.warn("Arret without target lines:", arret);
             }
           });
         }

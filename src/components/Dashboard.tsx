@@ -563,7 +563,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Correlation Production vs Sorties Conditionnées
   // Correlation Ventes Conditionnées vs Production
-  const correlation = productionStats.tonnage > 0 ? (totalConditionne / productionStats.tonnage) * 100 : 0;
+  const correlation = productionStats.tonnage > 0 ? (totalCeAll / productionStats.tonnage) * 100 : 0;
 
   // Create a map of dates to entries for the heatmap
   const entriesByDate = new Map<string, BilanEntry>();
@@ -803,9 +803,9 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 </div>
               </div>
               <div className="bg-muted/30 rounded-md p-2 border border-muted text-center">
-                <span className="text-xs text-muted-foreground">Ventes = </span>
+                <span className="text-xs text-muted-foreground">Ventes CE = </span>
                 <span className="text-lg font-bold text-orange-600">{correlation.toFixed(1)}%</span>
-                <span className="text-xs text-muted-foreground"> de la production</span>
+                <span className="text-xs text-muted-foreground"> de la production CE</span>
               </div>
             </div>
           </CardContent>

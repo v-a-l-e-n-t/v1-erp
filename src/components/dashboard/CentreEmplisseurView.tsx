@@ -685,7 +685,7 @@ const CentreEmplisseurView = ({
 
                 let lignesQuery = supabase
                     .from('lignes_production')
-                    .select('*, production_shifts!inner(date, shift_type)')
+                    .select('*, production_shifts!inner(date, shift_type, arrets_production(*))')
                     .eq('chef_ligne_id', agentId)
                     .gte('production_shifts.date', start)
                     .lte('production_shifts.date', end);
@@ -817,6 +817,23 @@ const CentreEmplisseurView = ({
                 totalConsignes += (l.cumul_consignes_b6 || 0) + (l.cumul_consignes_b12 || 0) +
                     (l.cumul_consignes_b28 || 0) + (l.cumul_consignes_b38 || 0);
                 totalEffectif += l.nombre_agents || 0;
+
+                // Calculate downtime for Chef de Ligne (from shift's arrets_production)
+                const shiftArrets = l.production_shifts?.arrets_production || [];
+                const lineArrets = shiftArrets.filter((a: any) =>
+                    a.lignes_concernees && a.lignes_concernees.includes(l.numero_ligne)
+                );
+                lineArrets.forEach((a: any) => {
+                    if (a.duree_minutes && a.duree_minutes > 0) {
+                        totalTempsArret += a.duree_minutes;
+                    } else if (a.heure_debut && a.heure_fin) {
+                        const [hD, mD] = a.heure_debut.split(':').map(Number);
+                        const [hF, mF] = a.heure_fin.split(':').map(Number);
+                        let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
+                        if (diffMins < 0) diffMins += 24 * 60;
+                        totalTempsArret += diffMins;
+                    }
+                });
             });
 
             totalBouteilles = totalRecharges + totalConsignes;
@@ -1014,16 +1031,26 @@ const CentreEmplisseurView = ({
             // NEW: Downtime per Line
             const downtimeByLine: Record<number, number> = {}; // Line number -> minutes
 
+            // Helper function to calculate arret duration
+            const getArretDuration = (arret: any): number => {
+                if (arret.duree_minutes && arret.duree_minutes > 0) {
+                    return arret.duree_minutes;
+                } else if (arret.heure_debut && arret.heure_fin) {
+                    const [hD, mD] = arret.heure_debut.split(':').map(Number);
+                    const [hF, mF] = arret.heure_fin.split(':').map(Number);
+                    let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
+                    if (diffMins < 0) diffMins += 24 * 60; // Handle overnight
+                    return diffMins;
+                }
+                return 0;
+            };
+
             // From shifts (Chef de Quart - arrêts affect specified lines)
             shifts.forEach(shift => {
                 const arrets = shift.arrets_production || [];
                 arrets.forEach((arret: any) => {
-                    if (arret.heure_debut && arret.heure_fin) {
-                        const debut = new Date(`2000-01-01T${arret.heure_debut}`);
-                        const fin = new Date(`2000-01-01T${arret.heure_fin}`);
-                        const diffMs = fin.getTime() - debut.getTime();
-                        const duration = diffMs / 60000; // minutes
-
+                    const duration = getArretDuration(arret);
+                    if (duration > 0) {
                         const lignesConcernees = arret.lignes_concernees || [];
                         lignesConcernees.forEach((lineNum: number) => {
                             downtimeByLine[lineNum] = (downtimeByLine[lineNum] || 0) + duration;
@@ -1037,13 +1064,11 @@ const CentreEmplisseurView = ({
                 const shift = ligne.production_shifts;
                 const arrets = shift?.arrets_production || [];
                 arrets.forEach((arret: any) => {
-                    if (arret.heure_debut && arret.heure_fin && arret.lignes_concernees?.includes(ligne.numero_ligne)) {
-                        const debut = new Date(`2000-01-01T${arret.heure_debut}`);
-                        const fin = new Date(`2000-01-01T${arret.heure_fin}`);
-                        const diffMs = fin.getTime() - debut.getTime();
-                        const duration = diffMs / 60000; // minutes
-
-                        downtimeByLine[ligne.numero_ligne] = (downtimeByLine[ligne.numero_ligne] || 0) + duration;
+                    if (arret.lignes_concernees?.includes(ligne.numero_ligne)) {
+                        const duration = getArretDuration(arret);
+                        if (duration > 0) {
+                            downtimeByLine[ligne.numero_ligne] = (downtimeByLine[ligne.numero_ligne] || 0) + duration;
+                        }
                     }
                 });
             });

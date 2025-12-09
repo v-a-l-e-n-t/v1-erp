@@ -274,7 +274,12 @@ const DashboardHistorique = () => {
         .from('production_shifts')
         .select(`
                     *,
-                    lignes_production(*),
+                    lignes_production(
+                      *,
+                      production_shifts(
+                        arrets_production(*)
+                      )
+                    ),
                     arrets_production(*)
                 `)
         .eq('id', shiftId)
