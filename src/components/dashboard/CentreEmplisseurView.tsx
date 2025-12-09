@@ -533,68 +533,60 @@ const CentreEmplisseurView = ({
                         }
                     }
 
-                    // 3. Productivity
-                    let totalTempsArret = 0;
-                    // Calculate downtime from arrets, deduplicating by time range
-                    (shiftsData as any[]).forEach((s: any) => {
-                        const uniqueArretsForShift = new Set<string>();
+                    // 3. Productivity - Calculate theoretical production PER LINE
+                    let productionTheoriqueTotal = 0;
 
-                        (s.arrets_production || []).forEach((a: any) => {
-                            if (a.heure_debut && a.heure_fin) {
-                                // Deduplicate based on exact time window within the shift
-                                // This handles the case where the same stop is recorded multiple times (once per line)
-                                const key = `${a.heure_debut}-${a.heure_fin}`;
-                                if (!uniqueArretsForShift.has(key)) {
+                    // A. Process shifts (Chef de Quart) - Calculate per line
+                    (shiftsData as any[]).forEach((s: any) => {
+                        const shiftLines = s.lignes_production || [];
+                        const shiftArrets = s.arrets_production || [];
+
+                        shiftLines.forEach((l: any) => {
+                            // Find stops affecting THIS specific line
+                            const lineArrets = shiftArrets.filter((a: any) =>
+                                a.lignes_concernees && a.lignes_concernees.includes(l.numero_ligne)
+                            );
+
+                            // Calculate downtime for this line (using duree_minutes or fallback)
+                            let ligneTempsArret = 0;
+                            lineArrets.forEach((a: any) => {
+                                if (a.duree_minutes && a.duree_minutes > 0) {
+                                    ligneTempsArret += a.duree_minutes;
+                                } else if (a.heure_debut && a.heure_fin) {
+                                    // Fallback for legacy data
                                     const [hD, mD] = a.heure_debut.split(':').map(Number);
                                     const [hF, mF] = a.heure_fin.split(':').map(Number);
                                     let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
                                     if (diffMins < 0) diffMins += 24 * 60;
-
-                                    totalTempsArret += diffMins;
-                                    uniqueArretsForShift.add(key);
+                                    ligneTempsArret += diffMins;
                                 }
-                            }
+                            });
+
+                            // Calculate theoretical for THIS line only
+                            // Cap downtime at 540 min (9h) to avoid negative hours
+                            const effectiveDowntime = Math.min(ligneTempsArret, 540);
+                            const productiveHours = 9 - (effectiveDowntime / 60);
+
+                            // Rate: Lines 1-4 = B6 (1600 × 6kg), Line 5 = B12 (900 × 12.5kg)
+                            const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                            const contrib = (rate * productiveHours) / 1000; // Convert to Tonnes
+
+                            productionTheoriqueTotal += contrib;
                         });
                     });
 
-                    const totalSessions = countQuart + countLigne;
+                    // B. Process lignes (Chef de Ligne) - Assume full 9h (no stop data in this query)
+                    (lignesData as any[]).forEach((l: any) => {
+                        const productiveHours = 9;
+                        const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                        const contrib = (rate * productiveHours) / 1000;
+                        productionTheoriqueTotal += contrib;
+                    });
+
+                    // Calculate final productivity
                     let productivite = 0;
-
-                    // DIAGNOSTIC LOGGING
-                    console.log(`[DIAGNOSTIC] Agent: ${agent.nom} ${agent.prenom}`);
-                    console.log(`[DIAGNOSTIC] Tonnage: ${totalTonnage} Kg`);
-                    console.log(`[DIAGNOSTIC] Sessions: ${totalSessions} (Quart: ${countQuart}, Ligne: ${countLigne})`);
-                    console.log(`[DIAGNOSTIC] Temps arrêt total: ${totalTempsArret} minutes`);
-
-                    if (totalSessions > 0) {
-                        const heuresProductives = totalSessions * 9 - (totalTempsArret / 60);
-                        console.log(`[DIAGNOSTIC] Heures productives: ${heuresProductives}h`);
-
-                        let productionTheorique = 0;
-
-                        // From shifts
-                        (shiftsData as any[]).forEach((s: any) => {
-                            console.log(`[DIAGNOSTIC] Shift lignes_production:`, s.lignes_production);
-                            (s.lignes_production || []).forEach((l: any) => {
-                                const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                                const contrib = (rate * (heuresProductives / totalSessions)) / 1000;
-                                console.log(`[DIAGNOSTIC]   Ligne ${l.numero_ligne}: rate=${rate}, contrib=${contrib}T`);
-                                productionTheorique += contrib;
-                            });
-                        });
-
-                        // From lignes
-                        (lignesData as any[]).forEach((l: any) => {
-                            const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                            const contrib = (rate * (heuresProductives / totalSessions)) / 1000;
-                            console.log(`[DIAGNOSTIC]   Ligne ${l.numero_ligne} (chef ligne): rate=${rate}, contrib=${contrib}T`);
-                            productionTheorique += contrib;
-                        });
-
-                        console.log(`[DIAGNOSTIC] Production théorique: ${productionTheorique}T`);
-                        productivite = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
-                        console.log(`[DIAGNOSTIC] Productivité finale: ${productivite}%`);
-                        console.log(`[DIAGNOSTIC] =====================================`);
+                    if (productionTheoriqueTotal > 0) {
+                        productivite = (totalTonnage / productionTheoriqueTotal) * 100;
                     }
 
                     // 4. Collect Lines (for Chef de Ligne)
