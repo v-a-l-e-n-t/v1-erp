@@ -473,6 +473,14 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const totalReceptions = filteredEntries.reduce((sum, e) => sum + e.reception_gpl, 0);
   const nombreReceptions = filteredEntries.filter(e => e.reception_gpl > 0).length;
 
+  // Get stock_initial from first entry of the period (sorted by date ascending)
+  const sortedEntriesByDate = [...filteredEntries].sort((a, b) => a.date.localeCompare(b.date));
+  const firstEntryOfPeriod = sortedEntriesByDate[0];
+  const stockInitial1st = firstEntryOfPeriod?.stock_initial || 0;
+
+  // Total disponible = Stock initial au 1er + Réceptions de la période
+  const totalDisponible = stockInitial1st + totalReceptions;
+
   // Generate period text for display
   const getPeriodText = () => {
     if (filterType === 'month') {
@@ -775,9 +783,9 @@ const Dashboard = ({ entries }: DashboardProps) => {
               <div className="bg-muted/30 rounded-md p-2 border border-muted text-center">
                 <span className="text-xs text-muted-foreground">Ventes = </span>
                 <span className="text-lg font-bold text-orange-600">
-                  {totalReceptions > 0 ? (((totalSorties + totalFuyardes) / totalReceptions) * 100).toFixed(1) : '0.0'}%
+                  {totalDisponible > 0 ? ((totalSorties / totalDisponible) * 100).toFixed(1) : '0.0'}%
                 </span>
-                <span className="text-xs text-muted-foreground"> des réceptions</span>
+                <span className="text-xs text-muted-foreground"> du stock disponible</span>
               </div>
             </div>
           </CardContent>
