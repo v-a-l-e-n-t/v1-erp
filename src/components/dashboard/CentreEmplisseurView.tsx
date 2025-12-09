@@ -484,10 +484,10 @@ const CentreEmplisseurView = ({
                         .select('tonnage_total, temps_arret_total_minutes, arrets_production(*), lignes_production(*)')
                         .eq('chef_quart_id', agent.id);
 
-                    // Query lignes as chef de ligne
+                    // Query lignes as chef de ligne (including arrets for productivity calc)
                     let lignesQuery = supabase
                         .from('lignes_production')
-                        .select('tonnage_ligne, numero_ligne, production_shifts!inner(date, shift_type)')
+                        .select('tonnage_ligne, numero_ligne, production_shifts!inner(id, date, shift_type, arrets_production(*))')
                         .eq('chef_ligne_id', agent.id);
 
                     // Apply filters
@@ -575,9 +575,32 @@ const CentreEmplisseurView = ({
                         });
                     });
 
-                    // B. Process lignes (Chef de Ligne) - Assume full 9h (no stop data in this query)
+                    // B. Process lignes (Chef de Ligne) - Now with arrets from shift
                     (lignesData as any[]).forEach((l: any) => {
-                        const productiveHours = 9;
+                        const shiftArrets = l.production_shifts?.arrets_production || [];
+
+                        // Find stops affecting THIS specific line
+                        const lineArrets = shiftArrets.filter((a: any) =>
+                            a.lignes_concernees && a.lignes_concernees.includes(l.numero_ligne)
+                        );
+
+                        // Calculate downtime for this line
+                        let ligneTempsArret = 0;
+                        lineArrets.forEach((a: any) => {
+                            if (a.duree_minutes && a.duree_minutes > 0) {
+                                ligneTempsArret += a.duree_minutes;
+                            } else if (a.heure_debut && a.heure_fin) {
+                                const [hD, mD] = a.heure_debut.split(':').map(Number);
+                                const [hF, mF] = a.heure_fin.split(':').map(Number);
+                                let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
+                                if (diffMins < 0) diffMins += 24 * 60;
+                                ligneTempsArret += diffMins;
+                            }
+                        });
+
+                        // Calculate theoretical for this line
+                        const effectiveDowntime = Math.min(ligneTempsArret, 540);
+                        const productiveHours = 9 - (effectiveDowntime / 60);
                         const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
                         const contrib = (rate * productiveHours) / 1000;
                         productionTheoriqueTotal += contrib;
