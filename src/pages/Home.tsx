@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, BarChart3, Calculator, Users, ClipboardList } from 'lucide-react';
+import { FileText, BarChart3, Calculator, Users, ClipboardList, Truck } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -41,6 +41,13 @@ export default function Home() {
       icon: Users,
       path: '/chefs-ligne',
       color: 'text-pink-500',
+    },
+    {
+      title: 'Ventes par Mandataire',
+      description: 'Import et suivi des ventes conditionnées par mandataire',
+      icon: Truck,
+      path: '/mandataires',
+      color: 'text-amber-500',
     },
   ];
 

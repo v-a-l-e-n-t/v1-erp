@@ -197,11 +197,12 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
             if (typeof targetLines === 'string') {
               try {
                 // Handle case where specific format might be used
-                if ((targetLines as string).startsWith('{')) {
+                let parseStr = targetLines as string;
+                if (parseStr.startsWith('{')) {
                   // Postgres array format {1,2,3}
-                  targetLines = (targetLines as string).replace('{', '[').replace('}', ']');
+                  parseStr = parseStr.replace('{', '[').replace('}', ']');
                 }
-                targetLines = JSON.parse(targetLines as unknown as string);
+                targetLines = JSON.parse(parseStr) as number[];
               } catch (e) {
                 console.warn('Failed to parse lignes_concernees for arret:', arret);
                 targetLines = [];
