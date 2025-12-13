@@ -52,22 +52,46 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [currentDuplicateIndex, setCurrentDuplicateIndex] = useState(0);
 
-  const parseDate = (dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    // Format JJ/MM/AA ou JJ/MM/AAAA
-    const parts = dateStr.split("/");
-    if (parts.length !== 3) return null;
+  const parseDate = (dateValue: any): Date | null => {
+    if (!dateValue) return null;
     
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    let year = parseInt(parts[2], 10);
-    
-    // Gérer les années sur 2 chiffres
-    if (year < 100) {
-      year += 2000;
+    // If it's a number (Excel serial date)
+    if (typeof dateValue === 'number') {
+      // Excel serial date: days since 1899-12-30
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
+      return date;
     }
     
-    return new Date(year, month, day);
+    // If it's a Date object
+    if (dateValue instanceof Date) {
+      return dateValue;
+    }
+    
+    // If it's a string, try to parse it
+    const dateStr = String(dateValue).trim();
+    if (!dateStr) return null;
+    
+    // Format JJ/MM/AA ou JJ/MM/AAAA
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      let year = parseInt(parts[2], 10);
+      
+      // Gérer les années sur 2 chiffres
+      if (year < 100) {
+        year += 2000;
+      }
+      
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        return new Date(year, month, day);
+      }
+    }
+    
+    // Try standard Date parsing as fallback
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? null : parsed;
   };
 
   const parseNumber = (value: any): number => {
@@ -86,11 +110,17 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
     try {
       // Parse production file
       const productionData = await parseExcelFile(productionFile);
+      console.log("Production data rows:", productionData.length);
+      if (productionData.length > 0) {
+        console.log("First row keys:", Object.keys(productionData[0]));
+        console.log("First row sample:", productionData[0]);
+      }
       
       // Parse destinations file if provided
       let destinationsMap: Record<string, string> = {};
       if (destinationsFile) {
         const destinationsData = await parseExcelFile(destinationsFile);
+        console.log("Destinations data rows:", destinationsData.length);
         destinationsData.forEach((row: any) => {
           const bonSortie = String(row["N° BON SORTIE"] || "").trim();
           if (bonSortie) {
@@ -101,17 +131,30 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
 
       // Merge data
       const ventesMap: Record<string, ParsedVente> = {};
+      let skippedNoBon = 0;
+      let skippedNoDate = 0;
+      let skippedNoMandataire = 0;
       
       productionData.forEach((row: any) => {
         const bonSortie = String(row["N° BON SORTIE"] || "").trim();
-        if (!bonSortie) return;
+        if (!bonSortie) {
+          skippedNoBon++;
+          return;
+        }
 
         const dateValue = row["Date"] || row["DATE"];
-        const parsedDate = parseDate(String(dateValue));
-        if (!parsedDate) return;
+        const parsedDate = parseDate(dateValue);
+        if (!parsedDate) {
+          console.log("Failed to parse date:", dateValue, "type:", typeof dateValue);
+          skippedNoDate++;
+          return;
+        }
 
         const mandataire = String(row["MANDATAIRE"] || row["Mandataire"] || "").trim();
-        if (!mandataire) return;
+        if (!mandataire) {
+          skippedNoMandataire++;
+          return;
+        }
 
         ventesMap[bonSortie] = {
           date: parsedDate,
@@ -133,7 +176,10 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
         };
       });
 
+      console.log(`Skipped - No bon sortie: ${skippedNoBon}, No date: ${skippedNoDate}, No mandataire: ${skippedNoMandataire}`);
+
       const ventes = Object.values(ventesMap);
+      console.log("Ventes parsed:", ventes.length);
 
       // Check for duplicates in database
       const bonsSortie = ventes.map(v => v.numeroBonSortie);
