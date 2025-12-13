@@ -555,6 +555,17 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const pctCeVivo = totalCeAll > 0 ? (ceVivo / totalCeAll) * 100 : 0;
   const pctCeTotalE = totalCeAll > 0 ? (ceTotalE / totalCeAll) * 100 : 0;
 
+  // GLOBAL SALES by client (VRAC + CE combined)
+  const globalSimam = vracSimam; // SIMAM is only VRAC
+  const globalPetro = vracPetro + cePetro;
+  const globalVivo = vracVivo + ceVivo;
+  const globalTotalE = vracTotalE + ceTotalE;
+  const totalGlobalSales = globalSimam + globalPetro + globalVivo + globalTotalE;
+  const pctGlobalSimam = totalGlobalSales > 0 ? (globalSimam / totalGlobalSales) * 100 : 0;
+  const pctGlobalPetro = totalGlobalSales > 0 ? (globalPetro / totalGlobalSales) * 100 : 0;
+  const pctGlobalVivo = totalGlobalSales > 0 ? (globalVivo / totalGlobalSales) * 100 : 0;
+  const pctGlobalTotalE = totalGlobalSales > 0 ? (globalTotalE / totalGlobalSales) * 100 : 0;
+
   // Calculate production percentages
   const totalBottles = productionStats.bottlesByType.b6 + productionStats.bottlesByType.b12 +
     productionStats.bottlesByType.b28 + productionStats.bottlesByType.b38;
@@ -757,60 +768,95 @@ const Dashboard = ({ entries }: DashboardProps) => {
       </div>
 
 
-      {/* ROW 1: 4 cartes - Réception, Analyse Vente, Vente VRAC, Vente Conditionnée */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Analyse des Réceptions */}
-        <Card className="flex flex-col justify-between h-full">
+
+      {/* ========== ROW 1: BUTANES SPHERES + VENTES ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* BUTANES SPHERES */}
+        <Card className="bg-blue-50/50 border-blue-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Réceptions</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-blue-700">🔵 BUTANES SPHÈRES</CardTitle>
+            <Package className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-3">
-              <div className="text-2xl font-bold">{formatNumber(totalReceptions)} Kg</div>
+              <div className="text-2xl font-bold text-blue-700">{formatNumber(totalDisponible)} Kg</div>
+              <p className="text-xs text-muted-foreground">Stock disponible (Stock 1er + Réceptions)</p>
               <div className="space-y-1 border-t pt-2">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Nombre</span>
-                  <span className="font-bold">{nombreReceptions}</span>
+                  <span className="text-muted-foreground">Stock au 1er</span>
+                  <span className="font-bold">{formatNumber(stockInitial1st)} Kg</span>
                 </div>
-                {currentObjective && filterType === 'month' && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Réceptions {getPeriodText()}</span>
+                  <span className="font-bold">{formatNumber(totalReceptions)} Kg</span>
+                </div>
+                {nombreReceptions > 0 && (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Objectif</span>
-                    <span className="font-bold text-primary">{formatNumber(currentObjective)} Kg</span>
+                    <span className="text-muted-foreground">Nb réceptions</span>
+                    <span className="font-bold">{nombreReceptions}</span>
                   </div>
                 )}
               </div>
-              <div className="bg-muted/30 rounded-md p-2 border border-muted text-center">
+              <div className="bg-blue-100/50 rounded-md p-2 border border-blue-200 text-center">
                 <span className="text-xs text-muted-foreground">Ventes = </span>
                 <span className="text-lg font-bold text-orange-600">
                   {totalDisponible > 0 ? ((totalSorties / totalDisponible) * 100).toFixed(1) : '0.0'}%
                 </span>
-                <span className="text-xs text-muted-foreground"> du stock disponible</span>
+                <span className="text-xs text-muted-foreground"> des réceptions</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Analyse des Ventes */}
-        <Card className="flex flex-col justify-between h-full">
+        {/* VENTES GLOBALES */}
+        <Card className="bg-orange-50/50 border-orange-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Analyse Ventes</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-orange-700">📊 VENTES</CardTitle>
+            <TrendingUp className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-3">
-              <div className="text-2xl font-bold">{formatNumber(totalSorties)} Kg</div>
+              <div className="text-2xl font-bold">{formatNumber(totalGlobalSales)} Kg</div>
+              <p className="text-xs text-muted-foreground">Cumul des ventes (VRAC + Conditionné)</p>
               <div className="space-y-1 border-t pt-2">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Dépôt VRAC</span>
-                  <span className="font-bold">{formatNumber(totalVrac)} Kg <span className="text-primary">({pourcentageVrac.toFixed(0)}%)</span></span>
+                  <div className="flex items-center gap-1">
+                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                      <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
+                    </div>
+                    <span className="text-muted-foreground">SIMAM</span>
+                  </div>
+                  <span className="font-bold">{formatNumber(globalSimam)} Kg <span className="text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Conditionné</span>
-                  <span className="font-bold">{formatNumber(totalConditionne)} Kg <span className="text-primary">({pourcentageConditionne.toFixed(0)}%)</span></span>
+                  <div className="flex items-center gap-1">
+                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                      <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                    </div>
+                    <span className="text-muted-foreground">PETRO</span>
+                  </div>
+                  <span className="font-bold">{formatNumber(globalPetro)} Kg <span className="text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-1">
+                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                      <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                    </div>
+                    <span className="text-muted-foreground">VIVO</span>
+                  </div>
+                  <span className="font-bold">{formatNumber(globalVivo)} Kg <span className="text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-1">
+                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                      <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                    </div>
+                    <span className="text-muted-foreground">TOTAL E.</span>
+                  </div>
+                  <span className="font-bold">{formatNumber(globalTotalE)} Kg <span className="text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
                 </div>
               </div>
-              <div className="bg-muted/30 rounded-md p-2 border border-muted text-center">
+              <div className="bg-orange-100/50 rounded-md p-2 border border-orange-200 text-center">
                 <span className="text-xs text-muted-foreground">Ventes CE = </span>
                 <span className="text-lg font-bold text-orange-600">{correlation.toFixed(1)}%</span>
                 <span className="text-xs text-muted-foreground"> de la production CE</span>
@@ -818,11 +864,14 @@ const Dashboard = ({ entries }: DashboardProps) => {
             </div>
           </CardContent>
         </Card>
+      </div>
 
-        {/* Vente VRAC */}
-        <Card className="flex flex-col justify-between h-full bg-amber-50/30 border-amber-200">
+      {/* ========== ROW 2: VRAC + CONDITIONNÉ ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {/* VRAC */}
+        <Card className="bg-amber-50/30 border-amber-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-amber-700">🛢️ Vente VRAC</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-700">🛢️ VRAC</CardTitle>
             <span className="text-xs font-bold text-amber-700">{formatNumber(totalVracAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
@@ -835,77 +884,72 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <span className="text-sm font-bold mt-1">{formatNumber(vracSimam)}</span>
                 <span className="text-xs text-amber-600">{pctVracSimam.toFixed(0)}%</span>
               </div>
-
               {/* Petro */}
-              <div className="bg-white p-2 rounded-lg border border-orange-100 flex flex-col items-center">
+              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-sm font-bold mt-1">{formatNumber(vracPetro)}</span>
-                <span className="text-xs text-orange-600">{pctVracPetro.toFixed(0)}%</span>
+                <span className="text-xs text-amber-600">{pctVracPetro.toFixed(0)}%</span>
               </div>
-
               {/* Vivo */}
-              <div className="bg-white p-2 rounded-lg border border-green-100 flex flex-col items-center">
+              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-sm font-bold mt-1">{formatNumber(vracVivo)}</span>
-                <span className="text-xs text-green-600">{pctVracVivo.toFixed(0)}%</span>
+                <span className="text-xs text-amber-600">{pctVracVivo.toFixed(0)}%</span>
               </div>
-
-              {/* Total Energies */}
-              <div className="bg-white p-2 rounded-lg border border-purple-100 flex flex-col items-center">
+              {/* Total */}
+              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-sm font-bold mt-1">{formatNumber(vracTotalE)}</span>
-                <span className="text-xs text-purple-600">{pctVracTotalE.toFixed(0)}%</span>
+                <span className="text-xs text-amber-600">{pctVracTotalE.toFixed(0)}%</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Vente Conditionnée */}
-        <Card className="flex flex-col justify-between h-full bg-primary/5 border-primary/20">
+        {/* CONDITIONNÉ */}
+        <Card className="bg-green-50/30 border-green-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-primary">🏭 Vente Conditionnée</CardTitle>
-            <span className="text-xs font-bold text-primary">{formatNumber(totalCeAll)} Kg</span>
+            <CardTitle className="text-sm font-medium text-green-700">📦 CONDITIONNÉ</CardTitle>
+            <span className="text-xs font-bold text-green-700">{formatNumber(totalCeAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-2">
               {/* Petro */}
-              <div className="bg-white p-2 rounded-lg border border-orange-100 flex items-center justify-between">
+              <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-green-100">
                 <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-sm font-bold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
-                <span className="text-sm font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded">{pctCePetro.toFixed(0)}%</span>
+                <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">{pctCePetro.toFixed(0)}%</span>
               </div>
-
-              {/* Total Energies */}
-              <div className="bg-white p-2 rounded-lg border border-purple-100 flex items-center justify-between">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-sm font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
-                <span className="text-sm font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded">{pctCeTotalE.toFixed(0)}%</span>
-              </div>
-
               {/* Vivo */}
-              <div className="bg-white p-2 rounded-lg border border-green-100 flex items-center justify-between">
+              <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-green-100">
                 <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-sm font-bold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
                 <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">{pctCeVivo.toFixed(0)}%</span>
               </div>
+              {/* Total E */}
+              <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-green-100">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-sm font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
+                <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">{pctCeTotalE.toFixed(0)}%</span>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ROW 2: 2 cartes full-width - Top Productivité et Top Tonnage */}
+      {/* ========== ROW 3: TOP PERFORMERS ========== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* Top Performers - Tonnage */}
         <Card className="bg-blue-50/30 border-blue-200">
@@ -927,7 +971,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-sm text-muted-foreground italic">-</p>
                 )}
               </div>
-
               {/* Chef de Quart */}
               <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
                 <p className="text-[10px] text-muted-foreground mb-1">Chef de Quart</p>
@@ -940,7 +983,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-sm text-muted-foreground italic">-</p>
                 )}
               </div>
-
               {/* Chef de Ligne */}
               <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
                 <p className="text-[10px] text-muted-foreground mb-1">Chef de Ligne</p>
@@ -965,7 +1007,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </CardHeader>
           <CardContent className="pt-2">
             <div className="grid grid-cols-3 gap-3">
-              {/* Meilleure Ligne placeholder */}
+              {/* Meilleure Ligne */}
               <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
                 <p className="text-[10px] text-muted-foreground mb-1">Meilleure Ligne</p>
                 {topPerformers.topLine ? (
@@ -977,8 +1019,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-sm text-muted-foreground italic">-</p>
                 )}
               </div>
-
-              {/* Chef de Quart by Productivity */}
+              {/* Chef de Quart */}
               <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
                 <p className="text-[10px] text-muted-foreground mb-1">Chef de Quart</p>
                 {topPerformers.topChefByProductivity ? (
@@ -990,8 +1031,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-sm text-muted-foreground italic">-</p>
                 )}
               </div>
-
-              {/* Chef de Ligne by Productivity */}
+              {/* Chef de Ligne */}
               <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
                 <p className="text-[10px] text-muted-foreground mb-1">Chef de Ligne</p>
                 {topPerformers.topAgentByProductivity ? (
@@ -1008,135 +1048,131 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </Card>
       </div>
 
-      {/* Row 2: Production */}
-      <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-muted-foreground">Production Centre Emplisseur</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Tonnage Production CE */}
-          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-primary">Tonnage Production CE</CardTitle>
-              <Weight className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="text-2xl font-bold text-primary">
-                {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
+      {/* ========== ROW 4: PRODUCTION CE ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+        {/* Tonnage Production CE */}
+        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-primary">Tonnage Production CE</CardTitle>
+            <Weight className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="text-2xl font-bold text-primary">
+              {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
+            <div className="mt-3 space-y-1 border-t pt-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B6</span>
+                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
-              <div className="mt-3 space-y-1 border-t pt-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B6</span>
-                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B12</span>
-                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12)} Kg</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B28</span>
-                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B38</span>
-                  <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
-                </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B12</span>
+                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12)} Kg</span>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-primary">Bouteilles Produites</CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="text-2xl font-bold text-primary">
-                {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B28</span>
+                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
               </div>
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B6: <span className="font-bold text-foreground">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span></span>
-                  <span className="font-bold text-foreground">{pctB6.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B12: <span className="font-bold text-foreground">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span></span>
-                  <span className="font-bold text-foreground">{pctB12.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B28: <span className="font-bold text-foreground">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span></span>
-                  <span className="font-bold text-foreground">{pctB28.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">B38: <span className="font-bold text-foreground">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span></span>
-                  <span className="font-bold text-foreground">{pctB38.toFixed(1)}%</span>
-                </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B38</span>
+                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Bouteilles Produites */}
+        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-primary">Bouteilles Produites</CardTitle>
+            <Package className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="text-2xl font-bold text-primary">
+              {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
+            </div>
+            <div className="mt-2 space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B6: <span className="font-bold text-foreground">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span></span>
+                <span className="font-bold text-foreground">{pctB6.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B12: <span className="font-bold text-foreground">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span></span>
+                <span className="font-bold text-foreground">{pctB12.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B28: <span className="font-bold text-foreground">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span></span>
+                <span className="font-bold text-foreground">{pctB28.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">B38: <span className="font-bold text-foreground">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span></span>
+                <span className="font-bold text-foreground">{pctB38.toFixed(1)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Production par Client */}
+        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-primary">Production par Client</CardTitle>
+            <Factory className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Petro Ivoire</span>
+                <span className="text-base font-bold text-primary">{pctProdPetro.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Vivo Energies</span>
+                <span className="text-base font-bold text-primary">{pctProdVivo.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Total Energies</span>
+                <span className="text-base font-bold text-primary">{pctProdTotal.toFixed(1)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Production par Client */}
-          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-primary">Production par Client</CardTitle>
-              <Factory className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-1">
+        {/* Retour marché */}
+        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-primary">Retour marché</CardTitle>
+            <TrendingDown className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Cumul</span>
+                <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">% des sorties</span>
+                <span className="text-xs font-semibold text-destructive">
+                  {totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%
+                </span>
+              </div>
+              <div className="border-t pt-2 space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Par client:</p>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Petro Ivoire</span>
-                  <span className="text-base font-bold text-primary">{pctProdPetro.toFixed(1)}%</span>
+                  <span className="text-orange-600">Petro</span>
+                  <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Vivo Energies</span>
-                  <span className="text-base font-bold text-primary">{pctProdVivo.toFixed(1)}%</span>
+                  <span className="text-green-600">Vivo</span>
+                  <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Total Energies</span>
-                  <span className="text-base font-bold text-primary">{pctProdTotal.toFixed(1)}%</span>
+                  <span className="text-purple-600">Total E.</span>
+                  <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Retour marché with client breakdown */}
-          <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-primary">Retour marché</CardTitle>
-              <TrendingDown className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Cumul</span>
-                  <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">% des sorties</span>
-                  <span className="text-xs font-semibold text-destructive">
-                    {totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%
-                  </span>
-                </div>
-
-                <div className="border-t pt-2 space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1">Par client:</p>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-orange-600">Petro</span>
-                    <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-green-600">Vivo</span>
-                    <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-purple-600">Total E.</span>
-                    <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
 
