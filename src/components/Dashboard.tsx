@@ -131,9 +131,13 @@ const Dashboard = ({ entries }: DashboardProps) => {
             + (ligne.consignes_total_b6 || 0) + (ligne.consignes_total_b12 || 0) + (ligne.consignes_total_b28 || 0) + (ligne.consignes_total_b38 || 0);
         });
 
+        // Recalculate totals based on line details to ensure consistency
+        const calculatedTotalTonnage = (b6 * 6) + (b12 * 12.5) + (b28 * 28) + (b38 * 38);
+        const calculatedTotalBouteilles = b6 + b12 + b28 + b38;
+
         setProductionStats({
-          tonnage: totalTonnage,
-          bouteilles: totalBouteilles,
+          tonnage: calculatedTotalTonnage,
+          bouteilles: calculatedTotalBouteilles,
           bottlesByType: { b6, b12, b28, b38 },
           bottlesByClient: { petro, vivo, total },
           loading: false
@@ -1056,7 +1060,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">B12</span>
-                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12)} Kg</span>
+                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12.5)} Kg</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">B28</span>
