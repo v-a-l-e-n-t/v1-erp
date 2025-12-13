@@ -1149,13 +1149,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Cumul</span>
-                <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">% / Sorties</span>
-                <span className="text-sm font-semibold text-destructive">
-                  {totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
+                  <span className="text-sm font-semibold text-destructive">
+                    ({totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%)
+                  </span>
+                </div>
               </div>
 
               <div className="border-t pt-2 space-y-2">
