@@ -175,18 +175,18 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
           return;
         }
 
-        // Use findColumn for all recharges and consignes columns
-        const r_b6 = parseNumber(findColumn(row, "R_B6", "R B6", "R_B 6", "RB6"));
-        const r_b12 = parseNumber(findColumn(row, "R_B12", "R B12", "R_B 12", "RB12"));
-        const r_b28 = parseNumber(findColumn(row, "R_B 28", "R_B28", "R B28", "RB28"));
-        const r_b38 = parseNumber(findColumn(row, "R_B 38", "R_B38", "R B38", "RB38"));
-        const r_b11_carbu = parseNumber(findColumn(row, "R_Carburation B12", "R_Carburation B11", "R_B11 CARBURATION", "R CARBURATION B12"));
+        // Colonnes exactes du fichier Excel production_par_mandataire.xlsx
+        const r_b6 = parseNumber(findColumn(row, "R_B6"));
+        const r_b12 = parseNumber(findColumn(row, "R_B12"));
+        const r_b28 = parseNumber(findColumn(row, "R_B 28"));
+        const r_b38 = parseNumber(findColumn(row, "R_B 38"));
+        const r_b11_carbu = parseNumber(findColumn(row, "R_Carburation B12"));
         
-        const c_b6 = parseNumber(findColumn(row, "C_B6", "C B6", "C_B 6", "CB6"));
-        const c_b12 = parseNumber(findColumn(row, "C_B12", "C B12", "C_B 12", "CB12"));
-        const c_b28 = parseNumber(findColumn(row, "C_B 28", "C_B28", "C B28", "CB28"));
-        const c_b38 = parseNumber(findColumn(row, "C_B 38", "C_B38", "C B38", "CB38"));
-        const c_b11_carbu = parseNumber(findColumn(row, "C_Carburation B11", "C_B11 CARBURATION", "C CARBURATION B11"));
+        const c_b6 = parseNumber(findColumn(row, "C_B6"));
+        const c_b12 = parseNumber(findColumn(row, "C_B12"));
+        const c_b28 = parseNumber(findColumn(row, "C_B 28"));
+        const c_b38 = parseNumber(findColumn(row, "C_B 38"));
+        const c_b11_carbu = parseNumber(findColumn(row, "C_Carburation B11"));
 
         ventesMap[bonSortie] = {
           date: parsedDate,
