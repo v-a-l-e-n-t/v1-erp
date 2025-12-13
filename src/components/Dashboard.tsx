@@ -1102,60 +1102,71 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </Card>
 
         {/* Production par Client */}
-        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Production par Client</CardTitle>
-            <Factory className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium">Production par Client</CardTitle>
+            <Factory className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground">Petro Ivoire</span>
-                <span className="text-base font-bold text-primary">{pctProdPetro.toFixed(1)}%</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-base font-bold">{pctProdPetro.toFixed(1)}%</span>
               </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground">Vivo Energies</span>
-                <span className="text-base font-bold text-primary">{pctProdVivo.toFixed(1)}%</span>
+              <div className="flex justify-between items-center">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-base font-bold">{pctProdVivo.toFixed(1)}%</span>
               </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground">Total Energies</span>
-                <span className="text-base font-bold text-primary">{pctProdTotal.toFixed(1)}%</span>
+              <div className="flex justify-between items-center">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-base font-bold">{pctProdTotal.toFixed(1)}%</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Retour marché */}
-        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Retour marché</CardTitle>
+            <CardTitle className="text-sm font-medium">Retour marché</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Cumul</span>
+                <span className="text-sm text-muted-foreground">Cumul</span>
                 <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">% des sorties</span>
-                <span className="text-xs font-semibold text-destructive">
+                <span className="text-sm text-muted-foreground">% des sorties</span>
+                <span className="text-sm font-semibold text-destructive">
                   {totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%
                 </span>
               </div>
-              <div className="border-t pt-2 space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground mb-1">Par client:</p>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-orange-600">Petro</span>
-                  <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
+              <div className="border-t pt-2 space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-sm font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-green-600">Vivo</span>
-                  <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-sm font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-purple-600">Total E.</span>
-                  <span className="font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-sm font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
                 </div>
               </div>
             </div>
