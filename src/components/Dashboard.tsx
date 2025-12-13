@@ -772,23 +772,23 @@ const Dashboard = ({ entries }: DashboardProps) => {
       {/* ========== ROW 1: BUTANES SPHERES + VENTES ========== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* BUTANES SPHERES */}
-        <Card className="bg-blue-50/50 border-blue-200 flex flex-col h-full">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700">🔵 BUTANES SPHÈRES</CardTitle>
-            <Package className="h-4 w-4 text-blue-600" />
+            <CardTitle className="text-sm font-medium">🔵 BUTANES SPHÈRES</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-3">
-              <div className="text-2xl font-bold text-blue-700">{formatNumber(totalDisponible)} Kg</div>
+              <div className="text-xl font-bold text-blue-700">{formatNumber(totalDisponible)} Kg</div>
               <p className="text-sm text-muted-foreground">Stock disponible (Stock 1er + Réceptions)</p>
               <div className="space-y-2 border-t pt-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Stock au 1er</span>
-                  <span className="text-sm font-bold">{formatNumber(stockInitial1st)} Kg</span>
+                  <span className="text-xl font-bold">{formatNumber(stockInitial1st)} Kg</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Réceptions {getPeriodText()}</span>
-                  <span className="text-sm font-bold">{formatNumber(totalReceptions)} Kg</span>
+                  <span className="text-xl font-bold">{formatNumber(totalReceptions)} Kg</span>
                 </div>
                 {nombreReceptions > 0 && (
                   <div className="flex justify-between items-center">
@@ -816,32 +816,32 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-3">
-              <div className="text-2xl font-bold">{formatNumber(totalGlobalSales)} Kg</div>
+              <div className="text-xl font-bold">{formatNumber(totalGlobalSales)} Kg</div>
               <p className="text-xs text-muted-foreground">Cumul des ventes (VRAC + Conditionné)</p>
               <div className="space-y-2 border-t pt-2">
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-sm font-bold">{formatNumber(globalSimam)} Kg <span className="text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
+                  <span className="text-xl font-bold">{formatNumber(globalSimam)} Kg <span className="text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-sm font-bold">{formatNumber(globalPetro)} Kg <span className="text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
+                  <span className="text-xl font-bold">{formatNumber(globalPetro)} Kg <span className="text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-sm font-bold">{formatNumber(globalVivo)} Kg <span className="text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
+                  <span className="text-xl font-bold">{formatNumber(globalVivo)} Kg <span className="text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-sm font-bold">{formatNumber(globalTotalE)} Kg <span className="text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
+                  <span className="text-xl font-bold">{formatNumber(globalTotalE)} Kg <span className="text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
                 </div>
               </div>
             </div>
@@ -857,10 +857,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
       {/* ========== ROW 2: VRAC + CONDITIONNÉ ========== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* VRAC */}
-        <Card className="bg-amber-50/30 border-amber-200">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-amber-700">🛢️ VRAC</CardTitle>
-            <span className="text-xs font-bold text-amber-700">{formatNumber(totalVracAll)} Kg</span>
+            <CardTitle className="text-sm font-medium">🛢️ VRAC</CardTitle>
+            <span className="text-xs font-bold">{formatNumber(totalVracAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="grid grid-cols-2 gap-3">
@@ -869,7 +869,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold mt-1">{formatNumber(vracSimam)}</span>
+                <span className="text-xl font-bold mt-1">{formatNumber(vracSimam)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracSimam.toFixed(0)}%</span>
               </div>
               {/* Petro */}
@@ -877,7 +877,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold mt-1">{formatNumber(vracPetro)}</span>
+                <span className="text-xl font-bold mt-1">{formatNumber(vracPetro)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracPetro.toFixed(0)}%</span>
               </div>
               {/* Vivo */}
@@ -885,7 +885,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold mt-1">{formatNumber(vracVivo)}</span>
+                <span className="text-xl font-bold mt-1">{formatNumber(vracVivo)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracVivo.toFixed(0)}%</span>
               </div>
               {/* Total */}
@@ -893,7 +893,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold mt-1">{formatNumber(vracTotalE)}</span>
+                <span className="text-xl font-bold mt-1">{formatNumber(vracTotalE)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracTotalE.toFixed(0)}%</span>
               </div>
             </div>
@@ -901,10 +901,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </Card>
 
         {/* CONDITIONNÉ */}
-        <Card className="bg-green-50/30 border-green-200">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">📦 CONDITIONNÉ</CardTitle>
-            <span className="text-xs font-bold text-green-700">{formatNumber(totalCeAll)} Kg</span>
+            <CardTitle className="text-sm font-medium">📦 CONDITIONNÉ</CardTitle>
+            <span className="text-xs font-bold">{formatNumber(totalCeAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-3">
@@ -913,7 +913,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
+                <span className="text-xl font-bold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
                 <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCePetro.toFixed(0)}%</span>
               </div>
               {/* Vivo */}
@@ -921,7 +921,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
+                <span className="text-xl font-bold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
                 <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeVivo.toFixed(0)}%</span>
               </div>
               {/* Total E */}
@@ -929,7 +929,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
+                <span className="text-xl font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
                 <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeTotalE.toFixed(0)}%</span>
               </div>
             </div>
@@ -940,10 +940,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
       {/* ========== ROW 3: TOP PERFORMERS ========== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* Top Performers - Tonnage */}
-        <Card className="bg-blue-50/30 border-blue-200">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700">📊 Top Performers - Tonnage</CardTitle>
-            <TrendingUp className="h-4 w-4 text-blue-600" />
+            <CardTitle className="text-sm font-medium">📊 Top Performers - Tonnage</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="grid grid-cols-3 gap-3">
@@ -953,7 +953,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 {topPerformers.topLine ? (
                   <>
                     <p className="text-lg font-bold text-blue-700">{topPerformers.topLine.name}</p>
-                    <p className="text-sm text-muted-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
+                    <p className="text-xl font-bold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">-</p>
@@ -965,7 +965,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 {topPerformers.topChefByTonnage ? (
                   <>
                     <p className="text-lg font-bold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
-                    <p className="text-sm text-muted-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
+                    <p className="text-xl font-bold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">-</p>
@@ -977,7 +977,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 {topPerformers.topAgentByTonnage ? (
                   <>
                     <p className="text-lg font-bold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
-                    <p className="text-sm text-muted-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
+                    <p className="text-xl font-bold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">-</p>
@@ -988,10 +988,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </Card>
 
         {/* Top Performers - Productivité */}
-        <Card className="bg-green-50/30 border-green-200">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">🎯 Top Performers - Productivité</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">🎯 Top Performers - Productivité</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="grid grid-cols-3 gap-3">
@@ -1039,45 +1039,45 @@ const Dashboard = ({ entries }: DashboardProps) => {
       {/* ========== ROW 4: PRODUCTION CE ========== */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
         {/* Tonnage Production CE */}
-        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Tonnage Production CE</CardTitle>
-            <Weight className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium">Tonnage Production CE</CardTitle>
+            <Weight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="text-2xl font-bold text-primary">
+            <div className="text-xl font-bold">
               {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
             </div>
             <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
             <div className="mt-3 space-y-1 border-t pt-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">B6</span>
-                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
+                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">B12</span>
-                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12)} Kg</span>
+                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12)} Kg</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">B28</span>
-                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
+                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">B38</span>
-                <span className="font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
+                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Bouteilles Produites */}
-        <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Bouteilles Produites</CardTitle>
-            <Package className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium">Bouteilles Produites</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="text-2xl font-bold text-primary">
+            <div className="text-2xl font-bold">
               {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
             </div>
             <div className="mt-2 space-y-1">
@@ -1206,7 +1206,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 };
 
