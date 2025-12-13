@@ -370,6 +370,24 @@ export type Database = {
           },
         ]
       }
+      mandataires: {
+        Row: {
+          created_at: string
+          id: string
+          nom: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nom: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nom?: string
+        }
+        Relationships: []
+      }
       objectifs_mensuels: {
         Row: {
           created_at: string | null
@@ -655,6 +673,80 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      ventes_mandataires: {
+        Row: {
+          c_b11_carbu: number | null
+          c_b12: number | null
+          c_b28: number | null
+          c_b38: number | null
+          c_b6: number | null
+          camion: string | null
+          client: string | null
+          created_at: string
+          date: string
+          destination: string | null
+          id: string
+          mandataire_id: string
+          numero_bon_sortie: string
+          r_b11_carbu: number | null
+          r_b12: number | null
+          r_b28: number | null
+          r_b38: number | null
+          r_b6: number | null
+          updated_at: string
+        }
+        Insert: {
+          c_b11_carbu?: number | null
+          c_b12?: number | null
+          c_b28?: number | null
+          c_b38?: number | null
+          c_b6?: number | null
+          camion?: string | null
+          client?: string | null
+          created_at?: string
+          date: string
+          destination?: string | null
+          id?: string
+          mandataire_id: string
+          numero_bon_sortie: string
+          r_b11_carbu?: number | null
+          r_b12?: number | null
+          r_b28?: number | null
+          r_b38?: number | null
+          r_b6?: number | null
+          updated_at?: string
+        }
+        Update: {
+          c_b11_carbu?: number | null
+          c_b12?: number | null
+          c_b28?: number | null
+          c_b38?: number | null
+          c_b6?: number | null
+          camion?: string | null
+          client?: string | null
+          created_at?: string
+          date?: string
+          destination?: string | null
+          id?: string
+          mandataire_id?: string
+          numero_bon_sortie?: string
+          r_b11_carbu?: number | null
+          r_b12?: number | null
+          r_b28?: number | null
+          r_b38?: number | null
+          r_b6?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ventes_mandataires_mandataire_id_fkey"
+            columns: ["mandataire_id"]
+            isOneToOne: false
+            referencedRelation: "mandataires"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

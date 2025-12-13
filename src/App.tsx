@@ -11,8 +11,8 @@ import SphereCalculation from "./pages/SphereCalculation";
 import SphereHistory from "./pages/SphereHistory";
 import ProductionDataEntry from "./pages/ProductionDataEntry";
 import ChefsLigneManagement from "./pages/ChefsLigneManagement";
+import Mandataires from "./pages/Mandataires";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -36,6 +36,7 @@ const App = () => (
           <Route path="/sphere-history" element={<SphereHistory />} />
           <Route path="/production-entry" element={<ProductionDataEntry />} />
           <Route path="/chefs-ligne" element={<ChefsLigneManagement />} />
+          <Route path="/mandataires" element={<Mandataires />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
