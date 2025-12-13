@@ -588,6 +588,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
   // Correlation Ventes Conditionnées vs Production
   const correlation = productionStats.tonnage > 0 ? (totalCeAll / productionStats.tonnage) * 100 : 0;
 
+  // Bilan Matière Ratios
+  const pctBilanVsGlobal = totalGlobalSales > 0 ? (totalBilan / totalGlobalSales) * 100 : 0;
+  const pctBilanVsCe = totalConditionne > 0 ? (totalBilan / totalConditionne) * 100 : 0;
+
   // Create a map of dates to entries for the heatmap
   const entriesByDate = new Map<string, BilanEntry>();
   filteredEntries.forEach(entry => {
@@ -1148,11 +1152,12 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">% des sorties</span>
+                <span className="text-sm text-muted-foreground">% / Sorties</span>
                 <span className="text-sm font-semibold text-destructive">
                   {totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%
                 </span>
               </div>
+
               <div className="border-t pt-2 space-y-2">
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">

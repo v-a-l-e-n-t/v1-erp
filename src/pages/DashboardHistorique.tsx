@@ -58,7 +58,7 @@ const DashboardHistorique = () => {
   }, []);
 
   // VENTES VRAC ANNUELLE filter state
-  const [ventesFilterType, setVentesFilterType] = useState<'month' | 'date' | 'range' | 'year'>('year');
+  const [ventesFilterType, setVentesFilterType] = useState<'month' | 'date' | 'range' | 'year'>('month');
   const [ventesSelectedMonth, setVentesSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -68,7 +68,7 @@ const DashboardHistorique = () => {
   const [ventesDateRange, setVentesDateRange] = useState<DateRange | undefined>(undefined);
 
   // PRODUCTION ANNUELLE CE filter state
-  const [productionFilterType, setProductionFilterType] = useState<'month' | 'date' | 'range' | 'year'>('year');
+  const [productionFilterType, setProductionFilterType] = useState<'month' | 'date' | 'range' | 'year'>('month');
   const [productionSelectedMonth, setProductionSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -78,7 +78,7 @@ const DashboardHistorique = () => {
   const [productionDateRange, setProductionDateRange] = useState<DateRange | undefined>(undefined);
 
   // VENTES CE filter state
-  const [ventesCEFilterType, setVentesCEFilterType] = useState<'month' | 'date' | 'range' | 'year'>('year');
+  const [ventesCEFilterType, setVentesCEFilterType] = useState<'month' | 'date' | 'range' | 'year'>('month');
   const [ventesCESelectedMonth, setVentesCESelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -569,13 +569,13 @@ const DashboardHistorique = () => {
             </div>
             <div className="flex items-center gap-4">
               {/* VENTES VRAC - Always visible */}
-              <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-3 py-1 shadow-sm">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
-                    VENTES VRAC :
-                  </p>
+              <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
+                <p className="text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
+                  VENTES VRAC :
+                </p>
+                <div className="flex items-center gap-1">
                   <Select value={ventesFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesFilterType(v)}>
-                    <SelectTrigger className="h-5 w-20 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -585,9 +585,10 @@ const DashboardHistorique = () => {
                       <SelectItem value="range">Période</SelectItem>
                     </SelectContent>
                   </Select>
+                  <span className="text-muted-foreground/50 text-[10px]">|</span>
                   {ventesFilterType === 'year' && (
                     <Select value={ventesSelectedYear.toString()} onValueChange={(v) => setVentesSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-16 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -599,7 +600,7 @@ const DashboardHistorique = () => {
                   )}
                   {ventesFilterType === 'month' && (
                     <Select value={ventesSelectedMonth} onValueChange={setVentesSelectedMonth}>
-                      <SelectTrigger className="h-5 w-24 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -616,7 +617,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {ventesSelectedDate ? format(ventesSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
                         </Button>
@@ -637,7 +638,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {ventesDateRange?.from ? (
                             ventesDateRange.to ? (
@@ -663,20 +664,21 @@ const DashboardHistorique = () => {
                     </Popover>
                   )}
                 </div>
-                <p className="text-2xl font-extrabold text-orange-600 tracking-tight">
+                <p className="text-2xl font-extrabold text-orange-600 tracking-tight mt-auto">
                   {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                   <span className="text-sm font-semibold text-orange-600/60 ml-1.5">Kg</span>
                 </p>
               </div>
 
+
               {/* PRODUCTION CE - Always visible */}
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-3 py-1 shadow-sm">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
-                    PRODUCTION CE :
-                  </p>
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
+                <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
+                  PRODUCTION CE :
+                </p>
+                <div className="flex items-center gap-1">
                   <Select value={productionFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setProductionFilterType(v)}>
-                    <SelectTrigger className="h-5 w-20 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -686,9 +688,10 @@ const DashboardHistorique = () => {
                       <SelectItem value="range">Période</SelectItem>
                     </SelectContent>
                   </Select>
+                  <span className="text-muted-foreground/50 text-[10px]">|</span>
                   {productionFilterType === 'year' && (
                     <Select value={productionSelectedYear.toString()} onValueChange={(v) => setProductionSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-16 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -700,7 +703,7 @@ const DashboardHistorique = () => {
                   )}
                   {productionFilterType === 'month' && (
                     <Select value={productionSelectedMonth} onValueChange={setProductionSelectedMonth}>
-                      <SelectTrigger className="h-5 w-24 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -717,7 +720,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {productionSelectedDate ? format(productionSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
                         </Button>
@@ -738,7 +741,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {productionDateRange?.from ? (
                             productionDateRange.to ? (
@@ -764,20 +767,21 @@ const DashboardHistorique = () => {
                     </Popover>
                   )}
                 </div>
-                <p className="text-2xl font-extrabold text-primary tracking-tight">
+                <p className="text-2xl font-extrabold text-primary tracking-tight mt-auto">
                   {(productionAnnuelle * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                   <span className="text-sm font-semibold text-primary/60 ml-1.5">Kg</span>
                 </p>
               </div>
 
+
               {/* VENTES CE - Always visible */}
-              <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-lg px-3 py-1 shadow-sm">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-[10px] font-semibold text-green-600/70 uppercase tracking-wider">
-                    VENTES CE :
-                  </p>
+              <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
+                <p className="text-[10px] font-semibold text-green-600/70 uppercase tracking-wider">
+                  VENTES CE :
+                </p>
+                <div className="flex items-center gap-1">
                   <Select value={ventesCEFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesCEFilterType(v)}>
-                    <SelectTrigger className="h-5 w-20 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -787,9 +791,10 @@ const DashboardHistorique = () => {
                       <SelectItem value="range">Période</SelectItem>
                     </SelectContent>
                   </Select>
+                  <span className="text-muted-foreground/50 text-[10px]">|</span>
                   {ventesCEFilterType === 'year' && (
                     <Select value={ventesCESelectedYear.toString()} onValueChange={(v) => setVentesCESelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-16 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -801,7 +806,7 @@ const DashboardHistorique = () => {
                   )}
                   {ventesCEFilterType === 'month' && (
                     <Select value={ventesCESelectedMonth} onValueChange={setVentesCESelectedMonth}>
-                      <SelectTrigger className="h-5 w-24 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -818,7 +823,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {ventesCESelectedDate ? format(ventesCESelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
                         </Button>
@@ -839,7 +844,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {ventesCEDateRange?.from ? (
                             ventesCEDateRange.to ? (
@@ -865,20 +870,21 @@ const DashboardHistorique = () => {
                     </Popover>
                   )}
                 </div>
-                <p className="text-2xl font-extrabold text-green-600 tracking-tight">
+                <p className="text-2xl font-extrabold text-green-600 tracking-tight mt-auto">
                   {ventesCE.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                   <span className="text-sm font-semibold text-green-600/60 ml-1.5">Kg</span>
                 </p>
               </div>
 
+
               {/* Bilan Matière - Always visible */}
-              <div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-3 py-1 shadow-sm`}>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className={`text-[10px] font-semibold ${getBilanColor().textLight} uppercase tracking-wider`}>
-                    BILAN MATIÈRE :
-                  </p>
+              < div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[240px]`}>
+                <p className={`text-[10px] font-semibold ${getBilanColor().textLight} uppercase tracking-wider`}>
+                  BILAN MATIÈRE :
+                </p>
+                <div className="flex items-center gap-1">
                   <Select value={bilanFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setBilanFilterType(v)}>
-                    <SelectTrigger className="h-5 w-20 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -888,9 +894,10 @@ const DashboardHistorique = () => {
                       <SelectItem value="range">Période</SelectItem>
                     </SelectContent>
                   </Select>
+                  <span className="text-muted-foreground/50 text-[10px]">|</span>
                   {bilanFilterType === 'year' && (
                     <Select value={bilanSelectedYear.toString()} onValueChange={(v) => setBilanSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-16 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -902,7 +909,7 @@ const DashboardHistorique = () => {
                   )}
                   {bilanFilterType === 'month' && (
                     <Select value={bilanSelectedMonth} onValueChange={setBilanSelectedMonth}>
-                      <SelectTrigger className="h-5 w-24 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -919,7 +926,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {bilanSelectedDate ? format(bilanSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
                         </Button>
@@ -940,7 +947,7 @@ const DashboardHistorique = () => {
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-5 px-2 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {bilanDateRange?.from ? (
                             bilanDateRange.to ? (
@@ -966,10 +973,27 @@ const DashboardHistorique = () => {
                     </Popover>
                   )}
                 </div>
-                <p className={`text-2xl font-extrabold ${getBilanColor().textBold} tracking-tight`}>
-                  {getFilteredBilan().toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                  <span className={`text-sm font-semibold ${getBilanColor().textLight} ml-1.5`}>Kg</span>
-                </p>
+
+                <div className="flex justify-between items-end mt-auto w-full">
+                  <p className={`text-xl font-extrabold ${getBilanColor().textBold} tracking-tight leading-none`}>
+                    {getFilteredBilan().toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                    <span className={`text-[10px] font-semibold ${getBilanColor().textLight} ml-1`}>Kg</span>
+                  </p>
+                  <div className="flex flex-col gap-1 text-right border-l pl-3 border-black/5">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={`text-[9px] uppercase tracking-wider ${getBilanColor().textLight}`}>vs Global</span>
+                      <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
+                        {((sortieVracAnnuelle + ventesCE) > 0 ? (getFilteredBilan() / (sortieVracAnnuelle + ventesCE)) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={`text-[9px] uppercase tracking-wider ${getBilanColor().textLight}`}>vs Cond.</span>
+                      <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
+                        {(ventesCE > 0 ? (getFilteredBilan() / ventesCE) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <Button
@@ -986,219 +1010,219 @@ const DashboardHistorique = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Navigation Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Button
-            variant={activeView === 'overview' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-            onClick={() => setActiveView('overview')}
-          >
-            <BarChart3 className="mr-3 h-6 w-6" />
-            Vue d'ensemble
-          </Button>
+              <main className="container mx-auto px-4 py-8">
+                {/* Navigation Buttons */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                  <Button
+                    variant={activeView === 'overview' ? 'default' : 'outline'}
+                    size="lg"
+                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+                    onClick={() => setActiveView('overview')}
+                  >
+                    <BarChart3 className="mr-3 h-6 w-6" />
+                    Vue d'ensemble
+                  </Button>
 
-          <Button
-            variant={activeView === 'emplisseur' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-            onClick={() => setActiveView('emplisseur')}
-          >
-            <Calculator className="mr-3 h-6 w-6" />
-            PRODUCTION
-          </Button>
+                  <Button
+                    variant={activeView === 'emplisseur' ? 'default' : 'outline'}
+                    size="lg"
+                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+                    onClick={() => setActiveView('emplisseur')}
+                  >
+                    <Calculator className="mr-3 h-6 w-6" />
+                    PRODUCTION
+                  </Button>
 
-          <Button
-            variant={activeView === 'sorties' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-            onClick={() => setActiveView('sorties')}
-          >
-            <ArrowUpRight className="mr-3 h-6 w-6" />
-            VENTES
-          </Button>
+                  <Button
+                    variant={activeView === 'sorties' ? 'default' : 'outline'}
+                    size="lg"
+                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+                    onClick={() => setActiveView('sorties')}
+                  >
+                    <ArrowUpRight className="mr-3 h-6 w-6" />
+                    VENTES
+                  </Button>
 
-          <Button
-            variant={activeView === 'vrac' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-            onClick={() => setActiveView('vrac')}
-          >
-            <FileText className="mr-3 h-6 w-6" />
-            Historique des saisies
-          </Button>
-        </div>
-
-        {/* Content Views */}
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {activeView === 'overview' && (
-            <Dashboard entries={entries} />
-          )}
-
-          {activeView === 'vrac' && (
-            <div className="space-y-6">
-              {/* Historique des bilans matières - Collapsible */}
-              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                <div
-                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => setIsBilansExpanded(!isBilansExpanded)}
-                >
-                  <h2 className="text-2xl font-bold">Historique des bilans</h2>
-                  <Button variant="ghost" size="icon" className="h-10 w-10">
-                    {isBilansExpanded ? (
-                      <ChevronUp className="h-6 w-6" />
-                    ) : (
-                      <ChevronDown className="h-6 w-6" />
-                    )}
+                  <Button
+                    variant={activeView === 'vrac' ? 'default' : 'outline'}
+                    size="lg"
+                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+                    onClick={() => setActiveView('vrac')}
+                  >
+                    <FileText className="mr-3 h-6 w-6" />
+                    Historique des saisies
                   </Button>
                 </div>
-                {isBilansExpanded && (
-                  <div className="px-6 pb-6">
-                    <HistoryTable
-                      entries={entries}
-                      onDelete={handleDelete}
-                      onEdit={handleEdit}
-                      onExport={handleExport}
-                      onPrint={handlePrint}
-                    />
-                  </div>
-                )}
-              </div>
 
-              {/* Historique de Production - Collapsible */}
-              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                <div
-                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => setIsProductionExpanded(!isProductionExpanded)}
-                >
-                  <h2 className="text-2xl font-bold">Historique de Production</h2>
-                  <Button variant="ghost" size="icon" className="h-10 w-10">
-                    {isProductionExpanded ? (
-                      <ChevronUp className="h-6 w-6" />
-                    ) : (
-                      <ChevronDown className="h-6 w-6" />
-                    )}
-                  </Button>
-                </div>
-                {isProductionExpanded && (
-                  <div className="px-6 pb-6">
-                    <ProductionHistory
-                      history={productionHistory}
-                      loading={historyLoading}
-                      filterType={historyFilterType}
-                      setFilterType={setHistoryFilterType}
-                      selectedMonth={historySelectedMonth}
-                      setSelectedMonth={setHistorySelectedMonth}
-                      selectedDate={historySelectedDate}
-                      setSelectedDate={setHistorySelectedDate}
-                      dateRange={historyDateRange}
-                      setDateRange={setHistoryDateRange}
-                      shiftFilter={historyShiftFilter}
-                      setShiftFilter={setHistoryShiftFilter}
-                      ligneFilter={historyLigneFilter}
-                      setLigneFilter={setHistoryLigneFilter}
-                      chefFilter={historyChefFilter}
-                      setChefFilter={setHistoryChefFilter}
-                      availableMonths={availableMonths}
-                      allAgents={allAgents}
-                      onEdit={async (shiftId) => {
-                        const data = await fetchShiftDetailsForEdit(shiftId);
-                        setEditModalData(data);
-                        setSelectedShiftForEdit(shiftId);
-                      }}
-                      onDelete={async (shiftId) => {
-                        const reason = prompt("Raison de la suppression :");
-                        if (reason) {
-                          await deleteProductionShift(shiftId, reason);
+                {/* Content Views */}
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  {activeView === 'overview' && (
+                    <Dashboard entries={entries} />
+                  )}
+
+                  {activeView === 'vrac' && (
+                    <div className="space-y-6">
+                      {/* Historique des bilans matières - Collapsible */}
+                      <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                        <div
+                          className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => setIsBilansExpanded(!isBilansExpanded)}
+                        >
+                          <h2 className="text-2xl font-bold">Historique des bilans</h2>
+                          <Button variant="ghost" size="icon" className="h-10 w-10">
+                            {isBilansExpanded ? (
+                              <ChevronUp className="h-6 w-6" />
+                            ) : (
+                              <ChevronDown className="h-6 w-6" />
+                            )}
+                          </Button>
+                        </div>
+                        {isBilansExpanded && (
+                          <div className="px-6 pb-6">
+                            <HistoryTable
+                              entries={entries}
+                              onDelete={handleDelete}
+                              onEdit={handleEdit}
+                              onExport={handleExport}
+                              onPrint={handlePrint}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Historique de Production - Collapsible */}
+                      <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                        <div
+                          className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => setIsProductionExpanded(!isProductionExpanded)}
+                        >
+                          <h2 className="text-2xl font-bold">Historique de Production</h2>
+                          <Button variant="ghost" size="icon" className="h-10 w-10">
+                            {isProductionExpanded ? (
+                              <ChevronUp className="h-6 w-6" />
+                            ) : (
+                              <ChevronDown className="h-6 w-6" />
+                            )}
+                          </Button>
+                        </div>
+                        {isProductionExpanded && (
+                          <div className="px-6 pb-6">
+                            <ProductionHistory
+                              history={productionHistory}
+                              loading={historyLoading}
+                              filterType={historyFilterType}
+                              setFilterType={setHistoryFilterType}
+                              selectedMonth={historySelectedMonth}
+                              setSelectedMonth={setHistorySelectedMonth}
+                              selectedDate={historySelectedDate}
+                              setSelectedDate={setHistorySelectedDate}
+                              dateRange={historyDateRange}
+                              setDateRange={setHistoryDateRange}
+                              shiftFilter={historyShiftFilter}
+                              setShiftFilter={setHistoryShiftFilter}
+                              ligneFilter={historyLigneFilter}
+                              setLigneFilter={setHistoryLigneFilter}
+                              chefFilter={historyChefFilter}
+                              setChefFilter={setHistoryChefFilter}
+                              availableMonths={availableMonths}
+                              allAgents={allAgents}
+                              onEdit={async (shiftId) => {
+                                const data = await fetchShiftDetailsForEdit(shiftId);
+                                setEditModalData(data);
+                                setSelectedShiftForEdit(shiftId);
+                              }}
+                              onDelete={async (shiftId) => {
+                                const reason = prompt("Raison de la suppression :");
+                                if (reason) {
+                                  await deleteProductionShift(shiftId, reason);
+                                }
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Edit Modal */}
+                      <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
+                        if (!open) {
+                          setSelectedShiftForEdit(null);
+                          setEditModalData(null);
                         }
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+                      }}>
+                        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Modifier la saisie de production</DialogTitle>
+                          </DialogHeader>
+                          {editModalData && (
+                            <ProductionShiftForm
+                              editMode={true}
+                              initialData={editModalData}
+                              onSuccess={() => {
+                                setSelectedShiftForEdit(null);
+                                setEditModalData(null);
+                                fetchProductionHistory();
+                              }}
+                              onCancel={() => {
+                                setSelectedShiftForEdit(null);
+                                setEditModalData(null);
+                              }}
+                            />
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
 
-              {/* Edit Modal */}
-              <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
-                if (!open) {
-                  setSelectedShiftForEdit(null);
-                  setEditModalData(null);
-                }
-              }}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
+                  {activeView === 'emplisseur' && (
+                    <CentreEmplisseurView
+                      dateRange={dateRange}
+                      setDateRange={setDateRange}
+                      filterType={filterType}
+                      setFilterType={setFilterType}
+                      selectedDate={selectedDate}
+                      setSelectedDate={setSelectedDate}
+                      selectedMonth={selectedMonth}
+                      setSelectedMonth={setSelectedMonth}
+                    />
+                  )}
+
+                  {activeView === 'sorties' && (
+                    <VentesView
+                      dateRange={dateRange}
+                      setDateRange={setDateRange}
+                      filterType={filterType}
+                      setFilterType={setFilterType}
+                      selectedDate={selectedDate}
+                      setSelectedDate={setSelectedDate}
+                      selectedMonth={selectedMonth}
+                      setSelectedMonth={setSelectedMonth}
+                    />
+                  )}
+                </div>
+              </main>
+
+              <footer className="border-t mt-16">
+                <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
+                  <p>&copy; {new Date().getFullYear()} Bilan Matière GPL</p>
+                </div>
+              </footer>
+
+              {/* Edit Dialog */}
+              <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Modifier la saisie de production</DialogTitle>
+                    <DialogTitle>Modifier le bilan</DialogTitle>
                   </DialogHeader>
-                  {editModalData && (
-                    <ProductionShiftForm
-                      editMode={true}
-                      initialData={editModalData}
-                      onSuccess={() => {
-                        setSelectedShiftForEdit(null);
-                        setEditModalData(null);
-                        fetchProductionHistory();
-                      }}
-                      onCancel={() => {
-                        setSelectedShiftForEdit(null);
-                        setEditModalData(null);
-                      }}
+                  {editingEntry && (
+                    <BilanForm
+                      onSave={handleUpdate}
+                      editEntry={editingEntry}
                     />
                   )}
                 </DialogContent>
               </Dialog>
-            </div>
-          )}
-
-          {activeView === 'emplisseur' && (
-            <CentreEmplisseurView
-              dateRange={dateRange}
-              setDateRange={setDateRange}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              selectedMonth={selectedMonth}
-              setSelectedMonth={setSelectedMonth}
-            />
-          )}
-
-          {activeView === 'sorties' && (
-            <VentesView
-              dateRange={dateRange}
-              setDateRange={setDateRange}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              selectedMonth={selectedMonth}
-              setSelectedMonth={setSelectedMonth}
-            />
-          )}
-        </div>
-      </main>
-
-      <footer className="border-t mt-16">
-        <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Bilan Matière GPL</p>
-        </div>
-      </footer>
-
-      {/* Edit Dialog */}
-      <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Modifier le bilan</DialogTitle>
-          </DialogHeader>
-          {editingEntry && (
-            <BilanForm
-              onSave={handleUpdate}
-              editEntry={editingEntry}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+            </div >
+            );
 };
 
-export default DashboardHistorique;
+            export default DashboardHistorique;

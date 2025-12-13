@@ -742,7 +742,7 @@ const VentesView = ({
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                     <Tooltip
                                         contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                        formatter={(value: number, name: string) => [formatNumber(value) + ' Kg', name === 'vrac' ? 'Vrac' : 'Conditionné']}
+                                        formatter={(value: number, name: string) => [formatNumber(value) + ' Kg', name]}
                                         labelFormatter={(label) => `Jour ${label}`}
                                     />
                                     <Legend verticalAlign="top" height={36} />
@@ -772,34 +772,8 @@ const VentesView = ({
             </div>
 
 
-            {/* Production vs Ventes Correlation */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Corrélation Production vs Ventes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div className="text-center p-4 bg-primary/5 rounded-lg">
-                            <p className="text-sm text-muted-foreground mb-1">Production CE</p>
-                            <p className="text-2xl font-bold text-primary">{formatNumber(ventesData.productionTotal)} Kg</p>
-                        </div>
-                        <div className="text-center p-4 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-muted-foreground mb-1">Sorties Conditionnées</p>
-                            <p className="text-2xl font-bold text-blue-600">{formatNumber(ventesData.totalConditionne)} Kg</p>
-                        </div>
-                        <div className="text-center p-4 bg-green-50 rounded-lg">
-                            <p className="text-sm text-muted-foreground mb-1">Taux de Conversion</p>
-                            <p className="text-2xl font-bold text-green-600">{tauxConversion.toFixed(1)}%</p>
-                        </div>
-                    </div>
-                    <div className="text-center p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm text-muted-foreground mb-1">Stock Théorique (Production - Ventes Cond.)</p>
-                        <p className={`text-2xl font-bold ${stockTheorique >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {formatNumber(stockTheorique)} Kg
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
+
+
         </div>
     );
 };
