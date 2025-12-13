@@ -527,12 +527,12 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
                     <TableHead className="text-right text-xs">R.B12</TableHead>
                     <TableHead className="text-right text-xs">R.B28</TableHead>
                     <TableHead className="text-right text-xs">R.B38</TableHead>
-                    <TableHead className="text-right text-xs">R.B11</TableHead>
+                    <TableHead className="text-right text-xs">R_Carb_B12</TableHead>
                     <TableHead className="text-right text-xs">C.B6</TableHead>
                     <TableHead className="text-right text-xs">C.B12</TableHead>
                     <TableHead className="text-right text-xs">C.B28</TableHead>
                     <TableHead className="text-right text-xs">C.B38</TableHead>
-                    <TableHead className="text-right text-xs">C.B11</TableHead>
+                    <TableHead className="text-right text-xs">C_Carb_B11</TableHead>
                     <TableHead>Statut</TableHead>
                   </TableRow>
                 </TableHeader>
