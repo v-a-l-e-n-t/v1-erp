@@ -772,95 +772,83 @@ const Dashboard = ({ entries }: DashboardProps) => {
       {/* ========== ROW 1: BUTANES SPHERES + VENTES ========== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* BUTANES SPHERES */}
-        <Card className="bg-blue-50/50 border-blue-200">
+        <Card className="bg-blue-50/50 border-blue-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-700">🔵 BUTANES SPHÈRES</CardTitle>
             <Package className="h-4 w-4 text-blue-600" />
           </CardHeader>
-          <CardContent className="pt-2">
+          <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-3">
               <div className="text-2xl font-bold text-blue-700">{formatNumber(totalDisponible)} Kg</div>
-              <p className="text-xs text-muted-foreground">Stock disponible (Stock 1er + Réceptions)</p>
-              <div className="space-y-1 border-t pt-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Stock au 1er</span>
-                  <span className="font-bold">{formatNumber(stockInitial1st)} Kg</span>
+              <p className="text-sm text-muted-foreground">Stock disponible (Stock 1er + Réceptions)</p>
+              <div className="space-y-2 border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Stock au 1er</span>
+                  <span className="text-sm font-bold">{formatNumber(stockInitial1st)} Kg</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Réceptions {getPeriodText()}</span>
-                  <span className="font-bold">{formatNumber(totalReceptions)} Kg</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Réceptions {getPeriodText()}</span>
+                  <span className="text-sm font-bold">{formatNumber(totalReceptions)} Kg</span>
                 </div>
                 {nombreReceptions > 0 && (
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">Nb réceptions</span>
-                    <span className="font-bold">{nombreReceptions}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Nb réceptions</span>
+                    <span className="text-sm font-bold">{nombreReceptions}</span>
                   </div>
                 )}
               </div>
-              <div className="bg-blue-100/50 rounded-md p-2 border border-blue-200 text-center">
-                <span className="text-xs text-muted-foreground">Ventes = </span>
-                <span className="text-lg font-bold text-orange-600">
-                  {totalDisponible > 0 ? ((totalSorties / totalDisponible) * 100).toFixed(1) : '0.0'}%
-                </span>
-                <span className="text-xs text-muted-foreground"> des réceptions</span>
-              </div>
+            </div>
+            <div className="bg-blue-100/50 rounded-md p-3 border border-blue-200 text-center mt-auto">
+              <span className="text-sm text-muted-foreground">Ventes = </span>
+              <span className="text-xl font-bold text-orange-600">
+                {totalDisponible > 0 ? ((totalSorties / totalDisponible) * 100).toFixed(1) : '0.0'}%
+              </span>
+              <span className="text-sm text-muted-foreground"> des réceptions</span>
             </div>
           </CardContent>
         </Card>
 
         {/* VENTES GLOBALES */}
-        <Card className="bg-orange-50/50 border-orange-200">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-orange-700">📊 VENTES</CardTitle>
             <TrendingUp className="h-4 w-4 text-orange-600" />
           </CardHeader>
-          <CardContent className="pt-2">
+          <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-3">
               <div className="text-2xl font-bold">{formatNumber(totalGlobalSales)} Kg</div>
               <p className="text-xs text-muted-foreground">Cumul des ventes (VRAC + Conditionné)</p>
-              <div className="space-y-1 border-t pt-2">
-                <div className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-1">
-                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                      <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
-                    </div>
-                    <span className="text-muted-foreground">SIMAM</span>
+              <div className="space-y-2 border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                   </div>
-                  <span className="font-bold">{formatNumber(globalSimam)} Kg <span className="text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
+                  <span className="text-sm font-bold">{formatNumber(globalSimam)} Kg <span className="text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-1">
-                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                      <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
-                    </div>
-                    <span className="text-muted-foreground">PETRO</span>
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                   </div>
-                  <span className="font-bold">{formatNumber(globalPetro)} Kg <span className="text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
+                  <span className="text-sm font-bold">{formatNumber(globalPetro)} Kg <span className="text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-1">
-                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                      <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                    </div>
-                    <span className="text-muted-foreground">VIVO</span>
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                   </div>
-                  <span className="font-bold">{formatNumber(globalVivo)} Kg <span className="text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
+                  <span className="text-sm font-bold">{formatNumber(globalVivo)} Kg <span className="text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-1">
-                    <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                      <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                    </div>
-                    <span className="text-muted-foreground">TOTAL E.</span>
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                   </div>
-                  <span className="font-bold">{formatNumber(globalTotalE)} Kg <span className="text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
+                  <span className="text-sm font-bold">{formatNumber(globalTotalE)} Kg <span className="text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
                 </div>
               </div>
-              <div className="bg-orange-100/50 rounded-md p-2 border border-orange-200 text-center">
-                <span className="text-xs text-muted-foreground">Ventes CE = </span>
-                <span className="text-lg font-bold text-orange-600">{correlation.toFixed(1)}%</span>
-                <span className="text-xs text-muted-foreground"> de la production CE</span>
-              </div>
+            </div>
+            <div className="bg-orange-100/50 rounded-md p-3 border border-orange-200 text-center mt-auto">
+              <span className="text-sm text-muted-foreground">Ventes CE = </span>
+              <span className="text-xl font-bold text-orange-600">{correlation.toFixed(1)}%</span>
+              <span className="text-sm text-muted-foreground"> de la production CE</span>
             </div>
           </CardContent>
         </Card>
@@ -875,38 +863,38 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <span className="text-xs font-bold text-amber-700">{formatNumber(totalVracAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {/* Simam */}
-              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
-                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+              <div className="bg-white p-3 rounded-lg border border-amber-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-sm font-bold mt-1">{formatNumber(vracSimam)}</span>
-                <span className="text-xs text-amber-600">{pctVracSimam.toFixed(0)}%</span>
+                <span className="text-base font-bold mt-1">{formatNumber(vracSimam)}</span>
+                <span className="text-sm text-amber-600 font-semibold">{pctVracSimam.toFixed(0)}%</span>
               </div>
               {/* Petro */}
-              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
-                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+              <div className="bg-white p-3 rounded-lg border border-amber-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-sm font-bold mt-1">{formatNumber(vracPetro)}</span>
-                <span className="text-xs text-amber-600">{pctVracPetro.toFixed(0)}%</span>
+                <span className="text-base font-bold mt-1">{formatNumber(vracPetro)}</span>
+                <span className="text-sm text-amber-600 font-semibold">{pctVracPetro.toFixed(0)}%</span>
               </div>
               {/* Vivo */}
-              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
-                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+              <div className="bg-white p-3 rounded-lg border border-amber-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-sm font-bold mt-1">{formatNumber(vracVivo)}</span>
-                <span className="text-xs text-amber-600">{pctVracVivo.toFixed(0)}%</span>
+                <span className="text-base font-bold mt-1">{formatNumber(vracVivo)}</span>
+                <span className="text-sm text-amber-600 font-semibold">{pctVracVivo.toFixed(0)}%</span>
               </div>
               {/* Total */}
-              <div className="bg-white p-2 rounded-lg border border-amber-100 flex flex-col items-center">
-                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+              <div className="bg-white p-3 rounded-lg border border-amber-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-sm font-bold mt-1">{formatNumber(vracTotalE)}</span>
-                <span className="text-xs text-amber-600">{pctVracTotalE.toFixed(0)}%</span>
+                <span className="text-base font-bold mt-1">{formatNumber(vracTotalE)}</span>
+                <span className="text-sm text-amber-600 font-semibold">{pctVracTotalE.toFixed(0)}%</span>
               </div>
             </div>
           </CardContent>
@@ -919,30 +907,30 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <span className="text-xs font-bold text-green-700">{formatNumber(totalCeAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="space-y-2">
+            <div className="space-y-3">
               {/* Petro */}
-              <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-green-100">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
+                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-sm font-bold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
-                <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">{pctCePetro.toFixed(0)}%</span>
+                <span className="text-base font-bold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
+                <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCePetro.toFixed(0)}%</span>
               </div>
               {/* Vivo */}
-              <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-green-100">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
+                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-sm font-bold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
-                <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">{pctCeVivo.toFixed(0)}%</span>
+                <span className="text-base font-bold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
+                <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeVivo.toFixed(0)}%</span>
               </div>
               {/* Total E */}
-              <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-green-100">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
+                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-sm font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
-                <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">{pctCeTotalE.toFixed(0)}%</span>
+                <span className="text-base font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
+                <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeTotalE.toFixed(0)}%</span>
               </div>
             </div>
           </CardContent>
