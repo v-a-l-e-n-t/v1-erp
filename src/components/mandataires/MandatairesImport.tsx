@@ -157,17 +157,31 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
         }
 
         // Try multiple column name variations for recharges and consignes
-        const r_b6 = parseNumber(row["R_B6"] ?? row["R B6"] ?? row["RB6"] ?? row["R-B6"]);
-        const r_b12 = parseNumber(row["R_B12"] ?? row["R B12"] ?? row["RB12"] ?? row["R-B12"]);
-        const r_b28 = parseNumber(row["R_B28"] ?? row["R B28"] ?? row["RB28"] ?? row["R-B28"]);
-        const r_b38 = parseNumber(row["R_B38"] ?? row["R B38"] ?? row["RB38"] ?? row["R-B38"]);
-        const r_b11_carbu = parseNumber(row["R_B11 CARBURATION"] ?? row["R B11 CARBURATION"] ?? row["R_B11_CARBURATION"] ?? row["RB11 CARBURATION"] ?? row["R B11 CARBU"] ?? row["R_B11 CARBU"]);
+        const r_b6 = parseNumber(row["R_B6"] ?? row["R B6"] ?? row["R_B 6"] ?? row["RB6"] ?? row["R-B6"]);
+        const r_b12 = parseNumber(row["R_B12"] ?? row["R B12"] ?? row["R_B 12"] ?? row["RB12"] ?? row["R-B12"]);
+        const r_b28 = parseNumber(row["R_B28"] ?? row["R_B 28"] ?? row["R B28"] ?? row["RB28"] ?? row["R-B28"]);
+        const r_b38 = parseNumber(row["R_B38"] ?? row["R_B 38"] ?? row["R B38"] ?? row["RB38"] ?? row["R-B38"]);
+        const r_b11_carbu = parseNumber(
+          row["R_B11 CARBURATION"] ??
+          row["R_Carburation B11"] ??
+          row["R_Carburation B12"] ??
+          row["R CARBURATION B11"] ??
+          row["R CARBURATION B12"] ??
+          row["R_B11 CARBU"] ??
+          row["R B11 CARBU"]
+        );
         
-        const c_b6 = parseNumber(row["C_B6"] ?? row["C B6"] ?? row["CB6"] ?? row["C-B6"]);
-        const c_b12 = parseNumber(row["C_B12"] ?? row["C B12"] ?? row["CB12"] ?? row["C-B12"]);
-        const c_b28 = parseNumber(row["C_B28"] ?? row["C B28"] ?? row["CB28"] ?? row["C-B28"]);
-        const c_b38 = parseNumber(row["C_B38"] ?? row["C B38"] ?? row["CB38"] ?? row["C-B38"]);
-        const c_b11_carbu = parseNumber(row["C_B11 CARBURATION"] ?? row["C B11 CARBURATION"] ?? row["C_B11_CARBURATION"] ?? row["CB11 CARBURATION"] ?? row["C B11 CARBU"] ?? row["C_B11 CARBU"]);
+        const c_b6 = parseNumber(row["C_B6"] ?? row["C B6"] ?? row["C_B 6"] ?? row["CB6"] ?? row["C-B6"]);
+        const c_b12 = parseNumber(row["C_B12"] ?? row["C B12"] ?? row["C_B 12"] ?? row["CB12"] ?? row["C-B12"]);
+        const c_b28 = parseNumber(row["C_B28"] ?? row["C_B 28"] ?? row["C B28"] ?? row["CB28"] ?? row["C-B28"]);
+        const c_b38 = parseNumber(row["C_B38"] ?? row["C_B 38"] ?? row["C B38"] ?? row["CB38"] ?? row["C-B38"]);
+        const c_b11_carbu = parseNumber(
+          row["C_B11 CARBURATION"] ??
+          row["C_Carburation B11"] ??
+          row["C CARBURATION B11"] ??
+          row["C_B11 CARBU"] ??
+          row["C B11 CARBU"]
+        );
 
         ventesMap[bonSortie] = {
           date: parsedDate,
