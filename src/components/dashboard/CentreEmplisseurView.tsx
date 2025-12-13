@@ -979,9 +979,9 @@ const CentreEmplisseurView = ({
 
             // NEW: Client Breakdown (Recharges + Consignes per client)
             const clientBreakdown = {
-                petro: { recharges: 0, consignes: 0, total: 0 },
-                vivo: { recharges: 0, consignes: 0, total: 0 },
-                total: { recharges: 0, consignes: 0, total: 0 }
+                petro: { recharges: 0, consignes: 0, total: 0, tonnage: 0 },
+                vivo: { recharges: 0, consignes: 0, total: 0, tonnage: 0 },
+                total: { recharges: 0, consignes: 0, total: 0, tonnage: 0 }
             };
 
             // From lignes (Chef de Ligne)
@@ -1000,6 +1000,25 @@ const CentreEmplisseurView = ({
                     (l.recharges_total_b28 || 0) + (l.recharges_total_b38 || 0);
                 clientBreakdown.total.consignes += (l.consignes_total_b6 || 0) + (l.consignes_total_b12 || 0) +
                     (l.consignes_total_b28 || 0) + (l.consignes_total_b38 || 0);
+
+                // Tonnages
+                clientBreakdown.petro.tonnage +=
+                    ((l.recharges_petro_b6 || 0) + (l.consignes_petro_b6 || 0)) * 6 +
+                    ((l.recharges_petro_b12 || 0) + (l.consignes_petro_b12 || 0)) * 12.5 +
+                    ((l.recharges_petro_b28 || 0) + (l.consignes_petro_b28 || 0)) * 28 +
+                    ((l.recharges_petro_b38 || 0) + (l.consignes_petro_b38 || 0)) * 38;
+
+                clientBreakdown.vivo.tonnage +=
+                    ((l.recharges_vivo_b6 || 0) + (l.consignes_vivo_b6 || 0)) * 6 +
+                    ((l.recharges_vivo_b12 || 0) + (l.consignes_vivo_b12 || 0)) * 12.5 +
+                    ((l.recharges_vivo_b28 || 0) + (l.consignes_vivo_b28 || 0)) * 28 +
+                    ((l.recharges_vivo_b38 || 0) + (l.consignes_vivo_b38 || 0)) * 38;
+
+                clientBreakdown.total.tonnage +=
+                    ((l.recharges_total_b6 || 0) + (l.consignes_total_b6 || 0)) * 6 +
+                    ((l.recharges_total_b12 || 0) + (l.consignes_total_b12 || 0)) * 12.5 +
+                    ((l.recharges_total_b28 || 0) + (l.consignes_total_b28 || 0)) * 28 +
+                    ((l.recharges_total_b38 || 0) + (l.consignes_total_b38 || 0)) * 38;
             });
 
             // From shifts (Chef de Quart - aggregate from lignes_production)
@@ -1020,6 +1039,25 @@ const CentreEmplisseurView = ({
                         (l.recharges_total_b28 || 0) + (l.recharges_total_b38 || 0);
                     clientBreakdown.total.consignes += (l.consignes_total_b6 || 0) + (l.consignes_total_b12 || 0) +
                         (l.consignes_total_b28 || 0) + (l.consignes_total_b38 || 0);
+
+                    // Tonnages
+                    clientBreakdown.petro.tonnage +=
+                        ((l.recharges_petro_b6 || 0) + (l.consignes_petro_b6 || 0)) * 6 +
+                        ((l.recharges_petro_b12 || 0) + (l.consignes_petro_b12 || 0)) * 12.5 +
+                        ((l.recharges_petro_b28 || 0) + (l.consignes_petro_b28 || 0)) * 28 +
+                        ((l.recharges_petro_b38 || 0) + (l.consignes_petro_b38 || 0)) * 38;
+
+                    clientBreakdown.vivo.tonnage +=
+                        ((l.recharges_vivo_b6 || 0) + (l.consignes_vivo_b6 || 0)) * 6 +
+                        ((l.recharges_vivo_b12 || 0) + (l.consignes_vivo_b12 || 0)) * 12.5 +
+                        ((l.recharges_vivo_b28 || 0) + (l.consignes_vivo_b28 || 0)) * 28 +
+                        ((l.recharges_vivo_b38 || 0) + (l.consignes_vivo_b38 || 0)) * 38;
+
+                    clientBreakdown.total.tonnage +=
+                        ((l.recharges_total_b6 || 0) + (l.consignes_total_b6 || 0)) * 6 +
+                        ((l.recharges_total_b12 || 0) + (l.consignes_total_b12 || 0)) * 12.5 +
+                        ((l.recharges_total_b28 || 0) + (l.consignes_total_b28 || 0)) * 28 +
+                        ((l.recharges_total_b38 || 0) + (l.consignes_total_b38 || 0)) * 38;
                 });
             });
 
@@ -2089,7 +2127,7 @@ const CentreEmplisseurView = ({
                                                     </div>
                                                     <div className="flex justify-between pt-1 border-t">
                                                         <span className="font-semibold">Cumul:</span>
-                                                        <span className="font-extrabold text-orange-700">{agentModalData.clientBreakdown.petro.total.toLocaleString('fr-FR')}</span>
+                                                        <span className="font-extrabold text-orange-700">{agentModalData.clientBreakdown.petro.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2106,7 +2144,7 @@ const CentreEmplisseurView = ({
                                                     </div>
                                                     <div className="flex justify-between pt-1 border-t">
                                                         <span className="font-semibold">Cumul:</span>
-                                                        <span className="font-extrabold text-green-700">{agentModalData.clientBreakdown.vivo.total.toLocaleString('fr-FR')}</span>
+                                                        <span className="font-extrabold text-green-700">{agentModalData.clientBreakdown.vivo.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2123,7 +2161,7 @@ const CentreEmplisseurView = ({
                                                     </div>
                                                     <div className="flex justify-between pt-1 border-t">
                                                         <span className="font-semibold">Cumul:</span>
-                                                        <span className="font-extrabold text-purple-700">{agentModalData.clientBreakdown.total.total.toLocaleString('fr-FR')}</span>
+                                                        <span className="font-extrabold text-purple-700">{agentModalData.clientBreakdown.total.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
                                                     </div>
                                                 </div>
                                             </div>
