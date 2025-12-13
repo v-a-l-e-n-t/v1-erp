@@ -156,6 +156,19 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
           return;
         }
 
+        // Try multiple column name variations for recharges and consignes
+        const r_b6 = parseNumber(row["R_B6"] ?? row["R B6"] ?? row["RB6"] ?? row["R-B6"]);
+        const r_b12 = parseNumber(row["R_B12"] ?? row["R B12"] ?? row["RB12"] ?? row["R-B12"]);
+        const r_b28 = parseNumber(row["R_B28"] ?? row["R B28"] ?? row["RB28"] ?? row["R-B28"]);
+        const r_b38 = parseNumber(row["R_B38"] ?? row["R B38"] ?? row["RB38"] ?? row["R-B38"]);
+        const r_b11_carbu = parseNumber(row["R_B11 CARBURATION"] ?? row["R B11 CARBURATION"] ?? row["R_B11_CARBURATION"] ?? row["RB11 CARBURATION"] ?? row["R B11 CARBU"] ?? row["R_B11 CARBU"]);
+        
+        const c_b6 = parseNumber(row["C_B6"] ?? row["C B6"] ?? row["CB6"] ?? row["C-B6"]);
+        const c_b12 = parseNumber(row["C_B12"] ?? row["C B12"] ?? row["CB12"] ?? row["C-B12"]);
+        const c_b28 = parseNumber(row["C_B28"] ?? row["C B28"] ?? row["CB28"] ?? row["C-B28"]);
+        const c_b38 = parseNumber(row["C_B38"] ?? row["C B38"] ?? row["CB38"] ?? row["C-B38"]);
+        const c_b11_carbu = parseNumber(row["C_B11 CARBURATION"] ?? row["C B11 CARBURATION"] ?? row["C_B11_CARBURATION"] ?? row["CB11 CARBURATION"] ?? row["C B11 CARBU"] ?? row["C_B11 CARBU"]);
+
         ventesMap[bonSortie] = {
           date: parsedDate,
           mandataire,
@@ -163,16 +176,16 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
           client: String(row["CLIENT"] || row["Client"] || "").trim(),
           numeroBonSortie: bonSortie,
           destination: destinationsMap[bonSortie] || "",
-          r_b6: parseNumber(row["R_B6"]),
-          r_b12: parseNumber(row["R_B12"]),
-          r_b28: parseNumber(row["R_B28"]),
-          r_b38: parseNumber(row["R_B38"]),
-          r_b11_carbu: parseNumber(row["R_B11 CARBURATION"]),
-          c_b6: parseNumber(row["C_B6"]),
-          c_b12: parseNumber(row["C_B12"]),
-          c_b28: parseNumber(row["C_B28"]),
-          c_b38: parseNumber(row["C_B38"]),
-          c_b11_carbu: parseNumber(row["C_B11 CARBURATION"]),
+          r_b6,
+          r_b12,
+          r_b28,
+          r_b38,
+          r_b11_carbu,
+          c_b6,
+          c_b12,
+          c_b28,
+          c_b38,
+          c_b11_carbu,
         };
       });
 
@@ -491,8 +504,16 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
                     <TableHead>Client</TableHead>
                     <TableHead>N° Bon</TableHead>
                     <TableHead>Destination</TableHead>
-                    <TableHead className="text-right">Recharges</TableHead>
-                    <TableHead className="text-right">Consignes</TableHead>
+                    <TableHead className="text-right text-xs">R.B6</TableHead>
+                    <TableHead className="text-right text-xs">R.B12</TableHead>
+                    <TableHead className="text-right text-xs">R.B28</TableHead>
+                    <TableHead className="text-right text-xs">R.B38</TableHead>
+                    <TableHead className="text-right text-xs">R.B11</TableHead>
+                    <TableHead className="text-right text-xs">C.B6</TableHead>
+                    <TableHead className="text-right text-xs">C.B12</TableHead>
+                    <TableHead className="text-right text-xs">C.B28</TableHead>
+                    <TableHead className="text-right text-xs">C.B38</TableHead>
+                    <TableHead className="text-right text-xs">C.B11</TableHead>
                     <TableHead>Statut</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -505,12 +526,16 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
                       <TableCell>{vente.client}</TableCell>
                       <TableCell>{vente.numeroBonSortie}</TableCell>
                       <TableCell>{vente.destination || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        {vente.r_b6 + vente.r_b12 + vente.r_b28 + vente.r_b38 + vente.r_b11_carbu}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {vente.c_b6 + vente.c_b12 + vente.c_b28 + vente.c_b38 + vente.c_b11_carbu}
-                      </TableCell>
+                      <TableCell className="text-right">{vente.r_b6 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.r_b12 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.r_b28 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.r_b38 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.r_b11_carbu || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.c_b6 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.c_b12 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.c_b28 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.c_b38 || "-"}</TableCell>
+                      <TableCell className="text-right">{vente.c_b11_carbu || "-"}</TableCell>
                       <TableCell>
                         {vente.isDuplicate ? (
                           <Badge variant="destructive" className="gap-1">
