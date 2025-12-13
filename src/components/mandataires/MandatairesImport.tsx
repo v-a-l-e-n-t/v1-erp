@@ -96,8 +96,27 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
 
   const parseNumber = (value: any): number => {
     if (value === null || value === undefined || value === "") return 0;
+    if (typeof value === 'number') return Math.round(value);
     const num = parseInt(String(value), 10);
     return isNaN(num) ? 0 : num;
+  };
+
+  // Helper to find column value with normalized keys (trims whitespace)
+  const findColumn = (row: any, ...names: string[]): any => {
+    // First try exact match
+    for (const name of names) {
+      if (row[name] !== undefined) return row[name];
+    }
+    // Then try with trimmed keys
+    const trimmedRow: Record<string, any> = {};
+    for (const key of Object.keys(row)) {
+      trimmedRow[key.trim()] = row[key];
+    }
+    for (const name of names) {
+      if (trimmedRow[name] !== undefined) return trimmedRow[name];
+      if (trimmedRow[name.trim()] !== undefined) return trimmedRow[name.trim()];
+    }
+    return undefined;
   };
 
   const handleFileParse = useCallback(async () => {
@@ -122,9 +141,9 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
         const destinationsData = await parseExcelFile(destinationsFile);
         console.log("Destinations data rows:", destinationsData.length);
         destinationsData.forEach((row: any) => {
-          const bonSortie = String(row["N° BON SORTIE"] || "").trim();
+          const bonSortie = String(findColumn(row, "N° BON SORTIE", "N°BON SORTIE", "N° BON DE SORTIE") || "").trim();
           if (bonSortie) {
-            destinationsMap[bonSortie] = String(row["DESTINATION"] || "").trim();
+            destinationsMap[bonSortie] = String(findColumn(row, "DESTINATION", "Destination") || "").trim();
           }
         });
       }
@@ -136,13 +155,13 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
       let skippedNoMandataire = 0;
       
       productionData.forEach((row: any) => {
-        const bonSortie = String(row["N° BON SORTIE"] || "").trim();
+        const bonSortie = String(findColumn(row, "N° BON SORTIE", "N°BON SORTIE", "N° BON DE SORTIE") || "").trim();
         if (!bonSortie) {
           skippedNoBon++;
           return;
         }
 
-        const dateValue = row["Date"] || row["DATE"];
+        const dateValue = findColumn(row, "Date", "DATE");
         const parsedDate = parseDate(dateValue);
         if (!parsedDate) {
           console.log("Failed to parse date:", dateValue, "type:", typeof dateValue);
@@ -150,38 +169,24 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
           return;
         }
 
-        const mandataire = String(row["MANDATAIRE"] || row["Mandataire"] || "").trim();
+        const mandataire = String(findColumn(row, "MANDATAIRE", "Mandataire") || "").trim();
         if (!mandataire) {
           skippedNoMandataire++;
           return;
         }
 
-        // Try multiple column name variations for recharges and consignes
-        const r_b6 = parseNumber(row["R_B6"] ?? row["R B6"] ?? row["R_B 6"] ?? row["RB6"] ?? row["R-B6"]);
-        const r_b12 = parseNumber(row["R_B12"] ?? row["R B12"] ?? row["R_B 12"] ?? row["RB12"] ?? row["R-B12"]);
-        const r_b28 = parseNumber(row["R_B28"] ?? row["R_B 28"] ?? row["R B28"] ?? row["RB28"] ?? row["R-B28"]);
-        const r_b38 = parseNumber(row["R_B38"] ?? row["R_B 38"] ?? row["R B38"] ?? row["RB38"] ?? row["R-B38"]);
-        const r_b11_carbu = parseNumber(
-          row["R_B11 CARBURATION"] ??
-          row["R_Carburation B11"] ??
-          row["R_Carburation B12"] ??
-          row["R CARBURATION B11"] ??
-          row["R CARBURATION B12"] ??
-          row["R_B11 CARBU"] ??
-          row["R B11 CARBU"]
-        );
+        // Use findColumn for all recharges and consignes columns
+        const r_b6 = parseNumber(findColumn(row, "R_B6", "R B6", "R_B 6", "RB6"));
+        const r_b12 = parseNumber(findColumn(row, "R_B12", "R B12", "R_B 12", "RB12"));
+        const r_b28 = parseNumber(findColumn(row, "R_B 28", "R_B28", "R B28", "RB28"));
+        const r_b38 = parseNumber(findColumn(row, "R_B 38", "R_B38", "R B38", "RB38"));
+        const r_b11_carbu = parseNumber(findColumn(row, "R_Carburation B12", "R_Carburation B11", "R_B11 CARBURATION", "R CARBURATION B12"));
         
-        const c_b6 = parseNumber(row["C_B6"] ?? row["C B6"] ?? row["C_B 6"] ?? row["CB6"] ?? row["C-B6"]);
-        const c_b12 = parseNumber(row["C_B12"] ?? row["C B12"] ?? row["C_B 12"] ?? row["CB12"] ?? row["C-B12"]);
-        const c_b28 = parseNumber(row["C_B28"] ?? row["C_B 28"] ?? row["C B28"] ?? row["CB28"] ?? row["C-B28"]);
-        const c_b38 = parseNumber(row["C_B38"] ?? row["C_B 38"] ?? row["C B38"] ?? row["CB38"] ?? row["C-B38"]);
-        const c_b11_carbu = parseNumber(
-          row["C_B11 CARBURATION"] ??
-          row["C_Carburation B11"] ??
-          row["C CARBURATION B11"] ??
-          row["C_B11 CARBU"] ??
-          row["C B11 CARBU"]
-        );
+        const c_b6 = parseNumber(findColumn(row, "C_B6", "C B6", "C_B 6", "CB6"));
+        const c_b12 = parseNumber(findColumn(row, "C_B12", "C B12", "C_B 12", "CB12"));
+        const c_b28 = parseNumber(findColumn(row, "C_B 28", "C_B28", "C B28", "CB28"));
+        const c_b38 = parseNumber(findColumn(row, "C_B 38", "C_B38", "C B38", "CB38"));
+        const c_b11_carbu = parseNumber(findColumn(row, "C_Carburation B11", "C_B11 CARBURATION", "C CARBURATION B11"));
 
         ventesMap[bonSortie] = {
           date: parsedDate,
