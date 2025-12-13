@@ -582,7 +582,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const sortiesData = [
     { name: 'Vrac', value: totalVrac, color: 'hsl(var(--chart-1))' },
     { name: 'Conditionné', value: totalConditionne, color: 'hsl(var(--chart-2))' },
-    { name: 'Fuyardes', value: totalFuyardes, color: 'hsl(var(--chart-3))' },
+    { name: 'Retour marché', value: totalFuyardes, color: 'hsl(var(--chart-3))' },
   ].filter(item => item.value > 0);
 
   const natureData = [
@@ -1099,16 +1099,16 @@ const Dashboard = ({ entries }: DashboardProps) => {
             </CardContent>
           </Card>
 
-          {/* Fuyarde with client breakdown */}
+          {/* Retour marché with client breakdown */}
           <Card className="bg-primary/5 border-primary/20 flex flex-col justify-between h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-primary">Fuyarde</CardTitle>
+              <CardTitle className="text-sm font-medium text-primary">Retour marché</CardTitle>
               <TrendingDown className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent className="pt-2">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Total</span>
+                  <span className="text-xs text-muted-foreground">Cumul</span>
                   <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
                 </div>
                 <div className="flex justify-between items-center">

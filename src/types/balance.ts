@@ -2,13 +2,13 @@ export interface BilanEntry {
   id: string;
   user_id: string | null;
   date: string;
-  
+
   // Stock initial (en kilogrammes - kg)
   spheres_initial: number;
   bouteilles_initial: number;
   reservoirs_initial: number;
   stock_initial: number;
-  
+
   // Réceptions (en kilogrammes - kg)
   receptions: Array<{
     quantity: number; // en kg
@@ -16,7 +16,7 @@ export interface BilanEntry {
     reception_no: string; // ex: "RECEPTION 54"
   }>;
   reception_gpl: number; // Total des réceptions en kg
-  
+
   // Sorties (en kilogrammes - kg)
   // Sorties vrac détaillées par client
   sorties_vrac_simam: number;
@@ -24,35 +24,35 @@ export interface BilanEntry {
   sorties_vrac_vivo_energies: number;
   sorties_vrac_total_energies: number;
   sorties_vrac: number; // Total calculé
-  
+
   // Sorties conditionnées détaillées par client
   sorties_conditionnees_petro_ivoire: number;
   sorties_conditionnees_vivo_energies: number;
   sorties_conditionnees_total_energies: number;
   sorties_conditionnees: number; // Total calculé
-  
-  // Fuyardes détaillées par client
+
+  // Retour marché détaillées par client
   fuyardes_petro_ivoire: number;
   fuyardes_vivo_energies: number;
   fuyardes_total_energies: number;
   fuyardes: number; // Total calculé
-  
+
   cumul_sorties: number;
-  
+
   // Stock final (en kilogrammes - kg)
   spheres_final: number;
   bouteilles_final: number;
   reservoirs_final: number;
   stock_final: number;
-  
+
   // Calculs (en kilogrammes - kg)
   stock_theorique: number;
   bilan: number; // Différence en kg
   nature: 'Positif' | 'Négatif' | 'Neutre';
-  
+
   // Notes
   notes?: string;
-  
+
   // Metadata
   created_at: string;
   updated_at: string;
@@ -77,7 +77,7 @@ export interface BilanFormData {
   sorties_conditionnees_petro_ivoire: string;
   sorties_conditionnees_vivo_energies: string;
   sorties_conditionnees_total_energies: string;
-  // Fuyardes
+  // Retour marché
   fuyardes_petro_ivoire: string;
   fuyardes_vivo_energies: string;
   fuyardes_total_energies: string;

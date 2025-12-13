@@ -21,7 +21,7 @@ export const loadEntries = async (): Promise<BilanEntry[]> => {
 
     return (data || []).map((entry: any) => ({
       ...entry,
-      receptions: Array.isArray(entry.receptions) 
+      receptions: Array.isArray(entry.receptions)
         ? (entry.receptions as Array<{ quantity: number; navire: string; reception_no: string }>)
         : []
     })) as BilanEntry[];
@@ -54,7 +54,7 @@ export const loadEntryByDate = async (date: string): Promise<BilanEntry | null> 
 
     return {
       ...data,
-      receptions: Array.isArray(data.receptions) 
+      receptions: Array.isArray(data.receptions)
         ? (data.receptions as Array<{ quantity: number; navire: string; reception_no: string }>)
         : []
     } as BilanEntry;
@@ -142,7 +142,7 @@ export const exportToCSV = (entries: BilanEntry[]): void => {
     'Détail Réceptions',
     'Sorties vrac (kg)',
     'Sorties conditionnées (kg)',
-    'Fuyardes (kg)',
+    'Retour marché (kg)',
     'Cumul sorties (kg)',
     'Stock théorique (kg)',
     'Stock final (kg)',
@@ -197,7 +197,7 @@ export const exportToExcel = (entries: BilanEntry[]): void => {
       'Détail Réceptions',
       'Sorties vrac (kg)',
       'Sorties conditionnées (kg)',
-      'Fuyardes (kg)',
+      'Retour marché (kg)',
       'Cumul sorties (kg)',
       'Stock théorique (kg)',
       'Stock final (kg)',
@@ -212,7 +212,7 @@ export const exportToExcel = (entries: BilanEntry[]): void => {
     const receptionsStr = entry.receptions
       .map(r => `${formatNumberValue(r.quantity)} Kg - ${r.reception_no ? `${r.reception_no} - ` : ''}${r.navire}`)
       .join('; ');
-    
+
     worksheetData.push([
       new Date(entry.date).toLocaleDateString('fr-FR'),
       entry.stock_initial,
@@ -242,7 +242,7 @@ export const exportToExcel = (entries: BilanEntry[]): void => {
     { wch: 40 },  // Détail Réceptions
     { wch: 15 },  // Sorties vrac
     { wch: 20 },  // Sorties conditionnées
-    { wch: 12 },  // Fuyardes
+    { wch: 12 },  // Retour marché
     { wch: 15 },  // Cumul sorties
     { wch: 16 },  // Stock théorique
     { wch: 12 },  // Stock final
@@ -261,24 +261,24 @@ export const exportToExcel = (entries: BilanEntry[]): void => {
 
 export const exportIndividualToPDF = (entry: BilanEntry): void => {
   const doc = new jsPDF('p', 'mm', 'a4'); // portrait orientation
-  
+
   // Add title
   doc.setFontSize(20);
   doc.setTextColor(40, 40, 40);
   doc.text('Bilan Matière GPL', 105, 20, { align: 'center' });
-  
+
   // Add date
   doc.setFontSize(12);
   doc.setTextColor(100, 100, 100);
   doc.text(`Date du bilan: ${new Date(entry.date).toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
   doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 105, 37, { align: 'center' });
-  
+
   // Prepare table data with two columns
   const tableData: string[][] = [
     ['Stock initial (kg)', entry.stock_initial.toFixed(3)],
     ['Total Réception GPL (kg)', entry.reception_gpl.toFixed(3)],
   ];
-  
+
   // Add reception details
   if (entry.receptions && entry.receptions.length > 0) {
     entry.receptions.forEach((r, idx) => {
@@ -288,22 +288,22 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
       ]);
     });
   }
-  
+
   tableData.push(
     ['Sorties vrac (kg)', entry.sorties_vrac.toFixed(3)],
     ['Sorties conditionnées (kg)', entry.sorties_conditionnees.toFixed(3)],
-    ['Fuyardes (kg)', entry.fuyardes.toFixed(3)],
+    ['Retour marché (kg)', entry.fuyardes.toFixed(3)],
     ['Cumul sorties (kg)', entry.cumul_sorties.toFixed(3)],
     ['Stock théorique (kg)', entry.stock_theorique.toFixed(3)],
     ['Stock final (kg)', entry.stock_final.toFixed(3)],
     ['Bilan (kg)', entry.bilan.toFixed(3)],
     ['Nature', entry.nature]
   );
-  
+
   if (entry.notes) {
     tableData.push(['Notes', entry.notes]);
   }
-  
+
   // Create table
   autoTable(doc, {
     startY: 45,
@@ -328,12 +328,12 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
     alternateRowStyles: {
       fillColor: [245, 247, 250]
     },
-    didParseCell: function(data) {
+    didParseCell: function (data) {
       // Color code specific rows
       if (data.section === 'body') {
         const label = data.row.raw[0];
         const value = data.row.raw[1];
-        
+
         if (label === 'Nature' && data.column.index === 1) {
           if (value === 'Positif') {
             data.cell.styles.textColor = [34, 197, 94];
@@ -346,7 +346,7 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
             data.cell.styles.fontStyle = 'bold';
           }
         }
-        
+
         if (label === 'Bilan (T)' && data.column.index === 1) {
           const bilan = parseFloat(value);
           if (bilan > 0) {
@@ -360,7 +360,7 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
       }
     }
   });
-  
+
   // Add footer
   const pageCount = doc.getNumberOfPages();
   doc.setPage(pageCount);
@@ -372,7 +372,7 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
     doc.internal.pageSize.getHeight() - 10,
     { align: 'center' }
   );
-  
+
   // Save the PDF
   const fileName = `bilan-${entry.date}.pdf`;
   doc.save(fileName);
@@ -380,23 +380,23 @@ export const exportIndividualToPDF = (entry: BilanEntry): void => {
 
 export const exportToPDF = (entries: BilanEntry[]): void => {
   const doc = new jsPDF('l', 'mm', 'a4'); // landscape orientation
-  
+
   // Add title
   doc.setFontSize(18);
   doc.setTextColor(40, 40, 40);
   doc.text('Bilan Matière GPL - Historique', 14, 15);
-  
+
   // Add date
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 14, 22);
-  
+
   // Prepare table data
   const tableData = entries.map(entry => {
     const receptionsStr = entry.receptions
       .map(r => `${formatNumberValue(r.quantity)} Kg - ${r.reception_no ? `${r.reception_no} - ` : ''}${r.navire}`)
       .join('\n');
-    
+
     return [
       new Date(entry.date).toLocaleDateString('fr-FR'),
       formatNumberValue(entry.stock_initial),
@@ -412,7 +412,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
       entry.nature
     ];
   });
-  
+
   // Create table
   autoTable(doc, {
     startY: 28,
@@ -423,7 +423,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
       'Détail\nRéceptions',
       'Sorties\nvrac (kg)',
       'Sorties\ncond. (kg)',
-      'Fuyardes\n(kg)',
+      'Retour\nmarché\n(kg)',
       'Cumul\nsorties (kg)',
       'Stock\nthéo. (kg)',
       'Stock\nfinal (kg)',
@@ -451,7 +451,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
       3: { cellWidth: 40 },  // Détail Réceptions
       4: { cellWidth: 18 },  // Sorties vrac
       5: { cellWidth: 18 },  // Sorties conditionnées
-      6: { cellWidth: 16 },  // Fuyardes
+      6: { cellWidth: 16 },  // Retour marché
       7: { cellWidth: 18 },  // Cumul sorties
       8: { cellWidth: 18 },  // Stock théorique
       9: { cellWidth: 18 },  // Stock final
@@ -461,7 +461,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
     alternateRowStyles: {
       fillColor: [245, 247, 250]
     },
-    didParseCell: function(data) {
+    didParseCell: function (data) {
       // Color code the nature column
       if (data.column.index === 11 && data.section === 'body') {
         const nature = data.cell.text[0];
@@ -489,7 +489,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
       }
     }
   });
-  
+
   // Add footer with page numbers
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -503,7 +503,7 @@ export const exportToPDF = (entries: BilanEntry[]): void => {
       { align: 'center' }
     );
   }
-  
+
   // Save the PDF
   const fileName = `bilan-matiere-gpl-${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);

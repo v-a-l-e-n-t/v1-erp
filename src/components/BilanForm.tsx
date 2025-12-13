@@ -59,11 +59,11 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
         bouteilles_initial: editEntry.bouteilles_initial.toString(),
         reservoirs_initial: editEntry.reservoirs_initial.toString(),
         receptions: (editEntry.receptions && Array.isArray(editEntry.receptions))
-  ? editEntry.receptions.map(r => ({
-          quantity: r.quantity.toString(),
-          navire: r.navire || '',
-          reception_no: r.reception_no || ''
-                    }))
+          ? editEntry.receptions.map(r => ({
+            quantity: r.quantity.toString(),
+            navire: r.navire || '',
+            reception_no: r.reception_no || ''
+          }))
           : [],
         sorties_vrac_simam: editEntry.sorties_vrac_simam.toString(),
         sorties_vrac_petro_ivoire: editEntry.sorties_vrac_petro_ivoire.toString(),
@@ -100,9 +100,9 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
         const previousDay = new Date(selectedDate);
         previousDay.setDate(previousDay.getDate() - 1);
         const previousDayStr = previousDay.toISOString().split('T')[0];
-        
+
         const previousDayEntry = await loadEntryByDate(previousDayStr);
-        
+
         if (previousDayEntry) {
           setFormData(prev => ({
             ...prev,
@@ -120,7 +120,7 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
           }));
         }
       };
-      
+
       loadPreviousDayData();
     }
   }, [formData.date, editEntry]);
@@ -155,7 +155,7 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
   const updateReception = (index: number, field: 'quantity' | 'navire' | 'reception_no', value: string) => {
     setFormData(prev => ({
       ...prev,
-      receptions: prev.receptions.map((r, i) => 
+      receptions: prev.receptions.map((r, i) =>
         i === index ? { ...r, [field]: value } : r
       )
     }));
@@ -164,12 +164,12 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
   const handleCalculate = () => {
     try {
       const result = bilanFormSchema.safeParse(formData);
-      
+
       if (!result.success) {
-        const errors = result.error.errors.map(err => 
+        const errors = result.error.errors.map(err =>
           `${err.path.join(' → ')}: ${err.message}`
         ).join('\n');
-        
+
         toast.error('Erreur de validation', {
           description: errors,
         });
@@ -178,7 +178,7 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
 
       const calculatedData = calculateBilan(formData);
       setCalculated(calculatedData);
-      
+
       toast.success('Calcul effectué avec succès');
     } catch (error) {
       toast.error('Erreur lors du calcul', {
@@ -457,10 +457,10 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
 
           <Separator />
 
-          {/* Fuyardes */}
+          {/* Retour marché */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold">Fuyardes</h3>
+              <h3 className="text-lg font-semibold">Retour marché</h3>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
@@ -594,7 +594,7 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                 <p className="text-2xl font-bold">{formatNumber(calculated.sorties_conditionnees)} Kg</p>
               </div>
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Total Fuyardes</Label>
+                <Label className="text-muted-foreground">Total Retour marché</Label>
                 <p className="text-2xl font-bold">{formatNumber(calculated.fuyardes)} Kg</p>
               </div>
               <div className="space-y-2">
@@ -610,19 +610,19 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                 <p className="text-2xl font-bold">{formatNumber(calculated.stock_final)} Kg</p>
               </div>
             </div>
-            
+
             <Separator />
-            
+
             <div className="space-y-2">
               <Label className="text-muted-foreground">Bilan</Label>
               <div className="flex items-center gap-4">
                 <p className={cn("text-3xl font-bold", getNatureColor(calculated.nature))}>
                   {formatNumber(calculated.bilan)} Kg
                 </p>
-                <span className={cn("px-3 py-1 rounded-full text-sm font-medium", 
-                  calculated.nature === 'Positif' ? 'bg-success/10 text-success' : 
-                  calculated.nature === 'Négatif' ? 'bg-destructive/10 text-destructive' : 
-                  'bg-muted text-muted-foreground'
+                <span className={cn("px-3 py-1 rounded-full text-sm font-medium",
+                  calculated.nature === 'Positif' ? 'bg-success/10 text-success' :
+                    calculated.nature === 'Négatif' ? 'bg-destructive/10 text-destructive' :
+                      'bg-muted text-muted-foreground'
                 )}>
                   {calculated.nature}
                 </span>

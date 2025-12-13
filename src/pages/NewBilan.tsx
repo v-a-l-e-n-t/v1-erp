@@ -40,7 +40,7 @@ const NewBilan = () => {
         updated_at: new Date().toISOString(),
       };
       const success = await updateEntry(updatedEntry);
-      
+
       if (success) {
         toast.success('Bilan mis à jour avec succès', {
           description: `Bilan ${calculatedData.nature} de ${formatNumberValue(calculatedData.bilan)} Kg`,
@@ -61,7 +61,7 @@ const NewBilan = () => {
       };
 
       const success = await saveEntry(newEntry);
-      
+
       if (success) {
         toast.success('Bilan enregistré avec succès', {
           description: `Bilan ${calculatedData.nature} de ${formatNumberValue(calculatedData.bilan)} Kg`,
@@ -86,22 +86,22 @@ const NewBilan = () => {
   // Vérifier si une entrée a des détails par client manquants
   const hasIncompleteClientDetails = (entry: BilanEntry) => {
     const hasVracTotal = entry.sorties_vrac > 0;
-    const hasVracDetails = (entry.sorties_vrac_simam || 0) + (entry.sorties_vrac_petro_ivoire || 0) + 
-                          (entry.sorties_vrac_vivo_energies || 0) + (entry.sorties_vrac_total_energies || 0) > 0;
-    
+    const hasVracDetails = (entry.sorties_vrac_simam || 0) + (entry.sorties_vrac_petro_ivoire || 0) +
+      (entry.sorties_vrac_vivo_energies || 0) + (entry.sorties_vrac_total_energies || 0) > 0;
+
     const hasCondTotal = entry.sorties_conditionnees > 0;
-    const hasCondDetails = (entry.sorties_conditionnees_petro_ivoire || 0) + 
-                          (entry.sorties_conditionnees_vivo_energies || 0) + 
-                          (entry.sorties_conditionnees_total_energies || 0) > 0;
-    
+    const hasCondDetails = (entry.sorties_conditionnees_petro_ivoire || 0) +
+      (entry.sorties_conditionnees_vivo_energies || 0) +
+      (entry.sorties_conditionnees_total_energies || 0) > 0;
+
     const hasFuyardesTotal = entry.fuyardes > 0;
-    const hasFuyardesDetails = (entry.fuyardes_petro_ivoire || 0) + 
-                              (entry.fuyardes_vivo_energies || 0) + 
-                              (entry.fuyardes_total_energies || 0) > 0;
-    
-    return (hasVracTotal && !hasVracDetails) || 
-           (hasCondTotal && !hasCondDetails) || 
-           (hasFuyardesTotal && !hasFuyardesDetails);
+    const hasFuyardesDetails = (entry.fuyardes_petro_ivoire || 0) +
+      (entry.fuyardes_vivo_energies || 0) +
+      (entry.fuyardes_total_energies || 0) > 0;
+
+    return (hasVracTotal && !hasVracDetails) ||
+      (hasCondTotal && !hasCondDetails) ||
+      (hasFuyardesTotal && !hasFuyardesDetails);
   };
 
   return (
@@ -139,8 +139,8 @@ const NewBilan = () => {
           </TabsList>
 
           <TabsContent value="new">
-            <BilanForm 
-              onSave={handleSave} 
+            <BilanForm
+              onSave={handleSave}
               previousEntry={entries[0]}
             />
           </TabsContent>
@@ -168,7 +168,7 @@ const NewBilan = () => {
                           <TableHead className="text-right">Réceptions</TableHead>
                           <TableHead className="text-right">Sorties Vrac</TableHead>
                           <TableHead className="text-right">Sorties Cond.</TableHead>
-                          <TableHead className="text-right">Fuyardes</TableHead>
+                          <TableHead className="text-right">Retour marché</TableHead>
                           <TableHead className="text-right">Stock Final</TableHead>
                           <TableHead className="text-right">Bilan</TableHead>
                           <TableHead>Statut</TableHead>
@@ -204,8 +204,8 @@ const NewBilan = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(entry)}
                               >
@@ -237,8 +237,8 @@ const NewBilan = () => {
                     Annuler
                   </Button>
                 </div>
-                <BilanForm 
-                  onSave={handleSave} 
+                <BilanForm
+                  onSave={handleSave}
                   editEntry={editingEntry}
                 />
               </div>

@@ -77,7 +77,7 @@ export const bilanFormSchema = z.object({
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
     .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
-  // Fuyardes par client
+  // Retour marché par client
   fuyardes_petro_ivoire: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
