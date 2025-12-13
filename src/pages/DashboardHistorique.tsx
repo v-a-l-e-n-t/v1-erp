@@ -981,13 +981,13 @@ const DashboardHistorique = () => {
                   </p>
                   <div className="flex flex-col gap-1 text-right border-l pl-3 border-black/5">
                     <div className="flex items-center justify-end gap-2">
-                      <span className={`text-[9px] uppercase tracking-wider ${getBilanColor().textLight}`}>vs Global</span>
+                      <span className="text-[9px] uppercase tracking-wider text-black">Avec VRAC</span>
                       <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
                         {((sortieVracAnnuelle + ventesCE) > 0 ? (getFilteredBilan() / (sortieVracAnnuelle + ventesCE)) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                       </span>
                     </div>
                     <div className="flex items-center justify-end gap-2">
-                      <span className={`text-[9px] uppercase tracking-wider ${getBilanColor().textLight}`}>vs Cond.</span>
+                      <span className="text-[9px] uppercase tracking-wider text-black">Sans VRAC</span>
                       <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
                         {(ventesCE > 0 ? (getFilteredBilan() / ventesCE) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                       </span>
@@ -1010,219 +1010,219 @@ const DashboardHistorique = () => {
         </div>
       </header>
 
-              <main className="container mx-auto px-4 py-8">
-                {/* Navigation Buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                  <Button
-                    variant={activeView === 'overview' ? 'default' : 'outline'}
-                    size="lg"
-                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-                    onClick={() => setActiveView('overview')}
-                  >
-                    <BarChart3 className="mr-3 h-6 w-6" />
-                    Vue d'ensemble
-                  </Button>
+      <main className="container mx-auto px-4 py-8">
+        {/* Navigation Buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Button
+            variant={activeView === 'overview' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('overview')}
+          >
+            <BarChart3 className="mr-3 h-6 w-6" />
+            Vue d'ensemble
+          </Button>
 
-                  <Button
-                    variant={activeView === 'emplisseur' ? 'default' : 'outline'}
-                    size="lg"
-                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-                    onClick={() => setActiveView('emplisseur')}
-                  >
-                    <Calculator className="mr-3 h-6 w-6" />
-                    PRODUCTION
-                  </Button>
+          <Button
+            variant={activeView === 'emplisseur' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('emplisseur')}
+          >
+            <Calculator className="mr-3 h-6 w-6" />
+            PRODUCTION
+          </Button>
 
-                  <Button
-                    variant={activeView === 'sorties' ? 'default' : 'outline'}
-                    size="lg"
-                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-                    onClick={() => setActiveView('sorties')}
-                  >
-                    <ArrowUpRight className="mr-3 h-6 w-6" />
-                    VENTES
-                  </Button>
+          <Button
+            variant={activeView === 'sorties' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('sorties')}
+          >
+            <ArrowUpRight className="mr-3 h-6 w-6" />
+            VENTES
+          </Button>
 
-                  <Button
-                    variant={activeView === 'vrac' ? 'default' : 'outline'}
-                    size="lg"
-                    className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-                    onClick={() => setActiveView('vrac')}
-                  >
-                    <FileText className="mr-3 h-6 w-6" />
-                    Historique des saisies
+          <Button
+            variant={activeView === 'vrac' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('vrac')}
+          >
+            <FileText className="mr-3 h-6 w-6" />
+            Historique des saisies
+          </Button>
+        </div>
+
+        {/* Content Views */}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          {activeView === 'overview' && (
+            <Dashboard entries={entries} />
+          )}
+
+          {activeView === 'vrac' && (
+            <div className="space-y-6">
+              {/* Historique des bilans matières - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsBilansExpanded(!isBilansExpanded)}
+                >
+                  <h2 className="text-2xl font-bold">Historique des bilans</h2>
+                  <Button variant="ghost" size="icon" className="h-10 w-10">
+                    {isBilansExpanded ? (
+                      <ChevronUp className="h-6 w-6" />
+                    ) : (
+                      <ChevronDown className="h-6 w-6" />
+                    )}
                   </Button>
                 </div>
+                {isBilansExpanded && (
+                  <div className="px-6 pb-6">
+                    <HistoryTable
+                      entries={entries}
+                      onDelete={handleDelete}
+                      onEdit={handleEdit}
+                      onExport={handleExport}
+                      onPrint={handlePrint}
+                    />
+                  </div>
+                )}
+              </div>
 
-                {/* Content Views */}
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                  {activeView === 'overview' && (
-                    <Dashboard entries={entries} />
-                  )}
-
-                  {activeView === 'vrac' && (
-                    <div className="space-y-6">
-                      {/* Historique des bilans matières - Collapsible */}
-                      <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                        <div
-                          className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
-                          onClick={() => setIsBilansExpanded(!isBilansExpanded)}
-                        >
-                          <h2 className="text-2xl font-bold">Historique des bilans</h2>
-                          <Button variant="ghost" size="icon" className="h-10 w-10">
-                            {isBilansExpanded ? (
-                              <ChevronUp className="h-6 w-6" />
-                            ) : (
-                              <ChevronDown className="h-6 w-6" />
-                            )}
-                          </Button>
-                        </div>
-                        {isBilansExpanded && (
-                          <div className="px-6 pb-6">
-                            <HistoryTable
-                              entries={entries}
-                              onDelete={handleDelete}
-                              onEdit={handleEdit}
-                              onExport={handleExport}
-                              onPrint={handlePrint}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Historique de Production - Collapsible */}
-                      <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                        <div
-                          className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
-                          onClick={() => setIsProductionExpanded(!isProductionExpanded)}
-                        >
-                          <h2 className="text-2xl font-bold">Historique de Production</h2>
-                          <Button variant="ghost" size="icon" className="h-10 w-10">
-                            {isProductionExpanded ? (
-                              <ChevronUp className="h-6 w-6" />
-                            ) : (
-                              <ChevronDown className="h-6 w-6" />
-                            )}
-                          </Button>
-                        </div>
-                        {isProductionExpanded && (
-                          <div className="px-6 pb-6">
-                            <ProductionHistory
-                              history={productionHistory}
-                              loading={historyLoading}
-                              filterType={historyFilterType}
-                              setFilterType={setHistoryFilterType}
-                              selectedMonth={historySelectedMonth}
-                              setSelectedMonth={setHistorySelectedMonth}
-                              selectedDate={historySelectedDate}
-                              setSelectedDate={setHistorySelectedDate}
-                              dateRange={historyDateRange}
-                              setDateRange={setHistoryDateRange}
-                              shiftFilter={historyShiftFilter}
-                              setShiftFilter={setHistoryShiftFilter}
-                              ligneFilter={historyLigneFilter}
-                              setLigneFilter={setHistoryLigneFilter}
-                              chefFilter={historyChefFilter}
-                              setChefFilter={setHistoryChefFilter}
-                              availableMonths={availableMonths}
-                              allAgents={allAgents}
-                              onEdit={async (shiftId) => {
-                                const data = await fetchShiftDetailsForEdit(shiftId);
-                                setEditModalData(data);
-                                setSelectedShiftForEdit(shiftId);
-                              }}
-                              onDelete={async (shiftId) => {
-                                const reason = prompt("Raison de la suppression :");
-                                if (reason) {
-                                  await deleteProductionShift(shiftId, reason);
-                                }
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Edit Modal */}
-                      <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
-                        if (!open) {
-                          setSelectedShiftForEdit(null);
-                          setEditModalData(null);
+              {/* Historique de Production - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsProductionExpanded(!isProductionExpanded)}
+                >
+                  <h2 className="text-2xl font-bold">Historique de Production</h2>
+                  <Button variant="ghost" size="icon" className="h-10 w-10">
+                    {isProductionExpanded ? (
+                      <ChevronUp className="h-6 w-6" />
+                    ) : (
+                      <ChevronDown className="h-6 w-6" />
+                    )}
+                  </Button>
+                </div>
+                {isProductionExpanded && (
+                  <div className="px-6 pb-6">
+                    <ProductionHistory
+                      history={productionHistory}
+                      loading={historyLoading}
+                      filterType={historyFilterType}
+                      setFilterType={setHistoryFilterType}
+                      selectedMonth={historySelectedMonth}
+                      setSelectedMonth={setHistorySelectedMonth}
+                      selectedDate={historySelectedDate}
+                      setSelectedDate={setHistorySelectedDate}
+                      dateRange={historyDateRange}
+                      setDateRange={setHistoryDateRange}
+                      shiftFilter={historyShiftFilter}
+                      setShiftFilter={setHistoryShiftFilter}
+                      ligneFilter={historyLigneFilter}
+                      setLigneFilter={setHistoryLigneFilter}
+                      chefFilter={historyChefFilter}
+                      setChefFilter={setHistoryChefFilter}
+                      availableMonths={availableMonths}
+                      allAgents={allAgents}
+                      onEdit={async (shiftId) => {
+                        const data = await fetchShiftDetailsForEdit(shiftId);
+                        setEditModalData(data);
+                        setSelectedShiftForEdit(shiftId);
+                      }}
+                      onDelete={async (shiftId) => {
+                        const reason = prompt("Raison de la suppression :");
+                        if (reason) {
+                          await deleteProductionShift(shiftId, reason);
                         }
-                      }}>
-                        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Modifier la saisie de production</DialogTitle>
-                          </DialogHeader>
-                          {editModalData && (
-                            <ProductionShiftForm
-                              editMode={true}
-                              initialData={editModalData}
-                              onSuccess={() => {
-                                setSelectedShiftForEdit(null);
-                                setEditModalData(null);
-                                fetchProductionHistory();
-                              }}
-                              onCancel={() => {
-                                setSelectedShiftForEdit(null);
-                                setEditModalData(null);
-                              }}
-                            />
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  )}
-
-                  {activeView === 'emplisseur' && (
-                    <CentreEmplisseurView
-                      dateRange={dateRange}
-                      setDateRange={setDateRange}
-                      filterType={filterType}
-                      setFilterType={setFilterType}
-                      selectedDate={selectedDate}
-                      setSelectedDate={setSelectedDate}
-                      selectedMonth={selectedMonth}
-                      setSelectedMonth={setSelectedMonth}
+                      }}
                     />
-                  )}
+                  </div>
+                )}
+              </div>
 
-                  {activeView === 'sorties' && (
-                    <VentesView
-                      dateRange={dateRange}
-                      setDateRange={setDateRange}
-                      filterType={filterType}
-                      setFilterType={setFilterType}
-                      selectedDate={selectedDate}
-                      setSelectedDate={setSelectedDate}
-                      selectedMonth={selectedMonth}
-                      setSelectedMonth={setSelectedMonth}
-                    />
-                  )}
-                </div>
-              </main>
-
-              <footer className="border-t mt-16">
-                <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-                  <p>&copy; {new Date().getFullYear()} Bilan Matière GPL</p>
-                </div>
-              </footer>
-
-              {/* Edit Dialog */}
-              <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              {/* Edit Modal */}
+              <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
+                if (!open) {
+                  setSelectedShiftForEdit(null);
+                  setEditModalData(null);
+                }
+              }}>
+                <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Modifier le bilan</DialogTitle>
+                    <DialogTitle>Modifier la saisie de production</DialogTitle>
                   </DialogHeader>
-                  {editingEntry && (
-                    <BilanForm
-                      onSave={handleUpdate}
-                      editEntry={editingEntry}
+                  {editModalData && (
+                    <ProductionShiftForm
+                      editMode={true}
+                      initialData={editModalData}
+                      onSuccess={() => {
+                        setSelectedShiftForEdit(null);
+                        setEditModalData(null);
+                        fetchProductionHistory();
+                      }}
+                      onCancel={() => {
+                        setSelectedShiftForEdit(null);
+                        setEditModalData(null);
+                      }}
                     />
                   )}
                 </DialogContent>
               </Dialog>
-            </div >
-            );
+            </div>
+          )}
+
+          {activeView === 'emplisseur' && (
+            <CentreEmplisseurView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+            />
+          )}
+
+          {activeView === 'sorties' && (
+            <VentesView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+            />
+          )}
+        </div>
+      </main>
+
+      <footer className="border-t mt-16">
+        <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} Bilan Matière GPL</p>
+        </div>
+      </footer>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le bilan</DialogTitle>
+          </DialogHeader>
+          {editingEntry && (
+            <BilanForm
+              onSave={handleUpdate}
+              editEntry={editingEntry}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div >
+  );
 };
 
-            export default DashboardHistorique;
+export default DashboardHistorique;
