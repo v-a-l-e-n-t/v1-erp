@@ -371,111 +371,66 @@ const MandatairesDestinationsHistory = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Table */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Répartition par Destination
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[300px]">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10">
+      {/* Table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Répartition par Destination
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[400px]">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead>Destination</TableHead>
+                  <TableHead className="text-right">Ventes</TableHead>
+                  <TableHead className="text-right">Tonnage (Kg)</TableHead>
+                  <TableHead className="text-right">%</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
                   <TableRow>
-                    <TableHead>Destination</TableHead>
-                    <TableHead className="text-right">Ventes</TableHead>
-                    <TableHead className="text-right">Tonnage (Kg)</TableHead>
-                    <TableHead className="text-right">%</TableHead>
+                    <TableCell colSpan={4} className="text-center py-8">
+                      Chargement...
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8">
-                        Chargement...
+                ) : destinationStats.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Aucune destination trouvée
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  destinationStats.map((stat, i) => (
+                    <TableRow key={stat.destination}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                          />
+                          <Badge variant="outline">{stat.destination}</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{stat.count}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        {stat.tonnage.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-primary">
+                        {stat.percentage.toFixed(1)}%
                       </TableCell>
                     </TableRow>
-                  ) : destinationStats.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        Aucune destination trouvée
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    destinationStats.map((stat, i) => (
-                      <TableRow key={stat.destination}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                            />
-                            <Badge variant="outline">{stat.destination}</Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">{stat.count}</TableCell>
-                        <TableCell className="text-right font-bold">
-                          {stat.tonnage.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-primary">
-                          {stat.percentage.toFixed(1)}%
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-              <ScrollBar orientation="vertical" />
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
-              Graphique des Destinations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPie>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                      labelLine={false}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number) => [`${value.toLocaleString("fr-FR")} Kg`, "Tonnage"]}
-                    />
-                    <Legend />
-                  </RechartsPie>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  Aucune donnée à afficher
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="vertical" />
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   );
 };
