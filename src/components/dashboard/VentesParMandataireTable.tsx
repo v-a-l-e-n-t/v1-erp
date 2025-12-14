@@ -210,7 +210,7 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
                   ))}
                   {/* Total row */}
                   <TableRow className="bg-orange-50 border-t-2 border-orange-200">
-                    <TableCell className="font-bold">TOTAL</TableCell>
+                    <TableCell className="font-bold">CUMUL</TableCell>
                     <TableCell className="text-right font-bold text-orange-700">
                       {formatNumber(Math.round(totalMandataireTonnage))}
                     </TableCell>
