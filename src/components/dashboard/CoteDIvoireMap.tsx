@@ -333,6 +333,43 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
         map.current.on('load', () => {
           map.current?.resize();
+          
+          // Add Ivory Coast boundary layer with orange color
+          if (map.current) {
+            // Add source for country boundaries from Mapbox tileset
+            map.current.addSource('ivory-coast-boundary', {
+              type: 'vector',
+              url: 'mapbox://mapbox.country-boundaries-v1'
+            });
+
+            // Add fill layer for subtle background
+            map.current.addLayer({
+              id: 'ivory-coast-fill',
+              type: 'fill',
+              source: 'ivory-coast-boundary',
+              'source-layer': 'country_boundaries',
+              filter: ['==', ['get', 'iso_3166_1'], 'CI'],
+              paint: {
+                'fill-color': '#f97316',
+                'fill-opacity': 0.05
+              }
+            }, 'heatmap-layer');
+
+            // Add border line layer
+            map.current.addLayer({
+              id: 'ivory-coast-border',
+              type: 'line',
+              source: 'ivory-coast-boundary',
+              'source-layer': 'country_boundaries',
+              filter: ['==', ['get', 'iso_3166_1'], 'CI'],
+              paint: {
+                'line-color': '#f97316',
+                'line-width': 3,
+                'line-opacity': 0.9
+              }
+            });
+          }
+          
           setMapLoaded(true);
         });
 
