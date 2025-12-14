@@ -9,11 +9,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp } from "lucide-react";
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from "date-fns";
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
+import { SearchableSelect } from "./SearchableSelect";
 
 interface Mandataire {
   id: string;
@@ -355,41 +356,29 @@ const MandatairesVentesHistory = () => {
           />
         </div>
 
-        <Select value={selectedMandataire} onValueChange={setSelectedMandataire}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Mandataire" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous mandataires</SelectItem>
-            {mandataires.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{m.nom}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          options={mandataires.map(m => ({ value: m.id, label: m.nom }))}
+          value={selectedMandataire}
+          onValueChange={setSelectedMandataire}
+          placeholder="Mandataire"
+          allLabel="Tous mandataires"
+        />
 
-        <Select value={selectedClient} onValueChange={setSelectedClient}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Client" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous clients</SelectItem>
-            {clients.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          options={clients.map(c => ({ value: c, label: c }))}
+          value={selectedClient}
+          onValueChange={setSelectedClient}
+          placeholder="Client"
+          allLabel="Tous clients"
+        />
 
-        <Select value={selectedDestination} onValueChange={setSelectedDestination}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Destination" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes destinations</SelectItem>
-            {destinations.map((d) => (
-              <SelectItem key={d} value={d}>{d}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          options={destinations.map(d => ({ value: d, label: d }))}
+          value={selectedDestination}
+          onValueChange={setSelectedDestination}
+          placeholder="Destination"
+          allLabel="Toutes destinations"
+        />
       </div>
 
       {/* Table */}
