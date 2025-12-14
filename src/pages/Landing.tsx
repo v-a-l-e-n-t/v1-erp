@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import DemoRequestDialog from '@/components/DemoRequestDialog';
 import { 
   BarChart3, 
   Truck, 
@@ -10,7 +12,6 @@ import {
   Zap,
   ArrowRight,
   CheckCircle2,
-  Globe,
   TrendingUp,
   Database,
   MapPin
@@ -18,6 +19,7 @@ import {
 
 const Landing = () => {
   const navigate = useNavigate();
+  const [demoDialogOpen, setDemoDialogOpen] = useState(false);
 
   const features = [
     {
@@ -74,14 +76,9 @@ const Landing = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <span className="text-xl font-bold text-primary">GazPILOT</span>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              Connexion
-            </Button>
-            <Button onClick={() => navigate('/dashboard')} className="gap-2">
-              Accéder <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+            Connexion
+          </Button>
         </div>
       </header>
 
@@ -104,16 +101,10 @@ const Landing = () => {
             et l'analyse de vos performances en temps réel.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" onClick={() => navigate('/dashboard')} className="gap-2 text-lg px-8">
-              Commencer maintenant
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate('/dashboard')} className="gap-2 text-lg px-8">
-              <Globe className="h-5 w-5" />
-              Voir la démo
-            </Button>
-          </div>
+          <Button size="lg" onClick={() => setDemoDialogOpen(true)} className="gap-2 text-lg px-8">
+            Demander une démo
+            <ArrowRight className="h-5 w-5" />
+          </Button>
         </div>
       </section>
 
@@ -231,10 +222,10 @@ const Landing = () => {
             <Button 
               size="lg" 
               variant="secondary" 
-              onClick={() => navigate('/dashboard')} 
+              onClick={() => setDemoDialogOpen(true)} 
               className="gap-2 text-lg px-8"
             >
-              Accéder à la plateforme
+              Demander une démo
               <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
@@ -252,6 +243,8 @@ const Landing = () => {
           </div>
         </div>
       </footer>
+
+      <DemoRequestDialog open={demoDialogOpen} onOpenChange={setDemoDialogOpen} />
     </div>
   );
 };
