@@ -250,8 +250,19 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current || !mapboxToken) return;
+    if (!mapContainer.current) {
+      console.warn('Map: conteneur introuvable');
+      return;
+    }
+    if (map.current) {
+      return;
+    }
+    if (!mapboxToken) {
+      console.warn('Map: pas de token Mapbox');
+      return;
+    }
 
+    console.log('Map: initialisation avec token');
     mapboxgl.accessToken = mapboxToken;
     
     map.current = new mapboxgl.Map({
@@ -267,10 +278,17 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     );
 
     map.current.on('load', () => {
+      console.log('Map: événement load déclenché');
+      map.current?.resize();
       setMapLoaded(true);
     });
 
+    map.current.on('error', (e) => {
+      console.error('Map: erreur Mapbox', e);
+    });
+
     return () => {
+      console.log('Map: destruction');
       map.current?.remove();
       map.current = null;
       setMapLoaded(false);
@@ -611,7 +629,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       </CardHeader>
       
       <CardContent className="p-0">
-        <div ref={mapContainer} className="h-[500px] w-full" />
+        <div ref={mapContainer} className="h-[500px] w-full bg-background" />
       </CardContent>
       
       {/* Legend */}
