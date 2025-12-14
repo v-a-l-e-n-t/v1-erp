@@ -272,7 +272,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       try {
         map.current = new mapboxgl.Map({
           container: mapContainer.current,
-          style: 'mapbox://styles/mapbox/dark-v11',
+          style: 'mapbox://styles/mapbox/light-v11',
           center: [-5.5, 7.5],
           zoom: 5.5,
         });
@@ -642,17 +642,11 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       </CardHeader>
       
       <CardContent className="p-0">
-        <div className="relative h-[500px] w-full bg-background border border-destructive/60">
+        <div className="relative h-[500px] w-full">
           <div
             ref={mapContainer}
-            className="absolute inset-0"
+            className="absolute inset-0 rounded-b-lg overflow-hidden"
           />
-          <div className="absolute top-2 left-2 z-10 rounded bg-background/80 px-2 py-1 text-[10px] text-foreground shadow space-y-0.5">
-            <div>Token: {mapboxToken ? '✅' : '❌'}</div>
-            <div>Map instance: {map.current ? '✅' : '❌'}</div>
-            <div>Map loaded: {mapLoaded ? '✅' : '❌'}</div>
-            <div>Destinations: {destinations.length}</div>
-          </div>
         </div>
       </CardContent>
       
