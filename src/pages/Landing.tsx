@@ -75,10 +75,10 @@ const Landing = () => {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <span className="text-xl font-bold text-primary">GazPILOT</span>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/app')}>
+            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
               Connexion
             </Button>
-            <Button onClick={() => navigate('/app')} className="gap-2">
+            <Button onClick={() => navigate('/dashboard')} className="gap-2">
               Accéder <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -105,11 +105,11 @@ const Landing = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" onClick={() => navigate('/app')} className="gap-2 text-lg px-8">
+            <Button size="lg" onClick={() => navigate('/dashboard')} className="gap-2 text-lg px-8">
               Commencer maintenant
               <ArrowRight className="h-5 w-5" />
             </Button>
-            <Button size="lg" variant="outline" className="gap-2 text-lg px-8">
+            <Button size="lg" variant="outline" onClick={() => navigate('/dashboard')} className="gap-2 text-lg px-8">
               <Globe className="h-5 w-5" />
               Voir la démo
             </Button>
@@ -184,7 +184,7 @@ const Landing = () => {
                 ))}
               </div>
               
-              <Button size="lg" onClick={() => navigate('/app')} className="mt-8 gap-2">
+              <Button size="lg" onClick={() => navigate('/dashboard')} className="mt-8 gap-2">
                 Explorer la plateforme
                 <ArrowRight className="h-5 w-5" />
               </Button>
@@ -231,7 +231,7 @@ const Landing = () => {
             <Button 
               size="lg" 
               variant="secondary" 
-              onClick={() => navigate('/app')} 
+              onClick={() => navigate('/dashboard')} 
               className="gap-2 text-lg px-8"
             >
               Accéder à la plateforme
