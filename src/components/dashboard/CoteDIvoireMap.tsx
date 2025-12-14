@@ -250,50 +250,63 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current) {
-      console.warn('Map: conteneur introuvable');
+    if (!mapboxToken) {
+      console.warn('Map: pas de token Mapbox');
       return;
     }
     if (map.current) {
       return;
     }
-    if (!mapboxToken) {
-      console.warn('Map: pas de token Mapbox');
-      return;
-    }
 
-    console.log('Map: initialisation avec token');
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-5.5, 7.5],
-      zoom: 5.5,
-    });
+    // Wait for DOM to be ready
+    const initMap = () => {
+      if (!mapContainer.current) {
+        console.warn('Map: conteneur introuvable, retry...');
+        requestAnimationFrame(initMap);
+        return;
+      }
 
-    map.current.addControl(
-      new mapboxgl.NavigationControl({ visualizePitch: false }),
-      'top-right'
-    );
+      console.log('Map: initialisation avec token', mapContainer.current);
+      mapboxgl.accessToken = mapboxToken;
+      
+      try {
+        map.current = new mapboxgl.Map({
+          container: mapContainer.current,
+          style: 'mapbox://styles/mapbox/dark-v11',
+          center: [-5.5, 7.5],
+          zoom: 5.5,
+        });
 
-    map.current.on('load', () => {
-      console.log('Map: événement load déclenché');
-      map.current?.resize();
-      setMapLoaded(true);
-    });
+        map.current.addControl(
+          new mapboxgl.NavigationControl({ visualizePitch: false }),
+          'top-right'
+        );
 
-    map.current.on('error', (e) => {
-      console.error('Map: erreur Mapbox', e);
-    });
+        map.current.on('load', () => {
+          console.log('Map: événement load déclenché');
+          map.current?.resize();
+          setMapLoaded(true);
+        });
+
+        map.current.on('error', (e) => {
+          console.error('Map: erreur Mapbox', e);
+        });
+      } catch (err) {
+        console.error('Map: erreur création', err);
+      }
+    };
+
+    // Delay initialization to ensure DOM is ready
+    const timeoutId = setTimeout(initMap, 100);
 
     return () => {
+      clearTimeout(timeoutId);
       console.log('Map: destruction');
       map.current?.remove();
       map.current = null;
       setMapLoaded(false);
     };
-  }, [mapboxToken]);
+  }, [mapboxToken, destinations.length]);
 
   // Update heatmap when data or filters change
   useEffect(() => {
