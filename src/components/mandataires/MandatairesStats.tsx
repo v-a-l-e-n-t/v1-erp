@@ -116,13 +116,23 @@ const MandatairesStats = () => {
     }
   };
 
-  // Calculate tonnage in Kg (not tonnes)
+  // Calculate tonnage in Kg (recharges + consignes)
   const calculateTonnageKg = (vente: VenteMandataire) => {
-    return (vente.r_b6 * 6) + 
-           (vente.r_b12 * 12.5) + 
-           (vente.r_b28 * 28) + 
-           (vente.r_b38 * 38) + 
-           (vente.r_b11_carbu * 11);
+    const recharges = 
+      (vente.r_b6 * 6) + 
+      (vente.r_b12 * 12.5) + 
+      (vente.r_b28 * 28) + 
+      (vente.r_b38 * 38) + 
+      (vente.r_b11_carbu * 11);
+    
+    const consignes = 
+      (vente.c_b6 * 6) + 
+      (vente.c_b12 * 12.5) + 
+      (vente.c_b28 * 28) + 
+      (vente.c_b38 * 38) + 
+      (vente.c_b11_carbu * 11);
+    
+    return recharges + consignes;
   };
 
   // Filter ventes by selected client
