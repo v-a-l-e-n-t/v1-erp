@@ -297,7 +297,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
   // Update heatmap when data or filters change
   useEffect(() => {
-    if (!map.current || !mapLoaded || destinations.length === 0) return;
+    if (!map.current || destinations.length === 0) return;
 
     // Remove existing layers and sources
     if (map.current.getLayer('heatmap-layer')) {
@@ -629,7 +629,15 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       </CardHeader>
       
       <CardContent className="p-0">
-        <div ref={mapContainer} className="h-[500px] w-full bg-background" />
+        <div className="relative h-[500px] w-full bg-background border border-destructive/60">
+          <div
+            ref={mapContainer}
+            className="absolute inset-0"
+          />
+          <div className="absolute top-2 left-2 z-10 rounded bg-background/80 px-2 py-1 text-[10px] text-foreground shadow">
+            DEBUG: zone carte rendue
+          </div>
+        </div>
       </CardContent>
       
       {/* Legend */}
