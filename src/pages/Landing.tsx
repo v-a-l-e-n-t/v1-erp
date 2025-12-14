@@ -249,12 +249,9 @@ const Landing = () => {
       <footer className="py-12 px-4 border-t bg-card">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <img src={logoSaepp} alt="SAEPP Logo" className="h-8 w-8 rounded-lg object-cover" />
-              <span className="font-bold text-primary">GazPILOT</span>
-            </div>
+            <span className="font-bold text-primary text-lg">GazPILOT</span>
             <p className="text-muted-foreground text-sm">
-              © {new Date().getFullYear()} SAEPP - Tous droits réservés
+              © {new Date().getFullYear()} GAZPILOT - Tous droits réservés
             </p>
           </div>
         </div>
