@@ -22,6 +22,7 @@ import {
     FileDown
 } from 'lucide-react';
 import CoteDIvoireMap from './CoteDIvoireMap';
+import VentesParMandataireTable from './VentesParMandataireTable';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
@@ -771,6 +772,36 @@ const VentesView = ({
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Tableaux Ventes par Mandataire et Destinations */}
+            <VentesParMandataireTable 
+                startDate={
+                    filterType === 'month' 
+                        ? `${selectedMonth}-01`
+                        : filterType === 'date' && selectedDate
+                            ? format(selectedDate, 'yyyy-MM-dd')
+                            : dateRange?.from 
+                                ? format(dateRange.from, 'yyyy-MM-dd')
+                                : `${selectedMonth}-01`
+                }
+                endDate={
+                    filterType === 'month'
+                        ? (() => {
+                            const [y, m] = selectedMonth.split('-').map(Number);
+                            return new Date(y, m, 0).toISOString().split('T')[0];
+                        })()
+                        : filterType === 'date' && selectedDate
+                            ? format(selectedDate, 'yyyy-MM-dd')
+                            : dateRange?.to
+                                ? format(dateRange.to, 'yyyy-MM-dd')
+                                : dateRange?.from
+                                    ? format(dateRange.from, 'yyyy-MM-dd')
+                                    : (() => {
+                                        const [y, m] = selectedMonth.split('-').map(Number);
+                                        return new Date(y, m, 0).toISOString().split('T')[0];
+                                    })()
+                }
+            />
 
             {/* Carte des zones de livraison */}
             <CoteDIvoireMap 
