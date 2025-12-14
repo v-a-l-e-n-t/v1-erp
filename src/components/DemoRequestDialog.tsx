@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface DemoRequestDialogProps {
   open: boolean;
@@ -25,10 +27,31 @@ const DemoRequestDialog = ({ open, onOpenChange }: DemoRequestDialogProps) => {
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate form submission
-    setIsSubmitted(true);
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('demo_requests')
+        .insert({
+          nom: formData.nom,
+          prenom: formData.prenom,
+          telephone: formData.telephone,
+          email: formData.email,
+        });
+
+      if (error) throw error;
+      
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting demo request:', error);
+      toast.error('Erreur lors de l\'envoi de la demande. Veuillez réessayer.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -92,8 +115,8 @@ const DemoRequestDialog = ({ open, onOpenChange }: DemoRequestDialogProps) => {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Envoyer ma demande
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Envoi en cours...' : 'Envoyer ma demande'}
               </Button>
             </form>
           </>

@@ -226,6 +226,33 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_requests: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          nom: string
+          prenom: string
+          telephone: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          nom: string
+          prenom: string
+          telephone: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          nom?: string
+          prenom?: string
+          telephone?: string
+        }
+        Relationships: []
+      }
       destinations_geolocation: {
         Row: {
           created_at: string
