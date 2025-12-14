@@ -32,7 +32,7 @@ const DashboardHistorique = () => {
     return sessionStorage.getItem('dashboard_authenticated') === 'true';
   });
 
-  // All hooks must be called before any conditional returns
+  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
   const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur' | 'sorties'>('overview');
   const [loading, setLoading] = useState(true);
@@ -45,10 +45,6 @@ const DashboardHistorique = () => {
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
-
-  if (!isAuthenticated) {
-    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
-  }
 
   // Filter state for Centre Emplisseur
   const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
@@ -132,16 +128,10 @@ const DashboardHistorique = () => {
     return d.toISOString().slice(0, 7);
   }), []);
 
-  useEffect(() => {
-    fetchAgents();
-  }, []);
-
-  // Load production history when filters change
-  useEffect(() => {
-    if (activeView === 'vrac') {
-      fetchProductionHistory();
-    }
-  }, [activeView, historyFilterType, historySelectedMonth, historySelectedDate, historyDateRange, historyShiftFilter, historyLigneFilter, historyChefFilter]);
+  // Conditional return for authentication - AFTER all hooks
+  if (!isAuthenticated) {
+    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   const fetchAgents = async () => {
     try {
