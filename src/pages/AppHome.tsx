@@ -56,9 +56,9 @@ export default function Home() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-6">
           <div>
-            <h1 className="text-3xl font-bold text-primary">Système de Gestion GPL</h1>
+            <h1 className="text-3xl font-bold text-primary">GazPILOT</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Suivi de production et inventaire
+              Système de pilotage d'un centre emplisseur
             </p>
           </div>
         </div>
