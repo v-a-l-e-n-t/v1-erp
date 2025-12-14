@@ -692,7 +692,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
             ref={mapContainer}
             className="absolute inset-0 overflow-hidden"
           />
-          <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm px-3 py-1 text-xs text-muted-foreground">
+          <div className="absolute bottom-1 right-1 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded text-xs text-muted-foreground">
             GazPILOT - Tous droits réservés
           </div>
         </div>
