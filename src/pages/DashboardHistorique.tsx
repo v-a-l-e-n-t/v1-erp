@@ -128,10 +128,6 @@ const DashboardHistorique = () => {
     return d.toISOString().slice(0, 7);
   }), []);
 
-  // Conditional return for authentication - AFTER all hooks
-  if (!isAuthenticated) {
-    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
-  }
 
   const fetchAgents = async () => {
     try {
@@ -399,6 +395,10 @@ const DashboardHistorique = () => {
     productionFilterType, productionSelectedMonth, productionSelectedYear, productionSelectedDate, productionDateRange,
     ventesCEFilterType, ventesCESelectedMonth, ventesCESelectedYear, ventesCESelectedDate, ventesCEDateRange
   ]);
+
+  if (!isAuthenticated) {
+    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   const loadData = async () => {
     setLoading(true);
