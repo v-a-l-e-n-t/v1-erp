@@ -616,21 +616,78 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     };
   }, [destinations, selectedMandataire, selectedClient, viewMode, mandatairesWithStats, mapLoaded]);
 
-  // Calculate filtered stats
-  const filteredStats = destinations.reduce((acc, dest) => {
-    let tonnage = dest.tonnage;
-    if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
-      const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
-      tonnage = mandataireData?.tonnage || 0;
-    } else if (viewMode === 'client' && selectedClient !== 'all') {
-      const clientData = dest.clients.find(c => c.nom.toUpperCase() === selectedClient.toUpperCase());
-      tonnage = clientData?.tonnage || 0;
-    }
+  // Calculate filtered stats with more details
+  const filteredStats = useMemo(() => {
+    let totalTonnage = 0;
+    let totalLivraisons = 0;
+    const destinationsSet = new Set<string>();
+    const regionsSet = new Set<string>();
+    
+    destinations.forEach(dest => {
+      let tonnage = dest.tonnage;
+      let livraisons = dest.livraisons;
+      
+      if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
+        const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
+        tonnage = mandataireData?.tonnage || 0;
+        // Estimate livraisons proportionally
+        if (dest.tonnage > 0) {
+          livraisons = Math.round((tonnage / dest.tonnage) * dest.livraisons);
+        } else {
+          livraisons = 0;
+        }
+      } else if (viewMode === 'client' && selectedClient !== 'all') {
+        const clientData = dest.clients.find(c => c.nom.toUpperCase() === selectedClient.toUpperCase());
+        tonnage = clientData?.tonnage || 0;
+        if (dest.tonnage > 0) {
+          livraisons = Math.round((tonnage / dest.tonnage) * dest.livraisons);
+        } else {
+          livraisons = 0;
+        }
+      }
+      
+      if (tonnage > 0) {
+        totalTonnage += tonnage;
+        totalLivraisons += livraisons;
+        destinationsSet.add(dest.destination);
+        if (dest.region) regionsSet.add(dest.region);
+      }
+    });
+    
     return {
-      tonnage: acc.tonnage + tonnage,
-      count: tonnage > 0 ? acc.count + 1 : acc.count
+      tonnage: totalTonnage,
+      livraisons: totalLivraisons,
+      destinationsCount: destinationsSet.size,
+      regionsCount: regionsSet.size,
+      topDestinations: destinations
+        .map(dest => {
+          let tonnage = dest.tonnage;
+          if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
+            const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
+            tonnage = mandataireData?.tonnage || 0;
+          } else if (viewMode === 'client' && selectedClient !== 'all') {
+            const clientData = dest.clients.find(c => c.nom.toUpperCase() === selectedClient.toUpperCase());
+            tonnage = clientData?.tonnage || 0;
+          }
+          return { destination: dest.destination, region: dest.region, tonnage };
+        })
+        .filter(d => d.tonnage > 0)
+        .sort((a, b) => b.tonnage - a.tonnage)
+        .slice(0, 5)
     };
-  }, { tonnage: 0, count: 0 });
+  }, [destinations, viewMode, selectedMandataire, selectedClient]);
+
+  // Get selected entity info
+  const selectedEntityInfo = useMemo(() => {
+    if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
+      const m = mandatairesWithStats.find(m => m.id === selectedMandataire);
+      return m ? { name: m.nom, color: m.color, type: 'Mandataire' } : null;
+    } else if (viewMode === 'client' && selectedClient !== 'all') {
+      const c = clientsWithStats.find(c => c.id === selectedClient);
+      return c ? { name: c.nom, color: c.color, type: 'Client' } : null;
+    }
+    return null;
+  }, [viewMode, selectedMandataire, selectedClient, mandatairesWithStats, clientsWithStats]);
 
   // Legend items for the current view
   const legendItems = viewMode === 'mandataire' 
@@ -690,7 +747,10 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
               {(filteredStats.tonnage / 1000).toFixed(1)} T
             </Badge>
             <Badge variant="outline" className="px-3 py-1">
-              {filteredStats.count} zones
+              {filteredStats.destinationsCount} zones
+            </Badge>
+            <Badge variant="outline" className="px-3 py-1">
+              {filteredStats.livraisons} livraisons
             </Badge>
           </div>
         </div>
@@ -767,6 +827,69 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
             ref={mapContainer}
             className="absolute inset-0 overflow-hidden"
           />
+          
+          {/* Stats Panel - appears when a mandataire/client is selected */}
+          {selectedEntityInfo && (
+            <div className="absolute top-3 left-3 z-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-xl p-4 min-w-[280px] max-w-[320px]">
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-border">
+                <div 
+                  className="w-4 h-4 rounded-full border-2 border-white shadow-sm" 
+                  style={{ backgroundColor: selectedEntityInfo.color }}
+                />
+                <div>
+                  <p className="text-xs text-muted-foreground">{selectedEntityInfo.type}</p>
+                  <h3 className="font-semibold text-foreground">{selectedEntityInfo.name}</h3>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold" style={{ color: selectedEntityInfo.color }}>
+                    {(filteredStats.tonnage / 1000).toFixed(1)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Tonnes</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-orange-500">
+                    {filteredStats.livraisons}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Livraisons</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-foreground">
+                    {filteredStats.destinationsCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Destinations</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-foreground">
+                    {filteredStats.regionsCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Régions</p>
+                </div>
+              </div>
+              
+              {filteredStats.topDestinations.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Top Destinations</p>
+                  <div className="space-y-1.5">
+                    {filteredStats.topDestinations.map((dest, idx) => (
+                      <div key={dest.destination} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">{idx + 1}.</span>
+                          <span className="font-medium truncate max-w-[140px]">{dest.destination}</span>
+                        </div>
+                        <span className="font-semibold" style={{ color: selectedEntityInfo.color }}>
+                          {(dest.tonnage / 1000).toFixed(1)} T
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="absolute bottom-1 right-1 bg-orange-500 px-2 py-0.5 rounded text-xs text-white font-medium">
             GazPILOT - Tous droits réservés
           </div>
