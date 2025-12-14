@@ -226,6 +226,33 @@ export type Database = {
         }
         Relationships: []
       }
+      destinations_geolocation: {
+        Row: {
+          created_at: string
+          destination: string
+          id: string
+          latitude: number
+          longitude: number
+          region: string | null
+        }
+        Insert: {
+          created_at?: string
+          destination: string
+          id?: string
+          latitude: number
+          longitude: number
+          region?: string | null
+        }
+        Update: {
+          created_at?: string
+          destination?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          region?: string | null
+        }
+        Relationships: []
+      }
       lignes_production: {
         Row: {
           chef_ligne_id: string | null
