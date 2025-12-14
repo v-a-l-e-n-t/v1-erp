@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,14 +41,27 @@ interface VenteMandataire {
   mandataires?: { nom: string };
 }
 
+type FilterType = "all" | "year" | "month" | "period" | "day";
+
+const MONTHS = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+];
+
 const MandatairesVentesHistory = () => {
   const [ventes, setVentes] = useState<VenteMandataire[]>([]);
   const [mandataires, setMandataires] = useState<Mandataire[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMandataire, setSelectedMandataire] = useState<string>("all");
+  const [selectedClient, setSelectedClient] = useState<string>("all");
+  const [selectedDestination, setSelectedDestination] = useState<string>("all");
+  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString());
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
+  const [singleDate, setSingleDate] = useState<Date | undefined>(undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,23 +92,66 @@ const MandatairesVentesHistory = () => {
     }
   };
 
-  const filteredVentes = ventes.filter((vente) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      vente.numero_bon_sortie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vente.client?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vente.camion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vente.mandataires?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Extract unique values for filters
+  const { clients, destinations, years } = useMemo(() => {
+    const clientsSet = new Set<string>();
+    const destinationsSet = new Set<string>();
+    const yearsSet = new Set<number>();
 
-    const matchesMandataire =
-      selectedMandataire === "all" || vente.mandataire_id === selectedMandataire;
+    ventes.forEach(v => {
+      if (v.client) clientsSet.add(v.client);
+      if (v.destination) destinationsSet.add(v.destination);
+      yearsSet.add(getYear(new Date(v.date)));
+    });
 
-    const venteDate = new Date(vente.date);
-    const matchesDateStart = !dateStart || venteDate >= dateStart;
-    const matchesDateEnd = !dateEnd || venteDate <= dateEnd;
+    return {
+      clients: Array.from(clientsSet).sort(),
+      destinations: Array.from(destinationsSet).sort(),
+      years: Array.from(yearsSet).sort((a, b) => b - a)
+    };
+  }, [ventes]);
 
-    return matchesSearch && matchesMandataire && matchesDateStart && matchesDateEnd;
-  });
+  const filteredVentes = useMemo(() => {
+    return ventes.filter((vente) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        vente.numero_bon_sortie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vente.client?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vente.camion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vente.destination?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vente.mandataires?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesMandataire =
+        selectedMandataire === "all" || vente.mandataire_id === selectedMandataire;
+
+      const matchesClient =
+        selectedClient === "all" || vente.client === selectedClient;
+
+      const matchesDestination =
+        selectedDestination === "all" || vente.destination === selectedDestination;
+
+      const venteDate = new Date(vente.date);
+      let matchesDate = true;
+
+      if (filterType === "year") {
+        const yearStart = startOfYear(new Date(parseInt(selectedYear), 0, 1));
+        const yearEnd = endOfYear(new Date(parseInt(selectedYear), 0, 1));
+        matchesDate = venteDate >= yearStart && venteDate <= yearEnd;
+      } else if (filterType === "month") {
+        const monthStart = startOfMonth(new Date(parseInt(selectedYear), parseInt(selectedMonth), 1));
+        const monthEnd = endOfMonth(new Date(parseInt(selectedYear), parseInt(selectedMonth), 1));
+        matchesDate = venteDate >= monthStart && venteDate <= monthEnd;
+      } else if (filterType === "period") {
+        const matchesDateStart = !dateStart || venteDate >= dateStart;
+        const matchesDateEnd = !dateEnd || venteDate <= dateEnd;
+        matchesDate = matchesDateStart && matchesDateEnd;
+      } else if (filterType === "day" && singleDate) {
+        matchesDate = format(venteDate, "yyyy-MM-dd") === format(singleDate, "yyyy-MM-dd");
+      }
+
+      return matchesSearch && matchesMandataire && matchesClient && matchesDestination && matchesDate;
+    });
+  }, [ventes, searchTerm, selectedMandataire, selectedClient, selectedDestination, filterType, selectedYear, selectedMonth, dateStart, dateEnd, singleDate]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -123,6 +179,7 @@ const MandatairesVentesHistory = () => {
       Mandataire: v.mandataires?.nom || "",
       Camion: v.camion || "",
       Client: v.client || "",
+      Destination: v.destination || "",
       "N° Bon Sortie": v.numero_bon_sortie,
       "R_B6": v.r_b6 || 0,
       "R_B12": v.r_b12 || 0,
@@ -160,8 +217,12 @@ const MandatairesVentesHistory = () => {
   const resetFilters = () => {
     setSearchTerm("");
     setSelectedMandataire("all");
+    setSelectedClient("all");
+    setSelectedDestination("all");
+    setFilterType("all");
     setDateStart(undefined);
     setDateEnd(undefined);
+    setSingleDate(undefined);
   };
 
   return (
@@ -187,7 +248,102 @@ const MandatairesVentesHistory = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters Row 1: Period Type */}
+      <div className="flex flex-wrap gap-3">
+        <Select value={filterType} onValueChange={(v) => setFilterType(v as FilterType)}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Période" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes périodes</SelectItem>
+            <SelectItem value="year">Année</SelectItem>
+            <SelectItem value="month">Mois</SelectItem>
+            <SelectItem value="period">Période</SelectItem>
+            <SelectItem value="day">Jour</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {filterType === "year" && (
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Année" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {filterType === "month" && (
+          <>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Année" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Mois" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m, i) => (
+                  <SelectItem key={i} value={i.toString()}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+
+        {filterType === "period" && (
+          <>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[140px]">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateStart ? format(dateStart, "dd/MM/yy") : "Début"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateStart} onSelect={setDateStart} locale={fr} />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[140px]">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateEnd ? format(dateEnd, "dd/MM/yy") : "Fin"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateEnd} onSelect={setDateEnd} locale={fr} />
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
+
+        {filterType === "day" && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[160px]">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {singleDate ? format(singleDate, "dd/MM/yyyy") : "Choisir un jour"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={singleDate} onSelect={setSingleDate} locale={fr} />
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+
+      {/* Filters Row 2: Entity filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -200,50 +356,40 @@ const MandatairesVentesHistory = () => {
         </div>
 
         <Select value={selectedMandataire} onValueChange={setSelectedMandataire}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Mandataire" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les mandataires</SelectItem>
+            <SelectItem value="all">Tous mandataires</SelectItem>
             {mandataires.map((m) => (
               <SelectItem key={m.id} value={m.id}>{m.nom}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[140px]">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateStart ? format(dateStart, "dd/MM/yy") : "Début"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={dateStart}
-              onSelect={setDateStart}
-              locale={fr}
-            />
-          </PopoverContent>
-        </Popover>
+        <Select value={selectedClient} onValueChange={setSelectedClient}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Client" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous clients</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[140px]">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateEnd ? format(dateEnd, "dd/MM/yy") : "Fin"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={dateEnd}
-              onSelect={setDateEnd}
-              locale={fr}
-            />
-          </PopoverContent>
-        </Popover>
+        <Select value={selectedDestination} onValueChange={setSelectedDestination}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Destination" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes destinations</SelectItem>
+            {destinations.map((d) => (
+              <SelectItem key={d} value={d}>{d}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -256,6 +402,7 @@ const MandatairesVentesHistory = () => {
                 <TableHead>Mandataire</TableHead>
                 <TableHead>Camion</TableHead>
                 <TableHead>Client</TableHead>
+                <TableHead>Destination</TableHead>
                 <TableHead>N° Bon</TableHead>
                 <TableHead className="text-right">Recharges</TableHead>
                 <TableHead className="text-right">Consignes</TableHead>
@@ -266,13 +413,13 @@ const MandatairesVentesHistory = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     Chargement...
                   </TableCell>
                 </TableRow>
               ) : filteredVentes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     Aucune vente trouvée
                   </TableCell>
                 </TableRow>
@@ -287,6 +434,7 @@ const MandatairesVentesHistory = () => {
                     </TableCell>
                     <TableCell>{vente.camion || "-"}</TableCell>
                     <TableCell>{vente.client || "-"}</TableCell>
+                    <TableCell>{vente.destination || "-"}</TableCell>
                     <TableCell className="font-mono text-xs">{vente.numero_bon_sortie}</TableCell>
                     <TableCell className="text-right font-medium">
                       {getTotalRecharges(vente)}

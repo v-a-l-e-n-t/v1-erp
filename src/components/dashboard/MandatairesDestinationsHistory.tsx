@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, CalendarIcon, Download, RotateCcw, MapPin, TrendingUp, PieChart } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +25,7 @@ interface VenteMandataire {
   id: string;
   date: string;
   mandataire_id: string;
+  client: string | null;
   destination: string | null;
   r_b6: number | null;
   r_b12: number | null;
@@ -46,7 +47,14 @@ interface DestinationStats {
   count: number;
 }
 
+type FilterType = "all" | "year" | "month" | "period" | "day";
+
 const COLORS = ["#f97316", "#3b82f6", "#22c55e", "#a855f7", "#eab308", "#ec4899", "#06b6d4", "#6366f1", "#84cc16", "#f43f5e"];
+
+const MONTHS = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+];
 
 const MandatairesDestinationsHistory = () => {
   const [ventes, setVentes] = useState<VenteMandataire[]>([]);
@@ -54,9 +62,14 @@ const MandatairesDestinationsHistory = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMandataire, setSelectedMandataire] = useState<string>("all");
+  const [selectedClient, setSelectedClient] = useState<string>("all");
   const [selectedDestination, setSelectedDestination] = useState<string>("all");
+  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString());
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
+  const [singleDate, setSingleDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     fetchData();
@@ -86,27 +99,64 @@ const MandatairesDestinationsHistory = () => {
     }
   };
 
-  // Get unique destinations
-  const destinations = [...new Set(ventes.map(v => v.destination).filter(Boolean))] as string[];
+  // Extract unique values for filters
+  const { clients, destinations, years } = useMemo(() => {
+    const clientsSet = new Set<string>();
+    const destinationsSet = new Set<string>();
+    const yearsSet = new Set<number>();
 
-  const filteredVentes = ventes.filter((vente) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      vente.destination?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vente.mandataires?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
+    ventes.forEach(v => {
+      if (v.client) clientsSet.add(v.client);
+      if (v.destination) destinationsSet.add(v.destination);
+      yearsSet.add(getYear(new Date(v.date)));
+    });
 
-    const matchesMandataire =
-      selectedMandataire === "all" || vente.mandataire_id === selectedMandataire;
+    return {
+      clients: Array.from(clientsSet).sort(),
+      destinations: Array.from(destinationsSet).sort(),
+      years: Array.from(yearsSet).sort((a, b) => b - a)
+    };
+  }, [ventes]);
 
-    const matchesDestination =
-      selectedDestination === "all" || vente.destination === selectedDestination;
+  const filteredVentes = useMemo(() => {
+    return ventes.filter((vente) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        vente.destination?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vente.client?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vente.mandataires?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const venteDate = new Date(vente.date);
-    const matchesDateStart = !dateStart || venteDate >= dateStart;
-    const matchesDateEnd = !dateEnd || venteDate <= dateEnd;
+      const matchesMandataire =
+        selectedMandataire === "all" || vente.mandataire_id === selectedMandataire;
 
-    return matchesSearch && matchesMandataire && matchesDestination && matchesDateStart && matchesDateEnd;
-  });
+      const matchesClient =
+        selectedClient === "all" || vente.client === selectedClient;
+
+      const matchesDestination =
+        selectedDestination === "all" || vente.destination === selectedDestination;
+
+      const venteDate = new Date(vente.date);
+      let matchesDate = true;
+
+      if (filterType === "year") {
+        const yearStart = startOfYear(new Date(parseInt(selectedYear), 0, 1));
+        const yearEnd = endOfYear(new Date(parseInt(selectedYear), 0, 1));
+        matchesDate = venteDate >= yearStart && venteDate <= yearEnd;
+      } else if (filterType === "month") {
+        const monthStart = startOfMonth(new Date(parseInt(selectedYear), parseInt(selectedMonth), 1));
+        const monthEnd = endOfMonth(new Date(parseInt(selectedYear), parseInt(selectedMonth), 1));
+        matchesDate = venteDate >= monthStart && venteDate <= monthEnd;
+      } else if (filterType === "period") {
+        const matchesDateStart = !dateStart || venteDate >= dateStart;
+        const matchesDateEnd = !dateEnd || venteDate <= dateEnd;
+        matchesDate = matchesDateStart && matchesDateEnd;
+      } else if (filterType === "day" && singleDate) {
+        matchesDate = format(venteDate, "yyyy-MM-dd") === format(singleDate, "yyyy-MM-dd");
+      }
+
+      return matchesSearch && matchesMandataire && matchesClient && matchesDestination && matchesDate;
+    });
+  }, [ventes, searchTerm, selectedMandataire, selectedClient, selectedDestination, filterType, selectedYear, selectedMonth, dateStart, dateEnd, singleDate]);
 
   const calculateTonnageKg = (v: VenteMandataire) => {
     const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 11;
@@ -117,19 +167,21 @@ const MandatairesDestinationsHistory = () => {
   const totalTonnage = filteredVentes.reduce((sum, v) => sum + calculateTonnageKg(v), 0);
 
   // Calculate destination statistics
-  const destinationStats: DestinationStats[] = destinations
-    .map(dest => {
-      const destVentes = filteredVentes.filter(v => v.destination === dest);
-      const tonnage = destVentes.reduce((sum, v) => sum + calculateTonnageKg(v), 0);
-      return {
-        destination: dest || "Non spécifié",
-        tonnage,
-        percentage: totalTonnage > 0 ? (tonnage / totalTonnage) * 100 : 0,
-        count: destVentes.length
-      };
-    })
-    .filter(d => d.tonnage > 0)
-    .sort((a, b) => b.tonnage - a.tonnage);
+  const destinationStats: DestinationStats[] = useMemo(() => {
+    return destinations
+      .map(dest => {
+        const destVentes = filteredVentes.filter(v => v.destination === dest);
+        const tonnage = destVentes.reduce((sum, v) => sum + calculateTonnageKg(v), 0);
+        return {
+          destination: dest || "Non spécifié",
+          tonnage,
+          percentage: totalTonnage > 0 ? (tonnage / totalTonnage) * 100 : 0,
+          count: destVentes.length
+        };
+      })
+      .filter(d => d.tonnage > 0)
+      .sort((a, b) => b.tonnage - a.tonnage);
+  }, [destinations, filteredVentes, totalTonnage]);
 
   const handleExport = () => {
     const exportData = destinationStats.map((d) => ({
@@ -149,9 +201,12 @@ const MandatairesDestinationsHistory = () => {
   const resetFilters = () => {
     setSearchTerm("");
     setSelectedMandataire("all");
+    setSelectedClient("all");
     setSelectedDestination("all");
+    setFilterType("all");
     setDateStart(undefined);
     setDateEnd(undefined);
+    setSingleDate(undefined);
   };
 
   const pieData = destinationStats.slice(0, 10).map((d, i) => ({
@@ -183,7 +238,102 @@ const MandatairesDestinationsHistory = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters Row 1: Period Type */}
+      <div className="flex flex-wrap gap-3">
+        <Select value={filterType} onValueChange={(v) => setFilterType(v as FilterType)}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Période" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes périodes</SelectItem>
+            <SelectItem value="year">Année</SelectItem>
+            <SelectItem value="month">Mois</SelectItem>
+            <SelectItem value="period">Période</SelectItem>
+            <SelectItem value="day">Jour</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {filterType === "year" && (
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Année" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {filterType === "month" && (
+          <>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Année" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Mois" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m, i) => (
+                  <SelectItem key={i} value={i.toString()}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+
+        {filterType === "period" && (
+          <>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[140px]">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateStart ? format(dateStart, "dd/MM/yy") : "Début"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateStart} onSelect={setDateStart} locale={fr} />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[140px]">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateEnd ? format(dateEnd, "dd/MM/yy") : "Fin"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateEnd} onSelect={setDateEnd} locale={fr} />
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
+
+        {filterType === "day" && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[160px]">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {singleDate ? format(singleDate, "dd/MM/yyyy") : "Choisir un jour"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={singleDate} onSelect={setSingleDate} locale={fr} />
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+
+      {/* Filters Row 2: Entity filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -196,62 +346,40 @@ const MandatairesDestinationsHistory = () => {
         </div>
 
         <Select value={selectedMandataire} onValueChange={setSelectedMandataire}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Mandataire" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les mandataires</SelectItem>
+            <SelectItem value="all">Tous mandataires</SelectItem>
             {mandataires.map((m) => (
               <SelectItem key={m.id} value={m.id}>{m.nom}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
+        <Select value={selectedClient} onValueChange={setSelectedClient}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Client" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous clients</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select value={selectedDestination} onValueChange={setSelectedDestination}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Destination" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Toutes les destinations</SelectItem>
+            <SelectItem value="all">Toutes destinations</SelectItem>
             {destinations.map((d) => (
               <SelectItem key={d} value={d}>{d}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[140px]">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateStart ? format(dateStart, "dd/MM/yy") : "Début"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={dateStart}
-              onSelect={setDateStart}
-              locale={fr}
-            />
-          </PopoverContent>
-        </Popover>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[140px]">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateEnd ? format(dateEnd, "dd/MM/yy") : "Fin"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={dateEnd}
-              onSelect={setDateEnd}
-              locale={fr}
-            />
-          </PopoverContent>
-        </Popover>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
