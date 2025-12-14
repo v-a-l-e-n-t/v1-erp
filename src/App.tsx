@@ -38,6 +38,7 @@ const App = () => (
           <Route path="/production-entry" element={<ProductionDataEntry />} />
           <Route path="/chefs-ligne" element={<ChefsLigneManagement />} />
           <Route path="/import_data" element={<ImportData />} />
+          <Route path="/new-bilan" element={<NewBilan />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
