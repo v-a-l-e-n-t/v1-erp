@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useMemo } from 'react';
 import VentesView from '@/components/dashboard/VentesView';
+import DataChatbot from '@/components/DataChatbot';
 
 const DashboardHistorique = () => {
   const navigate = useNavigate();
@@ -1268,6 +1269,9 @@ const DashboardHistorique = () => {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Data Chatbot - visible only on dashboard */}
+      <DataChatbot />
     </div >
   );
 };

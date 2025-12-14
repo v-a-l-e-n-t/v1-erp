@@ -2,3 +2,6 @@ project_id = "sfnnqubbnlxroftbicjr"
 
 [functions.get-mapbox-token]
 verify_jwt = false
+
+[functions.chat-assistant]
+verify_jwt = false
