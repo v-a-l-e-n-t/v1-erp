@@ -1,0 +1,340 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import * as XLSX from "xlsx";
+
+interface Mandataire {
+  id: string;
+  nom: string;
+}
+
+interface VenteMandataire {
+  id: string;
+  date: string;
+  mandataire_id: string;
+  camion: string | null;
+  client: string | null;
+  numero_bon_sortie: string;
+  destination: string | null;
+  r_b6: number | null;
+  r_b12: number | null;
+  r_b28: number | null;
+  r_b38: number | null;
+  r_b11_carbu: number | null;
+  c_b6: number | null;
+  c_b12: number | null;
+  c_b28: number | null;
+  c_b38: number | null;
+  c_b11_carbu: number | null;
+  mandataires?: { nom: string };
+}
+
+const MandatairesVentesHistory = () => {
+  const [ventes, setVentes] = useState<VenteMandataire[]>([]);
+  const [mandataires, setMandataires] = useState<Mandataire[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMandataire, setSelectedMandataire] = useState<string>("all");
+  const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
+  const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [ventesResult, mandatairesResult] = await Promise.all([
+        supabase
+          .from("ventes_mandataires")
+          .select("*, mandataires(nom)")
+          .order("date", { ascending: false }),
+        supabase.from("mandataires").select("*").order("nom")
+      ]);
+
+      if (ventesResult.error) throw ventesResult.error;
+      if (mandatairesResult.error) throw mandatairesResult.error;
+
+      setVentes(ventesResult.data || []);
+      setMandataires(mandatairesResult.data || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Erreur lors du chargement des données");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredVentes = ventes.filter((vente) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      vente.numero_bon_sortie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vente.client?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vente.camion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vente.mandataires?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesMandataire =
+      selectedMandataire === "all" || vente.mandataire_id === selectedMandataire;
+
+    const venteDate = new Date(vente.date);
+    const matchesDateStart = !dateStart || venteDate >= dateStart;
+    const matchesDateEnd = !dateEnd || venteDate <= dateEnd;
+
+    return matchesSearch && matchesMandataire && matchesDateStart && matchesDateEnd;
+  });
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const { error } = await supabase
+        .from("ventes_mandataires")
+        .delete()
+        .eq("id", deleteId);
+
+      if (error) throw error;
+
+      setVentes(ventes.filter((v) => v.id !== deleteId));
+      toast.success("Vente supprimée");
+    } catch (error) {
+      console.error("Error deleting:", error);
+      toast.error("Erreur lors de la suppression");
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  const handleExport = () => {
+    const exportData = filteredVentes.map((v) => ({
+      Date: format(new Date(v.date), "dd/MM/yyyy"),
+      Mandataire: v.mandataires?.nom || "",
+      Camion: v.camion || "",
+      Client: v.client || "",
+      "N° Bon Sortie": v.numero_bon_sortie,
+      "R_B6": v.r_b6 || 0,
+      "R_B12": v.r_b12 || 0,
+      "R_B28": v.r_b28 || 0,
+      "R_B38": v.r_b38 || 0,
+      "R_Carbu": v.r_b11_carbu || 0,
+      "C_B6": v.c_b6 || 0,
+      "C_B12": v.c_b12 || 0,
+      "C_B28": v.c_b28 || 0,
+      "C_B38": v.c_b38 || 0,
+      "C_Carbu": v.c_b11_carbu || 0,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ventes");
+    XLSX.writeFile(wb, `ventes_mandataires_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Export réussi");
+  };
+
+  const getTotalRecharges = (v: VenteMandataire) =>
+    (v.r_b6 || 0) + (v.r_b12 || 0) + (v.r_b28 || 0) + (v.r_b38 || 0) + (v.r_b11_carbu || 0);
+
+  const getTotalConsignes = (v: VenteMandataire) =>
+    (v.c_b6 || 0) + (v.c_b12 || 0) + (v.c_b28 || 0) + (v.c_b38 || 0) + (v.c_b11_carbu || 0);
+
+  const calculateTonnageKg = (v: VenteMandataire) => {
+    const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 11;
+    const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 11;
+    return recharges + consignes;
+  };
+
+  const totalTonnage = filteredVentes.reduce((sum, v) => sum + calculateTonnageKg(v), 0);
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSelectedMandataire("all");
+    setDateStart(undefined);
+    setDateEnd(undefined);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Stats Summary */}
+      <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-lg">
+        <TrendingUp className="h-5 w-5 text-primary" />
+        <div className="flex-1">
+          <span className="text-sm text-muted-foreground">Total filtré:</span>
+          <span className="ml-2 font-bold">{filteredVentes.length} ventes</span>
+          <span className="ml-4 text-sm text-muted-foreground">Tonnage:</span>
+          <span className="ml-2 font-bold">{totalTonnage.toLocaleString("fr-FR")} Kg</span>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={resetFilters}>
+            <RotateCcw className="h-4 w-4 mr-1" />
+            Réinitialiser
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" />
+            Export
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <Select value={selectedMandataire} onValueChange={setSelectedMandataire}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Mandataire" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les mandataires</SelectItem>
+            {mandataires.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{m.nom}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-[140px]">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateStart ? format(dateStart, "dd/MM/yy") : "Début"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dateStart}
+              onSelect={setDateStart}
+              locale={fr}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-[140px]">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateEnd ? format(dateEnd, "dd/MM/yy") : "Fin"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dateEnd}
+              onSelect={setDateEnd}
+              locale={fr}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Table */}
+      <ScrollArea className="h-[400px] border rounded-lg">
+        <div className="min-w-max">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10">
+              <TableRow>
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead>Mandataire</TableHead>
+                <TableHead>Camion</TableHead>
+                <TableHead>Client</TableHead>
+                <TableHead>N° Bon</TableHead>
+                <TableHead className="text-right">Recharges</TableHead>
+                <TableHead className="text-right">Consignes</TableHead>
+                <TableHead className="text-right">Tonnage (Kg)</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8">
+                    Chargement...
+                  </TableCell>
+                </TableRow>
+              ) : filteredVentes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    Aucune vente trouvée
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredVentes.map((vente) => (
+                  <TableRow key={vente.id}>
+                    <TableCell className="font-medium">
+                      {format(new Date(vente.date), "dd/MM/yy")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{vente.mandataires?.nom || "-"}</Badge>
+                    </TableCell>
+                    <TableCell>{vente.camion || "-"}</TableCell>
+                    <TableCell>{vente.client || "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{vente.numero_bon_sortie}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {getTotalRecharges(vente)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {getTotalConsignes(vente)}
+                    </TableCell>
+                    <TableCell className="text-right font-bold">
+                      {calculateTonnageKg(vente).toLocaleString("fr-FR")}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteId(vente.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette vente ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default MandatairesVentesHistory;

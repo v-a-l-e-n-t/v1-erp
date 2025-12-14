@@ -43,10 +43,10 @@ export default function Home() {
       color: 'text-pink-500',
     },
     {
-      title: 'Ventes par Mandataire',
-      description: 'Import et suivi des ventes conditionnées par mandataire',
+      title: 'Import des Données',
+      description: 'Import des ventes conditionnées par mandataire',
       icon: Truck,
-      path: '/mandataires',
+      path: '/import_data',
       color: 'text-amber-500',
     },
   ];

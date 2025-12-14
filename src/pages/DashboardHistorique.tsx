@@ -17,6 +17,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import CentreEmplisseurView from '@/components/dashboard/CentreEmplisseurView';
 import ProductionHistory from '@/components/dashboard/ProductionHistory';
+import MandatairesVentesHistory from '@/components/dashboard/MandatairesVentesHistory';
+import MandatairesDestinationsHistory from '@/components/dashboard/MandatairesDestinationsHistory';
 import { ProductionShiftForm } from '@/components/ProductionShiftForm';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -35,6 +37,8 @@ const DashboardHistorique = () => {
   const [showImport, setShowImport] = useState(false);
   const [isBilansExpanded, setIsBilansExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
+  const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
+  const [isMandatairesDestinationsExpanded, setIsMandatairesDestinationsExpanded] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
 
   // Filter state for Centre Emplisseur
@@ -1142,7 +1146,50 @@ const DashboardHistorique = () => {
                 )}
               </div>
 
-              {/* Edit Modal */}
+              {/* Historique des ventes par mandataire - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsMandatairesVentesExpanded(!isMandatairesVentesExpanded)}
+                >
+                  <h2 className="text-2xl font-bold">Historique des ventes par mandataire</h2>
+                  <Button variant="ghost" size="icon" className="h-10 w-10">
+                    {isMandatairesVentesExpanded ? (
+                      <ChevronUp className="h-6 w-6" />
+                    ) : (
+                      <ChevronDown className="h-6 w-6" />
+                    )}
+                  </Button>
+                </div>
+                {isMandatairesVentesExpanded && (
+                  <div className="px-6 pb-6">
+                    <MandatairesVentesHistory />
+                  </div>
+                )}
+              </div>
+
+              {/* Historique des destinations par mandataire - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsMandatairesDestinationsExpanded(!isMandatairesDestinationsExpanded)}
+                >
+                  <h2 className="text-2xl font-bold">Historique des destinations par mandataire</h2>
+                  <Button variant="ghost" size="icon" className="h-10 w-10">
+                    {isMandatairesDestinationsExpanded ? (
+                      <ChevronUp className="h-6 w-6" />
+                    ) : (
+                      <ChevronDown className="h-6 w-6" />
+                    )}
+                  </Button>
+                </div>
+                {isMandatairesDestinationsExpanded && (
+                  <div className="px-6 pb-6">
+                    <MandatairesDestinationsHistory />
+                  </div>
+                )}
+              </div>
+
               <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
                 if (!open) {
                   setSelectedShiftForEdit(null);
