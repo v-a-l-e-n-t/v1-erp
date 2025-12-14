@@ -396,10 +396,6 @@ const DashboardHistorique = () => {
     ventesCEFilterType, ventesCESelectedMonth, ventesCESelectedYear, ventesCESelectedDate, ventesCEDateRange
   ]);
 
-  if (!isAuthenticated) {
-    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
-  }
-
   const loadData = async () => {
     setLoading(true);
     const loaded = await loadEntries();
@@ -554,6 +550,10 @@ const DashboardHistorique = () => {
     toast.success('Impression réussie');
   };
 
+  if (!isAuthenticated) {
+    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -561,6 +561,7 @@ const DashboardHistorique = () => {
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-background">
