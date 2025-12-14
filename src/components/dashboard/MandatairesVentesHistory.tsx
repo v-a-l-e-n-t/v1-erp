@@ -8,8 +8,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp } from "lucide-react";
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp, List, BarChart3 } from "lucide-react";
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,12 +43,25 @@ interface VenteMandataire {
   mandataires?: { nom: string };
 }
 
+interface AggregatedStat {
+  key: string;
+  label: string;
+  count: number;
+  totalRecharges: number;
+  totalConsignes: number;
+  tonnage: number;
+  percentage: number;
+}
+
 type FilterType = "all" | "year" | "month" | "period" | "day";
+type GroupByType = "mandataire" | "client" | "destination" | "mois";
 
 const MONTHS = [
   "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ];
+
+const COLORS = ["#f97316", "#3b82f6", "#22c55e", "#a855f7", "#eab308", "#ec4899", "#06b6d4", "#6366f1", "#84cc16", "#f43f5e"];
 
 const MandatairesVentesHistory = () => {
   const [ventes, setVentes] = useState<VenteMandataire[]>([]);
@@ -64,6 +78,8 @@ const MandatairesVentesHistory = () => {
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
   const [singleDate, setSingleDate] = useState<Date | undefined>(undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("detailed");
+  const [groupBy, setGroupBy] = useState<GroupByType>("mandataire");
 
   useEffect(() => {
     fetchData();
@@ -174,7 +190,81 @@ const MandatairesVentesHistory = () => {
     }
   };
 
-  const handleExport = () => {
+  const getTotalRecharges = (v: VenteMandataire) =>
+    (v.r_b6 || 0) + (v.r_b12 || 0) + (v.r_b28 || 0) + (v.r_b38 || 0) + (v.r_b11_carbu || 0);
+
+  const getTotalConsignes = (v: VenteMandataire) =>
+    (v.c_b6 || 0) + (v.c_b12 || 0) + (v.c_b28 || 0) + (v.c_b38 || 0) + (v.c_b11_carbu || 0);
+
+  const calculateTonnageKg = (v: VenteMandataire) => {
+    const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 11;
+    const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 11;
+    return recharges + consignes;
+  };
+
+  const totalTonnage = filteredVentes.reduce((sum, v) => sum + calculateTonnageKg(v), 0);
+
+  // Aggregated statistics based on groupBy
+  const aggregatedStats: AggregatedStat[] = useMemo(() => {
+    const groupMap = new Map<string, { label: string; ventes: VenteMandataire[] }>();
+
+    filteredVentes.forEach(v => {
+      let key: string;
+      let label: string;
+
+      switch (groupBy) {
+        case "mandataire":
+          key = v.mandataire_id;
+          label = v.mandataires?.nom || "Non spécifié";
+          break;
+        case "client":
+          key = v.client || "non_specifie";
+          label = v.client || "Non spécifié";
+          break;
+        case "destination":
+          key = v.destination || "non_specifie";
+          label = v.destination || "Non spécifié";
+          break;
+        case "mois":
+          const date = new Date(v.date);
+          key = `${getYear(date)}-${getMonth(date)}`;
+          label = `${MONTHS[getMonth(date)]} ${getYear(date)}`;
+          break;
+        default:
+          key = "unknown";
+          label = "Inconnu";
+      }
+
+      if (!groupMap.has(key)) {
+        groupMap.set(key, { label, ventes: [] });
+      }
+      groupMap.get(key)!.ventes.push(v);
+    });
+
+    const stats = Array.from(groupMap.entries()).map(([key, { label, ventes }]) => {
+      const totalRecharges = ventes.reduce((sum, v) => sum + getTotalRecharges(v), 0);
+      const totalConsignes = ventes.reduce((sum, v) => sum + getTotalConsignes(v), 0);
+      const tonnage = ventes.reduce((sum, v) => sum + calculateTonnageKg(v), 0);
+
+      return {
+        key,
+        label,
+        count: ventes.length,
+        totalRecharges,
+        totalConsignes,
+        tonnage,
+        percentage: totalTonnage > 0 ? (tonnage / totalTonnage) * 100 : 0
+      };
+    });
+
+    // Sort by tonnage descending, except for "mois" which should be chronological
+    if (groupBy === "mois") {
+      return stats.sort((a, b) => a.key.localeCompare(b.key));
+    }
+    return stats.sort((a, b) => b.tonnage - a.tonnage);
+  }, [filteredVentes, groupBy, totalTonnage]);
+
+  const handleExportDetailed = () => {
     const exportData = filteredVentes.map((v) => ({
       Date: format(new Date(v.date), "dd/MM/yyyy"),
       Mandataire: v.mandataires?.nom || "",
@@ -192,28 +282,39 @@ const MandatairesVentesHistory = () => {
       "C_B28": v.c_b28 || 0,
       "C_B38": v.c_b38 || 0,
       "C_Carbu": v.c_b11_carbu || 0,
+      "Tonnage (Kg)": calculateTonnageKg(v).toFixed(2),
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Ventes");
-    XLSX.writeFile(wb, `ventes_mandataires_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Ventes Détaillées");
+    XLSX.writeFile(wb, `ventes_detaillees_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
     toast.success("Export réussi");
   };
 
-  const getTotalRecharges = (v: VenteMandataire) =>
-    (v.r_b6 || 0) + (v.r_b12 || 0) + (v.r_b28 || 0) + (v.r_b38 || 0) + (v.r_b11_carbu || 0);
+  const handleExportAggregated = () => {
+    const groupLabels: Record<GroupByType, string> = {
+      mandataire: "Mandataire",
+      client: "Client",
+      destination: "Destination",
+      mois: "Mois"
+    };
 
-  const getTotalConsignes = (v: VenteMandataire) =>
-    (v.c_b6 || 0) + (v.c_b12 || 0) + (v.c_b28 || 0) + (v.c_b38 || 0) + (v.c_b11_carbu || 0);
+    const exportData = aggregatedStats.map((stat) => ({
+      [groupLabels[groupBy]]: stat.label,
+      "Nombre de ventes": stat.count,
+      "Total Recharges": stat.totalRecharges,
+      "Total Consignes": stat.totalConsignes,
+      "Tonnage (Kg)": stat.tonnage.toFixed(2),
+      "Pourcentage": `${stat.percentage.toFixed(2)}%`
+    }));
 
-  const calculateTonnageKg = (v: VenteMandataire) => {
-    const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 11;
-    const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 11;
-    return recharges + consignes;
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Par ${groupLabels[groupBy]}`);
+    XLSX.writeFile(wb, `ventes_par_${groupBy}_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Export réussi");
   };
-
-  const totalTonnage = filteredVentes.reduce((sum, v) => sum + calculateTonnageKg(v), 0);
 
   const resetFilters = () => {
     setSearchTerm("");
@@ -242,7 +343,7 @@ const MandatairesVentesHistory = () => {
             <RotateCcw className="h-4 w-4 mr-1" />
             Réinitialiser
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button variant="outline" size="sm" onClick={activeTab === "detailed" ? handleExportDetailed : handleExportAggregated}>
             <Download className="h-4 w-4 mr-1" />
             Export
           </Button>
@@ -381,77 +482,171 @@ const MandatairesVentesHistory = () => {
         />
       </div>
 
-      {/* Table */}
-      <ScrollArea className="h-[400px] border rounded-lg">
-        <div className="min-w-max">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow>
-                <TableHead className="w-[100px]">Date</TableHead>
-                <TableHead>Mandataire</TableHead>
-                <TableHead>Camion</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>N° Bon</TableHead>
-                <TableHead className="text-right">Recharges</TableHead>
-                <TableHead className="text-right">Consignes</TableHead>
-                <TableHead className="text-right">Tonnage (Kg)</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+      {/* Tabs: Vue Détaillée / Vue Agrégée */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="detailed" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            Vue Détaillée
+          </TabsTrigger>
+          <TabsTrigger value="aggregated" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Vue Agrégée
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Vue Détaillée */}
+        <TabsContent value="detailed" className="mt-4">
+          <ScrollArea className="h-[400px] border rounded-lg">
+            <div className="min-w-max">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="w-[100px]">Date</TableHead>
+                    <TableHead>Mandataire</TableHead>
+                    <TableHead>Camion</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Destination</TableHead>
+                    <TableHead>N° Bon</TableHead>
+                    <TableHead className="text-right">Recharges</TableHead>
+                    <TableHead className="text-right">Consignes</TableHead>
+                    <TableHead className="text-right">Tonnage (Kg)</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8">
+                        Chargement...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredVentes.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        Aucune vente trouvée
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredVentes.map((vente) => (
+                      <TableRow key={vente.id}>
+                        <TableCell className="font-medium">
+                          {format(new Date(vente.date), "dd/MM/yy")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{vente.mandataires?.nom || "-"}</Badge>
+                        </TableCell>
+                        <TableCell>{vente.camion || "-"}</TableCell>
+                        <TableCell>{vente.client || "-"}</TableCell>
+                        <TableCell>{vente.destination || "-"}</TableCell>
+                        <TableCell className="font-mono text-xs">{vente.numero_bon_sortie}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {getTotalRecharges(vente)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {getTotalConsignes(vente)}
+                        </TableCell>
+                        <TableCell className="text-right font-bold">
+                          {calculateTonnageKg(vente).toLocaleString("fr-FR")}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteId(vente.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </TabsContent>
+
+        {/* Vue Agrégée */}
+        <TabsContent value="aggregated" className="mt-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Grouper par:</span>
+            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupByType)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mandataire">Mandataire</SelectItem>
+                <SelectItem value="client">Client</SelectItem>
+                <SelectItem value="destination">Destination</SelectItem>
+                <SelectItem value="mois">Mois</SelectItem>
+              </SelectContent>
+            </Select>
+            <Badge variant="secondary">{aggregatedStats.length} entrée(s)</Badge>
+          </div>
+
+          <ScrollArea className="h-[400px] border rounded-lg">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
-                    Chargement...
-                  </TableCell>
+                  <TableHead>
+                    {groupBy === "mandataire" && "Mandataire"}
+                    {groupBy === "client" && "Client"}
+                    {groupBy === "destination" && "Destination"}
+                    {groupBy === "mois" && "Mois"}
+                  </TableHead>
+                  <TableHead className="text-right">Ventes</TableHead>
+                  <TableHead className="text-right">Recharges</TableHead>
+                  <TableHead className="text-right">Consignes</TableHead>
+                  <TableHead className="text-right">Tonnage (Kg)</TableHead>
+                  <TableHead className="text-right">%</TableHead>
                 </TableRow>
-              ) : filteredVentes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                    Aucune vente trouvée
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredVentes.map((vente) => (
-                  <TableRow key={vente.id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(vente.date), "dd/MM/yy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{vente.mandataires?.nom || "-"}</Badge>
-                    </TableCell>
-                    <TableCell>{vente.camion || "-"}</TableCell>
-                    <TableCell>{vente.client || "-"}</TableCell>
-                    <TableCell>{vente.destination || "-"}</TableCell>
-                    <TableCell className="font-mono text-xs">{vente.numero_bon_sortie}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {getTotalRecharges(vente)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {getTotalConsignes(vente)}
-                    </TableCell>
-                    <TableCell className="text-right font-bold">
-                      {calculateTonnageKg(vente).toLocaleString("fr-FR")}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteId(vente.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      Chargement...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+                ) : aggregatedStats.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Aucune donnée trouvée
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  aggregatedStats.map((stat, index) => (
+                    <TableRow key={stat.key}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <Badge variant="outline">{stat.label}</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{stat.count}</TableCell>
+                      <TableCell className="text-right">{stat.totalRecharges.toLocaleString("fr-FR")}</TableCell>
+                      <TableCell className="text-right">{stat.totalConsignes.toLocaleString("fr-FR")}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        {stat.tonnage.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-primary">
+                        {stat.percentage.toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="vertical" />
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
@@ -464,7 +659,7 @@ const MandatairesVentesHistory = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
