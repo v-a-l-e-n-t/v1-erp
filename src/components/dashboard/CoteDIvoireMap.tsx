@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MapPin, Loader2 } from 'lucide-react';
 
 // Mapbox public token
-mapboxgl.accessToken = 'pk.eyJ1Ijoic3ZhbGRzMjMiLCJhIjoiY21qNWN5dWI3MGIwMDNmcXk4ZGF0dmZrZyJ9.x4y7jqVgolunM4H-QhJYeQ';
+mapboxgl.accessToken = 'sk.eyJ1Ijoic3ZhbGRzMjMiLCJhIjoiY21qNWQzdm9iMW55OTNmcXdyeDY2ZTB0aiJ9.onJBC47Aj-Ge6OPBzNPlcQ';
 
 interface DestinationData {
   destination: string;
