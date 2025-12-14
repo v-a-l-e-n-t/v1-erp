@@ -425,8 +425,8 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
               </div>
             </div>
 
+            {/* AGENTS SECTION DISABLED TEMPORARILY
             <div className="grid gap-4 md:grid-cols-2 mt-4 items-start">
-              {/* EXPLOITATION */}
               <div className="space-y-3 bg-muted/20 p-3 rounded-md border">
                 <h4 className="text-sm font-semibold text-blue-700 bg-blue-100/50 w-fit px-3 py-1.5 rounded-lg flex items-center gap-2 mb-2">
                   <span className="h-2 w-2 rounded-full bg-blue-500"></span>
@@ -468,7 +468,6 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                 </div>
               </div>
 
-              {/* MOUVEMENT */}
               <div className="space-y-3 bg-muted/20 p-3 rounded-md border">
                 <h4 className="text-sm font-semibold text-orange-700 bg-orange-100/50 w-fit px-3 py-1.5 rounded-lg flex items-center gap-2 mb-2">
                   <span className="h-2 w-2 rounded-full bg-orange-500"></span>
@@ -510,6 +509,7 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                 </div>
               </div>
             </div>
+            */}
           </div>
 
           <Separator />
