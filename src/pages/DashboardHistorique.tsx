@@ -569,7 +569,7 @@ const DashboardHistorique = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-primary">GazPilote</h1>
+              <h1 className="text-3xl font-bold text-primary">GazPILOT</h1>
             </div>
             <div className="flex items-center gap-4">
               {/* VENTES VRAC - Always visible */}
@@ -1247,7 +1247,7 @@ const DashboardHistorique = () => {
           )}
         </DialogContent>
       </Dialog>
-      
+
       {/* Data Chatbot - visible only on dashboard */}
       <DataChatbot />
     </div >
