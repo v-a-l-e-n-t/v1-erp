@@ -53,6 +53,12 @@ export interface BilanEntry {
   // Notes
   notes?: string;
 
+  // Agents
+  agent_exploitation_matin?: string;
+  agent_exploitation_soir?: string;
+  agent_mouvement_matin?: string; // 11h - 21h
+  agent_mouvement_soir?: string;  // 21h - 6h
+
   // Metadata
   created_at: string;
   updated_at: string;
@@ -73,6 +79,10 @@ export interface BilanFormData {
   sorties_vrac_petro_ivoire: string;
   sorties_vrac_vivo_energies: string;
   sorties_vrac_total_energies: string;
+  agent_exploitation_matin?: string;
+  agent_exploitation_soir?: string;
+  agent_mouvement_matin?: string;
+  agent_mouvement_soir?: string;
   // Sorties conditionnées
   sorties_conditionnees_petro_ivoire: string;
   sorties_conditionnees_vivo_energies: string;

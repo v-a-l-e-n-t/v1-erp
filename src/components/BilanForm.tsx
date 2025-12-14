@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BilanFormData, BilanEntry } from '@/types/balance';
 import { calculateBilan, formatNumber, getNatureColor } from '@/utils/calculations';
 import { bilanFormSchema } from '@/utils/validation';
@@ -23,6 +24,15 @@ interface BilanFormProps {
   editEntry?: BilanEntry;
 }
 
+const AGENTS_LIST = [
+  "SANLE VALENT",
+  "BABA JACQUES",
+  "DOUATI BI",
+  "BOUKIAN LUC",
+  "OUPO ARMAND",
+  "KOBI JAURES"
+];
+
 const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
   const [formData, setFormData] = useState<BilanFormData>({
     date: new Date().toISOString().split('T')[0],
@@ -34,6 +44,10 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
     sorties_vrac_petro_ivoire: '',
     sorties_vrac_vivo_energies: '',
     sorties_vrac_total_energies: '',
+    agent_exploitation_matin: '',
+    agent_exploitation_soir: '',
+    agent_mouvement_matin: '',
+    agent_mouvement_soir: '',
     sorties_conditionnees_petro_ivoire: '',
     sorties_conditionnees_vivo_energies: '',
     sorties_conditionnees_total_energies: '',
@@ -69,6 +83,10 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
         sorties_vrac_petro_ivoire: editEntry.sorties_vrac_petro_ivoire.toString(),
         sorties_vrac_vivo_energies: editEntry.sorties_vrac_vivo_energies.toString(),
         sorties_vrac_total_energies: editEntry.sorties_vrac_total_energies.toString(),
+        agent_exploitation_matin: editEntry.agent_exploitation_matin || '',
+        agent_exploitation_soir: editEntry.agent_exploitation_soir || '',
+        agent_mouvement_matin: editEntry.agent_mouvement_matin || '',
+        agent_mouvement_soir: editEntry.agent_mouvement_soir || '',
         sorties_conditionnees_petro_ivoire: editEntry.sorties_conditionnees_petro_ivoire.toString(),
         sorties_conditionnees_vivo_energies: editEntry.sorties_conditionnees_vivo_energies.toString(),
         sorties_conditionnees_total_energies: editEntry.sorties_conditionnees_total_energies.toString(),
@@ -404,6 +422,92 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                   onChange={handleChange}
                   placeholder="0.000"
                 />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 mt-4 items-start">
+              {/* EXPLOITATION */}
+              <div className="space-y-3 bg-muted/20 p-3 rounded-md border">
+                <h4 className="text-sm font-semibold text-blue-700 bg-blue-100/50 w-fit px-3 py-1.5 rounded-lg flex items-center gap-2 mb-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                  Agent Exploitation
+                </h4>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Matin (7h - 16h)</Label>
+                    <Select
+                      value={formData.agent_exploitation_matin}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, agent_exploitation_matin: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGENTS_LIST.map((agent) => (
+                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Soir (16h - Aube)</Label>
+                    <Select
+                      value={formData.agent_exploitation_soir}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, agent_exploitation_soir: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGENTS_LIST.map((agent) => (
+                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* MOUVEMENT */}
+              <div className="space-y-3 bg-muted/20 p-3 rounded-md border">
+                <h4 className="text-sm font-semibold text-orange-700 bg-orange-100/50 w-fit px-3 py-1.5 rounded-lg flex items-center gap-2 mb-2">
+                  <span className="h-2 w-2 rounded-full bg-orange-500"></span>
+                  Agent Mouvement
+                </h4>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Quart (11h - 21h)</Label>
+                    <Select
+                      value={formData.agent_mouvement_matin}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, agent_mouvement_matin: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGENTS_LIST.map((agent) => (
+                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Quart (21h - Aube)</Label>
+                    <Select
+                      value={formData.agent_mouvement_soir}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, agent_mouvement_soir: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGENTS_LIST.map((agent) => (
+                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

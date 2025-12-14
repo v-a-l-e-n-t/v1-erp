@@ -98,6 +98,10 @@ export const calculateBilan = (formData: BilanFormData): Omit<BilanEntry, 'id' |
     stock_theorique: stock_theorique.toNumber(),
     bilan: bilan.toNumber(),
     nature,
+    agent_exploitation_matin: formData.agent_exploitation_matin,
+    agent_exploitation_soir: formData.agent_exploitation_soir,
+    agent_mouvement_matin: formData.agent_mouvement_matin,
+    agent_mouvement_soir: formData.agent_mouvement_soir,
     notes: formData.notes,
   };
 };
