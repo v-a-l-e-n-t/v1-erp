@@ -396,6 +396,19 @@ const DashboardHistorique = () => {
     ventesCEFilterType, ventesCESelectedMonth, ventesCESelectedYear, ventesCESelectedDate, ventesCEDateRange
   ]);
 
+  useEffect(() => {
+    fetchProductionHistory();
+    fetchAgents();
+  }, [
+    historyFilterType,
+    historySelectedMonth,
+    historySelectedDate,
+    historyDateRange,
+    historyShiftFilter,
+    historyLigneFilter,
+    historyChefFilter
+  ]);
+
   const loadData = async () => {
     setLoading(true);
     const loaded = await loadEntries();
