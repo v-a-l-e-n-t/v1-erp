@@ -27,14 +27,12 @@ import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 
 const DashboardHistorique = () => {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem('dashboard_authenticated') === 'true';
   });
 
-  if (!isAuthenticated) {
-    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
-  }
-  const navigate = useNavigate();
+  // All hooks must be called before any conditional returns
   const [entries, setEntries] = useState<BilanEntry[]>([]);
   const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur' | 'sorties'>('overview');
   const [loading, setLoading] = useState(true);
@@ -47,6 +45,10 @@ const DashboardHistorique = () => {
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
   const [isPresentationMode, setIsPresentationMode] = useState(false);
+
+  if (!isAuthenticated) {
+    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   // Filter state for Centre Emplisseur
   const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
