@@ -482,7 +482,7 @@ const MandatairesVentesHistory = () => {
         />
       </div>
 
-      {/* Tabs: Vue Détaillée / Vue Agrégée */}
+      {/* Tabs: Vue Détaillée / Vue Regroupée */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="detailed" className="flex items-center gap-2">
@@ -491,7 +491,7 @@ const MandatairesVentesHistory = () => {
           </TabsTrigger>
           <TabsTrigger value="aggregated" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            Vue Agrégée
+            Vue Regroupée
           </TabsTrigger>
         </TabsList>
 
@@ -569,7 +569,7 @@ const MandatairesVentesHistory = () => {
           </ScrollArea>
         </TabsContent>
 
-        {/* Vue Agrégée */}
+        {/* Vue Regroupée */}
         <TabsContent value="aggregated" className="mt-4 space-y-4">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium">Grouper par:</span>
