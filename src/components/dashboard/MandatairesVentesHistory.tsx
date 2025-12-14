@@ -197,8 +197,8 @@ const MandatairesVentesHistory = () => {
     (v.c_b6 || 0) + (v.c_b12 || 0) + (v.c_b28 || 0) + (v.c_b38 || 0) + (v.c_b11_carbu || 0);
 
   const calculateTonnageKg = (v: VenteMandataire) => {
-    const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 11;
-    const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 11;
+    const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 12.5;
+    const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 12.5;
     return recharges + consignes;
   };
 
@@ -276,12 +276,12 @@ const MandatairesVentesHistory = () => {
       "R_B12": v.r_b12 || 0,
       "R_B28": v.r_b28 || 0,
       "R_B38": v.r_b38 || 0,
-      "R_Carbu": v.r_b11_carbu || 0,
+      "R_Carbu_B12": v.r_b11_carbu || 0,
       "C_B6": v.c_b6 || 0,
       "C_B12": v.c_b12 || 0,
       "C_B28": v.c_b28 || 0,
       "C_B38": v.c_b38 || 0,
-      "C_Carbu": v.c_b11_carbu || 0,
+      "C_Carbu_B12": v.c_b11_carbu || 0,
       "Tonnage (Kg)": calculateTonnageKg(v).toFixed(2),
     }));
 

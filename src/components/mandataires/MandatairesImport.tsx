@@ -54,7 +54,7 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
 
   const parseDate = (dateValue: any): Date | null => {
     if (!dateValue) return null;
-    
+
     // If it's a number (Excel serial date)
     if (typeof dateValue === 'number') {
       // Excel serial date: days since 1899-12-30
@@ -62,33 +62,33 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
       const date = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
       return date;
     }
-    
+
     // If it's a Date object
     if (dateValue instanceof Date) {
       return dateValue;
     }
-    
+
     // If it's a string, try to parse it
     const dateStr = String(dateValue).trim();
     if (!dateStr) return null;
-    
+
     // Format JJ/MM/AA ou JJ/MM/AAAA
     const parts = dateStr.split("/");
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;
       let year = parseInt(parts[2], 10);
-      
+
       // Gérer les années sur 2 chiffres
       if (year < 100) {
         year += 2000;
       }
-      
+
       if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
         return new Date(year, month, day);
       }
     }
-    
+
     // Try standard Date parsing as fallback
     const parsed = new Date(dateStr);
     return isNaN(parsed.getTime()) ? null : parsed;
@@ -134,7 +134,7 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
         console.log("First row keys:", Object.keys(productionData[0]));
         console.log("First row sample:", productionData[0]);
       }
-      
+
       // Parse destinations file if provided
       let destinationsMap: Record<string, string> = {};
       if (destinationsFile) {
@@ -153,7 +153,7 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
       let skippedNoBon = 0;
       let skippedNoDate = 0;
       let skippedNoMandataire = 0;
-      
+
       productionData.forEach((row: any) => {
         const bonSortie = String(findColumn(row, "N° BON SORTIE", "N°BON SORTIE", "N° BON DE SORTIE") || "").trim();
         if (!bonSortie) {
@@ -181,12 +181,12 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
         const r_b28 = parseNumber(findColumn(row, "R_B 28"));
         const r_b38 = parseNumber(findColumn(row, "R_B 38"));
         const r_b11_carbu = parseNumber(findColumn(row, "R_Carburation B12"));
-        
+
         const c_b6 = parseNumber(findColumn(row, "C_B6"));
         const c_b12 = parseNumber(findColumn(row, "C_B12"));
         const c_b28 = parseNumber(findColumn(row, "C_B 28"));
         const c_b38 = parseNumber(findColumn(row, "C_B 38"));
-        const c_b11_carbu = parseNumber(findColumn(row, "C_Carburation B11"));
+        const c_b11_carbu = parseNumber(findColumn(row, "C_Carburation B12", "C_Carburation B11"));
 
         ventesMap[bonSortie] = {
           date: parsedDate,
@@ -302,7 +302,7 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
     try {
       // Get or create mandataires
       const uniqueMandataires = [...new Set(parsedData.map(v => v.mandataire))];
-      
+
       const { data: existingMandataires } = await supabase
         .from("mandataires")
         .select("id, nom")
@@ -323,7 +323,7 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
           .select("id, nom");
 
         if (createError) throw createError;
-        
+
         (created || []).forEach(m => existingMandatairesMap.set(m.nom, m.id));
         createdCount = created?.length || 0;
       }
@@ -533,7 +533,7 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
                       <TableHead className="text-right text-xs whitespace-nowrap">C.B12</TableHead>
                       <TableHead className="text-right text-xs whitespace-nowrap">C.B28</TableHead>
                       <TableHead className="text-right text-xs whitespace-nowrap">C.B38</TableHead>
-                      <TableHead className="text-right text-xs whitespace-nowrap">C_Carb_B11</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">C_Carb_B12</TableHead>
                       <TableHead className="whitespace-nowrap">Statut</TableHead>
                     </TableRow>
                   </TableHeader>
