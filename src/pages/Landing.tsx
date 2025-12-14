@@ -15,7 +15,6 @@ import {
   Database,
   MapPin
 } from 'lucide-react';
-import logoSaepp from '@/assets/logo-saepp.jpg';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -74,10 +73,7 @@ const Landing = () => {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logoSaepp} alt="SAEPP Logo" className="h-10 w-10 rounded-lg object-cover" />
-            <span className="text-xl font-bold text-primary">GazPILOT</span>
-          </div>
+          <span className="text-xl font-bold text-primary">GazPILOT</span>
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/app')}>
               Connexion
