@@ -24,8 +24,16 @@ import { fr } from 'date-fns/locale';
 import { useMemo } from 'react';
 import VentesView from '@/components/dashboard/VentesView';
 import DataChatbot from '@/components/DataChatbot';
+import PasswordGate from '@/components/PasswordGate';
 
 const DashboardHistorique = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('dashboard_authenticated') === 'true';
+  });
+
+  if (!isAuthenticated) {
+    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
   const navigate = useNavigate();
   const [entries, setEntries] = useState<BilanEntry[]>([]);
   const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur' | 'sorties'>('overview');
