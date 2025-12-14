@@ -342,19 +342,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
               url: 'mapbox://mapbox.country-boundaries-v1'
             });
 
-            // Add fill layer for subtle background
-            map.current.addLayer({
-              id: 'ivory-coast-fill',
-              type: 'fill',
-              source: 'ivory-coast-boundary',
-              'source-layer': 'country_boundaries',
-              filter: ['==', ['get', 'iso_3166_1'], 'CI'],
-              paint: {
-                'fill-color': '#f97316',
-                'fill-opacity': 0.05
-              }
-            });
-
+            // Add border line layer only (no fill)
             // Add border line layer
             map.current.addLayer({
               id: 'ivory-coast-border',
