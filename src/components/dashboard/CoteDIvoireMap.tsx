@@ -634,8 +634,11 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
             ref={mapContainer}
             className="absolute inset-0"
           />
-          <div className="absolute top-2 left-2 z-10 rounded bg-background/80 px-2 py-1 text-[10px] text-foreground shadow">
-            DEBUG: zone carte rendue
+          <div className="absolute top-2 left-2 z-10 rounded bg-background/80 px-2 py-1 text-[10px] text-foreground shadow space-y-0.5">
+            <div>Token: {mapboxToken ? '✅' : '❌'}</div>
+            <div>Map instance: {map.current ? '✅' : '❌'}</div>
+            <div>Map loaded: {mapLoaded ? '✅' : '❌'}</div>
+            <div>Destinations: {destinations.length}</div>
           </div>
         </div>
       </CardContent>
