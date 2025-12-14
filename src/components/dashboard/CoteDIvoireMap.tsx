@@ -4,7 +4,9 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin, Loader2 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MapPin, Loader2, Flame, Users, Building2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface DestinationData {
   destination: string;
@@ -13,7 +15,8 @@ interface DestinationData {
   region: string | null;
   tonnage: number;
   livraisons: number;
-  mandataires: { nom: string; tonnage: number; percentage: number }[];
+  mandataires: { id: string; nom: string; tonnage: number; percentage: number }[];
+  clients: { nom: string; tonnage: number; percentage: number }[];
 }
 
 interface CoteDIvoireMapProps {
@@ -31,28 +34,41 @@ const BOTTLE_WEIGHTS = {
 };
 
 // Mandataire colors
-const MANDATAIRE_COLORS = [
-  '#f97316', // orange
-  '#3b82f6', // blue
-  '#10b981', // green
-  '#8b5cf6', // purple
-  '#ef4444', // red
-  '#ec4899', // pink
-  '#14b8a6', // teal
-  '#f59e0b', // amber
-];
+const MANDATAIRE_COLORS: Record<string, string> = {
+  'IVOIRE BUTANE': '#f97316',
+  'IDM Sarl': '#3b82f6',
+  'LOGIS TRANSPORT ET LOGISTIQUE': '#10b981',
+  'SAJEQ': '#8b5cf6',
+  'EKYF': '#ef4444',
+  'EGB TRANS': '#ec4899',
+  'ADAMS SERVICE': '#14b8a6',
+  'SALAHOU GAZ': '#f59e0b',
+  'UNION COULIBALY ET FRERE': '#6366f1',
+};
+
+// Client colors
+const CLIENT_COLORS: Record<string, string> = {
+  'TOTAL ENERGIES': '#ef4444',
+  'PETRO IVOIRE': '#f97316',
+  'VIVO ENERGIES': '#10b981',
+};
 
 const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<DestinationData[]>([]);
   const [mandataires, setMandataires] = useState<{ id: string; nom: string }[]>([]);
   const [selectedMandataire, setSelectedMandataire] = useState<string>('all');
+  const [selectedClient, setSelectedClient] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'mandataire' | 'client'>('mandataire');
   const [totalStats, setTotalStats] = useState({ tonnage: 0, livraisons: 0 });
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Unique clients from data
+  const clients = ['TOTAL ENERGIES', 'PETRO IVOIRE', 'VIVO ENERGIES'];
 
   // Fetch Mapbox token from edge function
   useEffect(() => {
@@ -123,8 +139,6 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           return;
         }
 
-        console.log('Map: Fetched data - ventes:', ventes.length, 'geoData:', geoData.length, 'period:', startDate, 'to', endDate);
-
         // Create a map of destination names to geo data (case insensitive)
         const geoMap = new Map<string, any>();
         geoData.forEach(geo => {
@@ -143,7 +157,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           const destKey = vente.destination.toUpperCase().trim();
           const geo = geoMap.get(destKey);
           
-          if (!geo) return; // Skip if no geo data
+          if (!geo) return;
           
           if (!destinationMap.has(destKey)) {
             destinationMap.set(destKey, { ventes: [], geo });
@@ -160,29 +174,50 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           const { ventes: destVentes, geo } = data;
           
           // Calculate tonnage by mandataire
-          const mandataireMap = new Map<string, number>();
+          const mandataireMap = new Map<string, { id: string; nom: string; tonnage: number }>();
+          const clientMap = new Map<string, number>();
           let destTonnage = 0;
           
           destVentes.forEach(vente => {
             const tonnage = calculateTonnage(vente);
             destTonnage += tonnage;
             
-            const currentMandataire = mandataireMap.get(vente.mandataire_id) || 0;
-            mandataireMap.set(vente.mandataire_id, currentMandataire + tonnage);
+            // Mandataire breakdown
+            const mandataire = mandatairesData?.find(m => m.id === vente.mandataire_id);
+            if (mandataire) {
+              const current = mandataireMap.get(vente.mandataire_id) || { id: mandataire.id, nom: mandataire.nom, tonnage: 0 };
+              current.tonnage += tonnage;
+              mandataireMap.set(vente.mandataire_id, current);
+            }
+
+            // Client breakdown
+            if (vente.client) {
+              const clientKey = vente.client.toUpperCase();
+              const currentClient = clientMap.get(clientKey) || 0;
+              clientMap.set(clientKey, currentClient + tonnage);
+            }
           });
 
           // Build mandataire breakdown
-          const mandataireBreakdown: { nom: string; tonnage: number; percentage: number }[] = [];
-          mandataireMap.forEach((tonnage, mandataireId) => {
-            const mandataire = mandatairesData?.find(m => m.id === mandataireId);
+          const mandataireBreakdown: { id: string; nom: string; tonnage: number; percentage: number }[] = [];
+          mandataireMap.forEach((data) => {
             mandataireBreakdown.push({
-              nom: mandataire?.nom || 'Inconnu',
+              ...data,
+              percentage: destTonnage > 0 ? (data.tonnage / destTonnage) * 100 : 0
+            });
+          });
+          mandataireBreakdown.sort((a, b) => b.tonnage - a.tonnage);
+
+          // Build client breakdown
+          const clientBreakdown: { nom: string; tonnage: number; percentage: number }[] = [];
+          clientMap.forEach((tonnage, clientName) => {
+            clientBreakdown.push({
+              nom: clientName,
               tonnage,
               percentage: destTonnage > 0 ? (tonnage / destTonnage) * 100 : 0
             });
           });
-
-          mandataireBreakdown.sort((a, b) => b.tonnage - a.tonnage);
+          clientBreakdown.sort((a, b) => b.tonnage - a.tonnage);
 
           processedDestinations.push({
             destination: geo.destination,
@@ -191,14 +226,14 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
             region: geo.region,
             tonnage: destTonnage,
             livraisons: destVentes.length,
-            mandataires: mandataireBreakdown
+            mandataires: mandataireBreakdown,
+            clients: clientBreakdown
           });
 
           totalTonnage += destTonnage;
           totalLivraisons += destVentes.length;
         });
 
-        // Sort by tonnage
         processedDestinations.sort((a, b) => b.tonnage - a.tonnage);
         
         setDestinations(processedDestinations);
@@ -221,8 +256,8 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [-5.5, 7.5], // Center on Côte d'Ivoire
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-5.5, 7.5],
       zoom: 5.5,
     });
 
@@ -231,142 +266,242 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       'top-right'
     );
 
+    map.current.on('load', () => {
+      setMapLoaded(true);
+    });
+
     return () => {
       map.current?.remove();
       map.current = null;
+      setMapLoaded(false);
     };
   }, [mapboxToken]);
 
-  // Update markers when data or filter changes
+  // Update heatmap when data or filters change
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !mapLoaded || destinations.length === 0) return;
 
-    // Remove existing markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
+    // Remove existing layers and sources
+    if (map.current.getLayer('heatmap-layer')) {
+      map.current.removeLayer('heatmap-layer');
+    }
+    if (map.current.getLayer('circle-layer')) {
+      map.current.removeLayer('circle-layer');
+    }
+    if (map.current.getSource('destinations')) {
+      map.current.removeSource('destinations');
+    }
 
-    // Filter destinations based on selected mandataire
-    const filteredDestinations = destinations.map(dest => {
-      if (selectedMandataire === 'all') {
-        return dest;
-      }
-      
-      const mandataireData = dest.mandataires.find(m => {
-        const matchingMandataire = mandataires.find(mm => mm.nom === m.nom);
-        return matchingMandataire?.id === selectedMandataire;
-      });
-      
-      if (!mandataireData) return null;
-      
-      return {
-        ...dest,
-        tonnage: mandataireData.tonnage,
-        mandataires: [mandataireData]
-      };
-    }).filter(Boolean) as DestinationData[];
-
-    // Calculate max tonnage for scaling
-    const maxTonnage = Math.max(...filteredDestinations.map(d => d.tonnage), 1);
-
-    // Add markers
-    filteredDestinations.forEach((dest, index) => {
-      if (dest.tonnage === 0) return;
-
-      // Calculate marker size based on tonnage (min 20, max 60)
-      const size = Math.max(20, Math.min(60, (dest.tonnage / maxTonnage) * 60));
-      
-      // Get color based on mandataire or use default
+    // Filter and prepare data based on selection
+    const features = destinations.map(dest => {
+      let filteredTonnage = dest.tonnage;
       let color = '#f97316';
-      if (selectedMandataire !== 'all') {
-        const mandataireIndex = mandataires.findIndex(m => m.id === selectedMandataire);
-        color = MANDATAIRE_COLORS[mandataireIndex % MANDATAIRE_COLORS.length];
-      } else if (dest.mandataires.length > 0) {
-        const topMandataire = dest.mandataires[0];
-        const mandataireIndex = mandataires.findIndex(m => m.nom === topMandataire.nom);
-        color = MANDATAIRE_COLORS[mandataireIndex % MANDATAIRE_COLORS.length];
+
+      if (viewMode === 'mandataire') {
+        if (selectedMandataire !== 'all') {
+          const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
+          filteredTonnage = mandataireData?.tonnage || 0;
+          const mandataire = mandataires.find(m => m.id === selectedMandataire);
+          color = MANDATAIRE_COLORS[mandataire?.nom || ''] || '#f97316';
+        } else if (dest.mandataires.length > 0) {
+          color = MANDATAIRE_COLORS[dest.mandataires[0].nom] || '#f97316';
+        }
+      } else {
+        if (selectedClient !== 'all') {
+          const clientData = dest.clients.find(c => c.nom.toUpperCase() === selectedClient.toUpperCase());
+          filteredTonnage = clientData?.tonnage || 0;
+          color = CLIENT_COLORS[selectedClient] || '#f97316';
+        } else if (dest.clients.length > 0) {
+          color = CLIENT_COLORS[dest.clients[0].nom] || '#f97316';
+        }
       }
 
-      // Create custom marker element
-      const el = document.createElement('div');
-      el.className = 'map-marker';
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.backgroundColor = color;
-      el.style.borderRadius = '50%';
-      el.style.border = '3px solid white';
-      el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-      el.style.cursor = 'pointer';
-      el.style.opacity = '0.85';
-      el.style.transition = 'transform 0.2s, opacity 0.2s';
-      
-      el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.2)';
-        el.style.opacity = '1';
-      });
-      
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
-        el.style.opacity = '0.85';
-      });
+      return {
+        type: 'Feature' as const,
+        properties: {
+          tonnage: filteredTonnage,
+          destination: dest.destination,
+          region: dest.region,
+          livraisons: dest.livraisons,
+          color
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [dest.longitude, dest.latitude]
+        }
+      };
+    }).filter(f => f.properties.tonnage > 0);
 
-      // Create popup content
-      const popupContent = `
-        <div style="padding: 8px; min-width: 180px;">
-          <h3 style="font-weight: bold; font-size: 14px; margin-bottom: 6px; color: #1f2937;">${dest.destination}</h3>
-          <p style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">${dest.region || 'Région inconnue'}</p>
-          <div style="border-top: 1px solid #e5e7eb; padding-top: 8px;">
-            <p style="font-size: 13px; font-weight: 600; color: #f97316; margin-bottom: 4px;">
-              ${(dest.tonnage / 1000).toFixed(1)} T
-            </p>
-            <p style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">${dest.livraisons} livraisons</p>
-            ${dest.mandataires.slice(0, 3).map((m, i) => `
-              <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
-                <span style="color: ${MANDATAIRE_COLORS[mandataires.findIndex(mm => mm.nom === m.nom) % MANDATAIRE_COLORS.length]};">
-                  ${m.nom}
-                </span>
-                <span style="color: #374151; font-weight: 500;">${m.percentage.toFixed(0)}%</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
+    if (features.length === 0) return;
 
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
-        .setHTML(popupContent);
+    // Get current color based on filter
+    let heatmapColor = '#f97316';
+    if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
+      const mandataire = mandataires.find(m => m.id === selectedMandataire);
+      heatmapColor = MANDATAIRE_COLORS[mandataire?.nom || ''] || '#f97316';
+    } else if (viewMode === 'client' && selectedClient !== 'all') {
+      heatmapColor = CLIENT_COLORS[selectedClient] || '#f97316';
+    }
 
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([dest.longitude, dest.latitude])
-        .setPopup(popup)
-        .addTo(map.current!);
+    // Convert hex to RGB for gradient
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 249, g: 115, b: 22 };
+    };
 
-      markersRef.current.push(marker);
+    const rgb = hexToRgb(heatmapColor);
+
+    // Add source
+    map.current.addSource('destinations', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features
+      }
     });
 
-    // Fit bounds if we have destinations
-    if (filteredDestinations.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      filteredDestinations.forEach(dest => {
-        if (dest.tonnage > 0) {
-          bounds.extend([dest.longitude, dest.latitude]);
-        }
-      });
-      
-      if (!bounds.isEmpty()) {
-        map.current.fitBounds(bounds, { padding: 50, maxZoom: 8 });
+    // Add heatmap layer
+    map.current.addLayer({
+      id: 'heatmap-layer',
+      type: 'heatmap',
+      source: 'destinations',
+      paint: {
+        'heatmap-weight': [
+          'interpolate',
+          ['linear'],
+          ['get', 'tonnage'],
+          0, 0,
+          Math.max(...features.map(f => f.properties.tonnage)), 1
+        ],
+        'heatmap-intensity': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0, 1,
+          9, 3
+        ],
+        'heatmap-color': [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0, 'rgba(0, 0, 0, 0)',
+          0.1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`,
+          0.3, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,
+          0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`,
+          0.7, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`,
+          1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`
+        ],
+        'heatmap-radius': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0, 20,
+          9, 50
+        ],
+        'heatmap-opacity': 0.8
       }
+    });
+
+    // Add circle layer for points at higher zoom
+    map.current.addLayer({
+      id: 'circle-layer',
+      type: 'circle',
+      source: 'destinations',
+      minzoom: 7,
+      paint: {
+        'circle-radius': [
+          'interpolate',
+          ['linear'],
+          ['get', 'tonnage'],
+          0, 8,
+          Math.max(...features.map(f => f.properties.tonnage)), 30
+        ],
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': 'white',
+        'circle-stroke-width': 2,
+        'circle-opacity': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          7, 0,
+          8, 0.8
+        ]
+      }
+    });
+
+    // Add popup on click
+    map.current.on('click', 'circle-layer', (e) => {
+      if (!e.features || e.features.length === 0) return;
+      
+      const feature = e.features[0];
+      const coords = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
+      const props = feature.properties;
+
+      new mapboxgl.Popup()
+        .setLngLat(coords)
+        .setHTML(`
+          <div style="padding: 8px; min-width: 150px; background: #1f2937; color: white; border-radius: 8px;">
+            <h3 style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${props?.destination}</h3>
+            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 6px;">${props?.region || 'Région inconnue'}</p>
+            <p style="font-size: 16px; font-weight: bold; color: ${props?.color};">
+              ${((props?.tonnage || 0) / 1000).toFixed(1)} T
+            </p>
+            <p style="font-size: 11px; color: #9ca3af;">${props?.livraisons} livraisons</p>
+          </div>
+        `)
+        .addTo(map.current!);
+    });
+
+    // Change cursor on hover
+    map.current.on('mouseenter', 'circle-layer', () => {
+      if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+    });
+    map.current.on('mouseleave', 'circle-layer', () => {
+      if (map.current) map.current.getCanvas().style.cursor = '';
+    });
+
+    // Fit bounds
+    const bounds = new mapboxgl.LngLatBounds();
+    features.forEach(f => {
+      bounds.extend(f.geometry.coordinates as [number, number]);
+    });
+    
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds, { padding: 60, maxZoom: 8 });
     }
-  }, [destinations, selectedMandataire, mandataires]);
+
+  }, [destinations, selectedMandataire, selectedClient, viewMode, mandataires, mapLoaded]);
+
+  // Calculate filtered stats
+  const filteredStats = destinations.reduce((acc, dest) => {
+    let tonnage = dest.tonnage;
+    if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
+      const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
+      tonnage = mandataireData?.tonnage || 0;
+    } else if (viewMode === 'client' && selectedClient !== 'all') {
+      const clientData = dest.clients.find(c => c.nom.toUpperCase() === selectedClient.toUpperCase());
+      tonnage = clientData?.tonnage || 0;
+    }
+    return {
+      tonnage: acc.tonnage + tonnage,
+      count: tonnage > 0 ? acc.count + 1 : acc.count
+    };
+  }, { tonnage: 0, count: 0 });
 
   if (loading) {
     return (
-      <Card>
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
-            Zones de Livraison
+            <Flame className="h-5 w-5 text-orange-500" />
+            Carte de Chaleur des Livraisons
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center h-[400px]">
+        <CardContent className="flex items-center justify-center h-[500px]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
@@ -375,14 +510,14 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
   if (destinations.length === 0) {
     return (
-      <Card>
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
-            Zones de Livraison
+            <Flame className="h-5 w-5 text-orange-500" />
+            Carte de Chaleur des Livraisons
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center h-[400px] text-muted-foreground">
+        <CardContent className="flex items-center justify-center h-[500px] text-muted-foreground">
           Aucune donnée de livraison pour cette période
         </CardContent>
       </Card>
@@ -390,29 +525,60 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
-            Zones de Livraison - Côte d'Ivoire
-          </CardTitle>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{(totalStats.tonnage / 1000).toFixed(1)} T</span> · {totalStats.livraisons} livraisons
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden">
+      <CardHeader className="pb-3 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-orange-500/10">
+              <Flame className="h-5 w-5 text-orange-500" />
             </div>
+            <div>
+              <CardTitle className="text-lg">Carte de Chaleur des Livraisons</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Visualisation interactive des zones de livraison
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="px-3 py-1">
+              {(filteredStats.tonnage / 1000).toFixed(1)} T
+            </Badge>
+            <Badge variant="outline" className="px-3 py-1">
+              {filteredStats.count} zones
+            </Badge>
+          </div>
+        </div>
+
+        {/* View Mode Tabs */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'mandataire' | 'client')}>
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="mandataire" className="gap-2">
+                <Users className="h-4 w-4" />
+                Par Mandataire
+              </TabsTrigger>
+              <TabsTrigger value="client" className="gap-2">
+                <Building2 className="h-4 w-4" />
+                Par Client
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Filter Select */}
+          {viewMode === 'mandataire' ? (
             <Select value={selectedMandataire} onValueChange={setSelectedMandataire}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[220px] bg-background/50">
                 <SelectValue placeholder="Tous les mandataires" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les mandataires</SelectItem>
-                {mandataires.map((m, index) => (
+                {mandataires.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: MANDATAIRE_COLORS[index % MANDATAIRE_COLORS.length] }}
+                        style={{ backgroundColor: MANDATAIRE_COLORS[m.nom] || '#f97316' }}
                       />
                       {m.nom}
                     </div>
@@ -420,31 +586,95 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          ) : (
+            <Select value={selectedClient} onValueChange={setSelectedClient}>
+              <SelectTrigger className="w-[220px] bg-background/50">
+                <SelectValue placeholder="Tous les clients" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les clients</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client} value={client}>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: CLIENT_COLORS[client] || '#f97316' }}
+                      />
+                      {client}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </CardHeader>
+      
       <CardContent className="p-0">
-        <div ref={mapContainer} className="h-[400px] w-full rounded-b-lg" />
+        <div ref={mapContainer} className="h-[500px] w-full" />
       </CardContent>
       
       {/* Legend */}
-      <div className="p-4 border-t">
-        <h4 className="text-sm font-medium mb-2">Top destinations</h4>
-        <div className="flex flex-wrap gap-3">
-          {destinations.slice(0, 5).map((dest, index) => (
-            <div key={dest.destination} className="flex items-center gap-2 text-sm">
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ 
-                  backgroundColor: selectedMandataire === 'all' 
-                    ? MANDATAIRE_COLORS[mandataires.findIndex(m => m.nom === dest.mandataires[0]?.nom) % MANDATAIRE_COLORS.length]
-                    : MANDATAIRE_COLORS[mandataires.findIndex(m => m.id === selectedMandataire) % MANDATAIRE_COLORS.length]
-                }}
-              />
-              <span className="font-medium">{dest.destination}</span>
-              <span className="text-muted-foreground">({(dest.tonnage / 1000).toFixed(1)}T)</span>
+      <div className="p-4 border-t border-border/50 bg-muted/20">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-sm font-medium text-muted-foreground">Légende:</span>
+          {viewMode === 'mandataire' ? (
+            selectedMandataire === 'all' ? (
+              mandataires.slice(0, 5).map((m) => (
+                <div key={m.id} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: MANDATAIRE_COLORS[m.nom] || '#f97316' }}
+                  />
+                  <span className="text-sm">{m.nom}</span>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: MANDATAIRE_COLORS[mandataires.find(m => m.id === selectedMandataire)?.nom || ''] || '#f97316' }}
+                />
+                <span className="text-sm font-medium">
+                  {mandataires.find(m => m.id === selectedMandataire)?.nom}
+                </span>
+              </div>
+            )
+          ) : (
+            selectedClient === 'all' ? (
+              clients.map((client) => (
+                <div key={client} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: CLIENT_COLORS[client] || '#f97316' }}
+                  />
+                  <span className="text-sm">{client}</span>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: CLIENT_COLORS[selectedClient] || '#f97316' }}
+                />
+                <span className="text-sm font-medium">{selectedClient}</span>
+              </div>
+            )
+          )}
+          
+          {/* Intensity scale */}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Intensité:</span>
+            <div className="flex items-center h-3 w-24 rounded-full overflow-hidden">
+              <div className="h-full w-full" style={{
+                background: `linear-gradient(to right, 
+                  rgba(249, 115, 22, 0.1), 
+                  rgba(249, 115, 22, 0.5), 
+                  rgba(249, 115, 22, 1))`
+              }} />
             </div>
-          ))}
+            <span className="text-xs text-muted-foreground">Élevée</span>
+          </div>
         </div>
       </div>
     </Card>
