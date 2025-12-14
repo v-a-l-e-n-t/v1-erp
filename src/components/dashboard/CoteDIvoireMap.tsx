@@ -117,10 +117,13 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           .select('*');
 
         if (!ventes || !geoData) {
+          console.log('Map: No data - ventes:', ventes?.length, 'geoData:', geoData?.length);
           setDestinations([]);
           setLoading(false);
           return;
         }
+
+        console.log('Map: Fetched data - ventes:', ventes.length, 'geoData:', geoData.length, 'period:', startDate, 'to', endDate);
 
         // Create a map of destination names to geo data (case insensitive)
         const geoMap = new Map<string, any>();
