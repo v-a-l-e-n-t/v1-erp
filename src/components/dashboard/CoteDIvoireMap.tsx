@@ -492,7 +492,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     };
   }, { tonnage: 0, count: 0 });
 
-  if (loading) {
+  if (loading || !mapboxToken || !mapLoaded) {
     return (
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
