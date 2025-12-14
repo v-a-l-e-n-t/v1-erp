@@ -323,6 +323,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           style: 'mapbox://styles/mapbox/light-v11',
           center: [-5.5, 7.5],
           zoom: 5.5,
+          attributionControl: false,
         });
 
         map.current.addControl(
@@ -689,8 +690,11 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         <div className="relative h-[500px] w-full">
           <div
             ref={mapContainer}
-            className="absolute inset-0 rounded-b-lg overflow-hidden"
+            className="absolute inset-0 overflow-hidden"
           />
+          <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm px-3 py-1 text-xs text-muted-foreground">
+            GazPILOT - Tous droits réservés
+          </div>
         </div>
       </CardContent>
       
