@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MapPin, Loader2, Flame, Users, Building2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { MandataireCombobox } from './MandataireCombobox';
+import { MapLegend } from './MapLegend';
+import { generateColor, hslToHex, hexToRgb, CLIENT_COLORS } from '@/utils/colorGenerator';
 
 interface DestinationData {
   destination: string;
@@ -33,25 +36,13 @@ const BOTTLE_WEIGHTS = {
   b11_carbu: 11
 };
 
-// Mandataire colors
-const MANDATAIRE_COLORS: Record<string, string> = {
-  'IVOIRE BUTANE': '#f97316',
-  'IDM Sarl': '#3b82f6',
-  'LOGIS TRANSPORT ET LOGISTIQUE': '#10b981',
-  'SAJEQ': '#8b5cf6',
-  'EKYF': '#ef4444',
-  'EGB TRANS': '#ec4899',
-  'ADAMS SERVICE': '#14b8a6',
-  'SALAHOU GAZ': '#f59e0b',
-  'UNION COULIBALY ET FRERE': '#6366f1',
-};
-
-// Client colors
-const CLIENT_COLORS: Record<string, string> = {
-  'TOTAL ENERGIES': '#ef4444',
-  'PETRO IVOIRE': '#f97316',
-  'VIVO ENERGIES': '#10b981',
-};
+// Top N options
+const TOP_N_OPTIONS = [
+  { value: 5, label: 'Top 5' },
+  { value: 10, label: 'Top 10' },
+  { value: 20, label: 'Top 20' },
+  { value: 50, label: 'Top 50' },
+];
 
 const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -66,9 +57,75 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   const [viewMode, setViewMode] = useState<'mandataire' | 'client'>('mandataire');
   const [totalStats, setTotalStats] = useState({ tonnage: 0, livraisons: 0 });
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [topN, setTopN] = useState(10);
 
   // Unique clients from data
   const clients = ['TOTAL ENERGIES', 'PETRO IVOIRE', 'VIVO ENERGIES'];
+
+  // Calculate mandataire stats with colors (dynamically generated)
+  const mandatairesWithStats = useMemo(() => {
+    const statsMap = new Map<string, number>();
+    
+    // Aggregate tonnage per mandataire from all destinations
+    destinations.forEach(dest => {
+      dest.mandataires.forEach(m => {
+        const current = statsMap.get(m.id) || 0;
+        statsMap.set(m.id, current + m.tonnage);
+      });
+    });
+    
+    // Build array with stats and colors
+    const result = mandataires.map((m, originalIndex) => {
+      const tonnage = statsMap.get(m.id) || 0;
+      return {
+        ...m,
+        tonnage,
+        originalIndex
+      };
+    });
+    
+    // Sort by tonnage to assign colors (most active = most distinct colors)
+    const sortedByTonnage = [...result].sort((a, b) => b.tonnage - a.tonnage);
+    
+    // Assign colors based on rank
+    const colorMap = new Map<string, string>();
+    sortedByTonnage.forEach((m, index) => {
+      const hsl = generateColor(index);
+      colorMap.set(m.id, hslToHex(hsl));
+    });
+    
+    // Return with colors assigned
+    return result.map(m => ({
+      ...m,
+      color: colorMap.get(m.id) || '#f97316'
+    }));
+  }, [mandataires, destinations]);
+
+  // Clients with stats and colors
+  const clientsWithStats = useMemo(() => {
+    const statsMap = new Map<string, number>();
+    
+    destinations.forEach(dest => {
+      dest.clients.forEach(c => {
+        const key = c.nom.toUpperCase();
+        const current = statsMap.get(key) || 0;
+        statsMap.set(key, current + c.tonnage);
+      });
+    });
+    
+    return clients.map(client => ({
+      id: client,
+      nom: client,
+      tonnage: statsMap.get(client.toUpperCase()) || 0,
+      color: CLIENT_COLORS[client] || '#f97316'
+    }));
+  }, [clients, destinations]);
+
+  // Get color for a mandataire
+  const getMandataireColor = (id: string): string => {
+    const m = mandatairesWithStats.find(m => m.id === id);
+    return m?.color || '#f97316';
+  };
 
   // Fetch Mapbox token from edge function
   useEffect(() => {
@@ -133,7 +190,6 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           .select('*');
 
         if (!ventes || !geoData) {
-          console.log('Map: No data - ventes:', ventes?.length, 'geoData:', geoData?.length);
           setDestinations([]);
           setLoading(false);
           return;
@@ -250,23 +306,15 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapboxToken) {
-      console.warn('Map: pas de token Mapbox');
-      return;
-    }
-    if (map.current) {
-      return;
-    }
+    if (!mapboxToken) return;
+    if (map.current) return;
 
-    // Wait for DOM to be ready
     const initMap = () => {
       if (!mapContainer.current) {
-        console.warn('Map: conteneur introuvable, retry...');
         requestAnimationFrame(initMap);
         return;
       }
 
-      console.log('Map: initialisation avec token', mapContainer.current);
       mapboxgl.accessToken = mapboxToken;
       
       try {
@@ -283,25 +331,22 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         );
 
         map.current.on('load', () => {
-          console.log('Map: événement load déclenché');
           map.current?.resize();
           setMapLoaded(true);
         });
 
         map.current.on('error', (e) => {
-          console.error('Map: erreur Mapbox', e);
+          console.error('Map error:', e);
         });
       } catch (err) {
-        console.error('Map: erreur création', err);
+        console.error('Map creation error:', err);
       }
     };
 
-    // Delay initialization to ensure DOM is ready
     const timeoutId = setTimeout(initMap, 100);
 
     return () => {
       clearTimeout(timeoutId);
-      console.log('Map: destruction');
       map.current?.remove();
       map.current = null;
       setMapLoaded(false);
@@ -332,10 +377,9 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         if (selectedMandataire !== 'all') {
           const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
           filteredTonnage = mandataireData?.tonnage || 0;
-          const mandataire = mandataires.find(m => m.id === selectedMandataire);
-          color = MANDATAIRE_COLORS[mandataire?.nom || ''] || '#f97316';
+          color = getMandataireColor(selectedMandataire);
         } else if (dest.mandataires.length > 0) {
-          color = MANDATAIRE_COLORS[dest.mandataires[0].nom] || '#f97316';
+          color = getMandataireColor(dest.mandataires[0].id);
         }
       } else {
         if (selectedClient !== 'all') {
@@ -368,21 +412,10 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     // Get current color based on filter
     let heatmapColor = '#f97316';
     if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
-      const mandataire = mandataires.find(m => m.id === selectedMandataire);
-      heatmapColor = MANDATAIRE_COLORS[mandataire?.nom || ''] || '#f97316';
+      heatmapColor = getMandataireColor(selectedMandataire);
     } else if (viewMode === 'client' && selectedClient !== 'all') {
       heatmapColor = CLIENT_COLORS[selectedClient] || '#f97316';
     }
-
-    // Convert hex to RGB for gradient
-    const hexToRgb = (hex: string) => {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : { r: 249, g: 115, b: 22 };
-    };
 
     const rgb = hexToRgb(heatmapColor);
 
@@ -505,7 +538,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       map.current.fitBounds(bounds, { padding: 60, maxZoom: 8 });
     }
 
-  }, [destinations, selectedMandataire, selectedClient, viewMode, mandataires, mapLoaded]);
+  }, [destinations, selectedMandataire, selectedClient, viewMode, mandatairesWithStats, mapLoaded]);
 
   // Calculate filtered stats
   const filteredStats = destinations.reduce((acc, dest) => {
@@ -522,6 +555,11 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       count: tonnage > 0 ? acc.count + 1 : acc.count
     };
   }, { tonnage: 0, count: 0 });
+
+  // Legend items for the current view
+  const legendItems = viewMode === 'mandataire' 
+    ? mandatairesWithStats.filter(m => m.tonnage > 0)
+    : clientsWithStats.filter(c => c.tonnage > 0);
 
   if (loading) {
     return (
@@ -581,7 +619,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           </div>
         </div>
 
-        {/* View Mode Tabs */}
+        {/* View Mode Tabs and Filters */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'mandataire' | 'client')}>
             <TabsList className="bg-muted/50">
@@ -597,47 +635,53 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           </Tabs>
 
           {/* Filter Select */}
-          {viewMode === 'mandataire' ? (
-            <Select value={selectedMandataire} onValueChange={setSelectedMandataire}>
-              <SelectTrigger className="w-[220px] bg-background/50">
-                <SelectValue placeholder="Tous les mandataires" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les mandataires</SelectItem>
-                {mandataires.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: MANDATAIRE_COLORS[m.nom] || '#f97316' }}
-                      />
-                      {m.nom}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
-              <SelectTrigger className="w-[220px] bg-background/50">
-                <SelectValue placeholder="Tous les clients" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les clients</SelectItem>
-                {clients.map((client) => (
-                  <SelectItem key={client} value={client}>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: CLIENT_COLORS[client] || '#f97316' }}
-                      />
-                      {client}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            {viewMode === 'mandataire' ? (
+              <>
+                <MandataireCombobox
+                  mandataires={mandatairesWithStats}
+                  value={selectedMandataire}
+                  onValueChange={setSelectedMandataire}
+                  topN={topN}
+                />
+                <Select 
+                  value={topN.toString()} 
+                  onValueChange={(v) => setTopN(parseInt(v))}
+                >
+                  <SelectTrigger className="w-[100px] bg-background/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TOP_N_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value.toString()}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger className="w-[220px] bg-background/50">
+                  <SelectValue placeholder="Tous les clients" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les clients</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client} value={client}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: CLIENT_COLORS[client] || '#f97316' }}
+                        />
+                        {client}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
       </CardHeader>
       
@@ -651,68 +695,12 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       </CardContent>
       
       {/* Legend */}
-      <div className="p-4 border-t border-border/50 bg-muted/20">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-muted-foreground">Légende:</span>
-          {viewMode === 'mandataire' ? (
-            selectedMandataire === 'all' ? (
-              mandataires.slice(0, 5).map((m) => (
-                <div key={m.id} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: MANDATAIRE_COLORS[m.nom] || '#f97316' }}
-                  />
-                  <span className="text-sm">{m.nom}</span>
-                </div>
-              ))
-            ) : (
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: MANDATAIRE_COLORS[mandataires.find(m => m.id === selectedMandataire)?.nom || ''] || '#f97316' }}
-                />
-                <span className="text-sm font-medium">
-                  {mandataires.find(m => m.id === selectedMandataire)?.nom}
-                </span>
-              </div>
-            )
-          ) : (
-            selectedClient === 'all' ? (
-              clients.map((client) => (
-                <div key={client} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: CLIENT_COLORS[client] || '#f97316' }}
-                  />
-                  <span className="text-sm">{client}</span>
-                </div>
-              ))
-            ) : (
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: CLIENT_COLORS[selectedClient] || '#f97316' }}
-                />
-                <span className="text-sm font-medium">{selectedClient}</span>
-              </div>
-            )
-          )}
-          
-          {/* Intensity scale */}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Intensité:</span>
-            <div className="flex items-center h-3 w-24 rounded-full overflow-hidden">
-              <div className="h-full w-full" style={{
-                background: `linear-gradient(to right, 
-                  rgba(249, 115, 22, 0.1), 
-                  rgba(249, 115, 22, 0.5), 
-                  rgba(249, 115, 22, 1))`
-              }} />
-            </div>
-            <span className="text-xs text-muted-foreground">Élevée</span>
-          </div>
-        </div>
-      </div>
+      <MapLegend
+        items={legendItems}
+        viewMode={viewMode}
+        selectedId={viewMode === 'mandataire' ? selectedMandataire : selectedClient}
+        topN={topN}
+      />
     </Card>
   );
 };
