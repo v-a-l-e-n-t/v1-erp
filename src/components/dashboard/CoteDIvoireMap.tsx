@@ -6,9 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Loader2 } from 'lucide-react';
 
-// Mapbox public token
-mapboxgl.accessToken = 'sk.eyJ1Ijoic3ZhbGRzMjMiLCJhIjoiY21qNWQzdm9iMW55OTNmcXdyeDY2ZTB0aiJ9.onJBC47Aj-Ge6OPBzNPlcQ';
-
 interface DestinationData {
   destination: string;
   latitude: number;
@@ -51,10 +48,30 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   
   const [loading, setLoading] = useState(true);
+  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<DestinationData[]>([]);
   const [mandataires, setMandataires] = useState<{ id: string; nom: string }[]>([]);
   const [selectedMandataire, setSelectedMandataire] = useState<string>('all');
   const [totalStats, setTotalStats] = useState({ tonnage: 0, livraisons: 0 });
+
+  // Fetch Mapbox token from edge function
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        if (error) {
+          console.error('Error fetching Mapbox token:', error);
+          return;
+        }
+        if (data?.token) {
+          setMapboxToken(data.token);
+        }
+      } catch (error) {
+        console.error('Error fetching Mapbox token:', error);
+      }
+    };
+    fetchToken();
+  }, []);
 
   // Calculate tonnage from a vente record
   const calculateTonnage = (vente: any): number => {
@@ -195,8 +212,10 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current || !mapboxToken) return;
 
+    mapboxgl.accessToken = mapboxToken;
+    
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/light-v11',
@@ -213,7 +232,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [mapboxToken]);
 
   // Update markers when data or filter changes
   useEffect(() => {
