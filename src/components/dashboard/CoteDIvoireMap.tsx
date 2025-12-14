@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Loader2, Flame, Users, Building2 } from 'lucide-react';
+import { Loader2, Map as MapIcon, Users, Building2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { MandataireCombobox } from './MandataireCombobox';
 import { MapLegend } from './MapLegend';
@@ -353,7 +353,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
                 'fill-color': '#f97316',
                 'fill-opacity': 0.05
               }
-            }, 'heatmap-layer');
+            });
 
             // Add border line layer
             map.current.addLayer({
@@ -391,22 +391,54 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     };
   }, [mapboxToken, destinations.length]);
 
-  // Update heatmap when data or filters change
+  // Update map visualization when data or filters change
   useEffect(() => {
-    if (!map.current || destinations.length === 0) return;
+    if (!map.current || destinations.length === 0 || !mapLoaded) return;
 
     // Remove existing layers and sources
-    if (map.current.getLayer('heatmap-layer')) {
-      map.current.removeLayer('heatmap-layer');
-    }
-    if (map.current.getLayer('circle-layer')) {
-      map.current.removeLayer('circle-layer');
-    }
-    if (map.current.getSource('destinations')) {
-      map.current.removeSource('destinations');
-    }
+    const layersToRemove = ['region-fill', 'region-outline', 'destination-circles', 'destination-labels'];
+    layersToRemove.forEach(layerId => {
+      if (map.current?.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+    });
+    
+    const sourcesToRemove = ['destinations', 'regions'];
+    sourcesToRemove.forEach(sourceId => {
+      if (map.current?.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+    });
 
-    // Filter and prepare data based on selection
+    // Aggregate data by region
+    const regionStats = new Map<string, { tonnage: number; livraisons: number; destinations: string[] }>();
+    
+    destinations.forEach(dest => {
+      let tonnage = dest.tonnage;
+      
+      // Apply filter
+      if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
+        const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
+        tonnage = mandataireData?.tonnage || 0;
+      } else if (viewMode === 'client' && selectedClient !== 'all') {
+        const clientData = dest.clients.find(c => c.nom.toUpperCase() === selectedClient.toUpperCase());
+        tonnage = clientData?.tonnage || 0;
+      }
+      
+      if (tonnage > 0) {
+        const regionName = dest.region || 'Autres';
+        const existing = regionStats.get(regionName) || { tonnage: 0, livraisons: 0, destinations: [] };
+        existing.tonnage += tonnage;
+        existing.livraisons += dest.livraisons;
+        existing.destinations.push(dest.destination);
+        regionStats.set(regionName, existing);
+      }
+    });
+
+    // Calculate max tonnage for scaling
+    const maxTonnage = Math.max(...Array.from(regionStats.values()).map(r => r.tonnage), 1);
+
+    // Create features for destination circles
     const features = destinations.map(dest => {
       let filteredTonnage = dest.tonnage;
       let color = '#f97316';
@@ -417,7 +449,9 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           filteredTonnage = mandataireData?.tonnage || 0;
           color = getMandataireColor(selectedMandataire);
         } else if (dest.mandataires.length > 0) {
-          color = getMandataireColor(dest.mandataires[0].id);
+          // Use the top mandataire's color
+          const topMandataire = dest.mandataires.sort((a, b) => b.tonnage - a.tonnage)[0];
+          color = getMandataireColor(topMandataire.id);
         }
       } else {
         if (selectedClient !== 'all') {
@@ -425,7 +459,8 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           filteredTonnage = clientData?.tonnage || 0;
           color = CLIENT_COLORS[selectedClient] || '#f97316';
         } else if (dest.clients.length > 0) {
-          color = CLIENT_COLORS[dest.clients[0].nom] || '#f97316';
+          const topClient = dest.clients.sort((a, b) => b.tonnage - a.tonnage)[0];
+          color = CLIENT_COLORS[topClient.nom] || '#f97316';
         }
       }
 
@@ -434,7 +469,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         properties: {
           tonnage: filteredTonnage,
           destination: dest.destination,
-          region: dest.region,
+          region: dest.region || 'Autres',
           livraisons: dest.livraisons,
           color
         },
@@ -447,17 +482,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
     if (features.length === 0) return;
 
-    // Get current color based on filter
-    let heatmapColor = '#f97316';
-    if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
-      heatmapColor = getMandataireColor(selectedMandataire);
-    } else if (viewMode === 'client' && selectedClient !== 'all') {
-      heatmapColor = CLIENT_COLORS[selectedClient] || '#f97316';
-    }
-
-    const rgb = hexToRgb(heatmapColor);
-
-    // Add source
+    // Add source for destinations
     map.current.addSource('destinations', {
       type: 'geojson',
       data: {
@@ -466,103 +491,111 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       }
     });
 
-    // Add heatmap layer
-    map.current.addLayer({
-      id: 'heatmap-layer',
-      type: 'heatmap',
-      source: 'destinations',
-      paint: {
-        'heatmap-weight': [
-          'interpolate',
-          ['linear'],
-          ['get', 'tonnage'],
-          0, 0,
-          Math.max(...features.map(f => f.properties.tonnage)), 1
-        ],
-        'heatmap-intensity': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          0, 1,
-          9, 3
-        ],
-        'heatmap-color': [
-          'interpolate',
-          ['linear'],
-          ['heatmap-density'],
-          0, 'rgba(0, 0, 0, 0)',
-          0.1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`,
-          0.3, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,
-          0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`,
-          0.7, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`,
-          1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`
-        ],
-        'heatmap-radius': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          0, 20,
-          9, 50
-        ],
-        'heatmap-opacity': 0.8
-      }
-    });
+    const maxFeatureTonnage = Math.max(...features.map(f => f.properties.tonnage), 1);
 
-    // Add circle layer for points at higher zoom
+    // Add circle layer for destinations (proportional symbols)
     map.current.addLayer({
-      id: 'circle-layer',
+      id: 'destination-circles',
       type: 'circle',
       source: 'destinations',
-      minzoom: 7,
       paint: {
         'circle-radius': [
           'interpolate',
           ['linear'],
           ['get', 'tonnage'],
-          0, 8,
-          Math.max(...features.map(f => f.properties.tonnage)), 30
+          0, 6,
+          maxFeatureTonnage * 0.25, 12,
+          maxFeatureTonnage * 0.5, 20,
+          maxFeatureTonnage, 35
         ],
         'circle-color': ['get', 'color'],
-        'circle-stroke-color': 'white',
+        'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 2,
-        'circle-opacity': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          7, 0,
-          8, 0.8
-        ]
+        'circle-opacity': 0.75
       }
     });
 
+    // Add labels for top destinations
+    const topFeatures = [...features]
+      .sort((a, b) => b.properties.tonnage - a.properties.tonnage)
+      .slice(0, 10);
+    
+    if (topFeatures.length > 0) {
+      // Add labels source if needed
+      if (!map.current.getSource('destination-labels-source')) {
+        map.current.addSource('destination-labels-source', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: topFeatures
+          }
+        });
+      }
+
+      map.current.addLayer({
+        id: 'destination-labels',
+        type: 'symbol',
+        source: 'destinations',
+        layout: {
+          'text-field': ['get', 'destination'],
+          'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+          'text-size': 10,
+          'text-offset': [0, 2],
+          'text-anchor': 'top',
+          'text-optional': true
+        },
+        paint: {
+          'text-color': '#374151',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5
+        },
+        filter: ['>=', ['get', 'tonnage'], maxFeatureTonnage * 0.15]
+      });
+    }
+
     // Add popup on click
-    map.current.on('click', 'circle-layer', (e) => {
+    const clickHandler = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
       if (!e.features || e.features.length === 0) return;
       
       const feature = e.features[0];
       const coords = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
       const props = feature.properties;
 
-      new mapboxgl.Popup()
+      new mapboxgl.Popup({ closeButton: true, className: 'custom-popup' })
         .setLngLat(coords)
         .setHTML(`
-          <div style="padding: 8px; min-width: 150px; background: #1f2937; color: white; border-radius: 8px;">
-            <h3 style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${props?.destination}</h3>
-            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 6px;">${props?.region || 'Région inconnue'}</p>
-            <p style="font-size: 16px; font-weight: bold; color: ${props?.color};">
-              ${((props?.tonnage || 0) / 1000).toFixed(1)} T
+          <div style="padding: 12px; min-width: 180px; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); color: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <div style="width: 12px; height: 12px; border-radius: 50%; background: ${props?.color}; border: 2px solid white;"></div>
+              <h3 style="font-weight: bold; font-size: 14px; margin: 0;">${props?.destination}</h3>
+            </div>
+            <p style="font-size: 11px; color: #9ca3af; margin: 4px 0; padding: 4px 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+              📍 ${props?.region}
             </p>
-            <p style="font-size: 11px; color: #9ca3af;">${props?.livraisons} livraisons</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+              <div>
+                <p style="font-size: 20px; font-weight: bold; color: ${props?.color}; margin: 0;">
+                  ${((props?.tonnage || 0) / 1000).toFixed(1)} T
+                </p>
+                <p style="font-size: 10px; color: #9ca3af; margin: 0;">Tonnage total</p>
+              </div>
+              <div style="text-align: right;">
+                <p style="font-size: 16px; font-weight: 600; color: #f97316; margin: 0;">${props?.livraisons}</p>
+                <p style="font-size: 10px; color: #9ca3af; margin: 0;">Livraisons</p>
+              </div>
+            </div>
           </div>
         `)
         .addTo(map.current!);
-    });
+    };
+
+    map.current.on('click', 'destination-circles', clickHandler);
 
     // Change cursor on hover
-    map.current.on('mouseenter', 'circle-layer', () => {
+    map.current.on('mouseenter', 'destination-circles', () => {
       if (map.current) map.current.getCanvas().style.cursor = 'pointer';
     });
-    map.current.on('mouseleave', 'circle-layer', () => {
+    map.current.on('mouseleave', 'destination-circles', () => {
       if (map.current) map.current.getCanvas().style.cursor = '';
     });
 
@@ -576,6 +609,11 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       map.current.fitBounds(bounds, { padding: 60, maxZoom: 8 });
     }
 
+    return () => {
+      if (map.current) {
+        map.current.off('click', 'destination-circles', clickHandler);
+      }
+    };
   }, [destinations, selectedMandataire, selectedClient, viewMode, mandatairesWithStats, mapLoaded]);
 
   // Calculate filtered stats
@@ -604,8 +642,8 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Flame className="h-5 w-5 text-orange-500" />
-            Carte de Chaleur des Livraisons
+            <MapIcon className="h-5 w-5 text-orange-500" />
+            Carte des Régions de Livraison
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-[500px]">
@@ -620,8 +658,8 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Flame className="h-5 w-5 text-orange-500" />
-            Carte de Chaleur des Livraisons
+            <MapIcon className="h-5 w-5 text-orange-500" />
+            Carte des Régions de Livraison
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-[500px] text-muted-foreground">
@@ -637,12 +675,12 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-orange-500/10">
-              <Flame className="h-5 w-5 text-orange-500" />
+              <MapIcon className="h-5 w-5 text-orange-500" />
             </div>
             <div>
-              <CardTitle className="text-lg">Carte de Chaleur des Livraisons</CardTitle>
+              <CardTitle className="text-lg">Carte des Régions de Livraison</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Visualisation interactive des zones de livraison
+                Visualisation par région administrative
               </p>
             </div>
           </div>
