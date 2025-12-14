@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Upload, FileSpreadsheet, AlertTriangle, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -514,69 +514,72 @@ const MandatairesImport = ({ onImportSuccess }: MandatairesImportProps) => {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[400px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Mandataire</TableHead>
-                    <TableHead>Camion</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>N° Bon</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead className="text-right text-xs">R.B6</TableHead>
-                    <TableHead className="text-right text-xs">R.B12</TableHead>
-                    <TableHead className="text-right text-xs">R.B28</TableHead>
-                    <TableHead className="text-right text-xs">R.B38</TableHead>
-                    <TableHead className="text-right text-xs">R_Carb_B12</TableHead>
-                    <TableHead className="text-right text-xs">C.B6</TableHead>
-                    <TableHead className="text-right text-xs">C.B12</TableHead>
-                    <TableHead className="text-right text-xs">C.B28</TableHead>
-                    <TableHead className="text-right text-xs">C.B38</TableHead>
-                    <TableHead className="text-right text-xs">C_Carb_B11</TableHead>
-                    <TableHead>Statut</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {parsedData.slice(0, 100).map((vente, index) => (
-                    <TableRow key={index} className={vente.isDuplicate ? "bg-destructive/10" : ""}>
-                      <TableCell>{formatDate(vente.date)}</TableCell>
-                      <TableCell className="font-medium">{vente.mandataire}</TableCell>
-                      <TableCell>{vente.camion}</TableCell>
-                      <TableCell>{vente.client}</TableCell>
-                      <TableCell>{vente.numeroBonSortie}</TableCell>
-                      <TableCell>{vente.destination || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.r_b6 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.r_b12 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.r_b28 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.r_b38 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.r_b11_carbu || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.c_b6 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.c_b12 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.c_b28 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.c_b38 || "-"}</TableCell>
-                      <TableCell className="text-right">{vente.c_b11_carbu || "-"}</TableCell>
-                      <TableCell>
-                        {vente.isDuplicate ? (
-                          <Badge variant="destructive" className="gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            Doublon
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="gap-1">
-                            <Check className="h-3 w-3" />
-                            OK
-                          </Badge>
-                        )}
-                      </TableCell>
+              <div className="overflow-x-auto min-w-max">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Mandataire</TableHead>
+                      <TableHead className="whitespace-nowrap">Camion</TableHead>
+                      <TableHead className="whitespace-nowrap">Client</TableHead>
+                      <TableHead className="whitespace-nowrap">N° Bon</TableHead>
+                      <TableHead className="whitespace-nowrap">Destination</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">R.B6</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">R.B12</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">R.B28</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">R.B38</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">R_Carb_B12</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">C.B6</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">C.B12</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">C.B28</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">C.B38</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">C_Carb_B11</TableHead>
+                      <TableHead className="whitespace-nowrap">Statut</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {parsedData.slice(0, 100).map((vente, index) => (
+                      <TableRow key={index} className={vente.isDuplicate ? "bg-destructive/10" : ""}>
+                        <TableCell className="whitespace-nowrap">{formatDate(vente.date)}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{vente.mandataire}</TableCell>
+                        <TableCell className="whitespace-nowrap">{vente.camion}</TableCell>
+                        <TableCell className="whitespace-nowrap">{vente.client}</TableCell>
+                        <TableCell className="whitespace-nowrap">{vente.numeroBonSortie}</TableCell>
+                        <TableCell className="whitespace-nowrap">{vente.destination || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.r_b6 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.r_b12 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.r_b28 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.r_b38 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.r_b11_carbu || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.c_b6 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.c_b12 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.c_b28 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.c_b38 || "-"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{vente.c_b11_carbu || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {vente.isDuplicate ? (
+                            <Badge variant="destructive" className="gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              Doublon
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="gap-1">
+                              <Check className="h-3 w-3" />
+                              OK
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
               {parsedData.length > 100 && (
                 <p className="text-center text-muted-foreground mt-4">
                   ... et {parsedData.length - 100} autres ventes
                 </p>
               )}
+              <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </CardContent>
         </Card>
