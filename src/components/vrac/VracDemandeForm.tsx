@@ -58,10 +58,10 @@ const VracDemandeForm: React.FC<VracDemandeFormProps> = ({ onSubmit, loading = f
     const isLoading = loading || isSubmitting;
 
     return (
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="border-border shadow-sm">
             <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Truck className="w-5 h-5 text-orange-500" />
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-primary" />
                     Ajouter un camion citerne
                 </CardTitle>
             </CardHeader>
@@ -70,14 +70,14 @@ const VracDemandeForm: React.FC<VracDemandeFormProps> = ({ onSubmit, loading = f
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Date de chargement */}
                         <div className="space-y-2">
-                            <Label className="text-slate-300">Date de chargement</Label>
+                            <Label>Date de chargement</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
                                         className={cn(
-                                            "w-full justify-start text-left font-normal bg-slate-700/50 border-slate-600 hover:bg-slate-700 text-white",
-                                            !date && "text-slate-500"
+                                            "w-full justify-start text-left font-normal",
+                                            !date && "text-muted-foreground"
                                         )}
                                         disabled={isLoading}
                                     >
@@ -85,13 +85,12 @@ const VracDemandeForm: React.FC<VracDemandeFormProps> = ({ onSubmit, loading = f
                                         {date ? format(date, 'dd MMMM yyyy', { locale: fr }) : 'Sélectionner une date'}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 bg-slate-800 border-slate-700" align="start">
+                                <PopoverContent className="w-auto p-0" align="start">
                                     <Calendar
                                         mode="single"
                                         selected={date}
                                         onSelect={handleDateChange}
                                         locale={fr}
-                                        className="bg-slate-800"
                                     />
                                 </PopoverContent>
                             </Popover>
@@ -99,15 +98,14 @@ const VracDemandeForm: React.FC<VracDemandeFormProps> = ({ onSubmit, loading = f
 
                         {/* Numéro de bon */}
                         <div className="space-y-2">
-                            <Label htmlFor="numero_bon" className="text-slate-300">
-                                N° Bon <span className="text-slate-500">(optionnel)</span>
+                            <Label htmlFor="numero_bon">
+                                N° Bon <span className="text-muted-foreground">(optionnel)</span>
                             </Label>
                             <Input
                                 id="numero_bon"
                                 value={formData.numero_bon}
                                 onChange={(e) => handleChange('numero_bon', e.target.value)}
                                 placeholder="BON-2024-001"
-                                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
                                 disabled={isLoading}
                             />
                         </div>
@@ -116,15 +114,15 @@ const VracDemandeForm: React.FC<VracDemandeFormProps> = ({ onSubmit, loading = f
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Immatriculation Tracteur */}
                         <div className="space-y-2">
-                            <Label htmlFor="tracteur" className="text-slate-300">
-                                Immatriculation Tracteur <span className="text-red-400">*</span>
+                            <Label htmlFor="tracteur">
+                                Immatriculation Tracteur <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="tracteur"
                                 value={formData.immatriculation_tracteur}
                                 onChange={(e) => handleChange('immatriculation_tracteur', e.target.value)}
                                 placeholder="AB-123-CD"
-                                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 uppercase"
+                                className="uppercase"
                                 disabled={isLoading}
                                 required
                             />
@@ -132,15 +130,15 @@ const VracDemandeForm: React.FC<VracDemandeFormProps> = ({ onSubmit, loading = f
 
                         {/* Immatriculation Citerne */}
                         <div className="space-y-2">
-                            <Label htmlFor="citerne" className="text-slate-300">
-                                Immatriculation Citerne <span className="text-red-400">*</span>
+                            <Label htmlFor="citerne">
+                                Immatriculation Citerne <span className="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="citerne"
                                 value={formData.immatriculation_citerne}
                                 onChange={(e) => handleChange('immatriculation_citerne', e.target.value)}
                                 placeholder="EF-456-GH"
-                                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 uppercase"
+                                className="uppercase"
                                 disabled={isLoading}
                                 required
                             />
@@ -150,7 +148,7 @@ const VracDemandeForm: React.FC<VracDemandeFormProps> = ({ onSubmit, loading = f
                     <Button
                         type="submit"
                         disabled={isLoading || !formData.immatriculation_tracteur || !formData.immatriculation_citerne}
-                        className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold transition-all duration-200"
+                        className="w-full font-semibold transition-all duration-200"
                     >
                         {isLoading ? (
                             <>

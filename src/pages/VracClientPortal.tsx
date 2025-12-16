@@ -133,8 +133,8 @@ const VracClientPortal: React.FC = () => {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <div className="text-white">Chargement...</div>
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-muted-foreground">Chargement...</div>
             </div>
         );
     }
@@ -148,23 +148,23 @@ const VracClientPortal: React.FC = () => {
     const historyDemandes = demandes.filter(d => d.date_chargement !== today);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="bg-slate-800/50 border-b border-slate-700 backdrop-blur-sm sticky top-0 z-10">
+            <header className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
-                            <Truck className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                            <Truck className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-white">Espace VRAC</h1>
-                            <p className="text-sm text-orange-400">{session?.client_nom_affichage}</p>
+                            <h1 className="text-lg font-bold text-foreground">Espace VRAC</h1>
+                            <p className="text-sm text-muted-foreground">{session?.client_nom_affichage}</p>
                         </div>
                     </div>
                     <Button
                         variant="ghost"
                         onClick={logout}
-                        className="text-slate-400 hover:text-white hover:bg-slate-700"
+                        className="text-muted-foreground hover:text-foreground"
                     >
                         <LogOut className="w-4 h-4 mr-2" />
                         Déconnexion
@@ -175,57 +175,57 @@ const VracClientPortal: React.FC = () => {
             <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-blue-500/10">
-                                    <CalendarDays className="w-5 h-5 text-blue-400" />
+                                <div className="p-2 rounded-lg bg-blue-100">
+                                    <CalendarDays className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.total_demandes_jour}</p>
-                                    <p className="text-xs text-slate-400">Camions aujourd'hui</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.total_demandes_jour}</p>
+                                    <p className="text-xs text-muted-foreground">Camions aujourd'hui</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-amber-500/10">
-                                    <Clock className="w-5 h-5 text-amber-400" />
+                                <div className="p-2 rounded-lg bg-amber-100">
+                                    <Clock className="w-5 h-5 text-amber-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.demandes_en_attente}</p>
-                                    <p className="text-xs text-slate-400">En attente</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.demandes_en_attente}</p>
+                                    <p className="text-xs text-muted-foreground">En attente</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-emerald-500/10">
-                                    <CheckCircle className="w-5 h-5 text-emerald-400" />
+                                <div className="p-2 rounded-lg bg-emerald-100">
+                                    <CheckCircle className="w-5 h-5 text-emerald-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.demandes_chargees}</p>
-                                    <p className="text-xs text-slate-400">Chargés</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.demandes_chargees}</p>
+                                    <p className="text-xs text-muted-foreground">Chargés</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-purple-500/10">
-                                    <TrendingUp className="w-5 h-5 text-purple-400" />
+                                <div className="p-2 rounded-lg bg-purple-100">
+                                    <TrendingUp className="w-5 h-5 text-purple-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.tonnage_total_jour.toFixed(1)}</p>
-                                    <p className="text-xs text-slate-400">Tonnes chargées</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.tonnage_total_jour.toFixed(1)}</p>
+                                    <p className="text-xs text-muted-foreground">Tonnes chargées</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -242,11 +242,11 @@ const VracClientPortal: React.FC = () => {
                     {/* Tabs: Today / History */}
                     <div className="lg:col-span-2">
                         <Tabs defaultValue="today" className="w-full">
-                            <TabsList className="bg-slate-800/50 border border-slate-700 mb-4">
-                                <TabsTrigger value="today" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+                            <TabsList className="w-full mb-4">
+                                <TabsTrigger value="today" className="flex-1">
                                     Aujourd'hui ({todayDemandes.length})
                                 </TabsTrigger>
-                                <TabsTrigger value="history" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+                                <TabsTrigger value="history" className="flex-1">
                                     Historique ({historyDemandes.length})
                                 </TabsTrigger>
                             </TabsList>

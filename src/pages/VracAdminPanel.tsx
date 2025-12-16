@@ -140,32 +140,65 @@ const VracAdminPanel: React.FC = () => {
         users: users.filter(u => u.client_id === client.id),
     }));
 
+    const handleInitClients = async () => {
+        setLoading(true);
+        try {
+            const defaultClients = [
+                { nom: 'SIMAM', nom_affichage: 'SIMAM CI', champ_sortie_vrac: 'simam', actif: true },
+                { nom: 'VIVO', nom_affichage: 'VIVO ENERGY', champ_sortie_vrac: 'vivo', actif: true },
+                { nom: 'TOTAL', nom_affichage: 'TOTAL ENERGIES', champ_sortie_vrac: 'total', actif: true },
+                { nom: 'PETRO IVOIRE', nom_affichage: 'PETRO IVOIRE', champ_sortie_vrac: 'petro_ivoire', actif: true },
+            ];
+
+            const { error } = await supabase
+                .from('vrac_clients')
+                .insert(defaultClients);
+
+            if (error) throw error;
+
+            toast({
+                title: 'Clients initialisés',
+                description: 'Les clients par défaut ont été créés avec succès',
+            });
+
+            await loadData();
+        } catch (error) {
+            console.error('Error initializing clients:', error);
+            toast({
+                title: 'Erreur',
+                description: "Impossible d'initialiser les clients",
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="bg-slate-800/50 border-b border-slate-700 backdrop-blur-sm sticky top-0 z-10">
+            <header className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => navigate('/dashboard')}
-                            className="text-slate-400 hover:text-white hover:bg-slate-700"
+                            className="text-muted-foreground hover:text-foreground"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                            <Shield className="w-5 h-5 text-purple-600" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-white">Administration VRAC</h1>
-                            <p className="text-sm text-purple-400">Gestion des accès clients</p>
+                            <h1 className="text-lg font-bold text-foreground">Administration VRAC</h1>
+                            <p className="text-sm text-muted-foreground">Gestion des accès clients</p>
                         </div>
                     </div>
                     <Button
                         variant="outline"
                         onClick={() => navigate('/vrac-chargements')}
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
                     >
                         Voir les chargements
                     </Button>
@@ -182,21 +215,38 @@ const VracAdminPanel: React.FC = () => {
                     {/* Users by Client */}
                     <div className="lg:col-span-2 space-y-6">
                         {loading ? (
-                            <Card className="bg-slate-800/50 border-slate-700">
-                                <CardContent className="p-8 text-center text-slate-400">
+                            <Card>
+                                <CardContent className="p-8 text-center text-muted-foreground">
                                     Chargement...
+                                </CardContent>
+                            </Card>
+                        ) : usersByClient.length === 0 ? (
+                            <Card className="border-dashed">
+                                <CardContent className="p-8 text-center space-y-4">
+                                    <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                                        <Building2 className="w-6 h-6 text-amber-600" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="font-semibold text-lg">Aucun client configuré</h3>
+                                        <p className="text-muted-foreground max-w-sm mx-auto">
+                                            La base de données des clients VRAC semble vide. Initialisez les clients par défaut pour commencer.
+                                        </p>
+                                    </div>
+                                    <Button onClick={handleInitClients}>
+                                        Initialiser les clients par défaut
+                                    </Button>
                                 </CardContent>
                             </Card>
                         ) : (
                             usersByClient.map(({ client, users: clientUsers }) => (
-                                <Card key={client.id} className="bg-slate-800/50 border-slate-700">
+                                <Card key={client.id}>
                                     <CardHeader className="pb-3">
-                                        <CardTitle className="text-lg font-semibold text-white flex items-center justify-between">
+                                        <CardTitle className="text-lg font-semibold flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <Building2 className="w-5 h-5 text-orange-500" />
+                                                <Building2 className="w-5 h-5 text-primary" />
                                                 {client.nom_affichage}
                                             </div>
-                                            <Badge variant="secondary" className="bg-slate-700 text-slate-300">
+                                            <Badge variant="secondary">
                                                 <Users className="w-3 h-3 mr-1" />
                                                 {clientUsers.length} utilisateur{clientUsers.length > 1 ? 's' : ''}
                                             </Badge>
@@ -204,42 +254,42 @@ const VracAdminPanel: React.FC = () => {
                                     </CardHeader>
                                     <CardContent>
                                         {clientUsers.length === 0 ? (
-                                            <p className="text-sm text-slate-400 text-center py-4">
+                                            <p className="text-sm text-muted-foreground text-center py-4">
                                                 Aucun utilisateur pour ce client
                                             </p>
                                         ) : (
                                             <Table>
                                                 <TableHeader>
-                                                    <TableRow className="border-slate-700 hover:bg-transparent">
-                                                        <TableHead className="text-slate-400">Nom</TableHead>
-                                                        <TableHead className="text-slate-400">Créé le</TableHead>
-                                                        <TableHead className="text-slate-400">Dernière connexion</TableHead>
-                                                        <TableHead className="text-slate-400">Statut</TableHead>
-                                                        <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                                                    <TableRow>
+                                                        <TableHead>Nom</TableHead>
+                                                        <TableHead>Créé le</TableHead>
+                                                        <TableHead>Dernière connexion</TableHead>
+                                                        <TableHead>Statut</TableHead>
+                                                        <TableHead className="text-right">Actions</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {clientUsers.map(user => (
-                                                        <TableRow key={user.id} className="border-slate-700 hover:bg-slate-700/30">
-                                                            <TableCell className="text-white">
-                                                                {user.nom || <span className="text-slate-500 italic">Non défini</span>}
+                                                        <TableRow key={user.id}>
+                                                            <TableCell>
+                                                                {user.nom || <span className="text-muted-foreground italic">Non défini</span>}
                                                             </TableCell>
-                                                            <TableCell className="text-slate-300">
+                                                            <TableCell className="text-muted-foreground">
                                                                 {format(parseISO(user.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
                                                             </TableCell>
-                                                            <TableCell className="text-slate-300">
+                                                            <TableCell className="text-muted-foreground">
                                                                 {user.last_login
                                                                     ? format(parseISO(user.last_login), 'dd/MM/yyyy HH:mm', { locale: fr })
-                                                                    : <span className="text-slate-500">Jamais</span>
+                                                                    : <span className="text-muted-foreground">Jamais</span>
                                                                 }
                                                             </TableCell>
                                                             <TableCell>
                                                                 {user.actif ? (
-                                                                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                                                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200">
                                                                         Actif
                                                                     </Badge>
                                                                 ) : (
-                                                                    <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                                                                    <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 hover:bg-red-200">
                                                                         Inactif
                                                                     </Badge>
                                                                 )}
@@ -250,7 +300,7 @@ const VracAdminPanel: React.FC = () => {
                                                                         variant="ghost"
                                                                         size="icon"
                                                                         onClick={() => handleToggleUserStatus(user.id, user.actif)}
-                                                                        className="h-8 w-8 text-slate-400 hover:text-amber-400 hover:bg-amber-500/10"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-amber-600 hover:bg-amber-100"
                                                                         title={user.actif ? 'Désactiver' : 'Réactiver'}
                                                                     >
                                                                         <UserX className="w-4 h-4" />
@@ -260,27 +310,27 @@ const VracAdminPanel: React.FC = () => {
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="icon"
-                                                                                className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+                                                                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                                             >
                                                                                 <Trash2 className="w-4 h-4" />
                                                                             </Button>
                                                                         </AlertDialogTrigger>
-                                                                        <AlertDialogContent className="bg-slate-800 border-slate-700">
+                                                                        <AlertDialogContent>
                                                                             <AlertDialogHeader>
-                                                                                <AlertDialogTitle className="text-white">
+                                                                                <AlertDialogTitle>
                                                                                     Supprimer cet accès ?
                                                                                 </AlertDialogTitle>
-                                                                                <AlertDialogDescription className="text-slate-400">
+                                                                                <AlertDialogDescription>
                                                                                     Cette action est irréversible. L'utilisateur ne pourra plus se connecter.
                                                                                 </AlertDialogDescription>
                                                                             </AlertDialogHeader>
                                                                             <AlertDialogFooter>
-                                                                                <AlertDialogCancel className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+                                                                                <AlertDialogCancel>
                                                                                     Annuler
                                                                                 </AlertDialogCancel>
                                                                                 <AlertDialogAction
                                                                                     onClick={() => handleDeleteUser(user.id)}
-                                                                                    className="bg-red-500 hover:bg-red-600 text-white"
+                                                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                                                                 >
                                                                                     Supprimer
                                                                                 </AlertDialogAction>

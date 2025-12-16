@@ -72,37 +72,37 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="bg-slate-800 border-slate-700 text-white sm:max-w-md">
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-white">
-                        <Weight className="w-5 h-5 text-orange-500" />
+                    <DialogTitle className="flex items-center gap-2">
+                        <Weight className="w-5 h-5 text-primary" />
                         Valider le chargement
                     </DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogDescription>
                         Confirmez le tonnage chargé pour ce camion
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Truck Info */}
-                    <div className="p-3 rounded-lg bg-slate-700/50 border border-slate-600">
+                    <div className="p-3 rounded-lg bg-muted border border-border">
                         <div className="flex items-center gap-2 mb-2">
-                            <Truck className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm text-slate-400">Informations camion</span>
+                            <Truck className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground font-medium">Informations camion</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                                <span className="text-slate-400">Tracteur:</span>
-                                <span className="ml-2 text-white font-mono">{demande.immatriculation_tracteur}</span>
+                                <span className="text-muted-foreground">Tracteur:</span>
+                                <span className="ml-2 font-mono font-medium">{demande.immatriculation_tracteur}</span>
                             </div>
                             <div>
-                                <span className="text-slate-400">Citerne:</span>
-                                <span className="ml-2 text-white font-mono">{demande.immatriculation_citerne}</span>
+                                <span className="text-muted-foreground">Citerne:</span>
+                                <span className="ml-2 font-mono font-medium">{demande.immatriculation_citerne}</span>
                             </div>
                             {demande.numero_bon && (
                                 <div className="col-span-2">
-                                    <span className="text-slate-400">N° Bon:</span>
-                                    <span className="ml-2 text-white">{demande.numero_bon}</span>
+                                    <span className="text-muted-foreground">N° Bon:</span>
+                                    <span className="ml-2">{demande.numero_bon}</span>
                                 </div>
                             )}
                         </div>
@@ -110,8 +110,8 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
 
                     {/* Tonnage Input */}
                     <div className="space-y-2">
-                        <Label htmlFor="tonnage" className="text-slate-300">
-                            Tonnage chargé (tonnes) <span className="text-red-400">*</span>
+                        <Label htmlFor="tonnage">
+                            Tonnage chargé (tonnes) <span className="text-destructive">*</span>
                         </Label>
                         <Input
                             id="tonnage"
@@ -121,7 +121,7 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
                             value={tonnage}
                             onChange={(e) => setTonnage(e.target.value)}
                             placeholder="Ex: 15.50"
-                            className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 text-lg"
+                            className="text-lg"
                             autoFocus
                             required
                         />
@@ -129,21 +129,21 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
 
                     {/* Notes */}
                     <div className="space-y-2">
-                        <Label htmlFor="notes" className="text-slate-300">
-                            Notes <span className="text-slate-500">(optionnel)</span>
+                        <Label htmlFor="notes">
+                            Notes <span className="text-muted-foreground font-normal">(optionnel)</span>
                         </Label>
                         <Textarea
                             id="notes"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             placeholder="Remarques éventuelles..."
-                            className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 resize-none"
+                            className="resize-none"
                             rows={2}
                         />
                     </div>
 
                     {error && (
-                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                             {error}
                         </div>
                     )}
@@ -153,7 +153,6 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
                             type="button"
                             variant="outline"
                             onClick={handleClose}
-                            className="border-slate-600 text-slate-300 hover:bg-slate-700"
                             disabled={loading}
                         >
                             Annuler
@@ -161,7 +160,7 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
                         <Button
                             type="submit"
                             disabled={loading || !tonnage}
-                            className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
                             {loading ? (
                                 <>

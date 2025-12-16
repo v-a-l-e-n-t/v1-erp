@@ -155,32 +155,31 @@ const VracChargementDashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="bg-slate-800/50 border-b border-slate-700 backdrop-blur-sm sticky top-0 z-10">
+            <header className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => navigate('/dashboard')}
-                            className="text-slate-400 hover:text-white hover:bg-slate-700"
+                            className="text-muted-foreground hover:text-foreground"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
-                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
-                            <Weight className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                            <Weight className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-white">Chargements VRAC</h1>
-                            <p className="text-sm text-emerald-400">Validation des tonnages</p>
+                            <h1 className="text-lg font-bold text-foreground">Chargements VRAC</h1>
+                            <p className="text-sm text-muted-foreground">Validation des tonnages</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             onClick={() => navigate('/vrac-admin')}
-                            className="border-slate-600 text-slate-300 hover:bg-slate-700"
                         >
                             Administration
                         </Button>
@@ -188,7 +187,7 @@ const VracChargementDashboard: React.FC = () => {
                             variant="ghost"
                             size="icon"
                             onClick={loadData}
-                            className="text-slate-400 hover:text-white hover:bg-slate-700"
+                            className="text-muted-foreground hover:text-foreground"
                         >
                             <RefreshCw className={cn("w-5 h-5", loading && "animate-spin")} />
                         </Button>
@@ -199,57 +198,57 @@ const VracChargementDashboard: React.FC = () => {
             <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-blue-500/10">
-                                    <Truck className="w-5 h-5 text-blue-400" />
+                                <div className="p-2 rounded-lg bg-blue-100">
+                                    <Truck className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.total}</p>
-                                    <p className="text-xs text-slate-400">Total camions</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                                    <p className="text-xs text-muted-foreground">Total camions</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-amber-500/10">
-                                    <Clock className="w-5 h-5 text-amber-400" />
+                                <div className="p-2 rounded-lg bg-amber-100">
+                                    <Clock className="w-5 h-5 text-amber-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.enAttente}</p>
-                                    <p className="text-xs text-slate-400">En attente</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.enAttente}</p>
+                                    <p className="text-xs text-muted-foreground">En attente</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-emerald-500/10">
-                                    <CheckCircle className="w-5 h-5 text-emerald-400" />
+                                <div className="p-2 rounded-lg bg-emerald-100">
+                                    <CheckCircle className="w-5 h-5 text-emerald-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.charges}</p>
-                                    <p className="text-xs text-slate-400">Chargés</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.charges}</p>
+                                    <p className="text-xs text-muted-foreground">Chargés</p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card>
                         <CardContent className="p-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-purple-500/10">
-                                    <Weight className="w-5 h-5 text-purple-400" />
+                                <div className="p-2 rounded-lg bg-purple-100">
+                                    <Weight className="w-5 h-5 text-purple-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white">{stats.tonnageTotal.toFixed(1)}</p>
-                                    <p className="text-xs text-slate-400">Tonnes total</p>
+                                    <p className="text-2xl font-bold text-foreground">{stats.tonnageTotal.toFixed(1)}</p>
+                                    <p className="text-xs text-muted-foreground">Tonnes total</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -257,7 +256,7 @@ const VracChargementDashboard: React.FC = () => {
                 </div>
 
                 {/* Filters */}
-                <Card className="bg-slate-800/50 border-slate-700">
+                <Card>
                     <CardContent className="p-4">
                         <div className="flex flex-wrap gap-4">
                             {/* Date Picker */}
@@ -266,42 +265,43 @@ const VracChargementDashboard: React.FC = () => {
                                     <Button
                                         variant="outline"
                                         className={cn(
-                                            "w-48 justify-start text-left font-normal bg-slate-700/50 border-slate-600 hover:bg-slate-700 text-white"
+                                            "w-48 justify-start text-left font-normal",
+                                            !selectedDate && "text-muted-foreground"
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {format(selectedDate, 'dd MMMM yyyy', { locale: fr })}
+                                        {selectedDate ? format(selectedDate, 'dd MMMM yyyy', { locale: fr }) : <span>Choisir une date</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 bg-slate-800 border-slate-700" align="start">
+                                <PopoverContent className="w-auto p-0" align="start">
                                     <Calendar
                                         mode="single"
                                         selected={selectedDate}
                                         onSelect={(d) => d && setSelectedDate(d)}
                                         locale={fr}
-                                        className="bg-slate-800"
                                     />
                                 </PopoverContent>
                             </Popover>
 
                             {/* Search */}
                             <div className="relative flex-1 min-w-48">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Rechercher..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-9 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                                    className="pl-9"
+                                    type="text"
                                 />
                             </div>
 
                             {/* Client Filter */}
                             <Select value={clientFilter} onValueChange={setClientFilter}>
-                                <SelectTrigger className="w-48 bg-slate-700/50 border-slate-600 text-white">
+                                <SelectTrigger className="w-48">
                                     <Building2 className="w-4 h-4 mr-2" />
                                     <SelectValue placeholder="Client" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectContent>
                                     <SelectItem value="all">Tous les clients</SelectItem>
                                     {clients.map(client => (
                                         <SelectItem key={client.id} value={client.id}>
@@ -313,11 +313,11 @@ const VracChargementDashboard: React.FC = () => {
 
                             {/* Status Filter */}
                             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'en_attente' | 'charge')}>
-                                <SelectTrigger className="w-40 bg-slate-700/50 border-slate-600 text-white">
+                                <SelectTrigger className="w-40">
                                     <Filter className="w-4 h-4 mr-2" />
                                     <SelectValue placeholder="Statut" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectContent>
                                     <SelectItem value="all">Tous</SelectItem>
                                     <SelectItem value="en_attente">En attente</SelectItem>
                                     <SelectItem value="charge">Chargé</SelectItem>
@@ -328,65 +328,65 @@ const VracChargementDashboard: React.FC = () => {
                 </Card>
 
                 {/* Demandes Table */}
-                <Card className="bg-slate-800/50 border-slate-700">
+                <Card>
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Truck className="w-5 h-5 text-orange-500" />
+                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                            <Truck className="w-5 h-5 text-primary" />
                             Camions du {format(selectedDate, 'dd MMMM yyyy', { locale: fr })} ({filteredDemandes.length})
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
-                            <div className="text-center py-8 text-slate-400">Chargement...</div>
+                            <div className="text-center py-8 text-muted-foreground">Chargement...</div>
                         ) : filteredDemandes.length === 0 ? (
-                            <div className="text-center py-8 text-slate-400">
+                            <div className="text-center py-8 text-muted-foreground">
                                 Aucun camion pour cette date
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
-                                        <TableRow className="border-slate-700 hover:bg-transparent">
-                                            <TableHead className="text-slate-400">Client</TableHead>
-                                            <TableHead className="text-slate-400">Tracteur</TableHead>
-                                            <TableHead className="text-slate-400">Citerne</TableHead>
-                                            <TableHead className="text-slate-400">N° Bon</TableHead>
-                                            <TableHead className="text-slate-400">Statut</TableHead>
-                                            <TableHead className="text-slate-400 text-right">Tonnage</TableHead>
-                                            <TableHead className="text-slate-400 text-right">Action</TableHead>
+                                        <TableRow>
+                                            <TableHead>Client</TableHead>
+                                            <TableHead>Tracteur</TableHead>
+                                            <TableHead>Citerne</TableHead>
+                                            <TableHead>N° Bon</TableHead>
+                                            <TableHead>Statut</TableHead>
+                                            <TableHead className="text-right">Tonnage</TableHead>
+                                            <TableHead className="text-right">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {filteredDemandes.map((demande) => (
-                                            <TableRow key={demande.id} className="border-slate-700 hover:bg-slate-700/30">
+                                            <TableRow key={demande.id}>
                                                 <TableCell>
-                                                    <Badge variant="outline" className="border-slate-600 text-slate-300">
+                                                    <Badge variant="outline">
                                                         {demande.vrac_clients?.nom_affichage || '-'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-white font-mono">
+                                                <TableCell className="font-mono font-medium">
                                                     {demande.immatriculation_tracteur}
                                                 </TableCell>
-                                                <TableCell className="text-white font-mono">
+                                                <TableCell className="font-mono font-medium">
                                                     {demande.immatriculation_citerne}
                                                 </TableCell>
-                                                <TableCell className="text-slate-300">
+                                                <TableCell className="text-muted-foreground">
                                                     {demande.numero_bon || '-'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {demande.statut === 'charge' ? (
-                                                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1">
-                                                            <CheckCircle className="w-3 h-3" />
+                                                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200">
+                                                            <CheckCircle className="w-3 h-3 mr-1" />
                                                             Chargé
                                                         </Badge>
                                                     ) : (
-                                                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 gap-1">
-                                                            <Clock className="w-3 h-3" />
+                                                        <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100">
+                                                            <Clock className="w-3 h-3 mr-1" />
                                                             En attente
                                                         </Badge>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-right text-white font-semibold">
+                                                <TableCell className="text-right font-semibold">
                                                     {demande.tonnage_charge ? `${demande.tonnage_charge.toFixed(2)} T` : '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
@@ -394,7 +394,7 @@ const VracChargementDashboard: React.FC = () => {
                                                         <Button
                                                             size="sm"
                                                             onClick={() => openValidation(demande)}
-                                                            className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white"
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                                         >
                                                             <Weight className="w-4 h-4 mr-1" />
                                                             Valider

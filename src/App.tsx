@@ -17,6 +17,7 @@ import VracClientPortal from "./pages/VracClientPortal";
 import VracAdminPanel from "./pages/VracAdminPanel";
 import VracChargementDashboard from "./pages/VracChargementDashboard";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -44,8 +45,11 @@ const App = () => (
           <Route path="/new-bilan" element={<NewBilan />} />
           {/* VRAC Module Routes */}
           <Route path="/vrac" element={<VracClientPortal />} />
-          <Route path="/vrac-admin" element={<VracAdminPanel />} />
-          <Route path="/vrac-chargements" element={<VracChargementDashboard />} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route path="/vrac-admin" element={<VracAdminPanel />} />
+            <Route path="/vrac-chargements" element={<VracChargementDashboard />} />
+          </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

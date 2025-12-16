@@ -95,10 +95,10 @@ const VracPasswordGenerator: React.FC = () => {
     };
 
     return (
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card>
             <CardHeader>
-                <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Key className="w-5 h-5 text-orange-500" />
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Key className="w-5 h-5 text-primary" />
                     Générer un mot de passe client
                 </CardTitle>
             </CardHeader>
@@ -107,15 +107,15 @@ const VracPasswordGenerator: React.FC = () => {
                     <>
                         {/* Client Selection */}
                         <div className="space-y-2">
-                            <Label className="text-slate-300 flex items-center gap-2">
+                            <Label className="flex items-center gap-2">
                                 <Building2 className="w-4 h-4" />
                                 Client VRAC
                             </Label>
                             <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                                <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white">
+                                <SelectTrigger>
                                     <SelectValue placeholder="Sélectionner un client" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700">
+                                <SelectContent>
                                     {clients.map(client => (
                                         <SelectItem key={client.id} value={client.id}>
                                             {client.nom_affichage}
@@ -127,15 +127,14 @@ const VracPasswordGenerator: React.FC = () => {
 
                         {/* User Name (optional) */}
                         <div className="space-y-2">
-                            <Label className="text-slate-300 flex items-center gap-2">
+                            <Label className="flex items-center gap-2">
                                 <User className="w-4 h-4" />
-                                Nom de l'utilisateur <span className="text-slate-500">(optionnel)</span>
+                                Nom de l'utilisateur <span className="text-muted-foreground font-normal">(optionnel)</span>
                             </Label>
                             <Input
                                 value={userName}
                                 onChange={(e) => setUserName(e.target.value)}
                                 placeholder="Ex: Jean Dupont"
-                                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
                             />
                         </div>
 
@@ -159,29 +158,29 @@ const VracPasswordGenerator: React.FC = () => {
                     </>
                 ) : (
                     <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                            <p className="text-sm text-emerald-400 mb-2">Mot de passe généré avec succès</p>
+                        <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+                            <p className="text-sm text-emerald-700 mb-2 font-medium">Mot de passe généré avec succès</p>
                             <div className="flex items-center gap-2">
-                                <code className="flex-1 px-4 py-3 bg-slate-900 rounded-lg text-2xl font-mono text-white text-center tracking-wider">
+                                <code className="flex-1 px-4 py-3 bg-white border border-border rounded-lg text-2xl font-mono text-center tracking-wider text-foreground shadow-sm">
                                     {generatedPassword}
                                 </code>
                                 <Button
                                     variant="outline"
                                     size="icon"
                                     onClick={handleCopy}
-                                    className="h-12 w-12 border-slate-600 hover:bg-slate-700"
+                                    className="h-12 w-12"
                                 >
                                     {copied ? (
-                                        <Check className="w-5 h-5 text-emerald-400" />
+                                        <Check className="w-5 h-5 text-emerald-600" />
                                     ) : (
-                                        <Copy className="w-5 h-5 text-slate-400" />
+                                        <Copy className="w-5 h-5 text-muted-foreground" />
                                     )}
                                 </Button>
                             </div>
                         </div>
 
-                        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                            <p className="text-sm text-amber-400">
+                        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                            <p className="text-sm text-amber-800">
                                 ⚠️ Notez ce mot de passe et communiquez-le au client. Il ne sera plus visible après cette page.
                             </p>
                         </div>
@@ -189,7 +188,7 @@ const VracPasswordGenerator: React.FC = () => {
                         <Button
                             variant="outline"
                             onClick={handleReset}
-                            className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
+                            className="w-full"
                         >
                             Générer un autre mot de passe
                         </Button>
