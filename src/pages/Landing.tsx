@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import DemoRequestDialog from '@/components/DemoRequestDialog';
-import { 
-  BarChart3, 
-  Truck, 
-  Calculator, 
-  Users, 
-  Shield, 
+import LoginDialog from '@/components/LoginDialog';
+import {
+  BarChart3,
+  Truck,
+  Calculator,
+  Users,
+  Shield,
   Zap,
   ArrowRight,
   CheckCircle2,
@@ -20,6 +21,7 @@ import {
 const Landing = () => {
   const navigate = useNavigate();
   const [demoDialogOpen, setDemoDialogOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   const features = [
     {
@@ -76,7 +78,7 @@ const Landing = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <span className="text-xl font-bold text-primary">GazPILOT</span>
-          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" onClick={() => setLoginDialogOpen(true)}>
             Connexion
           </Button>
         </div>
@@ -89,18 +91,18 @@ const Landing = () => {
             <Zap className="h-4 w-4" />
             Plateforme de gestion GPL nouvelle génération
           </div>
-          
+
           <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
             Pilotez votre
             <span className="text-primary"> centre emplisseur </span>
             en toute simplicité
           </h1>
-          
+
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            GazPILOT centralise la gestion de votre production GPL, le suivi des ventes par mandataire, 
+            GazPILOT centralise la gestion de votre production GPL, le suivi des ventes par mandataire,
             et l'analyse de vos performances en temps réel.
           </p>
-          
+
           <Button size="lg" onClick={() => setDemoDialogOpen(true)} className="gap-2 text-lg px-8">
             Demander une démo
             <ArrowRight className="h-5 w-5" />
@@ -133,7 +135,7 @@ const Landing = () => {
               Une suite complète d'outils pour gérer efficacement votre activité GPL
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => {
               const Icon = feature.icon;
@@ -162,10 +164,10 @@ const Landing = () => {
                 Optimisez chaque aspect de votre activité
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
-                GazPILOT vous offre une visibilité complète sur vos opérations, 
+                GazPILOT vous offre une visibilité complète sur vos opérations,
                 de la production à la livraison finale.
               </p>
-              
+
               <div className="grid sm:grid-cols-2 gap-4">
                 {benefits.map((benefit, index) => (
                   <div key={index} className="flex items-center gap-3">
@@ -174,13 +176,13 @@ const Landing = () => {
                   </div>
                 ))}
               </div>
-              
+
               <Button size="lg" onClick={() => navigate('/dashboard')} className="mt-8 gap-2">
                 Explorer la plateforme
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </div>
-            
+
             <div className="relative">
               <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl p-8">
                 <div className="bg-card rounded-xl shadow-xl p-6 space-y-4">
@@ -219,10 +221,10 @@ const Landing = () => {
             <p className="text-xl text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
               Rejoignez les centres emplisseurs qui font confiance à GazPILOT pour optimiser leurs opérations.
             </p>
-            <Button 
-              size="lg" 
-              variant="secondary" 
-              onClick={() => setDemoDialogOpen(true)} 
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={() => setDemoDialogOpen(true)}
               className="gap-2 text-lg px-8"
             >
               Demander une démo
@@ -245,6 +247,7 @@ const Landing = () => {
       </footer>
 
       <DemoRequestDialog open={demoDialogOpen} onOpenChange={setDemoDialogOpen} />
+      <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
     </div>
   );
 };

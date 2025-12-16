@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,8 +30,14 @@ import PasswordGate from '@/components/PasswordGate';
 const DashboardHistorique = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('dashboard_authenticated') === 'true';
+    return sessionStorage.getItem('dashboard_authenticated') === 'true' || localStorage.getItem('isAuthenticated') === 'true';
   });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/");
+    }
+  }, [isAuthenticated, navigate]);
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
@@ -45,7 +51,23 @@ const DashboardHistorique = () => {
   const [isBilansExpanded, setIsBilansExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
+
   const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
+  const [userName, setUserName] = useState<string>("");
+
+  useEffect(() => {
+    const storedName = localStorage.getItem("user_name");
+    if (storedName) setUserName(storedName);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("user_name");
+    sessionStorage.removeItem("dashboard_authenticated");
+    setIsAuthenticated(false);
+    navigate("/");
+  };
 
   // Filter state for Centre Emplisseur
   const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
@@ -564,10 +586,6 @@ const DashboardHistorique = () => {
     toast.success('Impression réussie');
   };
 
-  if (!isAuthenticated) {
-    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -579,458 +597,491 @@ const DashboardHistorique = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-primary">GazPILOT</h1>
+      <header className="border-b bg-card transition-all duration-300">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col gap-4">
+            {/* Top Bar: Logo + Toggle + User Profile */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h1 className="text-3xl font-bold text-primary">GazPILOT</h1>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
+                  className="gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  {isHeaderExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {isHeaderExpanded ? "Masquer" : "Afficher KPIs"}
+                </Button>
+                <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full">
+                  <User className="h-4 w-4 text-primary" />
+                  <span className="font-semibold text-sm">{userName || "Utilisateur"}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  title="Se déconnecter"
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              {/* VENTES VRAC - Always visible */}
-              <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
-                <p className="text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
-                  VENTES VRAC :
-                </p>
-                <div className="flex items-center gap-1">
-                  <Select value={ventesFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesFilterType(v)}>
-                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="year">Année</SelectItem>
-                      <SelectItem value="month">Mois</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="range">Période</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground/50 text-[10px]">|</span>
-                  {ventesFilterType === 'year' && (
-                    <Select value={ventesSelectedYear.toString()} onValueChange={(v) => setVentesSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableYears.map(year => (
-                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {ventesFilterType === 'month' && (
-                    <Select value={ventesSelectedMonth} onValueChange={setVentesSelectedMonth}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMonths.map(month => (
-                          <SelectItem key={month} value={month}>
-                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {ventesFilterType === 'date' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {ventesSelectedDate ? format(ventesSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={ventesSelectedDate}
-                          onSelect={setVentesSelectedDate}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  {ventesFilterType === 'range' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {ventesDateRange?.from ? (
-                            ventesDateRange.to ? (
-                              `${format(ventesDateRange.from, 'dd/MM')} - ${format(ventesDateRange.to, 'dd/MM')}`
-                            ) : (
-                              format(ventesDateRange.from, 'dd/MM/yyyy')
-                            )
-                          ) : (
-                            'Sélectionner'
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={ventesDateRange}
-                          onSelect={setVentesDateRange}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                          numberOfMonths={2}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-                <p className="text-2xl font-extrabold text-orange-600 tracking-tight mt-auto">
-                  {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                  <span className="text-sm font-semibold text-orange-600/60 ml-1.5">Kg</span>
-                </p>
-              </div>
 
-
-              {/* PRODUCTION CE - Always visible */}
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
-                <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
-                  PRODUCTION CE :
-                </p>
-                <div className="flex items-center gap-1">
-                  <Select value={productionFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setProductionFilterType(v)}>
-                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="year">Année</SelectItem>
-                      <SelectItem value="month">Mois</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="range">Période</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground/50 text-[10px]">|</span>
-                  {productionFilterType === 'year' && (
-                    <Select value={productionSelectedYear.toString()} onValueChange={(v) => setProductionSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableYears.map(year => (
-                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {productionFilterType === 'month' && (
-                    <Select value={productionSelectedMonth} onValueChange={setProductionSelectedMonth}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMonths.map(month => (
-                          <SelectItem key={month} value={month}>
-                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {productionFilterType === 'date' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {productionSelectedDate ? format(productionSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={productionSelectedDate}
-                          onSelect={setProductionSelectedDate}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  {productionFilterType === 'range' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {productionDateRange?.from ? (
-                            productionDateRange.to ? (
-                              `${format(productionDateRange.from, 'dd/MM')} - ${format(productionDateRange.to, 'dd/MM')}`
-                            ) : (
-                              format(productionDateRange.from, 'dd/MM/yyyy')
-                            )
-                          ) : (
-                            'Sélectionner'
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={productionDateRange}
-                          onSelect={setProductionDateRange}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                          numberOfMonths={2}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-                <p className="text-2xl font-extrabold text-primary tracking-tight mt-auto">
-                  {(productionAnnuelle * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                  <span className="text-sm font-semibold text-primary/60 ml-1.5">Kg</span>
-                </p>
-              </div>
-
-
-              {/* VENTES CE - Always visible */}
-              <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
-                <p className="text-[10px] font-semibold text-green-600/70 uppercase tracking-wider">
-                  VENTES CE :
-                </p>
-                <div className="flex items-center gap-1">
-                  <Select value={ventesCEFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesCEFilterType(v)}>
-                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="year">Année</SelectItem>
-                      <SelectItem value="month">Mois</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="range">Période</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground/50 text-[10px]">|</span>
-                  {ventesCEFilterType === 'year' && (
-                    <Select value={ventesCESelectedYear.toString()} onValueChange={(v) => setVentesCESelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableYears.map(year => (
-                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {ventesCEFilterType === 'month' && (
-                    <Select value={ventesCESelectedMonth} onValueChange={setVentesCESelectedMonth}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMonths.map(month => (
-                          <SelectItem key={month} value={month}>
-                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {ventesCEFilterType === 'date' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {ventesCESelectedDate ? format(ventesCESelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={ventesCESelectedDate}
-                          onSelect={setVentesCESelectedDate}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  {ventesCEFilterType === 'range' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {ventesCEDateRange?.from ? (
-                            ventesCEDateRange.to ? (
-                              `${format(ventesCEDateRange.from, 'dd/MM')} - ${format(ventesCEDateRange.to, 'dd/MM')}`
-                            ) : (
-                              format(ventesCEDateRange.from, 'dd/MM/yyyy')
-                            )
-                          ) : (
-                            'Sélectionner'
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={ventesCEDateRange}
-                          onSelect={setVentesCEDateRange}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                          numberOfMonths={2}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-                <p className="text-2xl font-extrabold text-green-600 tracking-tight mt-auto">
-                  {ventesCE.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                  <span className="text-sm font-semibold text-green-600/60 ml-1.5">Kg</span>
-                </p>
-              </div>
-
-
-              {/* Bilan Matière - Always visible */}
-              < div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[240px]`}>
-                <p className={`text-[10px] font-semibold ${getBilanColor().textLight} uppercase tracking-wider`}>
-                  BILAN MATIÈRE :
-                </p>
-                <div className="flex items-center gap-1">
-                  <Select value={bilanFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setBilanFilterType(v)}>
-                    <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="year">Année</SelectItem>
-                      <SelectItem value="month">Mois</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="range">Période</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground/50 text-[10px]">|</span>
-                  {bilanFilterType === 'year' && (
-                    <Select value={bilanSelectedYear.toString()} onValueChange={(v) => setBilanSelectedYear(Number(v))}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableYears.map(year => (
-                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {bilanFilterType === 'month' && (
-                    <Select value={bilanSelectedMonth} onValueChange={setBilanSelectedMonth}>
-                      <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMonths.map(month => (
-                          <SelectItem key={month} value={month}>
-                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {bilanFilterType === 'date' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {bilanSelectedDate ? format(bilanSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={bilanSelectedDate}
-                          onSelect={setBilanSelectedDate}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  {bilanFilterType === 'range' && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
-                        >
-                          {bilanDateRange?.from ? (
-                            bilanDateRange.to ? (
-                              `${format(bilanDateRange.from, 'dd/MM')} - ${format(bilanDateRange.to, 'dd/MM')}`
-                            ) : (
-                              format(bilanDateRange.from, 'dd/MM/yyyy')
-                            )
-                          ) : (
-                            'Sélectionner'
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={bilanDateRange}
-                          onSelect={setBilanDateRange}
-                          locale={fr}
-                          disabled={{ after: new Date() }}
-                          numberOfMonths={2}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-
-                <div className="flex justify-between items-end mt-auto w-full">
-                  <p className={`text-xl font-extrabold ${getBilanColor().textBold} tracking-tight leading-none`}>
-                    {getFilteredBilan().toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                    <span className={`text-[10px] font-semibold ${getBilanColor().textLight} ml-1`}>Kg</span>
-                  </p>
-                  <div className="flex flex-col gap-1 text-right border-l pl-3 border-black/5">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-[9px] uppercase tracking-wider text-black">Avec VRAC</span>
-                      <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
-                        {((sortieVracAnnuelle + ventesCE) > 0 ? (getFilteredBilan() / (sortieVracAnnuelle + ventesCE)) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                      </span>
+            {/* KPI Cards Section - Collapsible */}
+            {isHeaderExpanded && (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4 fade-in duration-300">
+                <div className="flex items-center gap-4 w-full overflow-x-auto pb-2 no-scrollbar">
+                  {/* VENTES VRAC - Always visible */}
+                  <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
+                    <p className="text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
+                      VENTES VRAC :
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Select value={ventesFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesFilterType(v)}>
+                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="year">Année</SelectItem>
+                          <SelectItem value="month">Mois</SelectItem>
+                          <SelectItem value="date">Date</SelectItem>
+                          <SelectItem value="range">Période</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      {ventesFilterType === 'year' && (
+                        <Select value={ventesSelectedYear.toString()} onValueChange={(v) => setVentesSelectedYear(Number(v))}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableYears.map(year => (
+                              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {ventesFilterType === 'month' && (
+                        <Select value={ventesSelectedMonth} onValueChange={setVentesSelectedMonth}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMonths.map(month => (
+                              <SelectItem key={month} value={month}>
+                                {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {ventesFilterType === 'date' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {ventesSelectedDate ? format(ventesSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={ventesSelectedDate}
+                              onSelect={setVentesSelectedDate}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {ventesFilterType === 'range' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {ventesDateRange?.from ? (
+                                ventesDateRange.to ? (
+                                  `${format(ventesDateRange.from, 'dd/MM')} - ${format(ventesDateRange.to, 'dd/MM')}`
+                                ) : (
+                                  format(ventesDateRange.from, 'dd/MM/yyyy')
+                                )
+                              ) : (
+                                'Sélectionner'
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="range"
+                              selected={ventesDateRange}
+                              onSelect={setVentesDateRange}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                              numberOfMonths={2}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
                     </div>
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-[9px] uppercase tracking-wider text-black">Sans VRAC</span>
-                      <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
-                        {(ventesCE > 0 ? (getFilteredBilan() / ventesCE) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                      </span>
+                    <p className="text-2xl font-extrabold text-orange-600 tracking-tight mt-auto">
+                      {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      <span className="text-sm font-semibold text-orange-600/60 ml-1.5">Kg</span>
+                    </p>
+                  </div>
+
+
+                  {/* PRODUCTION CE - Always visible */}
+                  <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
+                    <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
+                      PRODUCTION CE :
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Select value={productionFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setProductionFilterType(v)}>
+                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="year">Année</SelectItem>
+                          <SelectItem value="month">Mois</SelectItem>
+                          <SelectItem value="date">Date</SelectItem>
+                          <SelectItem value="range">Période</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      {productionFilterType === 'year' && (
+                        <Select value={productionSelectedYear.toString()} onValueChange={(v) => setProductionSelectedYear(Number(v))}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableYears.map(year => (
+                              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {productionFilterType === 'month' && (
+                        <Select value={productionSelectedMonth} onValueChange={setProductionSelectedMonth}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMonths.map(month => (
+                              <SelectItem key={month} value={month}>
+                                {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {productionFilterType === 'date' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {productionSelectedDate ? format(productionSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={productionSelectedDate}
+                              onSelect={setProductionSelectedDate}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {productionFilterType === 'range' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {productionDateRange?.from ? (
+                                productionDateRange.to ? (
+                                  `${format(productionDateRange.from, 'dd/MM')} - ${format(productionDateRange.to, 'dd/MM')}`
+                                ) : (
+                                  format(productionDateRange.from, 'dd/MM/yyyy')
+                                )
+                              ) : (
+                                'Sélectionner'
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="range"
+                              selected={productionDateRange}
+                              onSelect={setProductionDateRange}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                              numberOfMonths={2}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
+                    <p className="text-2xl font-extrabold text-primary tracking-tight mt-auto">
+                      {(productionAnnuelle * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      <span className="text-sm font-semibold text-primary/60 ml-1.5">Kg</span>
+                    </p>
+                  </div>
+
+
+                  {/* VENTES CE - Always visible */}
+                  <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
+                    <p className="text-[10px] font-semibold text-green-600/70 uppercase tracking-wider">
+                      VENTES CE :
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Select value={ventesCEFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesCEFilterType(v)}>
+                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="year">Année</SelectItem>
+                          <SelectItem value="month">Mois</SelectItem>
+                          <SelectItem value="date">Date</SelectItem>
+                          <SelectItem value="range">Période</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      {ventesCEFilterType === 'year' && (
+                        <Select value={ventesCESelectedYear.toString()} onValueChange={(v) => setVentesCESelectedYear(Number(v))}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableYears.map(year => (
+                              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {ventesCEFilterType === 'month' && (
+                        <Select value={ventesCESelectedMonth} onValueChange={setVentesCESelectedMonth}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMonths.map(month => (
+                              <SelectItem key={month} value={month}>
+                                {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {ventesCEFilterType === 'date' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {ventesCESelectedDate ? format(ventesCESelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={ventesCESelectedDate}
+                              onSelect={setVentesCESelectedDate}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {ventesCEFilterType === 'range' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {ventesCEDateRange?.from ? (
+                                ventesCEDateRange.to ? (
+                                  `${format(ventesCEDateRange.from, 'dd/MM')} - ${format(ventesCEDateRange.to, 'dd/MM')}`
+                                ) : (
+                                  format(ventesCEDateRange.from, 'dd/MM/yyyy')
+                                )
+                              ) : (
+                                'Sélectionner'
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="range"
+                              selected={ventesCEDateRange}
+                              onSelect={setVentesCEDateRange}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                              numberOfMonths={2}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
+                    <p className="text-2xl font-extrabold text-green-600 tracking-tight mt-auto">
+                      {(ventesCE * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      <span className="text-sm font-semibold text-green-600/60 ml-1.5">Kg</span>
+                    </p>
+                  </div>
+
+                  {/* BILAN MATIÈRE - Always visible */}
+                  <div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]`}>
+                    <p className={`text-[10px] font-semibold ${getBilanColor().textLight} uppercase tracking-wider`}>
+                      BILAN MATIÈRE :
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Select value={bilanFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setBilanFilterType(v)}>
+                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="year">Année</SelectItem>
+                          <SelectItem value="month">Mois</SelectItem>
+                          <SelectItem value="date">Date</SelectItem>
+                          <SelectItem value="range">Période</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      {bilanFilterType === 'year' && (
+                        <Select value={bilanSelectedYear.toString()} onValueChange={(v) => setBilanSelectedYear(Number(v))}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableYears.map(year => (
+                              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {bilanFilterType === 'month' && (
+                        <Select value={bilanSelectedMonth} onValueChange={setBilanSelectedMonth}>
+                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMonths.map(month => (
+                              <SelectItem key={month} value={month}>
+                                {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {bilanFilterType === 'date' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {bilanSelectedDate ? format(bilanSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={bilanSelectedDate}
+                              onSelect={setBilanSelectedDate}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {bilanFilterType === 'range' && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                            >
+                              {bilanDateRange?.from ? (
+                                bilanDateRange.to ? (
+                                  `${format(bilanDateRange.from, 'dd/MM')} - ${format(bilanDateRange.to, 'dd/MM')}`
+                                ) : (
+                                  format(bilanDateRange.from, 'dd/MM/yyyy')
+                                )
+                              ) : (
+                                'Sélectionner'
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="range"
+                              selected={bilanDateRange}
+                              onSelect={setBilanDateRange}
+                              locale={fr}
+                              disabled={{ after: new Date() }}
+                              numberOfMonths={2}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
+                    <p className={`text-2xl font-extrabold ${getBilanColor().textBold} tracking-tight mt-auto`}>
+                      {(getFilteredBilan() * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      <span className="text-sm font-semibold opacity-60 ml-1.5">Kg</span>
+                    </p>
+
+                    <div className="flex flex-col gap-1 text-right border-l pl-3 border-black/5">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-[9px] uppercase tracking-wider text-black">Avec VRAC</span>
+                        <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
+                          {((sortieVracAnnuelle + ventesCE) > 0 ? (getFilteredBilan() / (sortieVracAnnuelle + ventesCE)) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-[9px] uppercase tracking-wider text-black">Sans VRAC</span>
+                        <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
+                          {(ventesCE > 0 ? (getFilteredBilan() / ventesCE) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-
-              <Button
-                onClick={togglePresentationMode}
-                variant={isPresentationMode ? "default" : "outline"}
-                size="lg"
-                className="gap-2 font-bold"
-              >
-                <Presentation className="h-5 w-5" />
-                {isPresentationMode ? 'QUITTER' : 'PRÉSENTER'}
-              </Button>
-            </div>
+            )}
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Presentation & Controls Bar */}
+        <div className="flex justify-end mb-4">
+          <Button
+            onClick={togglePresentationMode}
+            variant={isPresentationMode ? "default" : "outline"}
+            size="sm"
+            className="gap-2 font-bold"
+          >
+            <Presentation className="h-4 w-4" />
+            {isPresentationMode ? 'QUITTER PRÉSENTATION' : 'PRÉSENTER'}
+          </Button>
+        </div>
         {/* Navigation Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="flex items-center justify-center gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
           <Button
             variant={activeView === 'overview' ? 'default' : 'outline'}
             size="lg"
