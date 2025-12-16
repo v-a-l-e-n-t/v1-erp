@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp, List, BarChart3 } from "lucide-react";
+import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp, List, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -81,25 +81,52 @@ const MandatairesVentesHistory = () => {
   const [activeTab, setActiveTab] = useState<string>("detailed");
   const [groupBy, setGroupBy] = useState<GroupByType>("mandataire");
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedMandataire, selectedClient, selectedDestination, filterType, selectedYear, selectedMonth, dateStart, dateEnd, singleDate]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ventesResult, mandatairesResult] = await Promise.all([
-        supabase
+      // Batch fetching to bypass 1000 rows limit
+      const BATCH_SIZE = 1000;
+      const TOTAL_LIMIT = 10000;
+      const batches = Math.ceil(TOTAL_LIMIT / BATCH_SIZE);
+
+      const fetchPromises = Array.from({ length: batches }).map((_, i) => {
+        const from = i * BATCH_SIZE;
+        const to = (i + 1) * BATCH_SIZE - 1;
+
+        return supabase
           .from("ventes_mandataires")
           .select("*, mandataires(nom)")
-          .order("date", { ascending: false }),
-        supabase.from("mandataires").select("*").order("nom")
+          .order("date", { ascending: false })
+          .range(from, to);
+      });
+
+      const [mandatairesResult, ...ventesResults] = await Promise.all([
+        supabase.from("mandataires").select("*").order("nom"),
+        ...fetchPromises
       ]);
 
-      if (ventesResult.error) throw ventesResult.error;
       if (mandatairesResult.error) throw mandatairesResult.error;
 
-      setVentes(ventesResult.data || []);
+      const allVentes: VenteMandataire[] = [];
+      ventesResults.forEach(result => {
+        if (result.error) console.error("Batch error:", result.error);
+        if (result.data) allVentes.push(...(result.data as any));
+      });
+
+      setVentes(allVentes);
       setMandataires(mandatairesResult.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -528,45 +555,96 @@ const MandatairesVentesHistory = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredVentes.map((vente) => (
-                      <TableRow key={vente.id}>
-                        <TableCell className="font-medium">
-                          {format(new Date(vente.date), "dd/MM/yy")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{vente.mandataires?.nom || "-"}</Badge>
-                        </TableCell>
-                        <TableCell>{vente.camion || "-"}</TableCell>
-                        <TableCell>{vente.client || "-"}</TableCell>
-                        <TableCell>{vente.destination || "-"}</TableCell>
-                        <TableCell className="font-mono text-xs">{vente.numero_bon_sortie}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {getTotalRecharges(vente)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {getTotalConsignes(vente)}
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                          {calculateTonnageKg(vente).toLocaleString("fr-FR")}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteId(vente.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filteredVentes
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((vente) => (
+                        <TableRow key={vente.id}>
+                          <TableCell className="font-medium">
+                            {format(new Date(vente.date), "dd/MM/yy")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{vente.mandataires?.nom || "-"}</Badge>
+                          </TableCell>
+                          <TableCell>{vente.camion || "-"}</TableCell>
+                          <TableCell>{vente.client || "-"}</TableCell>
+                          <TableCell>{vente.destination || "-"}</TableCell>
+                          <TableCell className="font-mono text-xs">{vente.numero_bon_sortie}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {getTotalRecharges(vente)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {getTotalConsignes(vente)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {calculateTonnageKg(vente).toLocaleString("fr-FR")}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteId(vente.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
                   )}
                 </TableBody>
               </Table>
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredVentes.length)} sur {filteredVentes.length} entrées</span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(v) => {
+                  setItemsPerPage(Number(v));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={itemsPerPage} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                </SelectContent>
+              </Select>
+              <span>par page</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Précédent
+              </Button>
+              <div className="text-sm font-medium">
+                Page {currentPage} sur {Math.max(1, Math.ceil(filteredVentes.length / itemsPerPage))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredVentes.length / itemsPerPage)))}
+                disabled={currentPage >= Math.ceil(filteredVentes.length / itemsPerPage)}
+              >
+                Suivant
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Vue Regroupée */}
