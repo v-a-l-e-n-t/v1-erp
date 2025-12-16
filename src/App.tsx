@@ -13,6 +13,9 @@ import SphereHistory from "./pages/SphereHistory";
 import ProductionDataEntry from "./pages/ProductionDataEntry";
 import ChefsLigneManagement from "./pages/ChefsLigneManagement";
 import ImportData from "./pages/ImportData";
+import VracClientPortal from "./pages/VracClientPortal";
+import VracAdminPanel from "./pages/VracAdminPanel";
+import VracChargementDashboard from "./pages/VracChargementDashboard";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +42,10 @@ const App = () => (
           <Route path="/chefs-ligne" element={<ChefsLigneManagement />} />
           <Route path="/import_data" element={<ImportData />} />
           <Route path="/new-bilan" element={<NewBilan />} />
+          {/* VRAC Module Routes */}
+          <Route path="/vrac" element={<VracClientPortal />} />
+          <Route path="/vrac-admin" element={<VracAdminPanel />} />
+          <Route path="/vrac-chargements" element={<VracChargementDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
