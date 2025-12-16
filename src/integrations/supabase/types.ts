@@ -72,6 +72,10 @@ export type Database = {
       }
       bilan_entries: {
         Row: {
+          agent_exploitation_matin: string | null
+          agent_exploitation_soir: string | null
+          agent_mouvement_matin: string | null
+          agent_mouvement_soir: string | null
           bilan: number
           bouteilles_final: number
           bouteilles_initial: number
@@ -107,6 +111,10 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          agent_exploitation_matin?: string | null
+          agent_exploitation_soir?: string | null
+          agent_mouvement_matin?: string | null
+          agent_mouvement_soir?: string | null
           bilan?: number
           bouteilles_final?: number
           bouteilles_initial?: number
@@ -142,6 +150,10 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          agent_exploitation_matin?: string | null
+          agent_exploitation_soir?: string | null
+          agent_mouvement_matin?: string | null
+          agent_mouvement_soir?: string | null
           bilan?: number
           bouteilles_final?: number
           bouteilles_initial?: number
