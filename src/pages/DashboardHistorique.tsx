@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useMemo } from 'react';
 import VentesView from '@/components/dashboard/VentesView';
+import DistributionView from '@/components/dashboard/DistributionView';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 
@@ -34,7 +35,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur' | 'sorties'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -1061,6 +1062,16 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
+            variant={activeView === 'distribution' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'distribution' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('distribution')}
+          >
+            <FileText className="mr-3 h-6 w-6" /> {/* Changed icon to FileText, assuming it's appropriate for Distribution */}
+            DISTRIBUTION
+          </Button>
+
+          <Button
             variant={activeView === 'vrac' ? 'default' : 'outline'}
             size="lg"
             className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
@@ -1159,27 +1170,10 @@ const DashboardHistorique = () => {
                 )}
               </div>
 
-              {/* Historique des ventes par mandataire - Collapsible */}
-              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                <div
-                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => setIsMandatairesVentesExpanded(!isMandatairesVentesExpanded)}
-                >
-                  <h2 className="text-2xl font-bold">Historique des ventes par mandataire</h2>
-                  <Button variant="ghost" size="icon" className="h-10 w-10">
-                    {isMandatairesVentesExpanded ? (
-                      <ChevronUp className="h-6 w-6" />
-                    ) : (
-                      <ChevronDown className="h-6 w-6" />
-                    )}
-                  </Button>
-                </div>
-                {isMandatairesVentesExpanded && (
-                  <div className="px-6 pb-6">
-                    <MandatairesVentesHistory />
-                  </div>
-                )}
-              </div>
+
+
+              {/* Historique des ventes par mandataire MOVED TO DISTRIBUTION VIEW */}
+
 
 
               <Dialog open={selectedShiftForEdit !== null} onOpenChange={(open) => {
@@ -1237,8 +1231,22 @@ const DashboardHistorique = () => {
               setSelectedMonth={setSelectedMonth}
             />
           )}
+
+          {activeView === 'distribution' && (
+            <DistributionView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              availableMonths={availableMonths}
+            />
+          )}
         </div>
-      </main>
+      </main >
 
       <footer className="border-t mt-16">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">

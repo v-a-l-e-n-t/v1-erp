@@ -9,13 +9,26 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, CalendarIcon, Trash2, Download, RotateCcw, TrendingUp, List, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { SearchableSelect } from "./SearchableSelect";
+import VenteEditDialog from "./VenteEditDialog";
 import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
-import { SearchableSelect } from "./SearchableSelect";
+import {
+  Search,
+  CalendarIcon,
+  Trash2,
+  Download,
+  RotateCcw,
+  TrendingUp,
+  List,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Pencil
+} from "lucide-react";
 
 interface Mandataire {
   id: string;
@@ -78,6 +91,7 @@ const MandatairesVentesHistory = () => {
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
   const [singleDate, setSingleDate] = useState<Date | undefined>(undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<VenteMandataire | null>(null);
   const [activeTab, setActiveTab] = useState<string>("detailed");
   const [groupBy, setGroupBy] = useState<GroupByType>("mandataire");
 
@@ -579,14 +593,23 @@ const MandatairesVentesHistory = () => {
                             {calculateTonnageKg(vente).toLocaleString("fr-FR")}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setDeleteId(vente.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditData(vente)}
+                              >
+                                <Pencil className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setDeleteId(vente.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -743,7 +766,21 @@ const MandatairesVentesHistory = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+
+      {/* Edit Dialog */}
+      <VenteEditDialog
+        open={!!editData}
+        onOpenChange={(open) => !open && setEditData(null)}
+        data={editData}
+        mandataires={mandataires}
+        clients={clients}
+        destinations={destinations}
+        onSuccess={() => {
+          fetchData();
+          setEditData(null);
+        }}
+      />
+    </div >
   );
 };
 
