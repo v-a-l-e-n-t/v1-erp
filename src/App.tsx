@@ -14,6 +14,7 @@ import ProductionDataEntry from "./pages/ProductionDataEntry";
 import AgentsManagement from "./pages/AgentsManagement";
 import ImportData from "./pages/ImportData";
 import VracClientPortal from "./pages/VracClientPortal";
+import VracLogin from "./pages/VracLogin";
 import VracAdminPanel from "./pages/VracAdminPanel";
 import VracChargementDashboard from "./pages/VracChargementDashboard";
 import NotFound from "./pages/NotFound";
@@ -43,7 +44,8 @@ const App = () => (
           <Route path="/agents" element={<AgentsManagement />} />
           <Route path="/import_data" element={<ImportData />} />
           <Route path="/new-bilan" element={<NewBilan />} />
-          {/* VRAC Module Routes */}
+          {/* VRAC Module Routes - Public Access */}
+          <Route path="/vrac-login" element={<VracLogin />} />
           <Route path="/vrac" element={<VracClientPortal />} />
 
           <Route element={<ProtectedRoute />}>

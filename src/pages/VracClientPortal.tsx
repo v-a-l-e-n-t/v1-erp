@@ -14,7 +14,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Plus, Clock, FileText, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { LogOut, Plus, Clock, FileText, CheckCircle2, XCircle, AlertCircle, Loader2, History } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -28,73 +28,56 @@ import {
 import VracDemandeForm from '@/components/vrac/VracDemandeForm';
 import { useAudit } from "@/hooks/useAudit";
 import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
+import { useVracAuth } from "@/hooks/useVracAuth";
 
 // Local type to match the fetched data structure and injected session info
+// We can simplify this now that we assume useVracAuth is the source of truth for identity
+// But looking at existing code, 'user' state is used heavily. I will map hook session to 'user'.
+
 type ExtendedVracUser = Omit<VracUser, 'vrac_clients'> & {
     vrac_clients: { nom_affichage: string } | null;
     email?: string;
-    prenom?: string; // Add if we decide to keep it, but make optional.
+    prenom?: string;
 };
 
 const VracClientPortal: React.FC = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { session, isAuthenticated, loading: authLoading, logout } = useVracAuth();
+
+    // We keep these states for now to minimize refactor risk
     const [user, setUser] = useState<ExtendedVracUser | null>(null);
     const [demandes, setDemandes] = useState<VracDemandeChargement[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // Data loading
     const [isFormOpen, setIsFormOpen] = useState(false);
     const { logAction } = useAudit();
     const [clientName, setClientName] = useState<string>('Client');
 
     useEffect(() => {
-        checkAuth();
-    }, []);
-
-    const checkAuth = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
+        if (!authLoading) {
+            if (!isAuthenticated || !session) {
                 navigate('/vrac-login');
-                return;
-            }
-
-            // Get Vrac User
-            const { data: vracUser, error } = await supabase
-                .from('vrac_users')
-                .select('*, vrac_clients(nom_affichage)')
-                .eq('id', session.user.id)
-                .single();
-
-            if (error || !vracUser) {
-                console.error('Error fetching vrac user', error);
             } else {
-                // Cast the response to match our expected structure since Supabase types might be strict
-                const fetchedUser = vracUser as unknown as ExtendedVracUser;
-
-                // Inject email from session
-                const userWithEmail: ExtendedVracUser = {
-                    ...fetchedUser,
-                    email: session.user.email
+                // Initialize user state from session
+                const mappedUser: ExtendedVracUser = {
+                    id: session.user_id,
+                    client_id: session.client_id,
+                    nom: session.user_nom,
+                    actif: true, // Assumed active if logged in
+                    created_at: '', // Not needed for display
+                    vrac_clients: { nom_affichage: session.client_nom_affichage },
+                    email: session.user_nom // Using name as email/display for now
                 };
-
-                setUser(userWithEmail);
-
-                if (fetchedUser.vrac_clients) {
-                    setClientName(fetchedUser.vrac_clients.nom_affichage);
-                }
-                loadDemandes(fetchedUser.id);
+                setUser(mappedUser);
+                setClientName(session.client_nom_affichage);
+                loadDemandes(session.user_id);
             }
-
-        } catch (error) {
-            console.error('Auth check error:', error);
-            navigate('/vrac-login');
-        } finally {
-            setLoading(false);
         }
-    };
+    }, [isAuthenticated, session, authLoading, navigate]);
 
     // Explicit load function taking userId to avoid stale state issues
     const loadDemandes = async (userId: string) => {
+        setLoading(true);
         const { data, error } = await supabase
             .from('vrac_demandes_chargement')
             .select('*')
@@ -102,15 +85,24 @@ const VracClientPortal: React.FC = () => {
             .order('created_at', { ascending: false });
 
         if (!error && data) {
-            // Cast strictly typed DB response (string status) to our Frontend Type (Enum status)
-            // We assume the DB contains valid values for now.
             setDemandes(data as unknown as VracDemandeChargement[]);
         }
+        setLoading(false);
     };
 
+    // Stats calculation
+    const stats = {
+        total: demandes.length,
+        enAttente: demandes.filter(d => d.statut === 'en_attente').length,
+        validees: demandes.filter(d => d.statut === 'validee' || d.statut === 'charge' || d.statut === 'terminee').length,
+        tonnageTotal: demandes.reduce((sum, d) => sum + (d.tonnage_charge || 0), 0),
+    };
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
+    const activeDemandes = demandes.filter(d => d.statut === 'en_attente');
+    const historyDemandes = demandes.filter(d => d.statut !== 'en_attente');
+
+    const handleLogout = () => {
+        logout();
         navigate('/vrac-login');
     };
 
@@ -183,16 +175,15 @@ const VracClientPortal: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <header className="bg-white border-b sticky top-0 z-10">
+            <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="bg-blue-600 p-2 rounded-lg">
-                            {/* Logo placeholder */}
-                            <span className="text-white font-bold">GPL</span>
+                            <span className="text-white font-bold text-lg">GPL</span>
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-900">Espace Client</h1>
-                            <p className="text-sm text-slate-500">{clientName}</p>
+                            <p className="text-sm text-slate-500 font-medium">{clientName}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -207,16 +198,70 @@ const VracClientPortal: React.FC = () => {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+                {/* Statistics Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card className="border-none shadow-sm bg-white">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="p-3 bg-blue-50 rounded-xl">
+                                <FileText className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-slate-500">Total Demandes</p>
+                                <h3 className="text-2xl font-bold text-slate-900">{stats.total}</h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-sm bg-white">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="p-3 bg-amber-50 rounded-xl">
+                                <Clock className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-slate-500">En Attente</p>
+                                <h3 className="text-2xl font-bold text-slate-900">{stats.enAttente}</h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-sm bg-white">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="p-3 bg-emerald-50 rounded-xl">
+                                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-slate-500">Validées / Chargées</p>
+                                <h3 className="text-2xl font-bold text-slate-900">{stats.validees}</h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-sm bg-white">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="p-3 bg-indigo-50 rounded-xl">
+                                <FileText className="w-6 h-6 text-indigo-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-slate-500">Volume Total</p>
+                                <h3 className="text-2xl font-bold text-slate-900">
+                                    {(stats.tonnageTotal * 1000).toLocaleString('fr-FR')} <span className="text-sm font-normal text-slate-400">kg</span>
+                                </h3>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-900">Mes Demandes de Chargement</h2>
-                        <p className="text-slate-500">Suivez l'état de vos programmations</p>
+                        <h2 className="text-2xl font-bold text-slate-900">Tableau de bord</h2>
+                        <p className="text-slate-500">Gérez vos demandes et consultez l'historique</p>
                     </div>
 
                     <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                         <DialogTrigger asChild>
-                            <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20">
+                            <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:scale-105 active:scale-95">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Nouvelle Demande
                             </Button>
@@ -241,65 +286,141 @@ const VracClientPortal: React.FC = () => {
                     <div className="flex justify-center py-12">
                         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
                     </div>
-                ) : demandes.length === 0 ? (
-                    <Card className="border-dashed">
-                        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                                <FileText className="w-8 h-8 text-slate-400" />
-                            </div>
-                            <h3 className="text-lg font-medium text-slate-900">Aucune demande</h3>
-                            <p className="text-slate-500 max-w-sm mt-2 mb-6">
-                                Vous n'avez pas encore effectué de demande de chargement. Commencez par en créer une nouvelle.
-                            </p>
-                            <Button onClick={() => setIsFormOpen(true)}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Créer une demande
-                            </Button>
-                        </CardContent>
-                    </Card>
                 ) : (
-                    <Card className="overflow-hidden border-slate-200 shadow-sm">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader className="bg-slate-50">
-                                    <TableRow>
-                                        <TableHead>Date demandée</TableHead>
-                                        <TableHead>N° Bon</TableHead>
-                                        <TableHead>Tracteur</TableHead>
-                                        <TableHead>Citerne</TableHead>
-                                        <TableHead>Date demande</TableHead>
-                                        <TableHead>Statut</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {demandes.map((demande) => (
-                                        <TableRow key={demande.id} className="hover:bg-slate-50/50">
-                                            <TableCell className="font-medium">
-                                                {format(parseISO(demande.date_chargement), 'dd MMM yyyy', { locale: fr })}
-                                            </TableCell>
-                                            <TableCell>{demande.numero_bon || '-'}</TableCell>
-                                            <TableCell className="font-mono text-xs">{demande.immatriculation_tracteur}</TableCell>
-                                            <TableCell className="font-mono text-xs">{demande.immatriculation_citerne}</TableCell>
-                                            <TableCell className="text-slate-500 text-xs">
-                                                {format(parseISO(demande.created_at), 'dd/MM/yyyy HH:mm')}
-                                            </TableCell>
-                                            <TableCell>{getStatusBadge(demande.statut)}</TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <AuditHistoryDialog
-                                                        tableName="vrac_demandes_chargement"
-                                                        recordId={demande.id}
-                                                        recordTitle={`Demande ${demande.numero_bon || 'du ' + demande.date_chargement}`}
-                                                    />
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="p-1 bg-slate-50 border-b border-slate-100 flex gap-1">
+                            <Button variant="ghost" className="flex-1 bg-white shadow-sm text-slate-800 font-medium">
+                                Demandes en cours ({activeDemandes.length})
+                            </Button>
+                            {/* Note: Ideally implementation of Tabs component here, simplified for single-file edit context */}
                         </div>
-                    </Card>
+
+                        {demandes.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 text-center">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                    <FileText className="w-8 h-8 text-slate-300" />
+                                </div>
+                                <h3 className="text-lg font-medium text-slate-900">Aucune demande</h3>
+                                <p className="text-slate-500 max-w-sm mt-2 mb-6">
+                                    Vous n'avez pas encore effectué de demande de chargement.
+                                </p>
+                                <Button onClick={() => setIsFormOpen(true)} variant="outline">
+                                    Créer la première demande
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {/* Only showing ACTIVE demands first as default view roughly */}
+                                <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100">
+                                    <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-amber-500" />
+                                        En cours / À venir
+                                    </h3>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader className="bg-slate-50">
+                                            <TableRow>
+                                                <TableHead>Date demandée</TableHead>
+                                                <TableHead>N° Bon</TableHead>
+                                                <TableHead>Tracteur</TableHead>
+                                                <TableHead>Citerne</TableHead>
+                                                <TableHead>Date demande</TableHead>
+                                                <TableHead>Statut</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {activeDemandes.length > 0 ? activeDemandes.map((demande) => (
+                                                <TableRow key={demande.id} className="hover:bg-slate-50/50">
+                                                    <TableCell className="font-medium text-slate-900">
+                                                        {format(parseISO(demande.date_chargement), 'dd MMM yyyy', { locale: fr })}
+                                                    </TableCell>
+                                                    <TableCell>{demande.numero_bon || '-'}</TableCell>
+                                                    <TableCell className="font-mono text-xs font-semibold bg-slate-100 px-2 py-1 rounded w-fit">{demande.immatriculation_tracteur}</TableCell>
+                                                    <TableCell className="font-mono text-xs text-slate-500">{demande.immatriculation_citerne}</TableCell>
+                                                    <TableCell className="text-slate-500 text-xs">
+                                                        {format(parseISO(demande.created_at), 'dd/MM/yyyy HH:mm')}
+                                                    </TableCell>
+                                                    <TableCell>{getStatusBadge(demande.statut)}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <AuditHistoryDialog
+                                                                tableName="vrac_demandes_chargement"
+                                                                recordId={demande.id}
+                                                                recordTitle={`Demande ${demande.numero_bon || 'du ' + demande.date_chargement}`}
+                                                            />
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={7} className="text-center py-8 text-slate-500 italic">
+                                                        Aucune demande en cours
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                <div className="px-6 py-4 bg-slate-50/50 border-t border-b border-slate-100 mt-8">
+                                    <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                                        <History className="w-4 h-4 text-slate-400" />
+                                        Historique récent
+                                    </h3>
+                                </div>
+                                <div className="overflow-x-auto max-h-[400px]">
+                                    <Table>
+                                        <TableHeader className="bg-slate-50">
+                                            <TableRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>N° Bon</TableHead>
+                                                <TableHead>Tracteur</TableHead>
+                                                <TableHead>Tonnage Chargé</TableHead>
+                                                <TableHead>Statut</TableHead>
+                                                <TableHead className="text-right"></TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {historyDemandes.length > 0 ? historyDemandes.map((demande) => (
+                                                <TableRow key={demande.id} className="hover:bg-slate-50/50 opacity-90">
+                                                    <TableCell className="font-medium text-slate-700">
+                                                        {format(parseISO(demande.date_chargement), 'dd MMM yyyy', { locale: fr })}
+                                                    </TableCell>
+                                                    <TableCell>{demande.numero_bon || '-'}</TableCell>
+                                                    <TableCell className="font-mono text-xs">{demande.immatriculation_tracteur}</TableCell>
+                                                    <TableCell>
+                                                        {demande.tonnage_charge ? (
+                                                            <span className="font-bold text-emerald-600">
+                                                                {(demande.tonnage_charge * 1000).toLocaleString('fr-FR')} kg
+                                                            </span>
+                                                        ) : '-'}
+                                                    </TableCell>
+                                                    <TableCell>{getStatusBadge(demande.statut)}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <AuditHistoryDialog
+                                                                tableName="vrac_demandes_chargement"
+                                                                recordId={demande.id}
+                                                                recordTitle={`Demande ${demande.numero_bon || 'du ' + demande.date_chargement}`}
+                                                            />
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="text-center py-8 text-slate-500 italic">
+                                                        Aucun historique disponible
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 )}
             </main>
         </div>
