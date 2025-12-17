@@ -36,17 +36,19 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
         e.preventDefault();
         if (!demande) return;
 
-        const tonnageNum = parseFloat(tonnage);
-        if (isNaN(tonnageNum) || tonnageNum <= 0) {
-            setError('Veuillez entrer un tonnage valide');
+        const poidsKg = parseFloat(tonnage);
+        if (isNaN(poidsKg) || poidsKg <= 0) {
+            setError('Veuillez entrer un poids valide');
             return;
         }
+
+        const tonnageTonnes = poidsKg / 1000;
 
         setLoading(true);
         setError('');
 
         try {
-            const success = await onValidate(demande.id, tonnageNum, notes.trim() || undefined);
+            const success = await onValidate(demande.id, tonnageTonnes, notes.trim() || undefined);
             if (success) {
                 setTonnage('');
                 setNotes('');
@@ -111,16 +113,16 @@ const VracChargementValidation: React.FC<VracChargementValidationProps> = ({
                     {/* Tonnage Input */}
                     <div className="space-y-2">
                         <Label htmlFor="tonnage">
-                            Tonnage chargé (tonnes) <span className="text-destructive">*</span>
+                            Poids (kg) <span className="text-destructive">*</span>
                         </Label>
                         <Input
                             id="tonnage"
                             type="number"
-                            step="0.01"
+                            step="1"
                             min="0"
                             value={tonnage}
                             onChange={(e) => setTonnage(e.target.value)}
-                            placeholder="Ex: 15.50"
+                            placeholder="Ex: 25000"
                             className="text-lg"
                             autoFocus
                             required

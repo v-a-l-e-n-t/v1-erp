@@ -168,7 +168,10 @@ const VracDemandesList: React.FC<VracDemandesListProps> = ({
                                             {getStatusBadge(demande.statut)}
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
-                                            {demande.tonnage_charge ? `${demande.tonnage_charge.toFixed(2)} T` : '-'}
+                                            {demande.tonnage_charge
+                                                ? `${(demande.tonnage_charge * 1000).toLocaleString('fr-FR')} kg`
+                                                : '-'
+                                            }
                                         </TableCell>
                                         {allowActions && (
                                             <TableCell className="text-right">
@@ -179,7 +182,7 @@ const VracDemandesList: React.FC<VracDemandesListProps> = ({
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => onEdit(demande)}
-                                                                className="h-8 w-8 hover:bg-muted"
+                                                                className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50"
                                                             >
                                                                 <Edit2 className="w-4 h-4" />
                                                             </Button>

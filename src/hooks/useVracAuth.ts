@@ -19,8 +19,7 @@ export const useVracAuth = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Load session from localStorage on mount
-    useEffect(() => {
+    const checkSession = useCallback(() => {
         const savedSession = localStorage.getItem(VRAC_SESSION_KEY);
         if (savedSession) {
             try {
@@ -28,10 +27,18 @@ export const useVracAuth = () => {
                 setSession(parsed);
             } catch (e) {
                 localStorage.removeItem(VRAC_SESSION_KEY);
+                setSession(null);
             }
+        } else {
+            setSession(null);
         }
         setLoading(false);
     }, []);
+
+    // Load session from localStorage on mount
+    useEffect(() => {
+        checkSession();
+    }, [checkSession]);
 
     const login = useCallback(async (password: string): Promise<boolean> => {
         setLoading(true);
@@ -50,7 +57,7 @@ export const useVracAuth = () => {
 
             if (fetchError) {
                 console.error('Login error:', fetchError);
-                setError('Erreur de connexion. Veuillez réessayer.');
+                setError(`Erreur technique: ${(fetchError as any).message || 'Erreur inconnue'}`);
                 setLoading(false);
                 return false;
             }
@@ -111,6 +118,7 @@ export const useVracAuth = () => {
         login,
         logout,
         isAuthenticated,
+        refreshSession: checkSession,
     };
 };
 
