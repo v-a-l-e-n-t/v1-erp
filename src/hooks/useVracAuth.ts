@@ -43,20 +43,10 @@ export const useVracAuth = () => {
             // Find user by password hash
             const { data: users, error: fetchError } = await supabase
                 .from('vrac_users')
-                .select(`
-          id,
-          nom,
-          client_id,
-          actif,
-          vrac_clients (
-            id,
-            nom,
-            nom_affichage
-          )
-        `)
+                .select('id, nom, client_id, actif, vrac_clients(id, nom, nom_affichage)')
                 .eq('password_hash', passwordHash)
                 .eq('actif', true)
-                .limit(1);
+                .limit(1) as { data: (VracUser & { vrac_clients: VracClient })[] | null; error: unknown };
 
             if (fetchError) {
                 console.error('Login error:', fetchError);
