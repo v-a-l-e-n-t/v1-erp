@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AgentsListProps {
     agents: Agent[];
@@ -26,6 +27,7 @@ interface AgentsListProps {
 export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProps) => {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+    const [filterRole, setFilterRole] = useState<string>('all');
 
     const handleDeleteClick = (agent: Agent) => {
         setSelectedAgent(agent);
@@ -40,29 +42,38 @@ export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProp
         }
     };
 
-    const getRoleBadgeVariant = (role: string) => {
-        switch (role) {
-            case 'chef_ligne': return 'default';
-            case 'chef_quart': return 'secondary';
-            case 'agent_exploitation': return 'outline';
-            case 'agent_mouvement': return 'destructive'; // Just for distinction
-            default: return 'outline';
-        }
-    };
+    const filteredAgents = agents.filter(agent =>
+        filterRole === 'all' || agent.role === filterRole
+    );
 
     return (
         <>
             <Card>
                 <CardHeader>
-                    <CardTitle>Liste des agents</CardTitle>
-                    <CardDescription>
-                        {agents.length} agent{agents.length > 1 ? 's' : ''} enregistré{agents.length > 1 ? 's' : ''}
-                    </CardDescription>
+                    <div className="flex flex-col space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle>Liste des agents</CardTitle>
+                                <CardDescription>
+                                    {filteredAgents.length} agent{filteredAgents.length > 1 ? 's' : ''} affiché{filteredAgents.length > 1 ? 's' : ''} (Total: {agents.length})
+                                </CardDescription>
+                            </div>
+                        </div>
+                        <Tabs defaultValue="all" value={filterRole} onValueChange={setFilterRole} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
+                                <TabsTrigger value="all">Tous</TabsTrigger>
+                                <TabsTrigger value="chef_ligne">Chefs de ligne</TabsTrigger>
+                                <TabsTrigger value="chef_quart">Chefs de quart</TabsTrigger>
+                                <TabsTrigger value="agent_exploitation">Exploitation</TabsTrigger>
+                                <TabsTrigger value="agent_mouvement">Mouvement</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    {agents.length === 0 ? (
+                    {filteredAgents.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-8">
-                            Aucun agent enregistré. Ajoutez-en un pour commencer.
+                            Aucun agent trouvé dans cette catégorie.
                         </p>
                     ) : (
                         <Table>
@@ -75,12 +86,12 @@ export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProp
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {agents.map((agent) => (
+                                {filteredAgents.map((agent) => (
                                     <TableRow key={agent.id}>
                                         <TableCell className="font-medium">{agent.nom}</TableCell>
                                         <TableCell>{agent.prenom}</TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="bg-slate-100">
+                                            <Badge variant="outline" className="bg-slate-100 whitespace-nowrap">
                                                 {AGENT_ROLES[agent.role]}
                                             </Badge>
                                         </TableCell>
