@@ -13,12 +13,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Edit, Plus, Upload, List } from 'lucide-react';
+import { useAudit } from "@/hooks/useAudit";
+import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 const NewBilan = () => {
   const [entries, setEntries] = useState<BilanEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [activeTab, setActiveTab] = useState('new');
+  const { logAction } = useAudit();
 
   useEffect(() => {
     loadData();
@@ -26,22 +30,43 @@ const NewBilan = () => {
 
   const loadData = async () => {
     setLoading(true);
+    // Use supabase directly to get consistent data or rely on existing utils if they use supabase
+    // Assuming loadEntries uses supabase under the hood or we should migrate lightly here
+    // But since handleSave uses saveEntry which might be local storage + sync, 
+    // I should check if I should intercept logic.
+    // The previous implementation used 'loadEntries' from utils/storage. 
+    // I'll stick to the existing flow but ADD audit logging.
+    // If 'loadEntries' fetches from Supabase using 'bilan_entries', then 'id' is consistent.
     const loaded = await loadEntries();
     setEntries(loaded);
     setLoading(false);
   };
 
   const handleSave = async (calculatedData: ReturnType<typeof calculateBilan>, entryId?: string) => {
+    // 1. Get User for Audit
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email || 'Inconnu';
+
     if (entryId && editingEntry) {
       // Mode édition
       const updatedEntry: BilanEntry = {
         ...editingEntry,
         ...calculatedData,
-        updated_at: new Date().toISOString(),
+        last_modified_by: userEmail,
+        last_modified_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(), // Keep existing updated_at too
       };
       const success = await updateEntry(updatedEntry);
 
       if (success) {
+        // Audit Log
+        await logAction({
+          table_name: 'bilan_entries',
+          record_id: entryId,
+          action: 'UPDATE',
+          details: calculatedData
+        });
+
         toast.success('Bilan mis à jour avec succès', {
           description: `Bilan ${calculatedData.nature} de ${formatNumberValue(calculatedData.bilan)} Kg`,
         });
@@ -53,9 +78,12 @@ const NewBilan = () => {
       }
     } else {
       // Nouveau bilan
+      const newId = crypto.randomUUID();
       const newEntry: Omit<BilanEntry, 'user_id'> = {
-        id: crypto.randomUUID(),
+        id: newId,
         ...calculatedData,
+        last_modified_by: userEmail,
+        last_modified_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -63,6 +91,14 @@ const NewBilan = () => {
       const success = await saveEntry(newEntry);
 
       if (success) {
+        // Audit Log
+        await logAction({
+          table_name: 'bilan_entries',
+          record_id: newId,
+          action: 'CREATE',
+          details: calculatedData
+        });
+
         toast.success('Bilan enregistré avec succès', {
           description: `Bilan ${calculatedData.nature} de ${formatNumberValue(calculatedData.bilan)} Kg`,
         });
@@ -204,13 +240,20 @@ const NewBilan = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(entry)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <div className="flex justify-end gap-2 items-center">
+                                <AuditHistoryDialog
+                                  tableName="bilan_entries"
+                                  recordId={entry.id}
+                                  recordTitle={`Bilan du ${format(new Date(entry.date), 'dd/MM/yyyy')}`}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(entry)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}

@@ -18,8 +18,10 @@ export interface VracUser {
     created_at: string;
     last_login?: string;
     // Relation
-    vrac_clients?: VracClient;
+    vrac_clients?: VracClient; // Supabase return type often includes this if queried
 }
+
+export type DemandeStatut = 'en_attente' | 'validee' | 'refusee' | 'terminee' | 'charge';
 
 export interface VracDemandeChargement {
     id: string;
@@ -29,13 +31,15 @@ export interface VracDemandeChargement {
     immatriculation_tracteur: string;
     immatriculation_citerne: string;
     numero_bon?: string;
-    statut: 'en_attente' | 'charge';
-    tonnage_charge?: number;
+    statut: DemandeStatut;
+    tonnage_charge?: number | null;
     validated_by?: string;
     validated_at?: string;
     notes?: string;
     created_at: string;
     updated_at: string;
+    last_modified_by?: string | null;
+    last_modified_at?: string | null;
     // Relations
     vrac_clients?: VracClient;
     vrac_users?: VracUser;

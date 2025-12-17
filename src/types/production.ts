@@ -44,6 +44,8 @@ export interface Agent {
   prenom: string;
   role: AgentRole;
   actif?: boolean;
+  last_modified_by?: string;
+  last_modified_at?: string;
 }
 
 export interface ProductionShift {
@@ -66,6 +68,8 @@ export interface ProductionShift {
   cumul_consignes_total?: number;
   temps_arret_total_minutes?: number;
   user_id?: string;
+  last_modified_by?: string;
+  last_modified_at?: string;
 }
 
 export interface LigneProduction {

@@ -62,6 +62,8 @@ export interface BilanEntry {
   // Metadata
   created_at: string;
   updated_at: string;
+  last_modified_by?: string;
+  last_modified_at?: string;
 }
 
 export interface BilanFormData {

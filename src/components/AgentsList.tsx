@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
 
 interface AgentsListProps {
     agents: Agent[];
@@ -92,11 +93,16 @@ export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProp
                                         <TableCell>{agent.prenom}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="bg-slate-100 whitespace-nowrap">
-                                                {AGENT_ROLES[agent.role]}
+                                                {AGENT_ROLES[agent.role] || agent.role || 'Inconnu'}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex gap-2 justify-end">
+                                            <div className="flex gap-2 justify-end items-center">
+                                                <AuditHistoryDialog
+                                                    tableName="agents"
+                                                    recordId={agent.id}
+                                                    recordTitle={`${agent.nom} ${agent.prenom}`}
+                                                />
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

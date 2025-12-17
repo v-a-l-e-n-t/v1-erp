@@ -1,454 +1,307 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useVracAuth } from '@/hooks/useVracAuth';
-import { VracDemandeChargement, VracDemandeFormData, VracStats } from '@/types/vrac';
+import { VracUser, VracDemandeChargement, VracDemandeFormData } from '@/types/vrac';
 import { useToast } from '@/hooks/use-toast';
-import * as XLSX from 'xlsx';
-
-import VracLoginForm from '@/components/vrac/VracLoginForm';
-import VracDemandeForm from '@/components/vrac/VracDemandeForm';
-import VracDemandesList from '@/components/vrac/VracDemandesList';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Truck, Clock, CheckCircle, TrendingUp, CalendarDays, Calendar as CalendarIcon, FileSpreadsheet } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { LogOut, Plus, Clock, FileText, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import VracDemandeForm from '@/components/vrac/VracDemandeForm';
+import { useAudit } from "@/hooks/useAudit";
+import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
 
+// Local type to match the fetched data structure and injected session info
+type ExtendedVracUser = Omit<VracUser, 'vrac_clients'> & {
+    vrac_clients: { nom_affichage: string } | null;
+    email?: string;
+    prenom?: string; // Add if we decide to keep it, but make optional.
+};
 
 const VracClientPortal: React.FC = () => {
-    const { session, isAuthenticated, logout, loading: authLoading, refreshSession } = useVracAuth();
-    const [demandes, setDemandes] = useState<VracDemandeChargement[]>([]);
-
-    // Default to current month
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: startOfMonth(new Date()),
-        to: endOfMonth(new Date())
-    });
-
-    const [stats, setStats] = useState<VracStats>({
-        total_demandes_jour: 0,
-        demandes_en_attente: 0,
-        demandes_chargees: 0,
-        tonnage_total_jour: 0
-    });
-    const [loading, setLoading] = useState(false);
-    const [editingDemande, setEditingDemande] = useState<VracDemandeChargement | null>(null);
+    const navigate = useNavigate();
     const { toast } = useToast();
+    const [user, setUser] = useState<ExtendedVracUser | null>(null);
+    const [demandes, setDemandes] = useState<VracDemandeChargement[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const { logAction } = useAudit();
+    const [clientName, setClientName] = useState<string>('Client');
 
-    const loadDemandes = useCallback(async () => {
-        if (!session) return;
+    useEffect(() => {
+        checkAuth();
+    }, []);
 
-        setLoading(true);
+    const checkAuth = async () => {
         try {
-            let query = supabase
-                .from('vrac_demandes_chargement')
-                .select('*')
-                .eq('client_id', session.client_id)
-                .order('date_chargement', { ascending: false })
-                .order('created_at', { ascending: false });
-
-            // Apply Date Filter
-            if (dateRange?.from) {
-                const fromStr = format(dateRange.from, 'yyyy-MM-dd');
-                const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
-                query = query.gte('date_chargement', fromStr).lte('date_chargement', toStr);
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                navigate('/vrac-login');
+                return;
             }
 
-            const { data, error } = await query;
+            // Get Vrac User
+            const { data: vracUser, error } = await supabase
+                .from('vrac_users')
+                .select('*, vrac_clients(nom_affichage)')
+                .eq('id', session.user.id)
+                .single();
 
-            if (error) throw error;
+            if (error || !vracUser) {
+                console.error('Error fetching vrac user', error);
+            } else {
+                // Cast the response to match our expected structure since Supabase types might be strict
+                const fetchedUser = vracUser as unknown as ExtendedVracUser;
 
-            const periodDemandes = (data || []) as VracDemandeChargement[];
-            setDemandes(periodDemandes);
+                // Inject email from session
+                const userWithEmail: ExtendedVracUser = {
+                    ...fetchedUser,
+                    email: session.user.email
+                };
 
-            // Calculate stats for the selected period
-            setStats({
-                total_demandes_jour: periodDemandes.length,
-                demandes_en_attente: periodDemandes.filter(d => d.statut === 'en_attente').length,
-                demandes_chargees: periodDemandes.filter(d => d.statut === 'charge').length,
-                tonnage_total_jour: periodDemandes.reduce((sum, d) => sum + (d.tonnage_charge || 0), 0),
-            });
+                setUser(userWithEmail);
+
+                if (fetchedUser.vrac_clients) {
+                    setClientName(fetchedUser.vrac_clients.nom_affichage);
+                }
+                loadDemandes(fetchedUser.id);
+            }
+
         } catch (error) {
-            console.error('Error loading demandes:', error);
-            toast({
-                title: 'Erreur',
-                description: 'Impossible de charger les demandes',
-                variant: 'destructive',
-            });
+            console.error('Auth check error:', error);
+            navigate('/vrac-login');
         } finally {
             setLoading(false);
         }
-    }, [session, dateRange, toast]);
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            loadDemandes();
-        }
-    }, [isAuthenticated, loadDemandes]);
-
-    const handleExport = () => {
-        if (!demandes.length) return;
-
-        const dataToExport = demandes.map(d => ({
-            'Date': format(new Date(d.date_chargement), 'dd/MM/yyyy'),
-            'Tracteur': d.immatriculation_tracteur,
-            'Citerne': d.immatriculation_citerne,
-            'Bon': d.numero_bon || '-',
-            'Statut': d.statut === 'charge' ? 'Chargé' : 'En attente',
-            'Tonnage (T)': d.tonnage_charge || 0,
-            'Tonnage (Kg)': d.tonnage_charge ? d.tonnage_charge * 1000 : 0
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Chargements");
-
-        // Auto-width columns roughly
-        const wscols = Object.keys(dataToExport[0]).map(() => ({ wch: 20 }));
-        ws['!cols'] = wscols;
-
-        XLSX.writeFile(wb, `chargements_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-
-        toast({
-            title: 'Export réussi',
-            description: 'Le fichier Excel a été généré',
-        });
     };
 
-    const handleSubmitDemande = async (data: VracDemandeFormData): Promise<boolean> => {
-        if (!session) return false;
+    // Explicit load function taking userId to avoid stale state issues
+    const loadDemandes = async (userId: string) => {
+        const { data, error } = await supabase
+            .from('vrac_demandes_chargement')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (!error && data) {
+            // Cast strictly typed DB response (string status) to our Frontend Type (Enum status)
+            // We assume the DB contains valid values for now.
+            setDemandes(data as unknown as VracDemandeChargement[]);
+        }
+    };
+
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        navigate('/vrac-login');
+    };
+
+    const handleSubmitDemande = async (formData: VracDemandeFormData): Promise<boolean> => {
+        if (!user) return false;
 
         try {
-            if (editingDemande) {
-                // Update existing
-                const { error } = await supabase
-                    .from('vrac_demandes_chargement')
-                    .update({
-                        date_chargement: data.date_chargement,
-                        immatriculation_tracteur: data.immatriculation_tracteur,
-                        immatriculation_citerne: data.immatriculation_citerne,
-                        numero_bon: data.numero_bon || null,
-                    })
-                    .eq('id', editingDemande.id);
+            const now = new Date().toISOString();
+            const payload = {
+                user_id: user.id,
+                client_id: user.client_id,
+                ...formData,
+                date_chargement: formData.date_chargement || now.split('T')[0],
+                statut: 'en_attente',
+                validated_by: null,
+                notes: null,
+                last_modified_by: user.email || clientName,
+                last_modified_at: now
+            };
 
-                if (error) throw error;
+            const { data: newDemande, error } = await supabase
+                .from('vrac_demandes_chargement')
+                .insert(payload)
+                .select()
+                .single();
 
-                toast({
-                    title: 'Modification enregistrée',
-                    description: `La demande pour ${data.immatriculation_tracteur} a été mise à jour`,
-                });
-                setEditingDemande(null);
-            } else {
-                // Create new
-                const { error } = await supabase.from('vrac_demandes_chargement').insert({
-                    client_id: session.client_id,
-                    user_id: session.user_id,
-                    date_chargement: data.date_chargement,
-                    immatriculation_tracteur: data.immatriculation_tracteur,
-                    immatriculation_citerne: data.immatriculation_citerne,
-                    numero_bon: data.numero_bon || null,
-                });
+            if (error) throw error;
 
-                if (error) throw error;
+            await logAction({
+                table_name: 'vrac_demandes_chargement',
+                record_id: newDemande.id,
+                action: 'CREATE',
+                details: formData
+            });
 
-                toast({
-                    title: 'Camion ajouté',
-                    description: `${data.immatriculation_tracteur} a été ajouté à la liste`,
-                });
-            }
+            toast({
+                title: 'Demande envoyée',
+                description: 'Votre demande de chargement a été enregistrée avec succès.',
+            });
 
-            await loadDemandes();
+            setIsFormOpen(false);
+            if (user) loadDemandes(user.id);
             return true;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error submitting demande:', error);
             toast({
                 title: 'Erreur',
-                description: 'Impossible de sauvegarder la demande',
+                description: error.message || "Impossible d'envoyer la demande",
                 variant: 'destructive',
             });
             return false;
         }
     };
 
-    const handleEditDemande = (demande: VracDemandeChargement) => {
-        setEditingDemande(demande);
-        window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to form
-    };
-
-    const handleCancelEdit = () => {
-        setEditingDemande(null);
-    };
-
-    const handleDeleteDemande = async (id: string): Promise<void> => {
-        try {
-            const { error } = await supabase
-                .from('vrac_demandes_chargement')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-
-            toast({
-                title: 'Camion supprimé',
-                description: 'La demande a été supprimée',
-            });
-
-            if (editingDemande?.id === id) {
-                setEditingDemande(null);
-            }
-
-            await loadDemandes();
-        } catch (error) {
-            console.error('Error deleting demande:', error);
-            toast({
-                title: 'Erreur',
-                description: 'Impossible de supprimer la demande',
-                variant: 'destructive',
-            });
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'en_attente':
+                return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">En attente</Badge>;
+            case 'validee':
+                return <Badge className="bg-emerald-500 hover:bg-emerald-600">Validée</Badge>;
+            case 'refusee':
+                return <Badge variant="destructive">Refusée</Badge>;
+            case 'terminee':
+                return <Badge variant="secondary">Terminée</Badge>;
+            default:
+                return <Badge variant="outline">{status}</Badge>;
         }
     };
 
-    if (authLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="text-muted-foreground">Chargement...</div>
-            </div>
-        );
-    }
-
-    if (!isAuthenticated) {
-        return <VracLoginForm onLoginSuccess={refreshSession} />;
-    }
-
-
-
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <header className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                            <Truck className="w-5 h-5 text-primary" />
+            <header className="bg-white border-b sticky top-0 z-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-blue-600 p-2 rounded-lg">
+                            {/* Logo placeholder */}
+                            <span className="text-white font-bold">GPL</span>
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-foreground">Espace VRAC</h1>
+                            <h1 className="text-xl font-bold text-slate-900">Espace Client</h1>
+                            <p className="text-sm text-slate-500">{clientName}</p>
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-                        {/* Export Button */}
-                        <Button
-                            variant="outline"
-                            onClick={handleExport}
-                            disabled={demandes.length === 0}
-                            className="bg-white h-9"
-                        >
-                            <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
-                            Export Excel
-                        </Button>
-
-                        {/* Date Range Picker */}
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    id="date"
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-[240px] justify-start text-left font-normal bg-background h-9",
-                                        !dateRange && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (
-                                        dateRange.to ? (
-                                            <>
-                                                {format(dateRange.from, "d MMM", { locale: fr })} -{" "}
-                                                {format(dateRange.to, "d MMM yyyy", { locale: fr })}
-                                            </>
-                                        ) : (
-                                            format(dateRange.from, "PPP", { locale: fr })
-                                        )
-                                    ) : (
-                                        <span>Choisir une période</span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <div className="flex flex-col sm:flex-row">
-                                    <div className="p-3 border-b sm:border-b-0 sm:border-r space-y-2 flex flex-col">
-                                        <h4 className="font-medium text-sm mb-1 px-1">Rapide</h4>
-                                        <Button
-                                            variant="ghost"
-                                            className="justify-start h-8 px-2 text-sm font-normal"
-                                            onClick={() => setDateRange({ from: new Date(), to: new Date() })}
-                                        >
-                                            Aujourd'hui
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            className="justify-start h-8 px-2 text-sm font-normal"
-                                            onClick={() => setDateRange({
-                                                from: startOfMonth(new Date()),
-                                                to: endOfMonth(new Date())
-                                            })}
-                                        >
-                                            Ce Mois
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            className="justify-start h-8 px-2 text-sm font-normal"
-                                            onClick={() => setDateRange({
-                                                from: startOfYear(new Date()),
-                                                to: endOfYear(new Date())
-                                            })}
-                                        >
-                                            Cette Année
-                                        </Button>
-                                    </div>
-                                    <Calendar
-                                        initialFocus
-                                        mode="range"
-                                        defaultMonth={dateRange?.from}
-                                        selected={dateRange}
-                                        onSelect={setDateRange}
-                                        numberOfMonths={1}
-                                        locale={fr}
-                                    />
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-
-                        <div className="h-6 w-px bg-border mx-1 hidden sm:block"></div>
-
-                        {/* User Info */}
-                        <div className="flex flex-col items-end mr-1 hidden sm:flex">
-                            <span className="text-sm font-semibold text-foreground leading-none">{session?.client_nom_affichage}</span>
-                            <span className="text-xs text-muted-foreground leading-none mt-1">{session?.user_nom}</span>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden md:block text-right">
+                            <p className="text-sm font-medium text-slate-900">{user?.nom}</p>
+                            <p className="text-xs text-slate-500">{user?.email}</p>
                         </div>
-
-                        <Button
-                            variant="ghost"
-                            onClick={logout}
-                            size="icon"
-                            className="text-muted-foreground hover:text-foreground"
-                            title="Déconnexion"
-                        >
-                            <LogOut className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" onClick={handleLogout} title="Se déconnecter">
+                            <LogOut className="w-5 h-5 text-slate-500" />
                         </Button>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-blue-100">
-                                    <CalendarDays className="w-5 h-5 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-foreground">{stats.total_demandes_jour}</p>
-                                    <p className="text-xs text-muted-foreground">Camions (Période)</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-amber-100">
-                                    <Clock className="w-5 h-5 text-amber-600" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-foreground">{stats.demandes_en_attente}</p>
-                                    <p className="text-xs text-muted-foreground">En attente</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-emerald-100">
-                                    <CheckCircle className="w-5 h-5 text-emerald-600" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-foreground">{stats.demandes_chargees}</p>
-                                    <p className="text-xs text-muted-foreground">Chargés</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-purple-100">
-                                    <TrendingUp className="w-5 h-5 text-purple-600" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-foreground">
-                                        {(stats.tonnage_total_jour * 1000).toLocaleString('fr-FR')} kg
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">Quantité chargée</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Main Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Add Form */}
-                    <div className="lg:col-span-1">
-                        <VracDemandeForm
-                            onSubmit={handleSubmitDemande}
-                            loading={loading}
-                        />
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900">Mes Demandes de Chargement</h2>
+                        <p className="text-slate-500">Suivez l'état de vos programmations</p>
                     </div>
 
-                    {/* List */}
-                    <div className="lg:col-span-2">
-                        <Card className="border-border shadow-sm">
-                            <CardContent className="p-0">
-                                <VracDemandesList
-                                    demandes={demandes}
-                                    onDelete={handleDeleteDemande}
-                                    onEdit={handleEditDemande}
-                                    loading={loading}
-                                    allowActions={true}
-                                />
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Nouvelle Demande
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>Nouvelle demande de chargement</DialogTitle>
+                                <DialogDescription>
+                                    Remplissez les informations du camion et du bon de commande.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <VracDemandeForm
+                                onSubmit={handleSubmitDemande}
+                                onCancel={() => setIsFormOpen(false)}
+                                isDialog={true}
+                            />
+                        </DialogContent>
+                    </Dialog>
                 </div>
+
+                {loading ? (
+                    <div className="flex justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                ) : demandes.length === 0 ? (
+                    <Card className="border-dashed">
+                        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                <FileText className="w-8 h-8 text-slate-400" />
+                            </div>
+                            <h3 className="text-lg font-medium text-slate-900">Aucune demande</h3>
+                            <p className="text-slate-500 max-w-sm mt-2 mb-6">
+                                Vous n'avez pas encore effectué de demande de chargement. Commencez par en créer une nouvelle.
+                            </p>
+                            <Button onClick={() => setIsFormOpen(true)}>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Créer une demande
+                            </Button>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="overflow-hidden border-slate-200 shadow-sm">
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader className="bg-slate-50">
+                                    <TableRow>
+                                        <TableHead>Date demandée</TableHead>
+                                        <TableHead>N° Bon</TableHead>
+                                        <TableHead>Tracteur</TableHead>
+                                        <TableHead>Citerne</TableHead>
+                                        <TableHead>Date demande</TableHead>
+                                        <TableHead>Statut</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {demandes.map((demande) => (
+                                        <TableRow key={demande.id} className="hover:bg-slate-50/50">
+                                            <TableCell className="font-medium">
+                                                {format(parseISO(demande.date_chargement), 'dd MMM yyyy', { locale: fr })}
+                                            </TableCell>
+                                            <TableCell>{demande.numero_bon || '-'}</TableCell>
+                                            <TableCell className="font-mono text-xs">{demande.immatriculation_tracteur}</TableCell>
+                                            <TableCell className="font-mono text-xs">{demande.immatriculation_citerne}</TableCell>
+                                            <TableCell className="text-slate-500 text-xs">
+                                                {format(parseISO(demande.created_at), 'dd/MM/yyyy HH:mm')}
+                                            </TableCell>
+                                            <TableCell>{getStatusBadge(demande.statut)}</TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <AuditHistoryDialog
+                                                        tableName="vrac_demandes_chargement"
+                                                        recordId={demande.id}
+                                                        recordTitle={`Demande ${demande.numero_bon || 'du ' + demande.date_chargement}`}
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </Card>
+                )}
             </main>
-            <Dialog open={!!editingDemande} onOpenChange={(open) => !open && handleCancelEdit()}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Modifier la demande</DialogTitle>
-                    </DialogHeader>
-                    <VracDemandeForm
-                        onSubmit={handleSubmitDemande}
-                        loading={loading}
-                        initialData={editingDemande}
-                        onCancel={handleCancelEdit}
-                        isDialog={true}
-                    />
-                </DialogContent>
-            </Dialog>
         </div>
     );
 };
