@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      agents: {
+        Row: {
+          actif: boolean | null
+          created_at: string
+          id: string
+          nom: string
+          prenom: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string
+          id?: string
+          nom: string
+          prenom: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string
+          id?: string
+          nom?: string
+          prenom?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       arrets_production: {
         Row: {
           action_corrective: string | null
