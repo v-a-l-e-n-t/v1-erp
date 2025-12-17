@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { supabase } from "@/integrations/supabase/client";
+import { Agent } from "@/types/production";
 
 interface BilanFormProps {
   onSave: (data: ReturnType<typeof calculateBilan>, entryId?: string) => void;
@@ -24,16 +26,10 @@ interface BilanFormProps {
   editEntry?: BilanEntry;
 }
 
-const AGENTS_LIST = [
-  "SANLE VALENT",
-  "BABA JACQUES",
-  "DOUATI BI",
-  "BOUKIAN LUC",
-  "OUPO ARMAND",
-  "KOBI JAURES"
-];
-
 const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
+  const [agentsExploitation, setAgentsExploitation] = useState<Agent[]>([]);
+  const [agentsMouvement, setAgentsMouvement] = useState<Agent[]>([]);
+
   const [formData, setFormData] = useState<BilanFormData>({
     date: new Date().toISOString().split('T')[0],
     spheres_initial: '',
@@ -62,6 +58,41 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
 
   const [calculated, setCalculated] = useState<ReturnType<typeof calculateBilan> | null>(null);
   const [date, setDate] = useState<Date | undefined>(new Date());
+
+  // Charger les agents
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('agents')
+          .select('*')
+          .eq('actif', true)
+          .order('nom');
+
+        if (error) throw error;
+
+        if (data) {
+          // Mapping Supabase answer to Agent type
+          const allAgents = data.map((a: any) => ({
+            id: a.id,
+            nom: a.nom,
+            prenom: a.prenom,
+            role: a.role,
+            actif: a.actif
+          })) as Agent[];
+
+          const relevantAgents = allAgents.filter(a => a.role === 'agent_exploitation' || a.role === 'agent_mouvement');
+          setAgentsExploitation(relevantAgents);
+          setAgentsMouvement(relevantAgents);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des agents", error);
+        toast.error("Impossible de charger la liste des agents");
+      }
+    };
+
+    fetchAgents();
+  }, []);
 
   // Pré-remplir avec les données d'hier ou l'entrée à éditer
   useEffect(() => {
@@ -442,8 +473,10 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                         <SelectValue placeholder="Sélectionner..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {AGENTS_LIST.map((agent) => (
-                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        {agentsExploitation.map((agent) => (
+                          <SelectItem key={agent.id} value={`${agent.nom} ${agent.prenom}`}>
+                            {agent.nom} {agent.prenom}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -458,8 +491,10 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                         <SelectValue placeholder="Sélectionner..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {AGENTS_LIST.map((agent) => (
-                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        {agentsExploitation.map((agent) => (
+                          <SelectItem key={agent.id} value={`${agent.nom} ${agent.prenom}`}>
+                            {agent.nom} {agent.prenom}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -483,8 +518,10 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                         <SelectValue placeholder="Sélectionner..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {AGENTS_LIST.map((agent) => (
-                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        {agentsMouvement.map((agent) => (
+                          <SelectItem key={agent.id} value={`${agent.nom} ${agent.prenom}`}>
+                            {agent.nom} {agent.prenom}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -499,8 +536,10 @@ const BilanForm = ({ onSave, previousEntry, editEntry }: BilanFormProps) => {
                         <SelectValue placeholder="Sélectionner..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {AGENTS_LIST.map((agent) => (
-                          <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                        {agentsMouvement.map((agent) => (
+                          <SelectItem key={agent.id} value={`${agent.nom} ${agent.prenom}`}>
+                            {agent.nom} {agent.prenom}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
