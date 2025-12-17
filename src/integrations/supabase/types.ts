@@ -19,6 +19,8 @@ export type Database = {
           actif: boolean | null
           created_at: string
           id: string
+          last_modified_at: string | null
+          last_modified_by: string | null
           nom: string
           prenom: string
           role: string
@@ -28,6 +30,8 @@ export type Database = {
           actif?: boolean | null
           created_at?: string
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           nom: string
           prenom: string
           role: string
@@ -37,6 +41,8 @@ export type Database = {
           actif?: boolean | null
           created_at?: string
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           nom?: string
           prenom?: string
           role?: string
@@ -100,6 +106,39 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          record_id: string
+          table_name: string
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          record_id: string
+          table_name: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          record_id?: string
+          table_name?: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bilan_entries: {
         Row: {
           agent_exploitation_matin: string | null
@@ -117,6 +156,8 @@ export type Database = {
           fuyardes_total_energies: number | null
           fuyardes_vivo_energies: number | null
           id: string
+          last_modified_at: string | null
+          last_modified_by: string | null
           nature: string
           notes: string | null
           reception_gpl: number
@@ -156,6 +197,8 @@ export type Database = {
           fuyardes_total_energies?: number | null
           fuyardes_vivo_energies?: number | null
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           nature: string
           notes?: string | null
           reception_gpl?: number
@@ -195,6 +238,8 @@ export type Database = {
           fuyardes_total_energies?: number | null
           fuyardes_vivo_energies?: number | null
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           nature?: string
           notes?: string | null
           reception_gpl?: number
@@ -571,6 +616,8 @@ export type Database = {
           heure_fin_reelle: string
           heure_fin_theorique: string
           id: string
+          last_modified_at: string | null
+          last_modified_by: string | null
           shift_type: Database["public"]["Enums"]["shift_type"]
           temps_arret_total_minutes: number | null
           tonnage_total: number | null
@@ -595,6 +642,8 @@ export type Database = {
           heure_fin_reelle: string
           heure_fin_theorique: string
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           shift_type: Database["public"]["Enums"]["shift_type"]
           temps_arret_total_minutes?: number | null
           tonnage_total?: number | null
@@ -619,6 +668,8 @@ export type Database = {
           heure_fin_reelle?: string
           heure_fin_theorique?: string
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           shift_type?: Database["public"]["Enums"]["shift_type"]
           temps_arret_total_minutes?: number | null
           tonnage_total?: number | null
@@ -879,6 +930,8 @@ export type Database = {
           id: string
           immatriculation_citerne: string
           immatriculation_tracteur: string
+          last_modified_at: string | null
+          last_modified_by: string | null
           notes: string | null
           numero_bon: string | null
           statut: string
@@ -895,6 +948,8 @@ export type Database = {
           id?: string
           immatriculation_citerne: string
           immatriculation_tracteur: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           notes?: string | null
           numero_bon?: string | null
           statut?: string
@@ -911,6 +966,8 @@ export type Database = {
           id?: string
           immatriculation_citerne?: string
           immatriculation_tracteur?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           notes?: string | null
           numero_bon?: string | null
           statut?: string
