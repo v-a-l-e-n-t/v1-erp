@@ -29,6 +29,23 @@ export interface ChefQuart {
   prenom: string;
 }
 
+export type AgentRole = 'chef_ligne' | 'chef_quart' | 'agent_exploitation' | 'agent_mouvement';
+
+export const AGENT_ROLES: Record<AgentRole, string> = {
+  chef_ligne: 'Chef de ligne',
+  chef_quart: 'Chef de quart',
+  agent_exploitation: 'Agent Exploitation',
+  agent_mouvement: 'Agent Mouvement',
+};
+
+export interface Agent {
+  id: string;
+  nom: string;
+  prenom: string;
+  role: AgentRole;
+  actif?: boolean;
+}
+
 export interface ProductionShift {
   id?: string;
   date: string;

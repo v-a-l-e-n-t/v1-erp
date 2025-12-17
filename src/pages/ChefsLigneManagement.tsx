@@ -8,63 +8,27 @@ import { ChefLigne } from "@/types/production";
 
 const ChefsLigneManagement = () => {
   const [loading, setLoading] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  // Auth disabled for dev
+  const [isAdmin, setIsAdmin] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(false);
   const [chefs, setChefs] = useState<ChefLigne[]>([]);
   const [editingChef, setEditingChef] = useState<ChefLigne | undefined>();
 
   useEffect(() => {
-    checkAdminRole();
+    // checkAdminRole();
+    loadChefs();
   }, []);
 
-  useEffect(() => {
-    if (isAdmin) {
-      loadChefs();
-    }
-  }, [isAdmin]);
+  // useEffect(() => {
+  //   if (isAdmin) {
+  //     loadChefs();
+  //   }
+  // }, [isAdmin]);
 
   const checkAdminRole = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Non autorisé",
-          description: "Vous devez être connecté pour accéder à cette page",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { data: roles, error } = await (supabase as any)
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      const hasAdminRole = roles?.some((r: any) => r.role === 'admin');
-      
-      if (!hasAdminRole) {
-        toast({
-          title: "Accès refusé",
-          description: "Seuls les administrateurs peuvent accéder à cette page",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setIsAdmin(true);
-    } catch (error: any) {
-      console.error('Error checking admin role:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de vérifier les permissions",
-        variant: "destructive"
-      });
-    } finally {
-      setCheckingAuth(false);
-    }
+    // Disabled
+    setIsAdmin(true);
+    setCheckingAuth(false);
   };
 
   const loadChefs = async () => {

@@ -1,104 +1,166 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, BarChart3, Calculator, Users, ClipboardList, Truck } from 'lucide-react';
+import {
+  FileText,
+  BarChart3,
+  Calculator,
+  Users,
+  ClipboardList,
+  Truck,
+  History,
+  Settings,
+  LayoutDashboard,
+  Shield,
+  UserCircle
+} from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
 
-  const menuItems = [
+  const sections = [
     {
-      title: 'Nouveau Bilan',
-      description: 'Saisir un nouveau bilan journalier GPL',
-      icon: FileText,
-      path: '/new-bilan',
-      color: 'text-blue-500',
+      title: "Distribution",
+      description: "Gestion des bilans et statistiques GPL",
+      items: [
+        {
+          title: 'Nouveau Bilan',
+          description: 'Saisir un nouveau bilan journalier',
+          icon: FileText,
+          path: '/new-bilan',
+          color: 'text-blue-500',
+        },
+        {
+          title: 'Dashboard & Historique',
+          description: 'Statistiques et historique des bilans',
+          icon: BarChart3,
+          path: '/dashboard',
+          color: 'text-green-500',
+        },
+        {
+          title: 'Import Données',
+          description: 'Import des ventes par mandataire',
+          icon: Truck,
+          path: '/import_data',
+          color: 'text-amber-500',
+        },
+      ]
     },
     {
-      title: 'Dashboard & Historique',
-      description: 'Consulter les statistiques et l\'historique des bilans',
-      icon: BarChart3,
-      path: '/dashboard',
-      color: 'text-green-500',
+      title: "Production",
+      description: "Suivi de la production et des stocks",
+      items: [
+        {
+          title: 'Calcul Sphères',
+          description: 'Calcul des masses (3 sphères)',
+          icon: Calculator,
+          path: '/sphere-calculation',
+          color: 'text-purple-500',
+        },
+        {
+          title: 'Historique Sphères',
+          description: 'Historique des calculs de masse',
+          icon: History,
+          path: '/sphere-history',
+          color: 'text-purple-400',
+        },
+        {
+          title: 'Saisie Production',
+          description: 'Données de production par poste',
+          icon: ClipboardList,
+          path: '/production-entry',
+          color: 'text-orange-500',
+        },
+        {
+          title: 'Gestion Agents',
+          description: 'Gérer les équipes (Ligne, Quart, Exploitation)',
+          icon: Users,
+          path: '/agents',
+          color: 'text-pink-500',
+        },
+      ]
     },
     {
-      title: 'Calcul des Sphères',
-      description: 'Calculer les masses des 3 sphères de stockage',
-      icon: Calculator,
-      path: '/sphere-calculation',
-      color: 'text-purple-500',
-    },
-    {
-      title: 'Saisie Production',
-      description: 'Enregistrer les données de production par poste',
-      icon: ClipboardList,
-      path: '/production-entry',
-      color: 'text-orange-500',
-    },
-    {
-      title: 'Gestion Chefs de Ligne',
-      description: 'Gérer les chefs de ligne et leurs affectations',
-      icon: Users,
-      path: '/chefs-ligne',
-      color: 'text-pink-500',
-    },
-    {
-      title: 'Import des Données',
-      description: 'Import des ventes conditionnées par mandataire',
-      icon: Truck,
-      path: '/import_data',
-      color: 'text-amber-500',
-    },
+      title: "VRAC",
+      description: "Gestion des chargements VRAC",
+      items: [
+        {
+          title: 'Espace Client',
+          description: 'Portail de demande de chargement',
+          icon: UserCircle,
+          path: '/vrac',
+          color: 'text-emerald-600',
+        },
+        {
+          title: 'Dashboard Admin',
+          description: 'Suivi des chargements en temps réel',
+          icon: LayoutDashboard,
+          path: '/vrac-chargements',
+          color: 'text-blue-600',
+        },
+        {
+          title: 'Administration',
+          description: 'Configuration générale VRAC',
+          icon: Shield,
+          path: '/vrac-admin',
+          color: 'text-slate-600',
+        },
+      ]
+    }
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
+    <div className="min-h-screen bg-slate-50/50">
+      <header className="border-b bg-white sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
           <div>
-            <h1 className="text-3xl font-bold text-primary">GazPILOT</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Système de pilotage d'un centre emplisseur
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              GazPILOT
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Centre de contrôle unifié
             </p>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-2">Accueil</h2>
-          <p className="text-muted-foreground">
-            Sélectionnez un module pour commencer
-          </p>
-        </div>
+      <main className="container mx-auto px-4 py-8 space-y-10">
+        {sections.map((section) => (
+          <div key={section.title} className="space-y-4">
+            <div className="border-b pb-2">
+              <h2 className="text-xl font-bold text-slate-800">{section.title}</h2>
+              <p className="text-sm text-muted-foreground">{section.description}</p>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Card
-                key={item.path}
-                className="hover:shadow-lg transition-shadow cursor-pointer group"
-                onClick={() => navigate(item.path)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <Icon className={`h-10 w-10 ${item.color} mb-2`} />
-                  </div>
-                  <CardTitle className="group-hover:text-primary transition-colors">
-                    {item.title}
-                  </CardTitle>
-                  <CardDescription>{item.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Accéder
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Card
+                    key={item.path}
+                    className="hover:shadow-md transition-all duration-200 cursor-pointer group border-slate-200 hover:border-blue-200 bg-white"
+                    onClick={() => navigate(item.path)}
+                  >
+                    <CardHeader className="p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`p-2 rounded-lg bg-slate-50 group-hover:bg-white transition-colors border border-slate-100`}>
+                          <Icon className={`h-5 w-5 ${item.color}`} />
+                        </div>
+                        <CardTitle className="text-base font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">
+                          {item.title}
+                        </CardTitle>
+                      </div>
+                      <CardDescription className="text-xs line-clamp-2">
+                        {item.description}
+                      </CardDescription>
+                    </CardHeader>
+                    {/* Removed Button to make the whole card clickable and cleaner */}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </main>
     </div>
   );

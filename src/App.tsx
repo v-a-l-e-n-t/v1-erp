@@ -11,7 +11,7 @@ import DashboardHistorique from "./pages/DashboardHistorique";
 import SphereCalculation from "./pages/SphereCalculation";
 import SphereHistory from "./pages/SphereHistory";
 import ProductionDataEntry from "./pages/ProductionDataEntry";
-import ChefsLigneManagement from "./pages/ChefsLigneManagement";
+import AgentsManagement from "./pages/AgentsManagement";
 import ImportData from "./pages/ImportData";
 import VracClientPortal from "./pages/VracClientPortal";
 import VracAdminPanel from "./pages/VracAdminPanel";
@@ -40,7 +40,7 @@ const App = () => (
           <Route path="/sphere-calculation" element={<SphereCalculation />} />
           <Route path="/sphere-history" element={<SphereHistory />} />
           <Route path="/production-entry" element={<ProductionDataEntry />} />
-          <Route path="/chefs-ligne" element={<ChefsLigneManagement />} />
+          <Route path="/agents" element={<AgentsManagement />} />
           <Route path="/import_data" element={<ImportData />} />
           <Route path="/new-bilan" element={<NewBilan />} />
           {/* VRAC Module Routes */}
