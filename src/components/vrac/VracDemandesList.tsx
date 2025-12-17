@@ -26,7 +26,7 @@ import {
 import { Trash2, Edit2, Search, Filter, Truck, Check, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { VracDemandeChargement } from '@/types/vrac';
+import { VracDemandeChargement, VracClient } from '@/types/vrac';
 
 interface VracDemandesListProps {
     demandes: VracDemandeChargement[];
@@ -35,6 +35,8 @@ interface VracDemandesListProps {
     showClient?: boolean;
     allowActions?: boolean;
     loading?: boolean;
+    clients?: VracClient[];
+    showClientFilter?: boolean;
 }
 
 const VracDemandesList: React.FC<VracDemandesListProps> = ({
@@ -44,9 +46,12 @@ const VracDemandesList: React.FC<VracDemandesListProps> = ({
     showClient = false,
     allowActions = true,
     loading = false,
+    clients = [],
+    showClientFilter = false,
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'en_attente' | 'charge'>('all');
+    const [clientFilter, setClientFilter] = useState<string>('all');
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const filteredDemandes = demandes.filter(demande => {
@@ -56,8 +61,9 @@ const VracDemandesList: React.FC<VracDemandesListProps> = ({
             (demande.numero_bon?.toLowerCase().includes(searchTerm.toLowerCase()));
 
         const matchesStatus = statusFilter === 'all' || demande.statut === statusFilter;
+        const matchesClient = !showClientFilter || clientFilter === 'all' || demande.client_id === clientFilter;
 
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchesStatus && matchesClient;
     });
 
     const handleDelete = async (id: string) => {
@@ -104,6 +110,24 @@ const VracDemandesList: React.FC<VracDemandesListProps> = ({
                                 className="pl-9 w-full sm:w-48"
                             />
                         </div>
+
+                        {/* Client Filter */}
+                        {showClientFilter && clients.length > 0 && (
+                            <Select value={clientFilter} onValueChange={setClientFilter}>
+                                <SelectTrigger className="w-full sm:w-48">
+                                    <Filter className="w-4 h-4 mr-2" />
+                                    <SelectValue placeholder="Client" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tous les clients</SelectItem>
+                                    {clients.map(client => (
+                                        <SelectItem key={client.id} value={client.id}>
+                                            {client.nom_affichage || client.nom}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
 
                         {/* Status Filter */}
                         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'en_attente' | 'charge')}>

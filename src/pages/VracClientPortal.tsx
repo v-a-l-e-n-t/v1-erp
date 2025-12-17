@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useVracAuth } from '@/hooks/useVracAuth';
 import { VracDemandeChargement, VracDemandeFormData, VracStats } from '@/types/vrac';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 import VracLoginForm from '@/components/vrac/VracLoginForm';
 import VracDemandeForm from '@/components/vrac/VracDemandeForm';
@@ -14,7 +15,7 @@ import VracDemandesList from '@/components/vrac/VracDemandesList';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Truck, Clock, CheckCircle, TrendingUp, CalendarDays, Calendar as CalendarIcon } from 'lucide-react';
+import { LogOut, Truck, Clock, CheckCircle, TrendingUp, CalendarDays, Calendar as CalendarIcon, FileSpreadsheet } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -91,6 +92,35 @@ const VracClientPortal: React.FC = () => {
             loadDemandes();
         }
     }, [isAuthenticated, loadDemandes]);
+
+    const handleExport = () => {
+        if (!demandes.length) return;
+
+        const dataToExport = demandes.map(d => ({
+            'Date': format(new Date(d.date_chargement), 'dd/MM/yyyy'),
+            'Tracteur': d.immatriculation_tracteur,
+            'Citerne': d.immatriculation_citerne,
+            'Bon': d.numero_bon || '-',
+            'Statut': d.statut === 'charge' ? 'Chargé' : 'En attente',
+            'Tonnage (T)': d.tonnage_charge || 0,
+            'Tonnage (Kg)': d.tonnage_charge ? d.tonnage_charge * 1000 : 0
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Chargements");
+
+        // Auto-width columns roughly
+        const wscols = Object.keys(dataToExport[0]).map(() => ({ wch: 20 }));
+        ws['!cols'] = wscols;
+
+        XLSX.writeFile(wb, `chargements_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+
+        toast({
+            title: 'Export réussi',
+            description: 'Le fichier Excel a été généré',
+        });
+    };
 
     const handleSubmitDemande = async (data: VracDemandeFormData): Promise<boolean> => {
         if (!session) return false;
@@ -210,11 +240,21 @@ const VracClientPortal: React.FC = () => {
                         </div>
                         <div>
                             <h1 className="text-lg font-bold text-foreground">Espace VRAC</h1>
-                            <p className="text-sm text-muted-foreground">{session?.client_nom_affichage}</p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4 w-full md:w-auto justify-end">
+                    <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+                        {/* Export Button */}
+                        <Button
+                            variant="outline"
+                            onClick={handleExport}
+                            disabled={demandes.length === 0}
+                            className="bg-white h-9"
+                        >
+                            <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
+                            Export Excel
+                        </Button>
+
                         {/* Date Range Picker */}
                         <Popover>
                             <PopoverTrigger asChild>
@@ -222,7 +262,7 @@ const VracClientPortal: React.FC = () => {
                                     id="date"
                                     variant={"outline"}
                                     className={cn(
-                                        "w-[260px] justify-start text-left font-normal bg-background",
+                                        "w-[240px] justify-start text-left font-normal bg-background h-9",
                                         !dateRange && "text-muted-foreground"
                                     )}
                                 >
@@ -286,13 +326,22 @@ const VracClientPortal: React.FC = () => {
                             </PopoverContent>
                         </Popover>
 
+                        <div className="h-6 w-px bg-border mx-1 hidden sm:block"></div>
+
+                        {/* User Info */}
+                        <div className="flex flex-col items-end mr-1 hidden sm:flex">
+                            <span className="text-sm font-semibold text-foreground leading-none">{session?.client_nom_affichage}</span>
+                            <span className="text-xs text-muted-foreground leading-none mt-1">{session?.user_nom}</span>
+                        </div>
+
                         <Button
                             variant="ghost"
                             onClick={logout}
+                            size="icon"
                             className="text-muted-foreground hover:text-foreground"
+                            title="Déconnexion"
                         >
-                            <LogOut className="w-4 h-4 mr-2" />
-                            Déconnexion
+                            <LogOut className="w-4 h-4" />
                         </Button>
                     </div>
                 </div>
@@ -351,9 +400,9 @@ const VracClientPortal: React.FC = () => {
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-foreground">
-                                        {(stats.tonnage_total_jour * 1000).toLocaleString('fr-FR')}
+                                        {(stats.tonnage_total_jour * 1000).toLocaleString('fr-FR')} kg
                                     </p>
-                                    <p className="text-xs text-muted-foreground">Poids total (kg)</p>
+                                    <p className="text-xs text-muted-foreground">Quantité chargée</p>
                                 </div>
                             </div>
                         </CardContent>
