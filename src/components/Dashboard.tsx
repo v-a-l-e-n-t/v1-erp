@@ -785,40 +785,40 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* BUTANES SPHERES */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">🔵 BUTANES SPHÈRES</CardTitle>
+            <CardTitle className="text-base font-semibold">🔵 BUTANES SPHÈRES</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-3">
-              <div className="text-xl font-bold text-blue-700">{formatNumber(totalDisponible)} Kg</div>
-              <p className="text-sm text-muted-foreground">Stock disponible (Stock 1er + Réceptions)</p>
+              <div className="text-2xl font-bold text-blue-700">{formatNumber(totalDisponible)} Kg</div>
+              <p className="text-xs text-muted-foreground">Stock disponible (Stock 1er + Réceptions)</p>
               <div className="space-y-2 border-t pt-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Stock au 1er</span>
-                  <span className="text-xl font-bold">{formatNumber(stockInitial1st)} Kg</span>
+                  <span className="text-xs text-muted-foreground">Stock au 1er</span>
+                  <span className="text-lg font-semibold">{formatNumber(stockInitial1st)} Kg</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Réceptions {getPeriodText()}</span>
-                  <span className="text-xl font-bold">{formatNumber(totalReceptions)} Kg</span>
+                  <span className="text-xs text-muted-foreground">Réceptions {getPeriodText()}</span>
+                  <span className="text-lg font-semibold">{formatNumber(totalReceptions)} Kg</span>
                 </div>
                 {nombreReceptions > 0 && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Nb réceptions</span>
-                    <span className="text-sm font-bold">{nombreReceptions}</span>
+                    <span className="text-xs text-muted-foreground">Nb réceptions</span>
+                    <span className="text-base font-semibold">{nombreReceptions}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center border-t pt-2 mt-2">
-                  <span className="text-sm text-muted-foreground">Stock Théorique en sphères</span>
-                  <span className="text-xl font-bold text-green-700">{formatNumber(stockTheoriqueSpheres)} Kg</span>
+                  <span className="text-xs text-muted-foreground">Stock Théorique en sphères</span>
+                  <span className="text-lg font-semibold text-green-700">{formatNumber(stockTheoriqueSpheres)} Kg</span>
                 </div>
               </div>
             </div>
             <div className="bg-blue-100/50 rounded-md p-3 border border-blue-200 text-center mt-auto">
-              <span className="text-sm text-muted-foreground">Ventes = </span>
-              <span className="text-xl font-bold text-orange-600">
+              <span className="text-xs text-muted-foreground">Ventes = </span>
+              <span className="text-lg font-semibold text-orange-600">
                 {totalDisponible > 0 ? ((totalSorties / totalDisponible) * 100).toFixed(1) : '0.0'}%
               </span>
-              <span className="text-sm text-muted-foreground"> des réceptions</span>
+              <span className="text-xs text-muted-foreground"> des réceptions</span>
             </div>
           </CardContent>
         </Card>
@@ -826,44 +826,44 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* VENTES GLOBALES */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-700">📊 VENTES</CardTitle>
+            <CardTitle className="text-base font-semibold text-orange-700">📊 VENTES</CardTitle>
             <TrendingUp className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-3">
-              <div className="text-xl font-bold">{formatNumber(totalGlobalSales)} Kg</div>
+              <div className="text-2xl font-bold">{formatNumber(totalGlobalSales)} Kg</div>
               <p className="text-xs text-muted-foreground">Cumul des ventes (VRAC + Conditionné)</p>
               <div className="space-y-2 border-t pt-2">
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-xl font-bold">{formatNumber(globalSimam)} Kg <span className="text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
+                  <span className="text-lg font-semibold">{formatNumber(globalSimam)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-xl font-bold">{formatNumber(globalPetro)} Kg <span className="text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
+                  <span className="text-lg font-semibold">{formatNumber(globalPetro)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-xl font-bold">{formatNumber(globalVivo)} Kg <span className="text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
+                  <span className="text-lg font-semibold">{formatNumber(globalVivo)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-xl font-bold">{formatNumber(globalTotalE)} Kg <span className="text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
+                  <span className="text-lg font-semibold">{formatNumber(globalTotalE)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
                 </div>
               </div>
             </div>
             <div className="bg-orange-100/50 rounded-md p-3 border border-orange-200 text-center mt-auto">
-              <span className="text-sm text-muted-foreground">Ventes CE = </span>
-              <span className="text-xl font-bold text-orange-600">{correlation.toFixed(1)}%</span>
-              <span className="text-sm text-muted-foreground"> de la production CE</span>
+              <span className="text-xs text-muted-foreground">Ventes CE = </span>
+              <span className="text-lg font-semibold text-orange-600">{correlation.toFixed(1)}%</span>
+              <span className="text-xs text-muted-foreground"> de la production CE</span>
             </div>
           </CardContent>
         </Card>
@@ -874,8 +874,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* VRAC */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">🛢️ VRAC</CardTitle>
-            <span className="text-xs font-bold">{formatNumber(totalVracAll)} Kg</span>
+            <CardTitle className="text-base font-semibold">🛢️ VRAC</CardTitle>
+            <span className="text-sm font-semibold">{formatNumber(totalVracAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="grid grid-cols-2 gap-3">
@@ -884,7 +884,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-xl font-bold mt-1">{formatNumber(vracSimam)}</span>
+                <span className="text-lg font-semibold mt-1">{formatNumber(vracSimam)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracSimam.toFixed(0)}%</span>
               </div>
               {/* Petro */}
@@ -892,7 +892,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-xl font-bold mt-1">{formatNumber(vracPetro)}</span>
+                <span className="text-lg font-semibold mt-1">{formatNumber(vracPetro)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracPetro.toFixed(0)}%</span>
               </div>
               {/* Vivo */}
@@ -900,7 +900,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-xl font-bold mt-1">{formatNumber(vracVivo)}</span>
+                <span className="text-lg font-semibold mt-1">{formatNumber(vracVivo)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracVivo.toFixed(0)}%</span>
               </div>
               {/* Total */}
@@ -908,7 +908,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-xl font-bold mt-1">{formatNumber(vracTotalE)}</span>
+                <span className="text-lg font-semibold mt-1">{formatNumber(vracTotalE)}</span>
                 <span className="text-sm text-amber-600 font-semibold">{pctVracTotalE.toFixed(0)}%</span>
               </div>
             </div>
@@ -918,8 +918,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* CONDITIONNÉ */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">📦 CONDITIONNÉ</CardTitle>
-            <span className="text-xs font-bold">{formatNumber(totalCeAll)} Kg</span>
+            <CardTitle className="text-base font-semibold">📦 CONDITIONNÉ</CardTitle>
+            <span className="text-sm font-semibold">{formatNumber(totalCeAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-3">
@@ -928,24 +928,24 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-xl font-bold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
-                <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCePetro.toFixed(0)}%</span>
+                <span className="text-lg font-semibold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
+                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCePetro.toFixed(0)}%</span>
               </div>
               {/* Vivo */}
               <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-xl font-bold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
-                <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeVivo.toFixed(0)}%</span>
+                <span className="text-lg font-semibold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
+                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeVivo.toFixed(0)}%</span>
               </div>
               {/* Total E */}
               <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
                 <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-xl font-bold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
-                <span className="text-base font-bold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeTotalE.toFixed(0)}%</span>
+                <span className="text-lg font-semibold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
+                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeTotalE.toFixed(0)}%</span>
               </div>
             </div>
           </CardContent>
@@ -957,45 +957,45 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* Top Performers - Tonnage */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">📊 Top Performers - Tonnage</CardTitle>
+            <CardTitle className="text-base font-semibold">📊 Top Performers - Tonnage</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="grid grid-cols-3 gap-3">
               {/* Meilleure Ligne */}
               <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
-                <p className="text-[10px] text-muted-foreground mb-1">Meilleure Ligne</p>
+                <p className="text-xs text-muted-foreground mb-1">Meilleure Ligne</p>
                 {topPerformers.topLine ? (
                   <>
-                    <p className="text-lg font-bold text-blue-700">{topPerformers.topLine.name}</p>
-                    <p className="text-xl font-bold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
+                    <p className="text-sm font-semibold text-blue-700">{topPerformers.topLine.name}</p>
+                    <p className="text-lg font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">-</p>
+                  <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
               {/* Chef de Quart */}
               <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
-                <p className="text-[10px] text-muted-foreground mb-1">Chef de Quart</p>
+                <p className="text-xs text-muted-foreground mb-1">Chef de Quart</p>
                 {topPerformers.topChefByTonnage ? (
                   <>
-                    <p className="text-lg font-bold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
-                    <p className="text-xl font-bold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
+                    <p className="text-sm font-semibold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
+                    <p className="text-lg font-semibold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">-</p>
+                  <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
               {/* Chef de Ligne */}
               <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
-                <p className="text-[10px] text-muted-foreground mb-1">Chef de Ligne</p>
+                <p className="text-xs text-muted-foreground mb-1">Chef de Ligne</p>
                 {topPerformers.topAgentByTonnage ? (
                   <>
-                    <p className="text-lg font-bold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
-                    <p className="text-xl font-bold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
+                    <p className="text-sm font-semibold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
+                    <p className="text-lg font-semibold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">-</p>
+                  <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
             </div>
@@ -1005,45 +1005,45 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* Top Performers - Productivité */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">🎯 Top Performers - Productivité</CardTitle>
+            <CardTitle className="text-base font-semibold">🎯 Top Performers - Productivité</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="grid grid-cols-3 gap-3">
               {/* Meilleure Ligne */}
               <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
-                <p className="text-[10px] text-muted-foreground mb-1">Meilleure Ligne</p>
+                <p className="text-xs text-muted-foreground mb-1">Meilleure Ligne</p>
                 {topPerformers.topLine ? (
                   <>
-                    <p className="text-lg font-bold text-green-700">{topPerformers.topLine.name}</p>
-                    <p className="text-sm text-muted-foreground">{topPerformers.topLine.percentage.toFixed(1)}%</p>
+                    <p className="text-sm font-semibold text-green-700">{topPerformers.topLine.name}</p>
+                    <p className="text-lg font-semibold text-green-600">{topPerformers.topLine.percentage.toFixed(1)}%</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">-</p>
+                  <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
               {/* Chef de Quart */}
               <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
-                <p className="text-[10px] text-muted-foreground mb-1">Chef de Quart</p>
+                <p className="text-xs text-muted-foreground mb-1">Chef de Quart</p>
                 {topPerformers.topChefByProductivity ? (
                   <>
-                    <p className="text-lg font-bold text-green-700 truncate">{topPerformers.topChefByProductivity.name}</p>
-                    <p className="text-xl font-bold text-green-600">{topPerformers.topChefByProductivity.productivity.toFixed(1)}%</p>
+                    <p className="text-sm font-semibold text-green-700 truncate">{topPerformers.topChefByProductivity.name}</p>
+                    <p className="text-lg font-semibold text-green-600">{topPerformers.topChefByProductivity.productivity.toFixed(1)}%</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">-</p>
+                  <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
               {/* Chef de Ligne */}
               <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
-                <p className="text-[10px] text-muted-foreground mb-1">Chef de Ligne</p>
+                <p className="text-xs text-muted-foreground mb-1">Chef de Ligne</p>
                 {topPerformers.topAgentByProductivity ? (
                   <>
-                    <p className="text-lg font-bold text-green-700 truncate">{topPerformers.topAgentByProductivity.name}</p>
-                    <p className="text-xl font-bold text-green-600">{topPerformers.topAgentByProductivity.productivity.toFixed(1)}%</p>
+                    <p className="text-sm font-semibold text-green-700 truncate">{topPerformers.topAgentByProductivity.name}</p>
+                    <p className="text-lg font-semibold text-green-600">{topPerformers.topAgentByProductivity.productivity.toFixed(1)}%</p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">-</p>
+                  <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
             </div>
@@ -1056,30 +1056,30 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* Tonnage Production CE */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tonnage Production CE</CardTitle>
+            <CardTitle className="text-base font-semibold">Tonnage Production CE</CardTitle>
             <Weight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="text-xl font-bold">
+            <div className="text-2xl font-bold">
               {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
             </div>
             <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
             <div className="mt-3 space-y-1 border-t pt-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B6</span>
-                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B6</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B12</span>
-                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12.5)} Kg</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B12</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12.5)} Kg</span>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B28</span>
-                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B28</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B38</span>
-                <span className="text-xl font-bold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B38</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
               </div>
             </div>
           </CardContent>
@@ -1088,29 +1088,42 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* Bouteilles Produites */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bouteilles Produites</CardTitle>
+            <CardTitle className="text-base font-semibold">Bouteilles Produites</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="text-2xl font-bold">
               {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
             </div>
-            <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B6: <span className="font-bold text-foreground">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span></span>
-                <span className="font-bold text-foreground">{pctB6.toFixed(1)}%</span>
+            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
+            <div className="mt-3 space-y-1 border-t pt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B6</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB6.toFixed(1)}%)</span>
+                </div>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B12: <span className="font-bold text-foreground">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span></span>
-                <span className="font-bold text-foreground">{pctB12.toFixed(1)}%</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B12</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB12.toFixed(1)}%)</span>
+                </div>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B28: <span className="font-bold text-foreground">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span></span>
-                <span className="font-bold text-foreground">{pctB28.toFixed(1)}%</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B28</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB28.toFixed(1)}%)</span>
+                </div>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">B38: <span className="font-bold text-foreground">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span></span>
-                <span className="font-bold text-foreground">{pctB38.toFixed(1)}%</span>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B38</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB38.toFixed(1)}%)</span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -1119,7 +1132,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* Production par Client */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Production par Client</CardTitle>
+            <CardTitle className="text-base font-semibold">Production par Client</CardTitle>
             <Factory className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
@@ -1128,19 +1141,19 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold">{pctProdPetro.toFixed(1)}%</span>
+                <span className="text-base font-semibold">{pctProdPetro.toFixed(1)}%</span>
               </div>
               <div className="flex justify-between items-center">
                 <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold">{pctProdVivo.toFixed(1)}%</span>
+                <span className="text-base font-semibold">{pctProdVivo.toFixed(1)}%</span>
               </div>
               <div className="flex justify-between items-center">
                 <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-base font-bold">{pctProdTotal.toFixed(1)}%</span>
+                <span className="text-base font-semibold">{pctProdTotal.toFixed(1)}%</span>
               </div>
             </div>
           </CardContent>
@@ -1149,15 +1162,15 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* Retour marché */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Retour marché</CardTitle>
+            <CardTitle className="text-base font-semibold">Retour marché</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent className="pt-2">
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Cumul</span>
+                <span className="text-xs text-muted-foreground">Cumul</span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
+                  <span className="text-lg font-semibold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
                   <span className="text-sm font-semibold text-destructive">
                     ({totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%)
                   </span>
@@ -1169,19 +1182,19 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-sm font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
+                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-sm font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
+                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
                     <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-sm font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
+                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
                 </div>
               </div>
             </div>
