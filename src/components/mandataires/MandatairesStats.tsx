@@ -46,10 +46,10 @@ interface DestinationStats {
 }
 
 const COLORS = [
-  "hsl(var(--primary))", 
-  "hsl(var(--chart-2))", 
-  "hsl(var(--chart-3))", 
-  "hsl(var(--chart-4))", 
+  "hsl(var(--primary))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
   "hsl(var(--chart-5))",
   "hsl(var(--muted-foreground))",
 ];
@@ -88,7 +88,7 @@ const MandatairesStats = () => {
     setLoading(true);
     try {
       const { start, end } = getDateRange();
-      
+
       let query = supabase
         .from("ventes_mandataires")
         .select("*");
@@ -118,26 +118,26 @@ const MandatairesStats = () => {
 
   // Calculate tonnage in Kg (recharges + consignes)
   const calculateTonnageKg = (vente: VenteMandataire) => {
-    const recharges = 
-      (vente.r_b6 * 6) + 
-      (vente.r_b12 * 12.5) + 
-      (vente.r_b28 * 28) + 
-      (vente.r_b38 * 38) + 
-      (vente.r_b11_carbu * 11);
-    
-    const consignes = 
-      (vente.c_b6 * 6) + 
-      (vente.c_b12 * 12.5) + 
-      (vente.c_b28 * 28) + 
-      (vente.c_b38 * 38) + 
-      (vente.c_b11_carbu * 11);
-    
+    const recharges =
+      (vente.r_b6 * 6) +
+      (vente.r_b12 * 12.5) +
+      (vente.r_b28 * 28) +
+      (vente.r_b38 * 38) +
+      (vente.r_b11_carbu * 12.5);
+
+    const consignes =
+      (vente.c_b6 * 6) +
+      (vente.c_b12 * 12.5) +
+      (vente.c_b28 * 28) +
+      (vente.c_b38 * 38) +
+      (vente.c_b11_carbu * 12.5);
+
     return recharges + consignes;
   };
 
   // Filter ventes by selected client
-  const filteredVentes = selectedClient === "all" 
-    ? ventes 
+  const filteredVentes = selectedClient === "all"
+    ? ventes
     : ventes.filter(v => v.client === selectedClient);
 
   // Total tonnage for filtered data
@@ -172,19 +172,19 @@ const MandatairesStats = () => {
 
   // Global totals
   const totalVentes = filteredVentes.length;
-  const totalRecharges = filteredVentes.reduce((sum, v) => 
+  const totalRecharges = filteredVentes.reduce((sum, v) =>
     sum + v.r_b6 + v.r_b12 + v.r_b28 + v.r_b38 + v.r_b11_carbu, 0);
-  const totalConsignes = filteredVentes.reduce((sum, v) => 
+  const totalConsignes = filteredVentes.reduce((sum, v) =>
     sum + v.c_b6 + v.c_b12 + v.c_b28 + v.c_b38 + v.c_b11_carbu, 0);
 
-  const formatNumber = (num: number) => new Intl.NumberFormat("fr-FR", { 
-    minimumFractionDigits: 3, 
-    maximumFractionDigits: 3 
+  const formatNumber = (num: number) => new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3
   }).format(num);
 
-  const formatPercentage = (num: number) => new Intl.NumberFormat("fr-FR", { 
-    minimumFractionDigits: 2, 
-    maximumFractionDigits: 2 
+  const formatPercentage = (num: number) => new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(num);
 
   return (
@@ -403,9 +403,9 @@ const MandatairesStats = () => {
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={mandataireStats.slice(0, 10)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(v) => `${(v/1000).toFixed(0)}K`} />
+                  <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                   <YAxis type="category" dataKey="mandataire" width={120} tick={{ fontSize: 11 }} />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: number) => [`${formatNumber(value)} Kg`, "Tonnage"]}
                   />
                   <Bar dataKey="tonnageKg" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
@@ -437,7 +437,7 @@ const MandatairesStats = () => {
                     cx="50%"
                     cy="50%"
                     outerRadius={120}
-                    label={({ destination, percentage }) => 
+                    label={({ destination, percentage }) =>
                       `${destination.substring(0, 12)}${destination.length > 12 ? ".." : ""} ${formatPercentage(percentage)}%`
                     }
                     labelLine={true}
@@ -446,7 +446,7 @@ const MandatairesStats = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: number) => [`${formatPercentage(value)}%`, "Part"]}
                   />
                   <Legend />

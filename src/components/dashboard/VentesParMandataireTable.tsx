@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { formatNumber } from '@/utils/calculations';
 import { Users, MapPin, Truck } from 'lucide-react';
+import { SearchableSelect } from './SearchableSelect';
 
 interface VentesParMandataireTableProps {
   startDate: string;
@@ -41,26 +42,71 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
   const [truckStats, setTruckStats] = useState<TruckStats[]>([]);
   const [clients, setClients] = useState<string[]>([]);
   const [mandatairesList, setMandatairesList] = useState<{ id: string; nom: string }[]>([]);
+  const [rawTotalTonnage, setRawTotalTonnage] = useState<number>(0);
+  const [allVentesData, setAllVentesData] = useState<any[]>([]);
+
+  // Filter mandataires based on selected client
+  const filteredMandatairesList = useMemo(() => {
+    if (selectedClient === 'all') return mandatairesList;
+
+    // Get mandataires that have sales for the selected client
+    const mandataireIdsForClient = new Set<string>();
+    allVentesData.forEach(v => {
+      if (v.client?.toUpperCase() === selectedClient.toUpperCase()) {
+        const m = v.mandataires as any;
+        if (m?.id) mandataireIdsForClient.add(m.id);
+      }
+    });
+
+    return mandatairesList.filter(m => mandataireIdsForClient.has(m.id));
+  }, [selectedClient, mandatairesList, allVentesData]);
+
+  // Reset mandataire selection when client changes and selected mandataire is not in filtered list
+  useEffect(() => {
+    if (selectedMandataire !== 'all' && !filteredMandatairesList.find(m => m.id === selectedMandataire)) {
+      setSelectedMandataire('all');
+    }
+  }, [filteredMandatairesList, selectedMandataire]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch ventes with mandataires
-        const { data: ventes, error } = await supabase
-          .from('ventes_mandataires')
-          .select(`
-            *,
-            mandataires:mandataire_id (id, nom)
-          `)
-          .gte('date', startDate)
-          .lte('date', endDate);
+        // Batch fetching to bypass 1000 rows limit - SAME as MandatairesVentesHistory
+        const BATCH_SIZE = 1000;
+        const TOTAL_LIMIT = 10000;
+        const batches = Math.ceil(TOTAL_LIMIT / BATCH_SIZE);
 
-        if (error) throw error;
+        const fetchPromises = Array.from({ length: batches }).map((_, i) => {
+          const from = i * BATCH_SIZE;
+          const to = (i + 1) * BATCH_SIZE - 1;
 
-        // Extract unique clients
+          return supabase
+            .from('ventes_mandataires')
+            .select(`
+              *,
+              mandataires:mandataire_id (id, nom)
+            `)
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .range(from, to);
+        });
+
+        const results = await Promise.all(fetchPromises);
+
+        const allVentes: any[] = [];
+        results.forEach(result => {
+          if (result.error) console.error('Batch error:', result.error);
+          if (result.data) allVentes.push(...result.data);
+        });
+
+        const ventes = allVentes;
+
         const uniqueClients = [...new Set(ventes?.map(v => v.client).filter(Boolean))] as string[];
         setClients(uniqueClients.sort());
+
+        // Store all ventes for client-based mandataire filtering
+        setAllVentesData(ventes || []);
 
         // Extract unique mandataires
         const uniqueMandatairesMap = new Map<string, string>();
@@ -73,19 +119,11 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
           .sort((a, b) => a.nom.localeCompare(b.nom));
         setMandatairesList(uniqueMandataires);
 
-        // Calculate tonnage per mandataire
+        // Calculate tonnage - EXACT SAME as MandatairesVentesHistory.calculateTonnageKg
         const calculateTonnage = (v: any) => {
-          const r_b6 = (v.r_b6 || 0) * 6;
-          const r_b12 = (v.r_b12 || 0) * 12.5;
-          const r_b28 = (v.r_b28 || 0) * 28;
-          const r_b38 = (v.r_b38 || 0) * 38;
-          const r_b11 = (v.r_b11_carbu || 0) * 11;
-          const c_b6 = (v.c_b6 || 0) * 6;
-          const c_b12 = (v.c_b12 || 0) * 12.5;
-          const c_b28 = (v.c_b28 || 0) * 28;
-          const c_b38 = (v.c_b38 || 0) * 38;
-          const c_b11 = (v.c_b11_carbu || 0) * 11;
-          return r_b6 + r_b12 + r_b28 + r_b38 + r_b11 + c_b6 + c_b12 + c_b28 + c_b38 + c_b11;
+          const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 12.5;
+          const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 12.5;
+          return recharges + consignes;
         };
 
         // Filter logic
@@ -98,6 +136,10 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
         if (selectedMandataire !== 'all') {
           filteredVentes = filteredVentes?.filter(v => (v.mandataires as any)?.id === selectedMandataire) || [];
         }
+
+        // Calculate raw total tonnage from ALL filtered ventes (before mandataire grouping)
+        const rawTotal = filteredVentes?.reduce((sum, v) => sum + calculateTonnage(v), 0) || 0;
+        setRawTotalTonnage(rawTotal);
 
         // Group by mandataire
         const mandataireMap = new Map<string, { id: string; nom: string; tonnage: number }>();
@@ -208,33 +250,27 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
       {/* Global Filters */}
       <div className="flex flex-wrap items-center gap-4 bg-muted/30 p-4 rounded-lg border">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Mandataire:</span>
-          <Select value={selectedMandataire} onValueChange={setSelectedMandataire}>
-            <SelectTrigger className="w-[200px] bg-background">
-              <SelectValue placeholder="Tous les mandataires" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les mandataires</SelectItem>
-              {mandatairesList.map(m => (
-                <SelectItem key={m.id} value={m.id}>{m.nom}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <span className="text-sm font-medium">Client:</span>
+          <SearchableSelect
+            options={clients.map(c => ({ value: c, label: c }))}
+            value={selectedClient}
+            onValueChange={setSelectedClient}
+            placeholder="Sélectionner"
+            allLabel="Tous les clients"
+            className="w-[200px]"
+          />
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Client:</span>
-          <Select value={selectedClient} onValueChange={setSelectedClient}>
-            <SelectTrigger className="w-[200px] bg-background">
-              <SelectValue placeholder="Tous les clients" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les clients</SelectItem>
-              {clients.map(client => (
-                <SelectItem key={client} value={client}>{client}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <span className="text-sm font-medium">Mandataire:</span>
+          <SearchableSelect
+            options={filteredMandatairesList.map(m => ({ value: m.id, label: m.nom }))}
+            value={selectedMandataire}
+            onValueChange={setSelectedMandataire}
+            placeholder="Sélectionner"
+            allLabel="Tous les mandataires"
+            className="w-[200px]"
+          />
         </div>
 
         {/* Global Metrics In Header */}
@@ -242,7 +278,7 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
           <div className="flex flex-col items-end">
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Volume</span>
             <span className="text-xl font-bold text-primary">
-              {formatNumber(Math.round(totalMandataireTonnage))} <span className="text-sm font-normal text-muted-foreground">Kg</span>
+              {rawTotalTonnage.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} <span className="text-sm font-normal text-muted-foreground">Kg</span>
             </span>
           </div>
           <div className="h-8 w-px bg-border" />
