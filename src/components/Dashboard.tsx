@@ -505,6 +505,9 @@ const Dashboard = ({ entries }: DashboardProps) => {
   };
   const totalSorties = filteredEntries.reduce((sum, e) => sum + e.cumul_sorties, 0);
   const totalBilan = filteredEntries.reduce((sum, e) => sum + e.bilan, 0);
+  
+  // Stock Théorique en sphères = Stock disponible - Ventes du mois en cours (VRAC + Conditionnées + Fuyardes)
+  const stockTheoriqueSpheres = totalDisponible - totalSorties;
 
   // Sorties breakdown (totals)
   const totalVrac = filteredEntries.reduce((sum, e) => sum + e.sorties_vrac, 0);
@@ -804,6 +807,10 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     <span className="text-sm font-bold">{nombreReceptions}</span>
                   </div>
                 )}
+                <div className="flex justify-between items-center border-t pt-2 mt-2">
+                  <span className="text-sm text-muted-foreground">Stock Théorique en sphères</span>
+                  <span className="text-xl font-bold text-green-700">{formatNumber(stockTheoriqueSpheres)} Kg</span>
+                </div>
               </div>
             </div>
             <div className="bg-blue-100/50 rounded-md p-3 border border-blue-200 text-center mt-auto">
