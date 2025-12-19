@@ -76,48 +76,49 @@ const Landing = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold text-primary">GazPILOT</span>
-          <Button variant="ghost" onClick={() => setLoginDialogOpen(true)}>
+        <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
+          <span className="text-lg sm:text-xl font-bold text-primary">GazPILOT</span>
+          <Button variant="ghost" onClick={() => setLoginDialogOpen(true)} className="text-sm sm:text-base">
             Connexion
           </Button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
+      <section className="pt-24 sm:pt-28 md:pt-32 pb-12 sm:pb-16 md:pb-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-            <Zap className="h-4 w-4" />
-            Plateforme de gestion GPL nouvelle génération
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium mb-4 sm:mb-6">
+            <Zap className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Plateforme de gestion GPL nouvelle génération</span>
+            <span className="sm:hidden">GPL nouvelle génération</span>
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight px-2">
             Pilotez votre
             <span className="text-primary"> centre emplisseur </span>
             en toute simplicité
           </h1>
 
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
             GazPILOT centralise la gestion de votre production GPL, le suivi des ventes par mandataire,
             et l'analyse de vos performances en temps réel.
           </p>
 
-          <Button size="lg" onClick={() => setDemoDialogOpen(true)} className="gap-2 text-lg px-8">
+          <Button size="lg" onClick={() => setDemoDialogOpen(true)} className="gap-2 text-base sm:text-lg px-6 sm:px-8">
             Demander une démo
-            <ArrowRight className="h-5 w-5" />
+            <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-card border-y">
+      <section className="py-8 sm:py-12 md:py-16 bg-card border-y">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-primary mb-2">{stat.value}</div>
-                <div className="text-muted-foreground">{stat.label}</div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary mb-1 sm:mb-2">{stat.value}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -125,28 +126,28 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4">
+      <section className="py-12 sm:py-16 md:py-20 px-4">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-3 sm:mb-4 px-2">
               Tout ce dont vous avez besoin
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-2">
               Une suite complète d'outils pour gérer efficacement votre activité GPL
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <Card key={index} className="group hover:shadow-lg hover:border-primary/50 transition-all duration-300">
-                  <CardContent className="p-6">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                      <Icon className="h-6 w-6 text-primary" />
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
+                      <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     </div>
-                    <h3 className="text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground">{feature.description}</p>
+                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground">{feature.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -156,51 +157,51 @@ const Landing = () => {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-20 px-4 bg-card">
+      <section className="py-12 sm:py-16 md:py-20 px-4 bg-card">
         <div className="container mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-10 md:gap-12 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 sm:mb-6">
                 Optimisez chaque aspect de votre activité
               </h2>
-              <p className="text-xl text-muted-foreground mb-8">
+              <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8">
                 GazPILOT vous offre une visibilité complète sur vos opérations,
                 de la production à la livraison finale.
               </p>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
-                    <span className="text-foreground">{benefit}</span>
+                  <div key={index} className="flex items-center gap-2 sm:gap-3">
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                    <span className="text-sm sm:text-base text-foreground">{benefit}</span>
                   </div>
                 ))}
               </div>
 
-              <Button size="lg" onClick={() => navigate('/dashboard')} className="mt-8 gap-2">
+              <Button size="lg" onClick={() => navigate('/dashboard')} className="mt-6 sm:mt-8 gap-2 w-full sm:w-auto">
                 Explorer la plateforme
-                <ArrowRight className="h-5 w-5" />
+                <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
 
-            <div className="relative">
-              <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl p-8">
-                <div className="bg-card rounded-xl shadow-xl p-6 space-y-4">
+            <div className="relative mt-8 lg:mt-0">
+              <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8">
+                <div className="bg-card rounded-lg sm:rounded-xl shadow-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">Performance du mois</span>
-                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <span className="text-sm sm:text-base font-semibold text-foreground">Performance du mois</span>
+                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Tonnage produit</span>
-                      <span className="font-bold text-foreground">2,450 T</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">Tonnage produit</span>
+                      <span className="text-sm sm:text-base font-bold text-foreground">2,450 T</span>
                     </div>
                     <div className="h-2 bg-secondary rounded-full overflow-hidden">
                       <div className="h-full bg-primary rounded-full" style={{ width: '78%' }} />
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Objectif atteint</span>
-                      <span className="font-bold text-primary">78%</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">Objectif atteint</span>
+                      <span className="text-sm sm:text-base font-bold text-primary">78%</span>
                     </div>
                   </div>
                 </div>
@@ -211,35 +212,35 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4">
+      <section className="py-12 sm:py-16 md:py-20 px-4">
         <div className="container mx-auto">
-          <div className="bg-primary rounded-2xl p-8 md:p-12 text-center">
-            <Shield className="h-12 w-12 text-primary-foreground mx-auto mb-6" />
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+          <div className="bg-primary rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-12 text-center">
+            <Shield className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary-foreground mx-auto mb-4 sm:mb-6" />
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary-foreground mb-3 sm:mb-4 px-2">
               Prêt à transformer votre gestion GPL ?
             </h2>
-            <p className="text-xl text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-primary-foreground/80 mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
               Rejoignez les centres emplisseurs qui font confiance à GazPILOT pour optimiser leurs opérations.
             </p>
             <Button
               size="lg"
               variant="secondary"
               onClick={() => setDemoDialogOpen(true)}
-              className="gap-2 text-lg px-8"
+              className="gap-2 text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto"
             >
               Demander une démo
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 border-t bg-card">
+      <footer className="py-8 sm:py-10 md:py-12 px-4 border-t bg-card">
         <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="font-bold text-primary text-lg">GazPILOT</span>
-            <p className="text-muted-foreground text-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+            <span className="font-bold text-primary text-base sm:text-lg">GazPILOT</span>
+            <p className="text-muted-foreground text-xs sm:text-sm text-center sm:text-left">
               © {new Date().getFullYear()} GAZPILOT - Tous droits réservés
             </p>
           </div>

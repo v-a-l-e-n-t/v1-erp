@@ -112,27 +112,27 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50/50">
       <header className="border-b bg-white sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               GazPILOT
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Centre de contrôle unifié
             </p>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-10">
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 md:space-y-10">
         {sections.map((section) => (
-          <div key={section.title} className="space-y-4">
+          <div key={section.title} className="space-y-3 sm:space-y-4">
             <div className="border-b pb-2">
-              <h2 className="text-xl font-bold text-slate-800">{section.title}</h2>
-              <p className="text-sm text-muted-foreground">{section.description}</p>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800">{section.title}</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground">{section.description}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -141,12 +141,12 @@ export default function Home() {
                     className="hover:shadow-md transition-all duration-200 cursor-pointer group border-slate-200 hover:border-blue-200 bg-white"
                     onClick={() => navigate(item.path)}
                   >
-                    <CardHeader className="p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`p-2 rounded-lg bg-slate-50 group-hover:bg-white transition-colors border border-slate-100`}>
-                          <Icon className={`h-5 w-5 ${item.color}`} />
+                    <CardHeader className="p-3 sm:p-4">
+                      <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                        <div className={`p-1.5 sm:p-2 rounded-lg bg-slate-50 group-hover:bg-white transition-colors border border-slate-100 flex-shrink-0`}>
+                          <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${item.color}`} />
                         </div>
-                        <CardTitle className="text-base font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">
+                        <CardTitle className="text-sm sm:text-base font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">
                           {item.title}
                         </CardTitle>
                       </div>

@@ -659,17 +659,17 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const pctTotalEnergies = totalSalesAll > 0 ? (totalTotalEnergies / totalSalesAll) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Filter Selector */}
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="space-y-3 sm:space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h2 className="text-2xl font-bold">Synthèse des activités</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">Synthèse des activités</h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range' | 'year') => setFilterType(value)}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -682,7 +682,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
             {filterType === 'year' && (
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -697,7 +697,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
             {filterType === 'month' && (
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -716,7 +716,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-[240px] justify-start text-left font-normal",
+                      "w-full sm:w-[240px] justify-start text-left font-normal text-xs sm:text-sm",
                       !selectedDate && "text-muted-foreground"
                     )}
                   >
@@ -743,7 +743,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-[280px] justify-start text-left font-normal",
+                      "w-full sm:w-[280px] justify-start text-left font-normal text-xs sm:text-sm",
                       !dateRange && "text-muted-foreground"
                     )}
                   >
@@ -781,7 +781,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
 
       {/* ========== ROW 1: BUTANES SPHERES + VENTES ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {/* BUTANES SPHERES */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -870,7 +870,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
       </div>
 
       {/* ========== ROW 2: VRAC + CONDITIONNÉ ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
         {/* VRAC */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -878,7 +878,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <span className="text-sm font-semibold">{formatNumber(totalVracAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               {/* Simam */}
               <div className="bg-white p-3 rounded-lg border border-amber-100 flex flex-col items-center">
                 <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
@@ -953,7 +953,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
       </div>
 
       {/* ========== ROW 3: TOP PERFORMERS ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
         {/* Top Performers - Tonnage */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -961,38 +961,38 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {/* Meilleure Ligne */}
-              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
+              <div className="bg-white p-2 sm:p-3 rounded-lg border border-blue-100 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Meilleure Ligne</p>
                 {topPerformers.topLine ? (
                   <>
-                    <p className="text-sm font-semibold text-blue-700">{topPerformers.topLine.name}</p>
-                    <p className="text-lg font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
+                    <p className="text-xs sm:text-sm font-semibold text-blue-700">{topPerformers.topLine.name}</p>
+                    <p className="text-sm sm:text-lg font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
                   </>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
               {/* Chef de Quart */}
-              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
+              <div className="bg-white p-2 sm:p-3 rounded-lg border border-blue-100 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Chef de Quart</p>
                 {topPerformers.topChefByTonnage ? (
                   <>
-                    <p className="text-sm font-semibold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
-                    <p className="text-lg font-semibold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
+                    <p className="text-xs sm:text-sm font-semibold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
+                    <p className="text-sm sm:text-lg font-semibold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
                   </>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">-</p>
                 )}
               </div>
               {/* Chef de Ligne */}
-              <div className="bg-white p-3 rounded-lg border border-blue-100 text-center">
+              <div className="bg-white p-2 sm:p-3 rounded-lg border border-blue-100 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Chef de Ligne</p>
                 {topPerformers.topAgentByTonnage ? (
                   <>
-                    <p className="text-sm font-semibold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
-                    <p className="text-lg font-semibold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
+                    <p className="text-xs sm:text-sm font-semibold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
+                    <p className="text-sm sm:text-lg font-semibold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
                   </>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">-</p>
@@ -1009,7 +1009,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {/* Meilleure Ligne */}
               <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Meilleure Ligne</p>
@@ -1052,7 +1052,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
       </div>
 
       {/* ========== ROW 4: PRODUCTION CE ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-3 sm:mt-4">
         {/* Tonnage Production CE */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

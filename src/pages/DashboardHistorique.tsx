@@ -26,9 +26,11 @@ import VentesView from '@/components/dashboard/VentesView';
 import DistributionView from '@/components/dashboard/DistributionView';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const DashboardHistorique = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem('dashboard_authenticated') === 'true' || localStorage.getItem('isAuthenticated') === 'true';
   });
@@ -598,52 +600,52 @@ const DashboardHistorique = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card transition-all duration-300">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col gap-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {/* Top Bar: Logo + Toggle + User Profile */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-bold text-primary">GazPILOT</h1>
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-4">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">GazPILOT</h1>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
-                  className="gap-2 text-muted-foreground hover:text-foreground"
+                  className="gap-1 sm:gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
                 >
-                  {isHeaderExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  {isHeaderExpanded ? "Masquer" : "Afficher KPIs"}
+                  {isHeaderExpanded ? <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
+                  <span className="hidden sm:inline">{isHeaderExpanded ? "Masquer" : "Afficher KPIs"}</span>
                 </Button>
-                <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full">
-                  <User className="h-4 w-4 text-primary" />
-                  <span className="font-semibold text-sm">{userName || "Utilisateur"}</span>
+                <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-secondary/50 rounded-full">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                  <span className="font-semibold text-xs sm:text-sm hidden sm:inline">{userName || "Utilisateur"}</span>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleLogout}
                   title="Se déconnecter"
-                  className="text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground hover:text-destructive h-8 w-8 sm:h-10 sm:w-10"
                 >
-                  <LogOut className="h-5 w-5" />
+                  <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </div>
             </div>
 
             {/* KPI Cards Section - Collapsible */}
             {isHeaderExpanded && (
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4 fade-in duration-300">
-                <div className="flex items-center gap-4 w-full overflow-x-auto pb-2 no-scrollbar">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4 animate-in slide-in-from-top-4 fade-in duration-300">
+                <div className="flex items-center gap-2 sm:gap-3 md:gap-4 w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent -mx-3 sm:-mx-4 px-3 sm:px-4">
                   {/* VENTES VRAC - Always visible */}
-                  <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
-                    <p className="text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
+                  <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col justify-between h-[110px] sm:h-[120px] md:h-[130px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
+                    <p className="text-[9px] sm:text-[10px] font-semibold text-orange-600/70 uppercase tracking-wider">
                       VENTES VRAC :
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
                       <Select value={ventesFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesFilterType(v)}>
-                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                        <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -653,10 +655,10 @@ const DashboardHistorique = () => {
                           <SelectItem value="range">Période</SelectItem>
                         </SelectContent>
                       </Select>
-                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      <span className="text-muted-foreground/50 text-[9px] sm:text-[10px] hidden sm:inline">|</span>
                       {ventesFilterType === 'year' && (
                         <Select value={ventesSelectedYear.toString()} onValueChange={(v) => setVentesSelectedYear(Number(v))}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -668,7 +670,7 @@ const DashboardHistorique = () => {
                       )}
                       {ventesFilterType === 'month' && (
                         <Select value={ventesSelectedMonth} onValueChange={setVentesSelectedMonth}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -685,9 +687,9 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
-                              {ventesSelectedDate ? format(ventesSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                              {ventesSelectedDate ? format(ventesSelectedDate, isMobile ? 'dd/MM' : 'dd/MM/yyyy') : 'Sel.'}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -706,16 +708,16 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
                               {ventesDateRange?.from ? (
                                 ventesDateRange.to ? (
-                                  `${format(ventesDateRange.from, 'dd/MM')} - ${format(ventesDateRange.to, 'dd/MM')}`
+                                  `${format(ventesDateRange.from, isMobile ? 'dd/MM' : 'dd/MM')} - ${format(ventesDateRange.to, isMobile ? 'dd/MM' : 'dd/MM')}`
                                 ) : (
-                                  format(ventesDateRange.from, 'dd/MM/yyyy')
+                                  format(ventesDateRange.from, isMobile ? 'dd/MM' : 'dd/MM/yyyy')
                                 )
                               ) : (
-                                'Sélectionner'
+                                'Sel.'
                               )}
                             </Button>
                           </PopoverTrigger>
@@ -732,21 +734,21 @@ const DashboardHistorique = () => {
                         </Popover>
                       )}
                     </div>
-                    <p className="text-2xl font-extrabold text-orange-600 tracking-tight mt-auto">
+                    <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-orange-600 tracking-tight mt-auto">
                       {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      <span className="text-sm font-semibold text-orange-600/60 ml-1.5">Kg</span>
+                      <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-orange-600/60 ml-1 sm:ml-1.5">Kg</span>
                     </p>
                   </div>
 
 
                   {/* PRODUCTION CE - Always visible */}
-                  <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
-                    <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
+                  <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col justify-between h-[110px] sm:h-[120px] md:h-[130px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
+                    <p className="text-[9px] sm:text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
                       PRODUCTION CE :
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
                       <Select value={productionFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setProductionFilterType(v)}>
-                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                        <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -756,10 +758,10 @@ const DashboardHistorique = () => {
                           <SelectItem value="range">Période</SelectItem>
                         </SelectContent>
                       </Select>
-                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      <span className="text-muted-foreground/50 text-[9px] sm:text-[10px] hidden sm:inline">|</span>
                       {productionFilterType === 'year' && (
                         <Select value={productionSelectedYear.toString()} onValueChange={(v) => setProductionSelectedYear(Number(v))}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -771,7 +773,7 @@ const DashboardHistorique = () => {
                       )}
                       {productionFilterType === 'month' && (
                         <Select value={productionSelectedMonth} onValueChange={setProductionSelectedMonth}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -788,9 +790,9 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
-                              {productionSelectedDate ? format(productionSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                              {productionSelectedDate ? format(productionSelectedDate, isMobile ? 'dd/MM' : 'dd/MM/yyyy') : 'Sel.'}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -809,16 +811,16 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
                               {productionDateRange?.from ? (
                                 productionDateRange.to ? (
-                                  `${format(productionDateRange.from, 'dd/MM')} - ${format(productionDateRange.to, 'dd/MM')}`
+                                  `${format(productionDateRange.from, isMobile ? 'dd/MM' : 'dd/MM')} - ${format(productionDateRange.to, isMobile ? 'dd/MM' : 'dd/MM')}`
                                 ) : (
-                                  format(productionDateRange.from, 'dd/MM/yyyy')
+                                  format(productionDateRange.from, isMobile ? 'dd/MM' : 'dd/MM/yyyy')
                                 )
                               ) : (
-                                'Sélectionner'
+                                'Sel.'
                               )}
                             </Button>
                           </PopoverTrigger>
@@ -835,21 +837,21 @@ const DashboardHistorique = () => {
                         </Popover>
                       )}
                     </div>
-                    <p className="text-2xl font-extrabold text-primary tracking-tight mt-auto">
+                    <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-primary tracking-tight mt-auto">
                       {(productionAnnuelle * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      <span className="text-sm font-semibold text-primary/60 ml-1.5">Kg</span>
+                      <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-primary/60 ml-1 sm:ml-1.5">Kg</span>
                     </p>
                   </div>
 
 
                   {/* VENTES CE - Always visible */}
-                  <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]">
-                    <p className="text-[10px] font-semibold text-green-600/70 uppercase tracking-wider">
+                  <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col justify-between h-[110px] sm:h-[120px] md:h-[130px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
+                    <p className="text-[9px] sm:text-[10px] font-semibold text-green-600/70 uppercase tracking-wider">
                       VENTES CE :
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
                       <Select value={ventesCEFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setVentesCEFilterType(v)}>
-                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                        <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -859,10 +861,10 @@ const DashboardHistorique = () => {
                           <SelectItem value="range">Période</SelectItem>
                         </SelectContent>
                       </Select>
-                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      <span className="text-muted-foreground/50 text-[9px] sm:text-[10px] hidden sm:inline">|</span>
                       {ventesCEFilterType === 'year' && (
                         <Select value={ventesCESelectedYear.toString()} onValueChange={(v) => setVentesCESelectedYear(Number(v))}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -874,7 +876,7 @@ const DashboardHistorique = () => {
                       )}
                       {ventesCEFilterType === 'month' && (
                         <Select value={ventesCESelectedMonth} onValueChange={setVentesCESelectedMonth}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -891,9 +893,9 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
-                              {ventesCESelectedDate ? format(ventesCESelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                              {ventesCESelectedDate ? format(ventesCESelectedDate, isMobile ? 'dd/MM' : 'dd/MM/yyyy') : 'Sel.'}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -912,16 +914,16 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
                               {ventesCEDateRange?.from ? (
                                 ventesCEDateRange.to ? (
-                                  `${format(ventesCEDateRange.from, 'dd/MM')} - ${format(ventesCEDateRange.to, 'dd/MM')}`
+                                  `${format(ventesCEDateRange.from, isMobile ? 'dd/MM' : 'dd/MM')} - ${format(ventesCEDateRange.to, isMobile ? 'dd/MM' : 'dd/MM')}`
                                 ) : (
-                                  format(ventesCEDateRange.from, 'dd/MM/yyyy')
+                                  format(ventesCEDateRange.from, isMobile ? 'dd/MM' : 'dd/MM/yyyy')
                                 )
                               ) : (
-                                'Sélectionner'
+                                'Sel.'
                               )}
                             </Button>
                           </PopoverTrigger>
@@ -938,20 +940,20 @@ const DashboardHistorique = () => {
                         </Popover>
                       )}
                     </div>
-                    <p className="text-2xl font-extrabold text-green-600 tracking-tight mt-auto">
+                    <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-green-600 tracking-tight mt-auto">
                       {(ventesCE * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      <span className="text-sm font-semibold text-green-600/60 ml-1.5">Kg</span>
+                      <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-green-600/60 ml-1 sm:ml-1.5">Kg</span>
                     </p>
                   </div>
 
                   {/* BILAN MATIÈRE - Always visible */}
-                  <div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-3 py-2 shadow-sm flex flex-col justify-between h-[130px] min-w-[200px]`}>
-                    <p className={`text-[10px] font-semibold ${getBilanColor().textLight} uppercase tracking-wider`}>
+                  <div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col justify-between h-[110px] sm:h-[120px] md:h-[130px] min-w-[180px] sm:min-w-[200px] md:min-w-[240px] flex-shrink-0`}>
+                    <p className={`text-[9px] sm:text-[10px] font-semibold ${getBilanColor().textLight} uppercase tracking-wider`}>
                       BILAN MATIÈRE :
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
                       <Select value={bilanFilterType} onValueChange={(v: 'month' | 'date' | 'range' | 'year') => setBilanFilterType(v)}>
-                        <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                        <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -961,10 +963,10 @@ const DashboardHistorique = () => {
                           <SelectItem value="range">Période</SelectItem>
                         </SelectContent>
                       </Select>
-                      <span className="text-muted-foreground/50 text-[10px]">|</span>
+                      <span className="text-muted-foreground/50 text-[9px] sm:text-[10px] hidden sm:inline">|</span>
                       {bilanFilterType === 'year' && (
                         <Select value={bilanSelectedYear.toString()} onValueChange={(v) => setBilanSelectedYear(Number(v))}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -976,7 +978,7 @@ const DashboardHistorique = () => {
                       )}
                       {bilanFilterType === 'month' && (
                         <Select value={bilanSelectedMonth} onValueChange={setBilanSelectedMonth}>
-                          <SelectTrigger className="h-5 w-fit text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
+                          <SelectTrigger className="h-4 sm:h-5 w-fit text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -993,9 +995,9 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
-                              {bilanSelectedDate ? format(bilanSelectedDate, 'dd/MM/yyyy') : 'Sélectionner'}
+                              {bilanSelectedDate ? format(bilanSelectedDate, isMobile ? 'dd/MM' : 'dd/MM/yyyy') : 'Sel.'}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -1014,16 +1016,16 @@ const DashboardHistorique = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="ghost"
-                              className="h-5 px-1 text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
+                              className="h-4 sm:h-5 px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0 text-foreground hover:bg-transparent hover:text-foreground"
                             >
                               {bilanDateRange?.from ? (
                                 bilanDateRange.to ? (
-                                  `${format(bilanDateRange.from, 'dd/MM')} - ${format(bilanDateRange.to, 'dd/MM')}`
+                                  `${format(bilanDateRange.from, isMobile ? 'dd/MM' : 'dd/MM')} - ${format(bilanDateRange.to, isMobile ? 'dd/MM' : 'dd/MM')}`
                                 ) : (
-                                  format(bilanDateRange.from, 'dd/MM/yyyy')
+                                  format(bilanDateRange.from, isMobile ? 'dd/MM' : 'dd/MM/yyyy')
                                 )
                               ) : (
-                                'Sélectionner'
+                                'Sel.'
                               )}
                             </Button>
                           </PopoverTrigger>
@@ -1040,23 +1042,27 @@ const DashboardHistorique = () => {
                         </Popover>
                       )}
                     </div>
-                    <p className={`text-2xl font-extrabold ${getBilanColor().textBold} tracking-tight mt-auto`}>
-                      {(getFilteredBilan() * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      <span className="text-sm font-semibold opacity-60 ml-1.5">Kg</span>
-                    </p>
+                    <div className="flex items-baseline justify-between gap-1.5 sm:gap-2 mt-auto">
+                      <p className={`text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold ${getBilanColor().textBold} tracking-tight`}>
+                        {(getFilteredBilan() * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                        <span className="text-[10px] sm:text-xs md:text-sm font-semibold opacity-60 ml-0.5 sm:ml-1 md:ml-1.5">Kg</span>
+                      </p>
 
-                    <div className="flex flex-col gap-1 text-right border-l pl-3 border-black/5">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-[9px] uppercase tracking-wider text-black">Avec VRAC</span>
-                        <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
-                          {((sortieVracAnnuelle + ventesCE) > 0 ? (getFilteredBilan() / (sortieVracAnnuelle + ventesCE)) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-[9px] uppercase tracking-wider text-black">Sans VRAC</span>
-                        <span className={`text-[10px] font-bold ${getBilanColor().textBold}`}>
-                          {(ventesCE > 0 ? (getFilteredBilan() / ventesCE) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                        </span>
+                      <div className="flex flex-col gap-0.5 sm:gap-1 text-right border-l pl-1 sm:pl-1.5 md:pl-2 lg:pl-3 border-black/5 flex-shrink-0">
+                        <div className="flex items-center justify-end gap-0.5 sm:gap-1 md:gap-2">
+                          <span className="text-[7px] sm:text-[8px] md:text-[9px] uppercase tracking-wider text-black hidden sm:inline">Avec VRAC</span>
+                          <span className="text-[7px] sm:text-[8px] md:text-[9px] uppercase tracking-wider text-black sm:hidden">AV</span>
+                          <span className={`text-[8px] sm:text-[9px] md:text-[10px] font-bold ${getBilanColor().textBold}`}>
+                            {((sortieVracAnnuelle + ventesCE) > 0 ? (getFilteredBilan() / (sortieVracAnnuelle + ventesCE)) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-end gap-0.5 sm:gap-1 md:gap-2">
+                          <span className="text-[7px] sm:text-[8px] md:text-[9px] uppercase tracking-wider text-black hidden sm:inline">Sans VRAC</span>
+                          <span className="text-[7px] sm:text-[8px] md:text-[9px] uppercase tracking-wider text-black sm:hidden">SV</span>
+                          <span className={`text-[8px] sm:text-[9px] md:text-[10px] font-bold ${getBilanColor().textBold}`}>
+                            {(ventesCE > 0 ? (getFilteredBilan() / ventesCE) * 100 : 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1067,69 +1073,75 @@ const DashboardHistorique = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         {/* Presentation & Controls Bar */}
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-3 sm:mb-4">
           <Button
             onClick={togglePresentationMode}
             variant={isPresentationMode ? "default" : "outline"}
             size="sm"
-            className="gap-2 font-bold"
+            className="gap-1 sm:gap-2 font-bold text-xs sm:text-sm"
           >
-            <Presentation className="h-4 w-4" />
-            {isPresentationMode ? 'QUITTER PRÉSENTATION' : 'PRÉSENTER'}
+            <Presentation className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">{isPresentationMode ? 'QUITTER PRÉSENTATION' : 'PRÉSENTER'}</span>
+            <span className="sm:hidden">{isPresentationMode ? 'QUITTER' : 'PRÉSENTER'}</span>
           </Button>
         </div>
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-center gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
+        <div className="flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 mb-4 sm:mb-6 md:mb-8 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent -mx-3 sm:-mx-4 px-3 sm:px-4">
           <Button
             variant={activeView === 'overview' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('overview')}
           >
-            <BarChart3 className="mr-3 h-6 w-6" />
-            Vue d'ensemble
+            <BarChart3 className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
+            <span className="hidden sm:inline">Vue d'ensemble</span>
+            <span className="sm:hidden">Vue</span>
           </Button>
 
           <Button
             variant={activeView === 'emplisseur' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('emplisseur')}
           >
-            <Calculator className="mr-3 h-6 w-6" />
-            PRODUCTION
+            <Calculator className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
+            <span className="hidden sm:inline">PRODUCTION</span>
+            <span className="sm:hidden">PROD</span>
           </Button>
 
           <Button
             variant={activeView === 'sorties' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('sorties')}
           >
-            <ArrowUpRight className="mr-3 h-6 w-6" />
+            <ArrowUpRight className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
             VENTES
           </Button>
 
           <Button
             variant={activeView === 'distribution' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'distribution' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'distribution' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('distribution')}
           >
-            <FileText className="mr-3 h-6 w-6" /> {/* Changed icon to FileText, assuming it's appropriate for Distribution */}
-            DISTRIBUTION
+            <FileText className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
+            <span className="hidden md:inline">DISTRIBUTION</span>
+            <span className="md:hidden">DISTRIB</span>
           </Button>
 
           <Button
             variant={activeView === 'vrac' ? 'default' : 'outline'}
             size="lg"
-            className={`h-16 text-lg font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('vrac')}
           >
-            <FileText className="mr-3 h-6 w-6" />
-            Historique des saisies
+            <FileText className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
+            <span className="hidden lg:inline">Historique des saisies</span>
+            <span className="lg:hidden hidden sm:inline">Historique</span>
+            <span className="sm:hidden">Hist.</span>
           </Button>
         </div>
 
@@ -1140,19 +1152,19 @@ const DashboardHistorique = () => {
           )}
 
           {activeView === 'vrac' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Historique des bilans matières - Collapsible */}
               <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                 <div
-                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-accent/50 transition-colors"
                   onClick={() => setIsBilansExpanded(!isBilansExpanded)}
                 >
-                  <h2 className="text-2xl font-bold">Historique des bilans</h2>
-                  <Button variant="ghost" size="icon" className="h-10 w-10">
+                  <h2 className="text-xl sm:text-2xl font-bold">Historique des bilans</h2>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
                     {isBilansExpanded ? (
-                      <ChevronUp className="h-6 w-6" />
+                      <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
                     ) : (
-                      <ChevronDown className="h-6 w-6" />
+                      <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
                     )}
                   </Button>
                 </div>
