@@ -28,6 +28,18 @@ import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+// Helper function to format numbers with decimals only if significant
+const formatNumberWithDecimals = (value: number): string => {
+  const rounded = Math.round(value * 1000) / 1000; // Round to 3 decimals
+  const hasDecimals = rounded % 1 !== 0;
+  
+  if (hasDecimals) {
+    return rounded.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
+  } else {
+    return rounded.toLocaleString('fr-FR');
+  }
+};
+
 const DashboardHistorique = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -941,7 +953,7 @@ const DashboardHistorique = () => {
                       )}
                     </div>
                     <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-green-600 tracking-tight mt-auto">
-                      {(ventesCE * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      {formatNumberWithDecimals(ventesCE)}
                       <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-green-600/60 ml-1 sm:ml-1.5">Kg</span>
                     </p>
                   </div>
@@ -1044,7 +1056,7 @@ const DashboardHistorique = () => {
                     </div>
                     <div className="flex items-baseline justify-between gap-1.5 sm:gap-2 mt-auto">
                       <p className={`text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold ${getBilanColor().textBold} tracking-tight`}>
-                        {(getFilteredBilan() * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                        {formatNumberWithDecimals(getFilteredBilan())}
                         <span className="text-[10px] sm:text-xs md:text-sm font-semibold opacity-60 ml-0.5 sm:ml-1 md:ml-1.5">Kg</span>
                       </p>
 
