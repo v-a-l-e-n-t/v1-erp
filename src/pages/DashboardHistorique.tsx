@@ -458,13 +458,51 @@ const DashboardHistorique = () => {
 
   // ATELIER filter state
   const [atelierFilterType, setAtelierFilterType] = useState<'year' | 'month' | 'date' | 'range'>('year');
-  const [atelierSelectedYear, setAtelierSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [atelierSelectedYear, setAtelierSelectedYear] = useState<number>(2025);
+  const [atelierAvailableYears, setAtelierAvailableYears] = useState<number[]>([2025]);
   const [atelierSelectedMonth, setAtelierSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [atelierSelectedDate, setAtelierSelectedDate] = useState<Date | undefined>(undefined);
   const [atelierDateRange, setAtelierDateRange] = useState<DateRange | undefined>(undefined);
+  const [atelierSelectedClient, setAtelierSelectedClient] = useState<AtelierClientKey | 'all'>('all');
+  const [atelierSelectedBottleType, setAtelierSelectedBottleType] = useState<'BR' | 'BV' | 'BHS' | 'CPT' | 'all'>('all');
+
+  // Charger les années disponibles pour ATELIER
+  useEffect(() => {
+    const fetchAtelierYears = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('atelier_entries')
+          .select('date')
+          .order('date', { ascending: true })
+          .limit(1);
+
+        if (error) throw error;
+
+        let minYear = 2025;
+        if (data && data.length > 0) {
+          const firstDate = new Date(data[0].date);
+          const firstYear = firstDate.getFullYear();
+          minYear = firstYear < 2025 ? firstYear : 2025;
+        }
+
+        const currentYear = new Date().getFullYear();
+        const years = Array.from({ length: currentYear - minYear + 1 }, (_, i) => minYear + i);
+        setAtelierAvailableYears(years);
+
+        // Si l'année sélectionnée n'est pas dans la liste, définir la première année disponible
+        if (!years.includes(atelierSelectedYear)) {
+          setAtelierSelectedYear(years[0] || 2025);
+        }
+      } catch (error) {
+        console.error('Error fetching atelier years:', error);
+      }
+    };
+
+    fetchAtelierYears();
+  }, []);
 
   // Charger les données ATELIER avec filtre
   useEffect(() => {
@@ -1263,10 +1301,12 @@ const DashboardHistorique = () => {
                 </Button>
               </div>
 
-              {/* Filtre */}
+              {/* Filtres pour Bouteilles par client */}
               <div className="bg-card border rounded-lg p-4">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-semibold text-muted-foreground">Filtre:</span>
+                  <span className="text-sm font-semibold">Filtres:</span>
+                  
+                  {/* Filtre temporel - DATE */}
                   <Select value={atelierFilterType} onValueChange={(v: 'year' | 'month' | 'date' | 'range') => setAtelierFilterType(v)}>
                     <SelectTrigger className="w-[120px]">
                       <SelectValue />
@@ -1274,17 +1314,19 @@ const DashboardHistorique = () => {
                     <SelectContent>
                       <SelectItem value="year">Année</SelectItem>
                       <SelectItem value="month">Mois</SelectItem>
-                      <SelectItem value="range">Période</SelectItem>
                       <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="range">Période</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* Choix selon le type de filtre temporel */}
                   {atelierFilterType === 'year' && (
                     <Select value={atelierSelectedYear.toString()} onValueChange={v => setAtelierSelectedYear(Number(v))}>
                       <SelectTrigger className="w-[140px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableYears.map(year => (
+                        {atelierAvailableYears.map(year => (
                           <SelectItem key={year} value={year.toString()}>
                             {year}
                           </SelectItem>
@@ -1292,6 +1334,7 @@ const DashboardHistorique = () => {
                       </SelectContent>
                     </Select>
                   )}
+
                   {atelierFilterType === 'month' && (
                     <Select value={atelierSelectedMonth} onValueChange={setAtelierSelectedMonth}>
                       <SelectTrigger className="w-[180px]">
@@ -1306,6 +1349,7 @@ const DashboardHistorique = () => {
                       </SelectContent>
                     </Select>
                   )}
+
                   {atelierFilterType === 'date' && (
                     <Popover>
                       <PopoverTrigger asChild>
@@ -1325,6 +1369,7 @@ const DashboardHistorique = () => {
                       </PopoverContent>
                     </Popover>
                   )}
+
                   {atelierFilterType === 'range' && (
                     <Popover>
                       <PopoverTrigger asChild>
@@ -1352,6 +1397,35 @@ const DashboardHistorique = () => {
                       </PopoverContent>
                     </Popover>
                   )}
+
+                  {/* Filtre par client - Tous les clients */}
+                  <Select value={atelierSelectedClient} onValueChange={(v) => setAtelierSelectedClient(v as AtelierClientKey | 'all')}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Tous les clients" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les clients</SelectItem>
+                      {(Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[]).map(client => (
+                        <SelectItem key={client} value={client}>
+                          {ATELIER_CLIENT_LABELS[client]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Filtre par type de bouteille - Tous les types */}
+                  <Select value={atelierSelectedBottleType} onValueChange={(v) => setAtelierSelectedBottleType(v as 'BR' | 'BV' | 'BHS' | 'CPT' | 'all')}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Tous les types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les types</SelectItem>
+                      <SelectItem value="BR">Bouteilles rééprouvées (BR)</SelectItem>
+                      <SelectItem value="BV">Bouteilles vidangées (BV)</SelectItem>
+                      <SelectItem value="BHS">Bouteilles HS (BHS)</SelectItem>
+                      <SelectItem value="CPT">Clapet monté (CPT)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1369,7 +1443,9 @@ const DashboardHistorique = () => {
                   </p>
                 ) : (
                   <div className="space-y-6">
-                    {(Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[]).map(client => {
+                    {(Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[])
+                      .filter(client => atelierSelectedClient === 'all' || client === atelierSelectedClient)
+                      .map(client => {
                       // Agréger les données par client
                       const aggregated: Record<AtelierCategory, Record<AtelierFormat, number>> = {
                         bouteilles_vidangees: { B6: 0, B12: 0, B28: 0, B38: 0 },
@@ -1441,7 +1517,27 @@ const DashboardHistorique = () => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {(Object.keys(aggregated) as AtelierCategory[]).map(cat => (
+                                {(Object.keys(aggregated) as AtelierCategory[])
+                                  .filter(cat => {
+                                    if (atelierSelectedBottleType === 'all') return true;
+                                    const hasData = (['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).some(
+                                      formatKey => aggregated[cat][formatKey] > 0
+                                    );
+                                    if (!hasData) return false;
+                                    switch (atelierSelectedBottleType) {
+                                      case 'BR':
+                                        return cat === 'bouteilles_reeprouvees';
+                                      case 'BV':
+                                        return cat === 'bouteilles_vidangees';
+                                      case 'BHS':
+                                        return cat === 'bouteilles_hs';
+                                      case 'CPT':
+                                        return cat === 'clapet_monte';
+                                      default:
+                                        return true;
+                                    }
+                                  })
+                                  .map(cat => (
                                   <tr key={cat} className="hover:bg-muted/30">
                                     <td className="border px-3 py-2 font-medium">
                                       {cat === 'bouteilles_vidangees'
@@ -1484,7 +1580,7 @@ const DashboardHistorique = () => {
                   if (range !== undefined) setAtelierDateRange(range);
                 }}
                 availableMonths={availableMonths}
-                availableYears={availableYears}
+                availableYears={atelierAvailableYears}
               />
             </div>
           )}

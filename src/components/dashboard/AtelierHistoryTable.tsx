@@ -69,6 +69,8 @@ const AtelierHistoryTable = ({
   const [loading, setLoading] = useState(false);
   const [editingRow, setEditingRow] = useState<{ id: string; client: AtelierClientKey } | null>(null);
   const [editingData, setEditingData] = useState<{ br6: number; br12: number; br28: number; br38: number; bv6: number; bv12: number; bv28: number; bv38: number; bhs6: number; bhs12: number; bhs28: number; bhs38: number; cpt6: number; cpt12: number; cpt28: number; cpt38: number } | null>(null);
+  const [selectedClient, setSelectedClient] = useState<AtelierClientKey | 'all'>('all');
+  const [selectedBottleType, setSelectedBottleType] = useState<'BR' | 'BV' | 'BHS' | 'CPT' | 'all'>('all');
 
   useEffect(() => {
     fetchEntries();
@@ -108,7 +110,7 @@ const AtelierHistoryTable = ({
   };
 
   // Transformer les entrées en lignes d'historique (une ligne par entrée x client)
-  // Correspondance: RB = bouteilles_reeprouvees, VB = bouteilles_vidangees, CB = clapet_monte
+  // Correspondance: BR = bouteilles_reeprouvees, BV = bouteilles_vidangees, BHS = bouteilles_hs, CPT = clapet_monte
   const historyRows = useMemo(() => {
     const rows: AtelierHistoryRow[] = [];
     
@@ -148,12 +150,38 @@ const AtelierHistoryTable = ({
       });
     });
 
-    return rows.sort((a, b) => {
+    // Appliquer les filtres
+    let filtered = rows;
+
+    // Filtre par client
+    if (selectedClient !== 'all') {
+      filtered = filtered.filter(row => row.client === selectedClient);
+    }
+
+    // Filtre par type de bouteille (afficher uniquement les lignes qui ont des valeurs > 0 pour ce type)
+    if (selectedBottleType !== 'all') {
+      filtered = filtered.filter(row => {
+        switch (selectedBottleType) {
+          case 'BR':
+            return (row.br6 + row.br12 + row.br28 + row.br38) > 0;
+          case 'BV':
+            return (row.bv6 + row.bv12 + row.bv28 + row.bv38) > 0;
+          case 'BHS':
+            return (row.bhs6 + row.bhs12 + row.bhs28 + row.bhs38) > 0;
+          case 'CPT':
+            return (row.cpt6 + row.cpt12 + row.cpt28 + row.cpt38) > 0;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered.sort((a, b) => {
       const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime();
       if (dateCompare !== 0) return dateCompare;
       return a.client.localeCompare(b.client);
     });
-  }, [entries]);
+  }, [entries, selectedClient, selectedBottleType]);
 
   const handleEdit = (row: AtelierHistoryRow) => {
     setEditingRow({ id: row.originalEntry.id!, client: row.client });
@@ -241,18 +269,48 @@ const AtelierHistoryTable = ({
     setEditingData(null);
   };
 
-  const handleDelete = async (entryId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
+  const handleDelete = async (row: AtelierHistoryRow) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer les données de ${ATELIER_CLIENT_LABELS[row.client]} pour cette entrée ?`)) return;
 
     try {
-      const { error } = await (supabase as any)
-        .from('atelier_entries')
-        .delete()
-        .eq('id', entryId);
+      const entry = row.originalEntry;
+      const data = entry.data as AtelierData;
+      
+      // Retirer le client de l'entrée
+      const updatedData: AtelierData = { ...data };
+      delete updatedData[row.client];
 
-      if (error) throw error;
+      // Vérifier s'il reste d'autres clients dans l'entrée
+      const remainingClients = Object.keys(updatedData).filter(
+        key => updatedData[key as AtelierClientKey] && 
+        Object.values(updatedData[key as AtelierClientKey]).some(cat => 
+          cat && Object.values(cat).some(val => val > 0)
+        )
+      );
 
-      toast.success('Entrée supprimée avec succès');
+      if (remainingClients.length === 0) {
+        // Si aucun client ne reste, supprimer complètement l'entrée
+        const { error } = await (supabase as any)
+          .from('atelier_entries')
+          .delete()
+          .eq('id', entry.id);
+
+        if (error) throw error;
+        toast.success('Entrée supprimée avec succès');
+      } else {
+        // Sinon, mettre à jour l'entrée sans ce client
+        const { error } = await (supabase as any)
+          .from('atelier_entries')
+          .update({
+            data: updatedData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', entry.id);
+
+        if (error) throw error;
+        toast.success(`Données de ${ATELIER_CLIENT_LABELS[row.client]} supprimées avec succès`);
+      }
+
       fetchEntries();
     } catch (error) {
       console.error('Error deleting entry:', error);
@@ -268,7 +326,9 @@ const AtelierHistoryTable = ({
       <CardContent>
         {/* Filtres */}
         <div className="mb-4 flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
-          <span className="text-sm font-semibold">Filtre:</span>
+          <span className="text-sm font-semibold">Filtres:</span>
+          
+          {/* Filtre temporel - DATE */}
           <Select value={filterType} onValueChange={(v: 'year' | 'month' | 'date' | 'range') => onFilterChange(v)}>
             <SelectTrigger className="w-[120px]">
               <SelectValue />
@@ -281,6 +341,7 @@ const AtelierHistoryTable = ({
             </SelectContent>
           </Select>
 
+          {/* Choix selon le type de filtre temporel */}
           {filterType === 'year' && (
             <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('year', Number(v))}>
               <SelectTrigger className="w-[140px]">
@@ -358,6 +419,35 @@ const AtelierHistoryTable = ({
               </PopoverContent>
             </Popover>
           )}
+
+          {/* Filtre par client - Tous les clients */}
+          <Select value={selectedClient} onValueChange={(v) => setSelectedClient(v as AtelierClientKey | 'all')}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Tous les clients" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les clients</SelectItem>
+              {(Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[]).map(client => (
+                <SelectItem key={client} value={client}>
+                  {ATELIER_CLIENT_LABELS[client]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Filtre par type de bouteille - Tous les types */}
+          <Select value={selectedBottleType} onValueChange={(v) => setSelectedBottleType(v as 'BR' | 'BV' | 'BHS' | 'CPT' | 'all')}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Tous les types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="BR">Bouteilles rééprouvées (BR)</SelectItem>
+              <SelectItem value="BV">Bouteilles vidangées (BV)</SelectItem>
+              <SelectItem value="BHS">Bouteilles HS (BHS)</SelectItem>
+              <SelectItem value="CPT">Clapet monté (CPT)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Tableau */}
@@ -463,7 +553,7 @@ const AtelierHistoryTable = ({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleDelete(row.originalEntry.id!)}
+                              onClick={() => handleDelete(row)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
