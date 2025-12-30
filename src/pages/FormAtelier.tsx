@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ArrowLeft, Save } from 'lucide-react';
+import { CalendarIcon, Save } from 'lucide-react';
 
 const CLIENTS: AtelierClientKey[] = ['SIMAM', 'PETRO_IVOIRE', 'VIVO_ENERGY', 'TOTAL_ENERGIES'];
 const CATEGORIES: AtelierCategory[] = [
@@ -56,7 +55,6 @@ const createEmptyAtelierData = (): AtelierData => {
 const SHIFT_OPTIONS: ShiftType[] = ['10h-19h', '20h-5h'];
 
 const FormAtelier = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -203,10 +201,7 @@ const FormAtelier = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+        <div className="container mx-auto px-4 py-4">
           <div>
             <h1 className="text-2xl font-bold">Saisie ATELIER</h1>
             <p className="text-sm text-muted-foreground">
