@@ -152,12 +152,12 @@ const FormAtelier = () => {
       setSubmitting(true);
 
       // Vérifier l'unicité (date + shift)
-      const { data: existing, error: checkError } = await supabase
-        .from('atelier_entries')
+      const { data: existing, error: checkError } = await (supabase
+        .from('atelier_entries' as any)
         .select('id')
         .eq('date', dateStr)
         .eq('shift_type', shiftType)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (checkError && checkError.code !== 'PGRST116') {
         throw checkError;
@@ -174,13 +174,13 @@ const FormAtelier = () => {
 
       const userId = supabase.auth.getUser ? (await supabase.auth.getUser()).data.user?.id : undefined;
 
-      const { error: insertError } = await supabase.from('atelier_entries').insert({
+      const { error: insertError } = await (supabase.from('atelier_entries' as any).insert({
         date: dateStr,
         shift_type: shiftType,
         chef_quart_id: chefQuartId,
         data,
         user_id: userId,
-      });
+      }) as any);
 
       if (insertError) {
         throw insertError;

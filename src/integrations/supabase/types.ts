@@ -106,6 +106,47 @@ export type Database = {
           },
         ]
       }
+      atelier_entries: {
+        Row: {
+          chef_quart_id: string
+          created_at: string
+          data: Json
+          date: string
+          id: string
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          chef_quart_id: string
+          created_at?: string
+          data?: Json
+          date: string
+          id?: string
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          chef_quart_id?: string
+          created_at?: string
+          data?: Json
+          date?: string
+          id?: string
+          shift_type?: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atelier_entries_chef_quart_fkey"
+            columns: ["chef_quart_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
