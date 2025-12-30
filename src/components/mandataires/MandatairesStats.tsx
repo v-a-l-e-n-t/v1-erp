@@ -279,7 +279,7 @@ const MandatairesStats = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Historique des ventes par mandataire
+              Ventes par mandataire
             </CardTitle>
             <CardDescription>
               {selectedClient !== "all" ? selectedClient : "Tous les clients"} - Total: {formatNumber(totalTonnageKg)} Kg

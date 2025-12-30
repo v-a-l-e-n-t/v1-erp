@@ -24,6 +24,7 @@ import { fr } from 'date-fns/locale';
 import { useMemo } from 'react';
 import VentesView from '@/components/dashboard/VentesView';
 import DistributionView from '@/components/dashboard/DistributionView';
+import CarteView from '@/components/dashboard/CarteView';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1470,13 +1471,17 @@ const DashboardHistorique = () => {
           )}
 
           {activeView === 'carte' && (
-            <div className="bg-card rounded-lg border shadow-sm p-6 text-center space-y-3">
-              <div className="flex justify-center">
-                <MapIcon className="h-10 w-10 text-muted-foreground" />
-              </div>
-              <h2 className="text-xl font-bold">Carte</h2>
-              <p className="text-muted-foreground">Fonctionnalités en cours de développement.</p>
-            </div>
+            <CarteView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              availableMonths={availableMonths}
+            />
           )}
 
           {activeView === 'vrac' && (

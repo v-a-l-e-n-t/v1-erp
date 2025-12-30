@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Map as MapIcon, Users, Building2 } from 'lucide-react';
+import { Loader2, Map as MapIcon, Users, Building2, Package, MapPin, Truck, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { MandataireCombobox } from './MandataireCombobox';
 import { MapLegend } from './MapLegend';
@@ -33,7 +33,7 @@ const BOTTLE_WEIGHTS = {
   b12: 12.5,
   b28: 28,
   b38: 38,
-  b11_carbu: 11
+  b11_carbu: 12.5
 };
 
 // Top N options
@@ -56,8 +56,10 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'mandataire' | 'client'>('mandataire');
   const [totalStats, setTotalStats] = useState({ tonnage: 0, livraisons: 0 });
+  const [allVentesData, setAllVentesData] = useState<any[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [topN, setTopN] = useState(10);
+  const [selectedDestination, setSelectedDestination] = useState<DestinationData | null>(null);
 
   // Unique clients from data
   const clients = ['TOTAL ENERGIES', 'PETRO IVOIRE', 'VIVO ENERGIES'];
@@ -177,20 +179,56 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         
         setMandataires(mandatairesData || []);
 
-        // Fetch ventes for the period
-        const { data: ventes } = await supabase
-          .from('ventes_mandataires')
-          .select('*')
-          .gte('date', startDate)
-          .lte('date', endDate);
+        // Batch fetching itératif pour éviter de créer trop de promesses
+        const BATCH_SIZE = 1000;
+        const allVentes: any[] = [];
+        let offset = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('ventes_mandataires')
+            .select('*')
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .range(offset, offset + BATCH_SIZE - 1)
+            .order('date', { ascending: false });
+
+          if (error) {
+            console.error('Batch error:', error);
+            break;
+          }
+
+          if (data && data.length > 0) {
+            allVentes.push(...data);
+            // Si on a récupéré moins que BATCH_SIZE, on a tout récupéré
+            hasMore = data.length === BATCH_SIZE;
+            offset += BATCH_SIZE;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const ventes = allVentes;
 
         // Fetch geolocation data
         const { data: geoData } = await supabase
           .from('destinations_geolocation')
           .select('*');
 
-        if (!ventes || !geoData) {
+        if (!geoData) {
           setDestinations([]);
+          setLoading(false);
+          return;
+        }
+
+        // Stocker toutes les ventes pour calculer les stats totales
+        setAllVentesData(ventes || []);
+
+        // Si pas de ventes, on affiche quand même (tableau vide)
+        if (!ventes || ventes.length === 0) {
+          setDestinations([]);
+          setTotalStats({ tonnage: 0, livraisons: 0 });
           setLoading(false);
           return;
         }
@@ -201,25 +239,43 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           geoMap.set(geo.destination.toUpperCase(), geo);
         });
 
-        // Group ventes by destination
+        // Group ventes by destination (only those with geolocation)
         const destinationMap = new Map<string, {
           ventes: any[];
           geo: any;
         }>();
 
+        // Track excluded ventes for debugging
+        const excludedVentes: string[] = [];
+        let totalVentesTonnage = 0;
+        let totalVentesCount = 0;
+
         ventes.forEach(vente => {
-          if (!vente.destination) return;
+          if (!vente.destination) {
+            excludedVentes.push(`No destination`);
+            return;
+          }
           
-          const destKey = vente.destination.toUpperCase().trim();
+          const destKey = vente.destination.toUpperCase();
           const geo = geoMap.get(destKey);
           
-          if (!geo) return;
+          if (!geo) {
+            excludedVentes.push(`No geo: ${vente.destination}`);
+            return;
+          }
           
           if (!destinationMap.has(destKey)) {
             destinationMap.set(destKey, { ventes: [], geo });
           }
           destinationMap.get(destKey)!.ventes.push(vente);
+          totalVentesTonnage += calculateTonnage(vente);
+          totalVentesCount++;
         });
+
+        // Log excluded ventes for debugging
+        if (excludedVentes.length > 0) {
+          console.log('CARTE: Ventes exclues (sans géolocalisation):', excludedVentes.length, excludedVentes.slice(0, 10));
+        }
 
         // Process destinations
         const processedDestinations: DestinationData[] = [];
@@ -292,8 +348,34 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
         processedDestinations.sort((a, b) => b.tonnage - a.tonnage);
         
+        // Calculer les stats totales à partir de TOUTES les ventes (pas seulement celles avec géolocalisation)
+        // C'est la même logique que dans VentesParMandataireTable
+        let totalAllTonnage = 0;
+        let totalAllLivraisons = ventes.length;
+        const allDestinationsSet = new Set<string>();
+        
+        ventes.forEach(vente => {
+          if (vente.destination) {
+            allDestinationsSet.add(vente.destination.toUpperCase());
+          }
+          totalAllTonnage += calculateTonnage(vente);
+        });
+        
+        // Log for debugging
+        console.log('CARTE Stats:', {
+          totalVentes: ventes.length,
+          totalVentesTonnage: totalAllTonnage,
+          totalDestinations: allDestinationsSet.size,
+          includedVentes: totalVentesCount,
+          includedTonnage: totalTonnage,
+          excludedCount: excludedVentes.length,
+          destinationsCount: processedDestinations.length,
+          excludedDestinations: excludedVentes.slice(0, 20)
+        });
+        
         setDestinations(processedDestinations);
-        setTotalStats({ tonnage: totalTonnage, livraisons: totalLivraisons });
+        // Utiliser les stats de TOUTES les ventes, pas seulement celles avec géolocalisation
+        setTotalStats({ tonnage: totalAllTonnage, livraisons: totalAllLivraisons });
       } catch (error) {
         console.error('Error fetching map data:', error);
       } finally {
@@ -334,6 +416,37 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         map.current.on('load', () => {
           map.current?.resize();
           
+          // Désactiver complètement les popups par défaut de Mapbox
+          // Intercepter tous les clics pour empêcher les popups
+          map.current.on('click', (e) => {
+            // Supprimer tous les popups existants
+            const popups = document.querySelectorAll('.mapboxgl-popup');
+            popups.forEach(popup => popup.remove());
+          });
+          
+          // Observer les changements du DOM pour supprimer automatiquement les popups
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              mutation.addedNodes.forEach((node) => {
+                if (node instanceof HTMLElement && node.classList.contains('mapboxgl-popup')) {
+                  node.remove();
+                }
+                // Vérifier aussi les enfants
+                if (node instanceof HTMLElement) {
+                  const popups = node.querySelectorAll('.mapboxgl-popup');
+                  popups.forEach(popup => popup.remove());
+                }
+              });
+            });
+          });
+          
+          if (mapContainer.current) {
+            observer.observe(mapContainer.current, { childList: true, subtree: true });
+          }
+          
+          // Stocker l'observer pour le nettoyer plus tard
+          (map.current as any)._popupObserver = observer;
+          
           // Add Ivory Coast boundary layer with orange color
           if (map.current) {
             // Add source for country boundaries from Mapbox tileset
@@ -373,6 +486,13 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
 
     return () => {
       clearTimeout(timeoutId);
+      // Nettoyer l'observer de popup
+      if (map.current && (map.current as any)._popupObserver) {
+        (map.current as any)._popupObserver.disconnect();
+      }
+      // Supprimer tous les popups avant de détruire la carte
+      const popups = document.querySelectorAll('.mapboxgl-popup');
+      popups.forEach(popup => popup.remove());
       map.current?.remove();
       map.current = null;
       setMapLoaded(false);
@@ -541,40 +661,30 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       });
     }
 
-    // Add popup on click
+    // Add click handler to show sidebar instead of popup
     const clickHandler = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
+      // Empêcher le comportement par défaut et fermer tous les popups existants
+      e.preventDefault();
+      e.originalEvent?.stopPropagation();
+      
+      // Fermer tous les popups existants sur la carte
+      const popups = document.querySelectorAll('.mapboxgl-popup');
+      popups.forEach(popup => popup.remove());
+      
       if (!e.features || e.features.length === 0) return;
       
       const feature = e.features[0];
-      const coords = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
       const props = feature.properties;
 
-      new mapboxgl.Popup({ closeButton: true, className: 'custom-popup' })
-        .setLngLat(coords)
-        .setHTML(`
-          <div style="padding: 12px; min-width: 180px; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); color: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <div style="width: 12px; height: 12px; border-radius: 50%; background: ${props?.color}; border: 2px solid white;"></div>
-              <h3 style="font-weight: bold; font-size: 14px; margin: 0;">${props?.destination}</h3>
-            </div>
-            <p style="font-size: 11px; color: #9ca3af; margin: 4px 0; padding: 4px 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
-              📍 ${props?.region}
-            </p>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
-              <div>
-                <p style="font-size: 20px; font-weight: bold; color: ${props?.color}; margin: 0;">
-                  ${((props?.tonnage || 0) / 1000).toFixed(1)} T
-                </p>
-                <p style="font-size: 10px; color: #9ca3af; margin: 0;">Tonnage total</p>
-              </div>
-              <div style="text-align: right;">
-                <p style="font-size: 16px; font-weight: 600; color: #f97316; margin: 0;">${props?.livraisons}</p>
-                <p style="font-size: 10px; color: #9ca3af; margin: 0;">Livraisons</p>
-              </div>
-            </div>
-          </div>
-        `)
-        .addTo(map.current!);
+      // Trouver la destination complète dans destinations
+      const destinationData = destinations.find(d => 
+        d.destination.toUpperCase() === props?.destination?.toUpperCase()
+      );
+      
+      if (!destinationData) return;
+
+      // Stocker la destination sélectionnée pour afficher dans la sidebar
+      setSelectedDestination(destinationData);
     };
 
     map.current.on('click', 'destination-circles', clickHandler);
@@ -600,45 +710,48 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     return () => {
       if (map.current) {
         map.current.off('click', 'destination-circles', clickHandler);
+        // Fermer tous les popups lors du cleanup
+        const popups = document.querySelectorAll('.mapboxgl-popup');
+        popups.forEach(popup => popup.remove());
       }
     };
   }, [destinations, selectedMandataire, selectedClient, viewMode, mandatairesWithStats, mapLoaded]);
 
-  // Calculate filtered stats with more details
+  // Calculate filtered stats from ALL ventes (not just those with geolocation)
+  // Same logic as VentesParMandataireTable
   const filteredStats = useMemo(() => {
+    // Filter all ventes based on selected filters
+    let filteredVentes = allVentesData;
+    
+    if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
+      filteredVentes = filteredVentes.filter(v => (v.mandataires as any)?.id === selectedMandataire);
+    } else if (viewMode === 'client' && selectedClient !== 'all') {
+      filteredVentes = filteredVentes.filter(v => v.client?.toUpperCase() === selectedClient.toUpperCase());
+    }
+    
+    // Calculate stats from filtered ventes
     let totalTonnage = 0;
-    let totalLivraisons = 0;
+    let totalLivraisons = filteredVentes.length;
     const destinationsSet = new Set<string>();
     const regionsSet = new Set<string>();
     
-    destinations.forEach(dest => {
-      let tonnage = dest.tonnage;
-      let livraisons = dest.livraisons;
-      
-      if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
-        const mandataireData = dest.mandataires.find(m => m.id === selectedMandataire);
-        tonnage = mandataireData?.tonnage || 0;
-        // Estimate livraisons proportionally
-        if (dest.tonnage > 0) {
-          livraisons = Math.round((tonnage / dest.tonnage) * dest.livraisons);
-        } else {
-          livraisons = 0;
-        }
-      } else if (viewMode === 'client' && selectedClient !== 'all') {
-        const clientData = dest.clients.find(c => c.nom.toUpperCase() === selectedClient.toUpperCase());
-        tonnage = clientData?.tonnage || 0;
-        if (dest.tonnage > 0) {
-          livraisons = Math.round((tonnage / dest.tonnage) * dest.livraisons);
-        } else {
-          livraisons = 0;
-        }
+    filteredVentes.forEach(vente => {
+      if (vente.destination) {
+        destinationsSet.add(vente.destination.toUpperCase());
       }
-      
-      if (tonnage > 0) {
-        totalTonnage += tonnage;
-        totalLivraisons += livraisons;
-        destinationsSet.add(dest.destination);
-        if (dest.region) regionsSet.add(dest.region);
+      totalTonnage += calculateTonnage(vente);
+    });
+    
+    // Also get regions from destinations that have geolocation
+    destinations.forEach(dest => {
+      if (dest.region) {
+        // Check if this destination appears in filtered ventes
+        const hasFilteredVentes = filteredVentes.some(v => 
+          v.destination?.toUpperCase() === dest.destination.toUpperCase()
+        );
+        if (hasFilteredVentes) {
+          regionsSet.add(dest.region);
+        }
       }
     });
     
@@ -663,7 +776,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         .sort((a, b) => b.tonnage - a.tonnage)
         .slice(0, 5)
     };
-  }, [destinations, viewMode, selectedMandataire, selectedClient]);
+  }, [allVentesData, destinations, viewMode, selectedMandataire, selectedClient]);
 
   // Get selected entity info
   const selectedEntityInfo = useMemo(() => {
@@ -730,16 +843,54 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="px-3 py-1">
-              {(filteredStats.tonnage / 1000).toFixed(1)} T
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1">
-              {filteredStats.destinationsCount} zones
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1">
-              {filteredStats.livraisons} livraisons
-            </Badge>
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Tonnage Total</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {(filteredStats.tonnage / 1000).toFixed(1)} T
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-orange-500/10">
+                    <Package className="h-5 w-5 text-orange-500" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Zones de Livraison</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {filteredStats.destinationsCount}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <MapPin className="h-5 w-5 text-blue-500" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Livraisons</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {filteredStats.livraisons}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <Truck className="h-5 w-5 text-green-500" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -810,76 +961,175 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       </CardHeader>
       
       <CardContent className="p-0">
-        <div className="relative h-[500px] w-full">
-          <div
-            ref={mapContainer}
-            className="absolute inset-0 overflow-hidden"
-          />
-          
-          {/* Stats Panel - appears when a mandataire/client is selected */}
-          {selectedEntityInfo && (
-            <div className="absolute top-3 left-3 z-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-xl p-4 min-w-[280px] max-w-[320px]">
-              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-border">
-                <div 
-                  className="w-4 h-4 rounded-full border-2 border-white shadow-sm" 
-                  style={{ backgroundColor: selectedEntityInfo.color }}
-                />
-                <div>
-                  <p className="text-xs text-muted-foreground">{selectedEntityInfo.type}</p>
-                  <h3 className="font-semibold text-foreground">{selectedEntityInfo.name}</h3>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-muted/50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold" style={{ color: selectedEntityInfo.color }}>
-                    {(filteredStats.tonnage / 1000).toFixed(1)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Tonnes</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-orange-500">
-                    {filteredStats.livraisons}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Livraisons</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3 text-center">
-                  <p className="text-xl font-bold text-foreground">
-                    {filteredStats.destinationsCount}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Destinations</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3 text-center">
-                  <p className="text-xl font-bold text-foreground">
-                    {filteredStats.regionsCount}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Régions</p>
-                </div>
-              </div>
-              
-              {filteredStats.topDestinations.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Top Destinations</p>
-                  <div className="space-y-1.5">
-                    {filteredStats.topDestinations.map((dest, idx) => (
-                      <div key={dest.destination} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-xs">{idx + 1}.</span>
-                          <span className="font-medium truncate max-w-[140px]">{dest.destination}</span>
-                        </div>
-                        <span className="font-semibold" style={{ color: selectedEntityInfo.color }}>
-                          {(dest.tonnage / 1000).toFixed(1)} T
-                        </span>
-                      </div>
-                    ))}
+        <div className="flex h-[500px] w-full">
+          {/* Sidebar gauche pour les détails */}
+          {selectedDestination && (
+            <div className="w-[480px] border-r border-border bg-card/95 backdrop-blur-sm overflow-y-auto">
+              <div className="p-6 space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                      style={{ 
+                        backgroundColor: destinations.find(d => d.destination === selectedDestination.destination) 
+                          ? (viewMode === 'mandataire' && selectedMandataire !== 'all'
+                              ? getMandataireColor(selectedMandataire)
+                              : viewMode === 'client' && selectedClient !== 'all'
+                              ? CLIENT_COLORS[selectedClient] || '#f97316'
+                              : selectedDestination.mandataires.length > 0
+                              ? getMandataireColor(selectedDestination.mandataires.sort((a, b) => b.tonnage - a.tonnage)[0].id)
+                              : '#f97316')
+                          : '#f97316'
+                      }}
+                    />
+                    <div>
+                      <h3 className="font-bold text-lg">{selectedDestination.destination}</h3>
+                      <p className="text-sm text-muted-foreground">📍 {selectedDestination.region || 'Région non spécifiée'}</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setSelectedDestination(null)}
+                    className="p-1 hover:bg-muted rounded-lg transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-              )}
+
+                {/* Stats principales */}
+                <div className="grid grid-cols-3 gap-3">
+                  <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-orange-600">
+                        {(selectedDestination.tonnage / 1000).toFixed(1)} T
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Tonnage</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-blue-600">
+                        {selectedDestination.livraisons}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Livraisons</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-green-600">
+                        {selectedDestination.livraisons > 0 
+                          ? (selectedDestination.tonnage / selectedDestination.livraisons / 1000).toFixed(2)
+                          : '0'} T
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Moyenne/Liv.</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Stats supplémentaires */}
+                <div className="grid grid-cols-3 gap-2">
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-3 text-center">
+                      <p className="text-lg font-semibold text-blue-600">{selectedDestination.mandataires.length}</p>
+                      <p className="text-xs text-muted-foreground">Mandataires</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-3 text-center">
+                      <p className="text-lg font-semibold text-purple-600">{selectedDestination.clients.length}</p>
+                      <p className="text-xs text-muted-foreground">Clients</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-3 text-center">
+                      <p className="text-lg font-semibold text-yellow-600">
+                        {filteredStats.tonnage > 0 
+                          ? ((selectedDestination.tonnage / filteredStats.tonnage) * 100).toFixed(1)
+                          : '0'}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Du total</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Clients - affiché quand on filtre par mandataire */}
+                {selectedDestination.clients.length > 0 && viewMode === 'mandataire' && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3 text-muted-foreground uppercase">Clients</h4>
+                    <div className="space-y-2">
+                      {selectedDestination.clients
+                        .sort((a, b) => b.tonnage - a.tonnage)
+                        .slice(0, 5)
+                        .map((c, idx) => (
+                          <Card key={c.nom} className="bg-muted/30">
+                            <CardContent className="p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">{idx + 1}.</span>
+                                  <span className="text-sm font-medium">{c.nom}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-sm font-semibold text-orange-600">
+                                    {(c.tonnage / 1000).toFixed(1)} T
+                                  </span>
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    ({c.percentage.toFixed(1)}%)
+                                  </span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mandataires - affiché quand on filtre par client OU quand on est en mode mandataire avec "tous les mandataires" */}
+                {selectedDestination.mandataires.length > 0 && (viewMode === 'client' || (viewMode === 'mandataire' && selectedMandataire === 'all')) && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3 text-muted-foreground uppercase">Mandataires</h4>
+                    <div className="space-y-2">
+                      {selectedDestination.mandataires
+                        .sort((a, b) => b.tonnage - a.tonnage)
+                        .slice(0, 5)
+                        .map((m, idx) => (
+                          <Card key={m.id} className="bg-muted/30">
+                            <CardContent className="p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">{idx + 1}.</span>
+                                  <span className="text-sm font-medium">{m.nom}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-sm font-semibold text-orange-600">
+                                    {(m.tonnage / 1000).toFixed(1)} T
+                                  </span>
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    ({m.percentage.toFixed(1)}%)
+                                  </span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Carte à droite */}
+          <div className={`relative ${selectedDestination ? 'flex-1' : 'w-full'} h-full`}>
+            <div
+              ref={mapContainer}
+              className="absolute inset-0 overflow-hidden"
+            />
           
-          <div className="absolute bottom-1 right-1 bg-orange-500 px-2 py-0.5 rounded text-xs text-white font-medium">
-            GazPILOT - Tous droits réservés
+          
+            <div className="absolute bottom-1 right-1 bg-orange-500 px-2 py-0.5 rounded text-xs text-white font-medium">
+              GazPILOT - Tous droits réservés
+            </div>
           </div>
         </div>
       </CardContent>

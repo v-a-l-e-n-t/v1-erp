@@ -45,21 +45,14 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
   const [rawTotalTonnage, setRawTotalTonnage] = useState<number>(0);
   const [allVentesData, setAllVentesData] = useState<any[]>([]);
 
-  // Filter mandataires based on selected client
+  // Filter mandataires based on selected client - use mandataireStats for consistency
   const filteredMandatairesList = useMemo(() => {
     if (selectedClient === 'all') return mandatairesList;
 
-    // Get mandataires that have sales for the selected client
-    const mandataireIdsForClient = new Set<string>();
-    allVentesData.forEach(v => {
-      if (v.client?.toUpperCase() === selectedClient.toUpperCase()) {
-        const m = v.mandataires as any;
-        if (m?.id) mandataireIdsForClient.add(m.id);
-      }
-    });
-
-    return mandatairesList.filter(m => mandataireIdsForClient.has(m.id));
-  }, [selectedClient, mandatairesList, allVentesData]);
+    // Use mandataireStats to get the actual mandataires that appear in the table
+    const mandataireIdsInStats = new Set(mandataireStats.map(m => m.id));
+    return mandatairesList.filter(m => mandataireIdsInStats.has(m.id));
+  }, [selectedClient, mandatairesList, mandataireStats]);
 
   // Reset mandataire selection when client changes and selected mandataire is not in filtered list
   useEffect(() => {
@@ -72,16 +65,14 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Batch fetching to bypass 1000 rows limit - SAME as MandatairesVentesHistory
+        // Batch fetching itératif pour éviter de créer trop de promesses
         const BATCH_SIZE = 1000;
-        const TOTAL_LIMIT = 10000;
-        const batches = Math.ceil(TOTAL_LIMIT / BATCH_SIZE);
+        const allVentes: any[] = [];
+        let offset = 0;
+        let hasMore = true;
 
-        const fetchPromises = Array.from({ length: batches }).map((_, i) => {
-          const from = i * BATCH_SIZE;
-          const to = (i + 1) * BATCH_SIZE - 1;
-
-          return supabase
+        while (hasMore) {
+          const { data, error } = await supabase
             .from('ventes_mandataires')
             .select(`
               *,
@@ -89,16 +80,23 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
             `)
             .gte('date', startDate)
             .lte('date', endDate)
-            .range(from, to);
-        });
+            .range(offset, offset + BATCH_SIZE - 1)
+            .order('date', { ascending: false });
 
-        const results = await Promise.all(fetchPromises);
+          if (error) {
+            console.error('Batch error:', error);
+            break;
+          }
 
-        const allVentes: any[] = [];
-        results.forEach(result => {
-          if (result.error) console.error('Batch error:', result.error);
-          if (result.data) allVentes.push(...result.data);
-        });
+          if (data && data.length > 0) {
+            allVentes.push(...data);
+            // Si on a récupéré moins que BATCH_SIZE, on a tout récupéré
+            hasMore = data.length === BATCH_SIZE;
+            offset += BATCH_SIZE;
+          } else {
+            hasMore = false;
+          }
+        }
 
         const ventes = allVentes;
 
@@ -271,6 +269,11 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
             allLabel="Tous les mandataires"
             className="w-[200px]"
           />
+          {mandataireStats.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              ({mandataireStats.length} mandataire{mandataireStats.length > 1 ? 's' : ''} avec ventes)
+            </span>
+          )}
         </div>
 
         {/* Global Metrics In Header */}

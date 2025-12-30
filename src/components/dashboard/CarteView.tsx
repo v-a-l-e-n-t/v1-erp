@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { format, endOfMonth, parse } from 'date-fns';
 import { DateRange } from 'react-day-picker';
-import VentesParMandataireTable from '@/components/dashboard/VentesParMandataireTable';
-import MandatairesVentesHistory from '@/components/dashboard/MandatairesVentesHistory';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import CoteDIvoireMap from '@/components/dashboard/CoteDIvoireMap';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fr } from 'date-fns/locale';
 
-interface DistributionViewProps {
+interface CarteViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
     filterType: 'month' | 'date' | 'range';
@@ -24,7 +22,7 @@ interface DistributionViewProps {
     availableMonths: string[];
 }
 
-const DistributionView = ({
+const CarteView = ({
     dateRange,
     setDateRange,
     filterType,
@@ -34,9 +32,7 @@ const DistributionView = ({
     selectedMonth,
     setSelectedMonth,
     availableMonths
-}: DistributionViewProps) => {
-
-    const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
+}: CarteViewProps) => {
 
     const getStartDate = () => {
         if (filterType === 'month') return `${selectedMonth}-01`;
@@ -64,8 +60,8 @@ const DistributionView = ({
             {/* Header & Filters */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold">Dashboard Distribution</h2>
-                    <p className="text-muted-foreground">Suivi des mandataires, destinations et livraisons</p>
+                    <h2 className="text-2xl font-bold">Carte des Régions de Livraison</h2>
+                    <p className="text-muted-foreground">Visualisation géographique des livraisons par région</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -162,38 +158,14 @@ const DistributionView = ({
                 </div>
             </div>
 
-            {/* Ventes par Mandataire & Destinations */}
-            <VentesParMandataireTable
+            {/* Carte des zones de livraison */}
+            <CoteDIvoireMap
                 startDate={getStartDate()}
                 endDate={getEndDate()}
             />
-
-            {/* Ventes par mandataire - Collapsible */}
-            <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                <div
-                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-                >
-                    <div>
-                        <h2 className="text-2xl font-bold">Ventes par mandataire</h2>
-                        <p className="text-muted-foreground text-sm">Journal complet des opérations de vente</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-10 w-10">
-                        {isHistoryExpanded ? (
-                            <ChevronUp className="h-6 w-6" />
-                        ) : (
-                            <ChevronDown className="h-6 w-6" />
-                        )}
-                    </Button>
-                </div>
-                {isHistoryExpanded && (
-                    <div className="px-6 pb-6 border-t pt-6">
-                        <MandatairesVentesHistory />
-                    </div>
-                )}
-            </div>
         </div>
     );
 };
 
-export default DistributionView;
+export default CarteView;
+
