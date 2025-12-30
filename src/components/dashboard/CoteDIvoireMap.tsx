@@ -905,7 +905,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Cumul</p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {(filteredStats.tonnage / 1000).toFixed(1)} T
+                      {filteredStats.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg
                     </p>
                   </div>
                   <div className="p-2 rounded-lg bg-orange-500/10">
