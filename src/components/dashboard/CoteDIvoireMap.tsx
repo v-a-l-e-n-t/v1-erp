@@ -724,7 +724,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     let filteredVentes = allVentesData;
     
     if (viewMode === 'mandataire' && selectedMandataire !== 'all') {
-      filteredVentes = filteredVentes.filter(v => (v.mandataires as any)?.id === selectedMandataire);
+      filteredVentes = filteredVentes.filter(v => v.mandataire_id === selectedMandataire);
     } else if (viewMode === 'client' && selectedClient !== 'all') {
       filteredVentes = filteredVentes.filter(v => v.client?.toUpperCase() === selectedClient.toUpperCase());
     }
@@ -850,29 +850,12 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
             {/* Sélecteurs en bas */}
             <div className="flex items-center gap-2">
               {viewMode === 'mandataire' ? (
-                <>
-                  <MandataireCombobox
-                    mandataires={mandatairesWithStats}
-                    value={selectedMandataire}
-                    onValueChange={setSelectedMandataire}
-                    topN={topN}
-                  />
-                  <Select 
-                    value={topN.toString()} 
-                    onValueChange={(v) => setTopN(parseInt(v))}
-                  >
-                    <SelectTrigger className="w-[100px] bg-background/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TOP_N_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value.toString()}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </>
+                <MandataireCombobox
+                  mandataires={mandatairesWithStats}
+                  value={selectedMandataire}
+                  onValueChange={setSelectedMandataire}
+                  topN={topN}
+                />
               ) : (
                 <Select value={selectedClient} onValueChange={setSelectedClient}>
                   <SelectTrigger className="w-[220px] bg-background/50">
@@ -1130,6 +1113,8 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
         viewMode={viewMode}
         selectedId={viewMode === 'mandataire' ? selectedMandataire : selectedClient}
         topN={topN}
+        onTopNChange={setTopN}
+        topNOptions={TOP_N_OPTIONS}
       />
     </Card>
   );

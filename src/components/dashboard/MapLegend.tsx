@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 interface LegendItem {
@@ -16,9 +17,11 @@ interface MapLegendProps {
   viewMode: 'mandataire' | 'client';
   selectedId: string;
   topN?: number;
+  onTopNChange?: (value: number) => void;
+  topNOptions?: { value: number; label: string }[];
 }
 
-export function MapLegend({ items, viewMode, selectedId, topN = 5 }: MapLegendProps) {
+export function MapLegend({ items, viewMode, selectedId, topN = 5, onTopNChange, topNOptions }: MapLegendProps) {
   const [expanded, setExpanded] = useState(false);
   
   // Sort by tonnage descending
@@ -81,9 +84,28 @@ export function MapLegend({ items, viewMode, selectedId, topN = 5 }: MapLegendPr
     <div className="p-4 border-t border-border/50 bg-muted/20">
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-muted-foreground">
-            Top {viewMode === 'mandataire' ? 'Mandataires' : 'Clients'}:
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">
+              Top {viewMode === 'mandataire' ? 'Mandataires' : 'Clients'}:
+            </span>
+            {viewMode === 'mandataire' && onTopNChange && topNOptions && (
+              <Select 
+                value={topN.toString()} 
+                onValueChange={(v) => onTopNChange(parseInt(v))}
+              >
+                <SelectTrigger className="w-[100px] h-8 bg-background/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {topNOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
           
           {/* Intensity scale */}
           <div className="flex items-center gap-2">
