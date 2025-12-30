@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -454,18 +454,42 @@ const DashboardHistorique = () => {
     historyChefFilter
   ]);
 
-  // Charger les données ATELIER (pour le moment sur l'année courante)
+  // ATELIER filter state
+  const [atelierFilterType, setAtelierFilterType] = useState<'year' | 'month' | 'date' | 'range'>('year');
+  const [atelierSelectedYear, setAtelierSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [atelierSelectedMonth, setAtelierSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [atelierSelectedDate, setAtelierSelectedDate] = useState<Date | undefined>(undefined);
+  const [atelierDateRange, setAtelierDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Charger les données ATELIER avec filtre
   useEffect(() => {
     const fetchAtelier = async () => {
       try {
         setAtelierLoading(true);
-        const year = new Date().getFullYear();
-        const { data, error } = await (supabase as any)
-          .from('atelier_entries')
-          .select('*')
-          .gte('date', `${year}-01-01`)
-          .lte('date', `${year}-12-31`)
-          .order('date', { ascending: false });
+        let query = (supabase as any).from('atelier_entries').select('*');
+
+        if (atelierFilterType === 'year') {
+          const startDate = `${atelierSelectedYear}-01-01`;
+          const endDate = `${atelierSelectedYear}-12-31`;
+          query = query.gte('date', startDate).lte('date', endDate);
+        } else if (atelierFilterType === 'month') {
+          const startDate = `${atelierSelectedMonth}-01`;
+          const [y, m] = atelierSelectedMonth.split('-').map(Number);
+          const endDate = new Date(y, m, 0).toISOString().split('T')[0];
+          query = query.gte('date', startDate).lte('date', endDate);
+        } else if (atelierFilterType === 'date' && atelierSelectedDate) {
+          const dateStr = format(atelierSelectedDate, 'yyyy-MM-dd');
+          query = query.eq('date', dateStr);
+        } else if (atelierFilterType === 'range' && atelierDateRange?.from) {
+          const fromStr = format(atelierDateRange.from, 'yyyy-MM-dd');
+          const toStr = atelierDateRange.to ? format(atelierDateRange.to, 'yyyy-MM-dd') : fromStr;
+          query = query.gte('date', fromStr).lte('date', toStr);
+        }
+
+        const { data, error } = await query.order('date', { ascending: false });
 
         if (error) throw error;
         setAtelierEntries((data || []) as AtelierEntry[]);
@@ -477,7 +501,7 @@ const DashboardHistorique = () => {
     };
 
     fetchAtelier();
-  }, []);
+  }, [atelierFilterType, atelierSelectedYear, atelierSelectedMonth, atelierSelectedDate, atelierDateRange]);
 
   const loadData = async () => {
     setLoading(true);
@@ -1223,9 +1247,6 @@ const DashboardHistorique = () => {
               {/* Header ATELIER avec petit bouton SAISIE */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                    Atelier
-                  </p>
                   <h2 className="text-xl sm:text-2xl font-bold text-blue-900">
                     BOUTEILLES TRAITÉES
                   </h2>
@@ -1240,69 +1261,95 @@ const DashboardHistorique = () => {
                 </Button>
               </div>
 
-              {/* Card principale BOUTEILLES TRAITÉES */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="lg:col-span-1">
-                  <div className="bg-gradient-to-br from-blue-50 via-background to-background border border-blue-200 rounded-lg p-4 shadow-sm h-full flex flex-col">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                        Synthèse annuelle
-                      </p>
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Wrench className="h-4 w-4 text-blue-700" />
-                      </div>
-                    </div>
-
-                    {atelierLoading ? (
-                      <p className="text-sm text-muted-foreground">Chargement des données...</p>
-                    ) : atelierEntries.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Aucune donnée ATELIER enregistrée pour le moment.
-                      </p>
-                    ) : (
-                      <div className="space-y-3 mt-2">
-                        <p className="text-xs text-muted-foreground">
-                          Synthèse annuelle des bouteilles traitées par format (tous clients confondus).
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          {(['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).map(formatKey => {
-                            const totalForFormat = atelierEntries.reduce((sum, entry) => {
-                              const d = entry.data as any;
-                              let subtotal = 0;
-                              (['SIMAM', 'PETRO_IVOIRE', 'VIVO_ENERGY', 'TOTAL_ENERGIES'] as AtelierClientKey[]).forEach(
-                                client => {
-                                  if (!d[client]) return;
-                                  (['bouteilles_vidangees', 'bouteilles_reeprouvees', 'bouteilles_hs', 'clapet_monte'] as AtelierCategory[])
-                                    .forEach(cat => {
-                                      const val = d[client]?.[cat]?.[formatKey];
-                                      if (typeof val === 'number') subtotal += val;
-                                    });
-                                }
-                              );
-                              return sum + subtotal;
-                            }, 0);
-
-                            return (
-                              <div
-                                key={formatKey}
-                                className="bg-white/80 border border-blue-100 rounded-md p-3 flex flex-col"
-                              >
-                                <p className="text-xs font-semibold text-blue-700 uppercase mb-1">
-                                  {formatKey}
-                                </p>
-                                <p className="text-lg sm:text-xl font-extrabold text-blue-900">
-                                  {totalForFormat.toLocaleString('fr-FR')}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  Bouteilles traitées (tous clients)
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              {/* Filtre */}
+              <div className="bg-card border rounded-lg p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-semibold text-muted-foreground">Filtre:</span>
+                  <Select value={atelierFilterType} onValueChange={(v: 'year' | 'month' | 'date' | 'range') => setAtelierFilterType(v)}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="year">Année</SelectItem>
+                      <SelectItem value="month">Mois</SelectItem>
+                      <SelectItem value="range">Période</SelectItem>
+                      <SelectItem value="date">Date</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {atelierFilterType === 'year' && (
+                    <Select value={atelierSelectedYear.toString()} onValueChange={v => setAtelierSelectedYear(Number(v))}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableYears.map(year => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {atelierFilterType === 'month' && (
+                    <Select value={atelierSelectedMonth} onValueChange={setAtelierSelectedMonth}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableMonths.map(month => (
+                          <SelectItem key={month} value={month}>
+                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {atelierFilterType === 'date' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {atelierSelectedDate ? format(atelierSelectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={atelierSelectedDate}
+                          onSelect={setAtelierSelectedDate}
+                          locale={fr}
+                          disabled={{ after: new Date() }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  {atelierFilterType === 'range' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-[250px] justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {atelierDateRange?.from ? (
+                            atelierDateRange.to ? (
+                              `${format(atelierDateRange.from, 'PPP', { locale: fr })} - ${format(atelierDateRange.to, 'PPP', { locale: fr })}`
+                            ) : (
+                              format(atelierDateRange.from, 'PPP', { locale: fr })
+                            )
+                          ) : (
+                            'Sélectionner une période'
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="range"
+                          selected={atelierDateRange}
+                          onSelect={setAtelierDateRange}
+                          locale={fr}
+                          disabled={{ after: new Date() }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
                 </div>
               </div>
 
@@ -1319,7 +1366,7 @@ const DashboardHistorique = () => {
                     Aucune donnée ATELIER à afficher pour le moment.
                   </p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {(Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[]).map(client => {
                       // Agréger les données par client
                       const aggregated: Record<AtelierCategory, Record<AtelierFormat, number>> = {
@@ -1352,23 +1399,40 @@ const DashboardHistorique = () => {
                         0
                       );
 
+                      // Logo mapping
+                      const logoMap: Record<AtelierClientKey, string> = {
+                        SIMAM: '/images/logo-simam.png',
+                        PETRO_IVOIRE: '/images/logo-petro.png',
+                        VIVO_ENERGY: '/images/logo-vivo.png',
+                        TOTAL_ENERGIES: '/images/logo-total.png',
+                      };
+
                       return (
-                        <div key={client} className="border rounded-lg p-3 sm:p-4 bg-muted/30">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-sm sm:text-base font-semibold">
-                              {ATELIER_CLIENT_LABELS[client]}{' '}
-                              <span className="text-xs text-muted-foreground font-normal">
-                                ({totalClient.toLocaleString('fr-FR')} bouteilles)
-                              </span>
-                            </h3>
+                        <div key={client} className="border rounded-lg p-4 sm:p-5 bg-gradient-to-br from-background to-muted/20 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between mb-4 pb-3 border-b">
+                            <div className="flex items-center gap-3">
+                              <div className="h-14 w-24 sm:h-16 sm:w-32 flex-shrink-0 bg-white rounded-lg p-2 border flex items-center justify-center">
+                                <img 
+                                  src={logoMap[client]} 
+                                  alt={ATELIER_CLIENT_LABELS[client]} 
+                                  className="h-full w-full object-contain"
+                                />
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl sm:text-2xl font-bold text-orange-600">
+                                {totalClient.toLocaleString('fr-FR')}
+                              </p>
+                              <p className="text-xs text-muted-foreground">bouteilles</p>
+                            </div>
                           </div>
                           <div className="overflow-x-auto">
-                            <table className="w-full text-xs border-collapse">
+                            <table className="w-full text-sm border-collapse">
                               <thead>
-                                <tr>
-                                  <th className="border px-2 py-1 text-left">Catégorie</th>
+                                <tr className="bg-muted/50">
+                                  <th className="border px-3 py-2 text-left font-semibold">Catégorie</th>
                                   {(['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).map(formatKey => (
-                                    <th key={formatKey} className="border px-2 py-1 text-center">
+                                    <th key={formatKey} className="border px-3 py-2 text-center font-semibold">
                                       {formatKey}
                                     </th>
                                   ))}
@@ -1376,8 +1440,8 @@ const DashboardHistorique = () => {
                               </thead>
                               <tbody>
                                 {(Object.keys(aggregated) as AtelierCategory[]).map(cat => (
-                                  <tr key={cat}>
-                                    <td className="border px-2 py-1">
+                                  <tr key={cat} className="hover:bg-muted/30">
+                                    <td className="border px-3 py-2 font-medium">
                                       {cat === 'bouteilles_vidangees'
                                         ? 'Bouteilles vidangées'
                                         : cat === 'bouteilles_reeprouvees'
@@ -1387,7 +1451,7 @@ const DashboardHistorique = () => {
                                         : 'Clapet monté'}
                                     </td>
                                     {(['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).map(formatKey => (
-                                      <td key={formatKey} className="border px-2 py-1 text-right">
+                                      <td key={formatKey} className="border px-3 py-2 text-right">
                                         {aggregated[cat][formatKey].toLocaleString('fr-FR')}
                                       </td>
                                     ))}
