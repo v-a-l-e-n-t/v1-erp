@@ -6,7 +6,7 @@ export const receptionSchema = z.object({
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Quantité invalide')
     .refine(val => parseFloat(val) >= 0, 'La quantité doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Quantité trop élevée (max 10 000 000 kg)'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Quantité trop élevée (max 100 000 000 000 kg)'),
   navire: z.string()
     .trim()
     .max(200, 'Le navire ne peut pas dépasser 200 caractères')
@@ -27,17 +27,17 @@ export const bilanFormSchema = z.object({
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   bouteilles_initial: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   reservoirs_initial: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   receptions: z.array(receptionSchema)
     .min(0),
   // Sorties vrac par client
@@ -45,69 +45,69 @@ export const bilanFormSchema = z.object({
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   sorties_vrac_petro_ivoire: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   sorties_vrac_vivo_energies: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   sorties_vrac_total_energies: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   // Sorties conditionnées par client
   sorties_conditionnees_petro_ivoire: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   sorties_conditionnees_vivo_energies: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   sorties_conditionnees_total_energies: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   // Retour marché par client
   fuyardes_petro_ivoire: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   fuyardes_vivo_energies: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   fuyardes_total_energies: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   spheres_final: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   bouteilles_final: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   reservoirs_final: z.string()
     .transform(val => val.trim() === '' ? '0' : val)
     .refine(val => !isNaN(parseFloat(val)), 'Valeur invalide')
     .refine(val => parseFloat(val) >= 0, 'La valeur doit être positive')
-    .refine(val => parseFloat(val) <= 10000000, 'Valeur trop élevée'),
+    .refine(val => parseFloat(val) <= 100000000000, 'Valeur trop élevée'),
   notes: z.string()
     .max(1000, 'Les notes ne peuvent pas dépasser 1000 caractères')
 });
