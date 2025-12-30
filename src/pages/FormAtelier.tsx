@@ -69,32 +69,24 @@ const FormAtelier = () => {
   useEffect(() => {
     const loadAgents = async () => {
       try {
-        // Fetch both chefs de quart and chefs de ligne
-        const [quartsResult, lignesResult] = await Promise.all([
-          supabase.from('chefs_quart').select('*').order('nom'),
-          supabase.from('chefs_ligne').select('*').order('nom')
-        ]);
+        // Charger depuis la table agents (chefs de quart et chefs de ligne)
+        const { data, error } = await supabase
+          .from('agents')
+          .select('*')
+          .in('role', ['chef_quart', 'chef_ligne'])
+          .eq('actif', true)
+          .order('nom');
 
-        if (quartsResult.error) throw quartsResult.error;
-        if (lignesResult.error) throw lignesResult.error;
+        if (error) throw error;
 
-        // Combine both lists with unique IDs and role info
-        const quartsWithRole = (quartsResult.data || []).map(agent => ({ 
-          id: agent.id, 
-          nom: agent.nom, 
-          prenom: agent.prenom, 
-          role: 'chef_quart' as const 
-        }));
-        const lignesWithRole = (lignesResult.data || []).map(agent => ({ 
-          id: agent.id, 
-          nom: agent.nom, 
-          prenom: agent.prenom, 
-          role: 'chef_ligne' as const 
+        const agentsList = (data || []).map(agent => ({
+          id: agent.id,
+          nom: agent.nom,
+          prenom: agent.prenom,
+          role: agent.role as 'chef_quart' | 'chef_ligne',
         }));
 
-        // Merge both lists
-        const allAgentsList = [...quartsWithRole, ...lignesWithRole];
-        setAgents(allAgentsList);
+        setAgents(agentsList);
       } catch (error) {
         console.error('Error loading agents:', error);
         toast({
