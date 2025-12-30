@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +30,7 @@ import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
+import ReceptionsView from '@/components/dashboard/ReceptionsView';
 
 // Helper function to format numbers with decimals only if significant
 const formatNumberWithDecimals = (value: number): string => {
@@ -58,7 +59,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -1210,6 +1211,17 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
+            variant={activeView === 'receptions' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'receptions' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('receptions')}
+          >
+            <PackageIcon className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
+            <span className="hidden sm:inline">Réceptions</span>
+            <span className="sm:hidden">Récep.</span>
+          </Button>
+
+          <Button
             variant={activeView === 'emplisseur' ? 'default' : 'outline'}
             size="lg"
             className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
@@ -1280,6 +1292,20 @@ const DashboardHistorique = () => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
           {activeView === 'overview' && (
             <Dashboard entries={entries} />
+          )}
+
+          {activeView === 'receptions' && (
+            <ReceptionsView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              availableMonths={availableMonths}
+            />
           )}
 
           {activeView === 'atelier' && (
