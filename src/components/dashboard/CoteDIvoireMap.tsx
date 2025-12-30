@@ -830,25 +830,80 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50 overflow-hidden">
       <CardHeader className="pb-3 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-orange-500/10">
-              <MapIcon className="h-5 w-5 text-orange-500" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">Carte des Régions de Livraison</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Visualisation par région administrative
-              </p>
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+          {/* Filtres à gauche */}
+          <div className="flex flex-col gap-3">
+            {/* Onglets en haut */}
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'mandataire' | 'client')}>
+              <TabsList className="bg-muted/50">
+                <TabsTrigger value="mandataire" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Par Mandataire
+                </TabsTrigger>
+                <TabsTrigger value="client" className="gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Par Client
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {/* Sélecteurs en bas */}
+            <div className="flex items-center gap-2">
+              {viewMode === 'mandataire' ? (
+                <>
+                  <MandataireCombobox
+                    mandataires={mandatairesWithStats}
+                    value={selectedMandataire}
+                    onValueChange={setSelectedMandataire}
+                    topN={topN}
+                  />
+                  <Select 
+                    value={topN.toString()} 
+                    onValueChange={(v) => setTopN(parseInt(v))}
+                  >
+                    <SelectTrigger className="w-[100px] bg-background/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TOP_N_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value.toString()}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              ) : (
+                <Select value={selectedClient} onValueChange={setSelectedClient}>
+                  <SelectTrigger className="w-[220px] bg-background/50">
+                    <SelectValue placeholder="Tous les clients" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les clients</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client} value={client}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: CLIENT_COLORS[client] || '#f97316' }}
+                          />
+                          {client}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
-          
+
+          {/* Stats à droite */}
           <div className="grid grid-cols-3 gap-3">
             <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Tonnage Total</p>
+                    <p className="text-xs text-muted-foreground mb-1">Cumul</p>
                     <p className="text-2xl font-bold text-orange-600">
                       {(filteredStats.tonnage / 1000).toFixed(1)} T
                     </p>
@@ -891,71 +946,6 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
-
-        {/* View Mode Tabs and Filters */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'mandataire' | 'client')}>
-            <TabsList className="bg-muted/50">
-              <TabsTrigger value="mandataire" className="gap-2">
-                <Users className="h-4 w-4" />
-                Par Mandataire
-              </TabsTrigger>
-              <TabsTrigger value="client" className="gap-2">
-                <Building2 className="h-4 w-4" />
-                Par Client
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* Filter Select */}
-          <div className="flex items-center gap-2">
-            {viewMode === 'mandataire' ? (
-              <>
-                <MandataireCombobox
-                  mandataires={mandatairesWithStats}
-                  value={selectedMandataire}
-                  onValueChange={setSelectedMandataire}
-                  topN={topN}
-                />
-                <Select 
-                  value={topN.toString()} 
-                  onValueChange={(v) => setTopN(parseInt(v))}
-                >
-                  <SelectTrigger className="w-[100px] bg-background/50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TOP_N_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value.toString()}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            ) : (
-              <Select value={selectedClient} onValueChange={setSelectedClient}>
-                <SelectTrigger className="w-[220px] bg-background/50">
-                  <SelectValue placeholder="Tous les clients" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les clients</SelectItem>
-                  {clients.map((client) => (
-                    <SelectItem key={client} value={client}>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: CLIENT_COLORS[client] || '#f97316' }}
-                        />
-                        {client}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
         </div>
       </CardHeader>
