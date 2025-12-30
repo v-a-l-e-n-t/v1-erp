@@ -29,6 +29,7 @@ import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
+import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
 
 // Helper function to format numbers with decimals only if significant
 const formatNumberWithDecimals = (value: number): string => {
@@ -1467,6 +1468,24 @@ const DashboardHistorique = () => {
                   </div>
                 )}
               </div>
+
+              {/* Historique modifiable */}
+              <AtelierHistoryTable
+                filterType={atelierFilterType}
+                selectedYear={atelierSelectedYear}
+                selectedMonth={atelierSelectedMonth}
+                selectedDate={atelierSelectedDate}
+                dateRange={atelierDateRange}
+                onFilterChange={(type, year, month, date, range) => {
+                  setAtelierFilterType(type);
+                  if (year !== undefined) setAtelierSelectedYear(year);
+                  if (month !== undefined) setAtelierSelectedMonth(month);
+                  if (date !== undefined) setAtelierSelectedDate(date);
+                  if (range !== undefined) setAtelierDateRange(range);
+                }}
+                availableMonths={availableMonths}
+                availableYears={availableYears}
+              />
             </div>
           )}
 

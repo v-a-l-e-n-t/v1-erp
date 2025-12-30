@@ -1,0 +1,487 @@
+import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Pencil, Save, X, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierEntry, AtelierData, AtelierCategory } from '@/types/atelier';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { CalendarIcon } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
+
+// Interface pour une ligne d'historique transformée
+export interface AtelierHistoryRow {
+  id: string;
+  date: string;
+  shift_type: string;
+  client: AtelierClientKey;
+  // BR = Bouteilles rééprouvées
+  br6: number;
+  br12: number;
+  br28: number;
+  br38: number;
+  // BV = Bouteilles vidangées
+  bv6: number;
+  bv12: number;
+  bv28: number;
+  bv38: number;
+  // BHS = Bouteilles HS
+  bhs6: number;
+  bhs12: number;
+  bhs28: number;
+  bhs38: number;
+  // CPT = Clapet monté
+  cpt6: number;
+  cpt12: number;
+  cpt28: number;
+  cpt38: number;
+  originalEntry: AtelierEntry; // Référence à l'entrée originale pour la mise à jour
+}
+
+interface AtelierHistoryTableProps {
+  filterType: 'year' | 'month' | 'date' | 'range';
+  selectedYear: number;
+  selectedMonth: string;
+  selectedDate: Date | undefined;
+  dateRange: DateRange | undefined;
+  onFilterChange: (type: 'year' | 'month' | 'date' | 'range', year?: number, month?: string, date?: Date, range?: DateRange) => void;
+  availableMonths: string[];
+  availableYears: number[];
+}
+
+const AtelierHistoryTable = ({
+  filterType,
+  selectedYear,
+  selectedMonth,
+  selectedDate,
+  dateRange,
+  onFilterChange,
+  availableMonths,
+  availableYears
+}: AtelierHistoryTableProps) => {
+  const [entries, setEntries] = useState<AtelierEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingRow, setEditingRow] = useState<{ id: string; client: AtelierClientKey } | null>(null);
+  const [editingData, setEditingData] = useState<{ br6: number; br12: number; br28: number; br38: number; bv6: number; bv12: number; bv28: number; bv38: number; bhs6: number; bhs12: number; bhs28: number; bhs38: number; cpt6: number; cpt12: number; cpt28: number; cpt38: number } | null>(null);
+
+  useEffect(() => {
+    fetchEntries();
+  }, [filterType, selectedYear, selectedMonth, selectedDate, dateRange]);
+
+  const fetchEntries = async () => {
+    setLoading(true);
+    try {
+      let query = (supabase as any).from('atelier_entries').select('*').order('date', { ascending: false });
+
+      if (filterType === 'year') {
+        query = query.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
+      } else if (filterType === 'month') {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+        const endDate = `${y}-${String(m).padStart(2, '0')}-31`;
+        query = query.gte('date', startDate).lte('date', endDate);
+      } else if (filterType === 'date' && selectedDate) {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        query = query.eq('date', dateStr);
+      } else if (filterType === 'range' && dateRange?.from) {
+        const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+        const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+        query = query.gte('date', fromStr).lte('date', toStr);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setEntries((data || []) as AtelierEntry[]);
+    } catch (error) {
+      console.error('Error fetching atelier entries:', error);
+      toast.error('Erreur lors du chargement de l\'historique');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Transformer les entrées en lignes d'historique (une ligne par entrée x client)
+  // Correspondance: RB = bouteilles_reeprouvees, VB = bouteilles_vidangees, CB = clapet_monte
+  const historyRows = useMemo(() => {
+    const rows: AtelierHistoryRow[] = [];
+    
+    entries.forEach(entry => {
+      const data = entry.data as AtelierData;
+      (Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[]).forEach(client => {
+        const clientData = data[client];
+        if (!clientData) return;
+
+        rows.push({
+          id: `${entry.id}_${client}`,
+          date: entry.date,
+          shift_type: entry.shift_type,
+          client,
+          // BR = Bouteilles rééprouvées
+          br6: clientData.bouteilles_reeprouvees?.B6 || 0,
+          br12: clientData.bouteilles_reeprouvees?.B12 || 0,
+          br28: clientData.bouteilles_reeprouvees?.B28 || 0,
+          br38: clientData.bouteilles_reeprouvees?.B38 || 0,
+          // BV = Bouteilles vidangées
+          bv6: clientData.bouteilles_vidangees?.B6 || 0,
+          bv12: clientData.bouteilles_vidangees?.B12 || 0,
+          bv28: clientData.bouteilles_vidangees?.B28 || 0,
+          bv38: clientData.bouteilles_vidangees?.B38 || 0,
+          // BHS = Bouteilles HS
+          bhs6: clientData.bouteilles_hs?.B6 || 0,
+          bhs12: clientData.bouteilles_hs?.B12 || 0,
+          bhs28: clientData.bouteilles_hs?.B28 || 0,
+          bhs38: clientData.bouteilles_hs?.B38 || 0,
+          // CPT = Clapet monté
+          cpt6: clientData.clapet_monte?.B6 || 0,
+          cpt12: clientData.clapet_monte?.B12 || 0,
+          cpt28: clientData.clapet_monte?.B28 || 0,
+          cpt38: clientData.clapet_monte?.B38 || 0,
+          originalEntry: entry,
+        });
+      });
+    });
+
+    return rows.sort((a, b) => {
+      const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateCompare !== 0) return dateCompare;
+      return a.client.localeCompare(b.client);
+    });
+  }, [entries]);
+
+  const handleEdit = (row: AtelierHistoryRow) => {
+    setEditingRow({ id: row.originalEntry.id!, client: row.client });
+    setEditingData({
+      br6: row.br6,
+      br12: row.br12,
+      br28: row.br28,
+      br38: row.br38,
+      bv6: row.bv6,
+      bv12: row.bv12,
+      bv28: row.bv28,
+      bv38: row.bv38,
+      bhs6: row.bhs6,
+      bhs12: row.bhs12,
+      bhs28: row.bhs28,
+      bhs38: row.bhs38,
+      cpt6: row.cpt6,
+      cpt12: row.cpt12,
+      cpt28: row.cpt28,
+      cpt38: row.cpt38,
+    });
+  };
+
+  const handleSave = async (row: AtelierHistoryRow) => {
+    if (!editingData) return;
+
+    try {
+      const entry = row.originalEntry;
+      const data = entry.data as AtelierData;
+      const clientData = { ...data[row.client] };
+
+      // Mettre à jour les valeurs
+      clientData.bouteilles_reeprouvees = {
+        B6: editingData.br6,
+        B12: editingData.br12,
+        B28: editingData.br28,
+        B38: editingData.br38,
+      };
+      clientData.bouteilles_vidangees = {
+        B6: editingData.bv6,
+        B12: editingData.bv12,
+        B28: editingData.bv28,
+        B38: editingData.bv38,
+      };
+      clientData.bouteilles_hs = {
+        B6: editingData.bhs6,
+        B12: editingData.bhs12,
+        B28: editingData.bhs28,
+        B38: editingData.bhs38,
+      };
+      clientData.clapet_monte = {
+        B6: editingData.cpt6,
+        B12: editingData.cpt12,
+        B28: editingData.cpt28,
+        B38: editingData.cpt38,
+      };
+
+      const updatedData: AtelierData = {
+        ...data,
+        [row.client]: clientData,
+      };
+
+      const { error } = await (supabase as any)
+        .from('atelier_entries')
+        .update({
+          data: updatedData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', entry.id);
+
+      if (error) throw error;
+
+      toast.success('Entrée modifiée avec succès');
+      setEditingRow(null);
+      setEditingData(null);
+      fetchEntries();
+    } catch (error) {
+      console.error('Error updating entry:', error);
+      toast.error('Erreur lors de la modification');
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingRow(null);
+    setEditingData(null);
+  };
+
+  const handleDelete = async (entryId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('atelier_entries')
+        .delete()
+        .eq('id', entryId);
+
+      if (error) throw error;
+
+      toast.success('Entrée supprimée avec succès');
+      fetchEntries();
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Historique ATELIER</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* Filtres */}
+        <div className="mb-4 flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
+          <span className="text-sm font-semibold">Filtre:</span>
+          <Select value={filterType} onValueChange={(v: 'year' | 'month' | 'date' | 'range') => onFilterChange(v)}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="year">Année</SelectItem>
+              <SelectItem value="month">Mois</SelectItem>
+              <SelectItem value="date">Date</SelectItem>
+              <SelectItem value="range">Période</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {filterType === 'year' && (
+            <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('year', Number(v))}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {filterType === 'month' && (
+            <Select value={selectedMonth} onValueChange={v => onFilterChange('month', undefined, v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMonths.map(month => (
+                  <SelectItem key={month} value={month}>
+                    {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {filterType === 'date' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => onFilterChange('date', undefined, undefined, date)}
+                  locale={fr}
+                  disabled={{ after: new Date() }}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {filterType === 'range' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[250px] justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
+                    ) : (
+                      format(dateRange.from, 'PPP', { locale: fr })
+                    )
+                  ) : (
+                    'Sélectionner une période'
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => onFilterChange('range', undefined, undefined, undefined, range)}
+                  locale={fr}
+                  disabled={{ after: new Date() }}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+
+        {/* Tableau */}
+        {loading ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Chargement...</p>
+        ) : historyRows.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Aucune donnée</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Shift</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="text-center">BR6</TableHead>
+                  <TableHead className="text-center">BR12</TableHead>
+                  <TableHead className="text-center">BR28</TableHead>
+                  <TableHead className="text-center">BR38</TableHead>
+                  <TableHead className="text-center">BV6</TableHead>
+                  <TableHead className="text-center">BV12</TableHead>
+                  <TableHead className="text-center">BV28</TableHead>
+                  <TableHead className="text-center">BV38</TableHead>
+                  <TableHead className="text-center">BHS6</TableHead>
+                  <TableHead className="text-center">BHS12</TableHead>
+                  <TableHead className="text-center">BHS28</TableHead>
+                  <TableHead className="text-center">BHS38</TableHead>
+                  <TableHead className="text-center">CPT6</TableHead>
+                  <TableHead className="text-center">CPT12</TableHead>
+                  <TableHead className="text-center">CPT28</TableHead>
+                  <TableHead className="text-center">CPT38</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {historyRows.map((row) => (
+                  <TableRow key={row.id}>
+                    {editingRow?.id === row.originalEntry.id && editingRow.client === row.client ? (
+                      <>
+                        <TableCell>{format(new Date(row.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{row.shift_type}</TableCell>
+                        <TableCell>{ATELIER_CLIENT_LABELS[row.client]}</TableCell>
+                        {['br6', 'br12', 'br28', 'br38', 'bv6', 'bv12', 'bv28', 'bv38', 'bhs6', 'bhs12', 'bhs28', 'bhs38', 'cpt6', 'cpt12', 'cpt28', 'cpt38'].map(field => (
+                          <TableCell key={field}>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={editingData?.[field as keyof typeof editingData] || 0}
+                              onChange={(e) => setEditingData({ ...editingData!, [field]: parseInt(e.target.value) || 0 })}
+                              className="h-8 w-20 text-right"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleSave(row)}
+                            >
+                              <Save className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancel}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell>{format(new Date(row.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{row.shift_type}</TableCell>
+                        <TableCell>{ATELIER_CLIENT_LABELS[row.client]}</TableCell>
+                        <TableCell className="text-right">{row.br6.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.br12.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.br28.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.br38.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bv6.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bv12.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bv28.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bv38.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bhs6.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bhs12.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bhs28.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.bhs38.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.cpt6.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.cpt12.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.cpt28.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.cpt38.toLocaleString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(row)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDelete(row.originalEntry.id!)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default AtelierHistoryTable;
+
