@@ -874,7 +874,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* VRAC */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">🛢️ VRAC</CardTitle>
+            <CardTitle className="text-base font-semibold">🛢️ VRAC (Par rapport aux ventes)</CardTitle>
             <span className="text-sm font-semibold">{formatNumber(totalVracAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
@@ -918,7 +918,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* CONDITIONNÉ */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">📦 CONDITIONNÉ</CardTitle>
+            <CardTitle className="text-base font-semibold">📦 CONDITIONNÉ (Par rapport aux ventes)</CardTitle>
             <span className="text-sm font-semibold">{formatNumber(totalCeAll)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2">
