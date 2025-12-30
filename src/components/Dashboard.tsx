@@ -929,7 +929,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-lg font-semibold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
-                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCePetro.toFixed(0)}%</span>
+                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCePetro.toFixed(1)}%</span>
               </div>
               {/* Vivo */}
               <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
@@ -937,7 +937,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-lg font-semibold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
-                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeVivo.toFixed(0)}%</span>
+                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeVivo.toFixed(1)}%</span>
               </div>
               {/* Total E */}
               <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
@@ -945,7 +945,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-lg font-semibold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
-                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeTotalE.toFixed(0)}%</span>
+                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeTotalE.toFixed(1)}%</span>
               </div>
             </div>
           </CardContent>
