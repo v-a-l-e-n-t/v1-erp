@@ -18,6 +18,7 @@ import VracLogin from "./pages/VracLogin";
 import VracAdminPanel from "./pages/VracAdminPanel";
 import VracChargementDashboard from "./pages/VracChargementDashboard";
 import NotFound from "./pages/NotFound";
+import FormAtelier from "./pages/FormAtelier";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/sphere-calculation" element={<SphereCalculation />} />
           <Route path="/sphere-history" element={<SphereHistory />} />
           <Route path="/production-entry" element={<ProductionDataEntry />} />
+          <Route path="/atelier-form" element={<FormAtelier />} />
           <Route path="/agents" element={<AgentsManagement />} />
           <Route path="/import_data" element={<ImportData />} />
           <Route path="/new-bilan" element={<NewBilan />} />

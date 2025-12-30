@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +27,7 @@ import DistributionView from '@/components/dashboard/DistributionView';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
 
 // Helper function to format numbers with decimals only if significant
 const formatNumberWithDecimals = (value: number): string => {
@@ -158,6 +159,10 @@ const DashboardHistorique = () => {
   const [historyChefFilter, setHistoryChefFilter] = useState<string>('all');
   const [allAgents, setAllAgents] = useState<any[]>([]);
 
+  // ATELIER data
+  const [atelierEntries, setAtelierEntries] = useState<AtelierEntry[]>([]);
+  const [atelierLoading, setAtelierLoading] = useState(false);
+
   // Generate last 12 months for filter (memoized to avoid duplicates)
   const availableMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
     const d = new Date();
@@ -247,7 +252,10 @@ const DashboardHistorique = () => {
             .select('id, nom, prenom')
             .in('id', chefIds);
 
-          const chefsMap = new Map((chefsData || []).map((c: any) => [c.id, c]));
+          const chefsMap: Map<string, any> = new Map();
+          (chefsData || []).forEach((c: any) => {
+            chefsMap.set(c.id, c);
+          });
           shiftsWithChefs = shiftsWithChefs.map((shift: any) => ({
             ...shift,
             chef_quart: shift.chef_quart_id ? chefsMap.get(shift.chef_quart_id) : null
@@ -445,6 +453,31 @@ const DashboardHistorique = () => {
     historyLigneFilter,
     historyChefFilter
   ]);
+
+  // Charger les données ATELIER (pour le moment sur l'année courante)
+  useEffect(() => {
+    const fetchAtelier = async () => {
+      try {
+        setAtelierLoading(true);
+        const year = new Date().getFullYear();
+        const { data, error } = await (supabase as any)
+          .from('atelier_entries')
+          .select('*')
+          .gte('date', `${year}-01-01`)
+          .lte('date', `${year}-12-31`)
+          .order('date', { ascending: false });
+
+        if (error) throw error;
+        setAtelierEntries((data || []) as AtelierEntry[]);
+      } catch (error) {
+        console.error('Error loading atelier entries:', error);
+      } finally {
+        setAtelierLoading(false);
+      }
+    };
+
+    fetchAtelier();
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -1161,7 +1194,7 @@ const DashboardHistorique = () => {
             className={`h-10 sm:h-12 md:h-14 lg:h-16 px-2 sm:px-3 md:px-4 lg:px-6 text-[10px] sm:text-xs md:text-sm lg:text-lg font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'carte' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('carte')}
           >
-            <Map className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
+            <MapIcon className="mr-1 sm:mr-1.5 md:mr-2 lg:mr-3 h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 flex-shrink-0" />
             <span className="hidden md:inline">CARTE</span>
             <span className="md:hidden">CARTE</span>
           </Button>
@@ -1186,19 +1219,196 @@ const DashboardHistorique = () => {
           )}
 
           {activeView === 'atelier' && (
-            <div className="bg-card rounded-lg border shadow-sm p-6 text-center space-y-3">
-              <div className="flex justify-center">
-                <Wrench className="h-10 w-10 text-muted-foreground" />
+            <div className="space-y-6">
+              {/* Header ATELIER avec petit bouton SAISIE */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                    Atelier
+                  </p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-blue-900">
+                    BOUTEILLES TRAITÉES
+                  </h2>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs sm:text-sm font-semibold px-3 py-1"
+                  onClick={() => navigate('/atelier-form')}
+                >
+                  SAISIE
+                </Button>
               </div>
-              <h2 className="text-xl font-bold">Atelier</h2>
-              <p className="text-muted-foreground">Fonctionnalités en cours de développement.</p>
+
+              {/* Card principale BOUTEILLES TRAITÉES */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="lg:col-span-1">
+                  <div className="bg-gradient-to-br from-blue-50 via-background to-background border border-blue-200 rounded-lg p-4 shadow-sm h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                        Synthèse annuelle
+                      </p>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Wrench className="h-4 w-4 text-blue-700" />
+                      </div>
+                    </div>
+
+                    {atelierLoading ? (
+                      <p className="text-sm text-muted-foreground">Chargement des données...</p>
+                    ) : atelierEntries.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Aucune donnée ATELIER enregistrée pour le moment.
+                      </p>
+                    ) : (
+                      <div className="space-y-3 mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          Synthèse annuelle des bouteilles traitées par format (tous clients confondus).
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {(['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).map(formatKey => {
+                            const totalForFormat = atelierEntries.reduce((sum, entry) => {
+                              const d = entry.data as any;
+                              let subtotal = 0;
+                              (['SIMAM', 'PETRO_IVOIRE', 'VIVO_ENERGY', 'TOTAL_ENERGIES'] as AtelierClientKey[]).forEach(
+                                client => {
+                                  if (!d[client]) return;
+                                  (['bouteilles_vidangees', 'bouteilles_reeprouvees', 'bouteilles_hs', 'clapet_monte'] as AtelierCategory[])
+                                    .forEach(cat => {
+                                      const val = d[client]?.[cat]?.[formatKey];
+                                      if (typeof val === 'number') subtotal += val;
+                                    });
+                                }
+                              );
+                              return sum + subtotal;
+                            }, 0);
+
+                            return (
+                              <div
+                                key={formatKey}
+                                className="bg-white/80 border border-blue-100 rounded-md p-3 flex flex-col"
+                              >
+                                <p className="text-xs font-semibold text-blue-700 uppercase mb-1">
+                                  {formatKey}
+                                </p>
+                                <p className="text-lg sm:text-xl font-extrabold text-blue-900">
+                                  {totalForFormat.toLocaleString('fr-FR')}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Bouteilles traitées (tous clients)
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tableau Bouteilles par client */}
+              <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl font-bold">Bouteilles par client</h2>
+                </div>
+
+                {atelierLoading ? (
+                  <p className="text-sm text-muted-foreground">Chargement des données...</p>
+                ) : atelierEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aucune donnée ATELIER à afficher pour le moment.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {(Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[]).map(client => {
+                      // Agréger les données par client
+                      const aggregated: Record<AtelierCategory, Record<AtelierFormat, number>> = {
+                        bouteilles_vidangees: { B6: 0, B12: 0, B28: 0, B38: 0 },
+                        bouteilles_reeprouvees: { B6: 0, B12: 0, B28: 0, B38: 0 },
+                        bouteilles_hs: { B6: 0, B12: 0, B28: 0, B38: 0 },
+                        clapet_monte: { B6: 0, B12: 0, B28: 0, B38: 0 },
+                      };
+
+                      atelierEntries.forEach(entry => {
+                        const d = (entry.data as any)?.[client];
+                        if (!d) return;
+                        (Object.keys(aggregated) as AtelierCategory[]).forEach(cat => {
+                          (['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).forEach(formatKey => {
+                            const val = d?.[cat]?.[formatKey];
+                            if (typeof val === 'number') {
+                              aggregated[cat][formatKey] += val;
+                            }
+                          });
+                        });
+                      });
+
+                      const totalClient = (Object.keys(aggregated) as AtelierCategory[]).reduce(
+                        (sum, cat) =>
+                          sum +
+                          (['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).reduce(
+                            (s, f) => s + aggregated[cat][f],
+                            0
+                          ),
+                        0
+                      );
+
+                      return (
+                        <div key={client} className="border rounded-lg p-3 sm:p-4 bg-muted/30">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm sm:text-base font-semibold">
+                              {ATELIER_CLIENT_LABELS[client]}{' '}
+                              <span className="text-xs text-muted-foreground font-normal">
+                                ({totalClient.toLocaleString('fr-FR')} bouteilles)
+                              </span>
+                            </h3>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs border-collapse">
+                              <thead>
+                                <tr>
+                                  <th className="border px-2 py-1 text-left">Catégorie</th>
+                                  {(['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).map(formatKey => (
+                                    <th key={formatKey} className="border px-2 py-1 text-center">
+                                      {formatKey}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(Object.keys(aggregated) as AtelierCategory[]).map(cat => (
+                                  <tr key={cat}>
+                                    <td className="border px-2 py-1">
+                                      {cat === 'bouteilles_vidangees'
+                                        ? 'Bouteilles vidangées'
+                                        : cat === 'bouteilles_reeprouvees'
+                                        ? 'Bouteilles rééprouvées'
+                                        : cat === 'bouteilles_hs'
+                                        ? 'Bouteilles HS'
+                                        : 'Clapet monté'}
+                                    </td>
+                                    {(['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).map(formatKey => (
+                                      <td key={formatKey} className="border px-2 py-1 text-right">
+                                        {aggregated[cat][formatKey].toLocaleString('fr-FR')}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {activeView === 'carte' && (
             <div className="bg-card rounded-lg border shadow-sm p-6 text-center space-y-3">
               <div className="flex justify-center">
-                <Map className="h-10 w-10 text-muted-foreground" />
+                <MapIcon className="h-10 w-10 text-muted-foreground" />
               </div>
               <h2 className="text-xl font-bold">Carte</h2>
               <p className="text-muted-foreground">Fonctionnalités en cours de développement.</p>
