@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pencil, Save, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -14,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Interface pour une ligne d'historique transformée
 export interface AtelierHistoryRow {
@@ -65,8 +65,19 @@ const AtelierHistoryTable = ({
   availableMonths,
   availableYears
 }: AtelierHistoryTableProps) => {
+  const isMobile = useIsMobile();
   const [entries, setEntries] = useState<AtelierEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
+  const availableMonthsForYear = useMemo(() => {
+    if (filterType !== 'month') return [];
+    // Générer les 12 mois de l'année sélectionnée
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${selectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse(); // Plus récent en premier
+  }, [selectedYear, filterType]);
   const [editingRow, setEditingRow] = useState<{ id: string; client: AtelierClientKey } | null>(null);
   const [editingData, setEditingData] = useState<{ br6: number; br12: number; br28: number; br38: number; bv6: number; bv12: number; bv28: number; bv38: number; bhs6: number; bhs12: number; bhs28: number; bhs38: number; cpt6: number; cpt12: number; cpt28: number; cpt38: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<AtelierClientKey | 'all'>('all');
@@ -319,24 +330,20 @@ const AtelierHistoryTable = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Historique ATELIER</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div>
         {/* Filtres */}
         <div className="mb-4 flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
           <span className="text-sm font-semibold">Filtres:</span>
           
           {/* Filtre temporel - DATE */}
           <Select value={filterType} onValueChange={(v: 'year' | 'month' | 'date' | 'range') => onFilterChange(v)}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="h-8 sm:h-9 w-[120px] sm:w-[140px] text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="year">Année</SelectItem>
               <SelectItem value="month">Mois</SelectItem>
-              <SelectItem value="date">Date</SelectItem>
+              <SelectItem value="date">Jour</SelectItem>
               <SelectItem value="range">Période</SelectItem>
             </SelectContent>
           </Select>
@@ -344,7 +351,7 @@ const AtelierHistoryTable = ({
           {/* Choix selon le type de filtre temporel */}
           {filterType === 'year' && (
             <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('year', Number(v))}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -358,24 +365,38 @@ const AtelierHistoryTable = ({
           )}
 
           {filterType === 'month' && (
-            <Select value={selectedMonth} onValueChange={v => onFilterChange('month', undefined, v)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMonths.map(month => (
-                  <SelectItem key={month} value={month}>
-                    {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('year', Number(v))}>
+                <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedMonth} onValueChange={v => onFilterChange('month', undefined, v)}>
+                <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMonthsForYear.map(month => (
+                    <SelectItem key={month} value={month}>
+                      {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           )}
 
           {filterType === 'date' && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                 </Button>
@@ -395,7 +416,7 @@ const AtelierHistoryTable = ({
           {filterType === 'range' && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[250px] justify-start text-left font-normal">
+                <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {dateRange?.from ? (
                     dateRange.to ? (
@@ -415,6 +436,7 @@ const AtelierHistoryTable = ({
                   onSelect={(range) => onFilterChange('range', undefined, undefined, undefined, range)}
                   locale={fr}
                   disabled={{ after: new Date() }}
+                  numberOfMonths={2}
                 />
               </PopoverContent>
             </Popover>
@@ -568,8 +590,7 @@ const AtelierHistoryTable = ({
             </Table>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 };
 

@@ -69,6 +69,7 @@ const DashboardHistorique = () => {
   const [isBilansExpanded, setIsBilansExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
+  const [isAtelierExpanded, setIsAtelierExpanded] = useState(false);
 
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
@@ -1408,23 +1409,6 @@ const DashboardHistorique = () => {
                     </div>
                   </div>
 
-                  {/* Historique modifiable */}
-                  <AtelierHistoryTable
-                    filterType={atelierFilterType}
-                    selectedYear={atelierSelectedYear}
-                    selectedMonth={atelierSelectedMonth}
-                    selectedDate={atelierSelectedDate}
-                    dateRange={atelierDateRange}
-                    onFilterChange={(type, year, month, date, range) => {
-                      setAtelierFilterType(type);
-                      if (year !== undefined) setAtelierSelectedYear(year);
-                      if (month !== undefined) setAtelierSelectedMonth(month);
-                      if (date !== undefined) setAtelierSelectedDate(date);
-                      if (range !== undefined) setAtelierDateRange(range);
-                    }}
-                    availableMonths={availableMonths}
-                    availableYears={atelierAvailableYears}
-                  />
                 </>
               )}
             </div>
@@ -1521,6 +1505,43 @@ const DashboardHistorique = () => {
                           await deleteProductionShift(shiftId, reason);
                         }
                       }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Historique ATELIER - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsAtelierExpanded(!isAtelierExpanded)}
+                >
+                  <h2 className="text-xl sm:text-2xl font-bold">Historique ATELIER</h2>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
+                    {isAtelierExpanded ? (
+                      <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
+                    )}
+                  </Button>
+                </div>
+                {isAtelierExpanded && (
+                  <div className="px-6 pb-6">
+                    <AtelierHistoryTable
+                      filterType={atelierFilterType}
+                      selectedYear={atelierSelectedYear}
+                      selectedMonth={atelierSelectedMonth}
+                      selectedDate={atelierSelectedDate}
+                      dateRange={atelierDateRange}
+                      onFilterChange={(type, year, month, date, range) => {
+                        setAtelierFilterType(type);
+                        if (year !== undefined) setAtelierSelectedYear(year);
+                        if (month !== undefined) setAtelierSelectedMonth(month);
+                        if (date !== undefined) setAtelierSelectedDate(date);
+                        if (range !== undefined) setAtelierDateRange(range);
+                      }}
+                      availableMonths={availableMonths}
+                      availableYears={atelierAvailableYears}
                     />
                   </div>
                 )}
