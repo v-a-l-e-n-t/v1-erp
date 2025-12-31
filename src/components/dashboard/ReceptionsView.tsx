@@ -581,7 +581,7 @@ export default function ReceptionsView({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {clientData.map((client) => {
                 const color = getClientColor(client.clientKey);
                 const bgColor = client.clientKey === 'PETRO_IVOIRE' ? 'bg-orange-50/50' :
@@ -595,16 +595,13 @@ export default function ReceptionsView({
                                 '/images/logo-total.png';
 
                 return (
-                  <div key={client.clientKey} className={`p-2 ${bgColor} rounded-lg border ${borderColor}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="h-10 w-16 relative flex-shrink-0">
-                        <img src={logoPath} alt={client.client} className="h-full w-full object-contain" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold" style={{ color }}>{formatNumber(client.total)} Kg</span>
-                        <span className="text-muted-foreground">|</span>
-                        <span className="text-sm font-bold text-foreground">{client.pct.toFixed(1)}%</span>
-                      </div>
+                  <div key={client.clientKey} className={`p-4 ${bgColor} rounded-lg border ${borderColor} flex flex-col items-center justify-center text-center`}>
+                    <div className="h-16 w-24 relative mb-3 flex-shrink-0">
+                      <img src={logoPath} alt={client.client} className="h-full w-full object-contain" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-lg font-extrabold" style={{ color }}>{formatNumber(client.total)} Kg</p>
+                      <p className="text-sm font-bold text-foreground">{client.pct.toFixed(1)}%</p>
                     </div>
                   </div>
                 );
