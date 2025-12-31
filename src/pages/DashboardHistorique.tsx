@@ -19,7 +19,7 @@ import CentreEmplisseurView from '@/components/dashboard/CentreEmplisseurView';
 import ProductionHistory from '@/components/dashboard/ProductionHistory';
 import MandatairesVentesHistory from '@/components/dashboard/MandatairesVentesHistory';
 import { ProductionShiftForm } from '@/components/ProductionShiftForm';
-import { format } from 'date-fns';
+import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useMemo } from 'react';
 import VentesView from '@/components/dashboard/VentesView';
@@ -448,9 +448,9 @@ const DashboardHistorique = () => {
   ]);
 
   // ATELIER filter state
-  const [atelierFilterType, setAtelierFilterType] = useState<'year' | 'month' | 'date' | 'range'>('year');
-  const [atelierSelectedYear, setAtelierSelectedYear] = useState<number>(2025);
-  const [atelierAvailableYears, setAtelierAvailableYears] = useState<number[]>([2025]);
+  const [atelierFilterType, setAtelierFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('month');
+  const [atelierSelectedYear, setAtelierSelectedYear] = useState<number>(new Date().getFullYear());
+  const [atelierAvailableYears, setAtelierAvailableYears] = useState<number[]>([new Date().getFullYear()]);
   const [atelierSelectedMonth, setAtelierSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -459,6 +459,35 @@ const DashboardHistorique = () => {
   const [atelierDateRange, setAtelierDateRange] = useState<DateRange | undefined>(undefined);
   const [atelierSelectedClient, setAtelierSelectedClient] = useState<AtelierClientKey | 'all'>('all');
   const [atelierSelectedBottleType, setAtelierSelectedBottleType] = useState<'BR' | 'BV' | 'BHS' | 'CPT' | 'all'>('all');
+
+  // Années disponibles pour le filtre atelier
+  const atelierAvailableYearsList = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => currentYear - i);
+  }, []);
+
+  // Mois disponibles pour l'année sélectionnée (pour le filtre mois atelier)
+  const atelierAvailableMonths = useMemo(() => {
+    if (atelierFilterType !== 'month') return [];
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${atelierSelectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse();
+  }, [atelierSelectedYear, atelierFilterType]);
+
+  // Synchroniser selectedMonth avec selectedYear quand on change l'année dans le filtre mois
+  useEffect(() => {
+    if (atelierFilterType === 'month' && atelierSelectedMonth) {
+      const [currentYear] = atelierSelectedMonth.split('-').map(Number);
+      if (currentYear !== atelierSelectedYear) {
+        // Mettre à jour le mois pour correspondre à l'année sélectionnée
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const newMonth = `${atelierSelectedYear}-${String(currentMonth).padStart(2, '0')}`;
+        setAtelierSelectedMonth(newMonth);
+      }
+    }
+  }, [atelierSelectedYear, atelierFilterType]);
 
   // RECEPTIONS filter state
   const [receptionsFilterType, setReceptionsFilterType] = useState<'year' | 'month' | 'date' | 'range'>('year');
@@ -548,19 +577,22 @@ const DashboardHistorique = () => {
         setAtelierLoading(true);
         let query = (supabase as any).from('atelier_entries').select('*');
 
-        if (atelierFilterType === 'year') {
+        if (atelierFilterType === 'all') {
+          // Pas de filtre, récupérer toutes les données
+        } else if (atelierFilterType === 'year') {
           const startDate = `${atelierSelectedYear}-01-01`;
           const endDate = `${atelierSelectedYear}-12-31`;
           query = query.gte('date', startDate).lte('date', endDate);
         } else if (atelierFilterType === 'month') {
           const startDate = `${atelierSelectedMonth}-01`;
           const [y, m] = atelierSelectedMonth.split('-').map(Number);
-          const endDate = new Date(y, m, 0).toISOString().split('T')[0];
+          const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+          const endDate = format(endDateObj, 'yyyy-MM-dd');
           query = query.gte('date', startDate).lte('date', endDate);
-        } else if (atelierFilterType === 'date' && atelierSelectedDate) {
+        } else if (atelierFilterType === 'day' && atelierSelectedDate) {
           const dateStr = format(atelierSelectedDate, 'yyyy-MM-dd');
           query = query.eq('date', dateStr);
-        } else if (atelierFilterType === 'range' && atelierDateRange?.from) {
+        } else if (atelierFilterType === 'period' && atelierDateRange?.from) {
           const fromStr = format(atelierDateRange.from, 'yyyy-MM-dd');
           const toStr = atelierDateRange.to ? format(atelierDateRange.to, 'yyyy-MM-dd') : fromStr;
           query = query.gte('date', fromStr).lte('date', toStr);
@@ -1144,7 +1176,6 @@ const DashboardHistorique = () => {
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold">Dashboard Atelier</h2>
-                  <p className="text-muted-foreground">Analyse des bouteilles traitées</p>
                 </div>
                 <Button
                   size="sm"
@@ -1158,25 +1189,26 @@ const DashboardHistorique = () => {
 
               {/* Filtres */}
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={atelierFilterType} onValueChange={(v: 'year' | 'month' | 'date' | 'range') => setAtelierFilterType(v)}>
-                  <SelectTrigger className="w-[140px]">
+                <Select value={atelierFilterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setAtelierFilterType(v)}>
+                  <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">Toutes périodes</SelectItem>
                     <SelectItem value="year">Année</SelectItem>
                     <SelectItem value="month">Mois</SelectItem>
-                    <SelectItem value="date">Date</SelectItem>
-                    <SelectItem value="range">Période</SelectItem>
+                    <SelectItem value="period">Période</SelectItem>
+                    <SelectItem value="day">Jour</SelectItem>
                   </SelectContent>
                 </Select>
 
                 {atelierFilterType === 'year' && (
                   <Select value={atelierSelectedYear.toString()} onValueChange={v => setAtelierSelectedYear(Number(v))}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {atelierAvailableYears.map(year => (
+                      {atelierAvailableYearsList.map(year => (
                         <SelectItem key={year} value={year.toString()}>
                           {year}
                         </SelectItem>
@@ -1186,24 +1218,38 @@ const DashboardHistorique = () => {
                 )}
 
                 {atelierFilterType === 'month' && (
-                  <Select value={atelierSelectedMonth} onValueChange={setAtelierSelectedMonth}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableMonths.map(month => (
-                        <SelectItem key={month} value={month}>
-                          {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <>
+                    <Select value={atelierSelectedYear.toString()} onValueChange={v => setAtelierSelectedYear(Number(v))}>
+                      <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {atelierAvailableYearsList.map(year => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={atelierSelectedMonth} onValueChange={setAtelierSelectedMonth}>
+                      <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {atelierAvailableMonths.map(month => (
+                          <SelectItem key={month} value={month}>
+                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
                 )}
 
-                {atelierFilterType === 'date' && (
+                {atelierFilterType === 'day' && (
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+                      <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {atelierSelectedDate ? format(atelierSelectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                       </Button>
@@ -1220,10 +1266,10 @@ const DashboardHistorique = () => {
                   </Popover>
                 )}
 
-                {atelierFilterType === 'range' && (
+                {atelierFilterType === 'period' && (
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
+                      <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {atelierDateRange?.from ? (
                           atelierDateRange.to ? (
