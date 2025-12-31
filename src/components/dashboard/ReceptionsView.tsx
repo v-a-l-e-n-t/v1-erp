@@ -1,15 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, Upload, TrendingUp, Package, BarChart3, Pencil, Trash2, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { format, endOfMonth } from 'date-fns';
+import { CalendarIcon, TrendingUp, TrendingDown, Package, Download, FileDown, Users } from 'lucide-react';
+import { format, endOfMonth, subDays, differenceInDays, startOfMonth, endOfMonth as endOfMonthFn, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
   Table,
   TableBody,
@@ -18,33 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  BarChart,
-  Bar,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Cell
-} from 'recharts';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 interface ReceptionsViewProps {
   dateRange: DateRange | undefined;
@@ -82,27 +58,13 @@ export default function ReceptionsView({
   setSelectedMonth,
   availableMonths
 }: ReceptionsViewProps) {
+  const receptionsGlobalesRef = useRef<HTMLDivElement>(null);
   const [receptions, setReceptions] = useState<ReceptionData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedClient, setSelectedClient] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [availableMonthsFromData, setAvailableMonthsFromData] = useState<string[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<{ date: string; client: string; poids_kg: number } | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [historyExpanded, setHistoryExpanded] = useState(false);
-  const [historyReceptions, setHistoryReceptions] = useState<ReceptionData[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyFilterClient, setHistoryFilterClient] = useState<string>('all');
-  const [historyFilterType, setHistoryFilterType] = useState<'year' | 'month' | 'date' | 'range'>('year');
-  const [historyFilterYear, setHistoryFilterYear] = useState<number>(new Date().getFullYear());
-  const [historyFilterMonth, setHistoryFilterMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [historyFilterDate, setHistoryFilterDate] = useState<Date | undefined>(undefined);
-  const [historyFilterDateRange, setHistoryFilterDateRange] = useState<DateRange | undefined>(undefined);
+  const [variationPct, setVariationPct] = useState<number>(0);
 
   // Calculer les dates de début et fin selon le filtre
   const { startDate, endDate } = useMemo(() => {
@@ -193,6 +155,84 @@ export default function ReceptionsView({
     fetchAvailableData();
   }, []);
 
+  // Export functions
+  const exportSectionAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!ref.current) return;
+
+    try {
+      const canvas = await html2canvas(ref.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(ref.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      const link = document.createElement('a');
+      link.download = `${filename}_${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Error exporting image:', error);
+    }
+  };
+
+  const exportSectionAsPDF = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!ref.current) return;
+
+    try {
+      const canvas = await html2canvas(ref.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(ref.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      pdf.save(`${filename}_${timestamp}.pdf`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    }
+  };
+
   const fetchReceptions = async () => {
     // Vérifier que startDate et endDate sont définis avant de faire la requête
     if (!startDate || !endDate) {
@@ -210,15 +250,57 @@ export default function ReceptionsView({
         .lte('date', endDate)
         .order('date', { ascending: false });
 
-      if (selectedClient !== 'all') {
-        query = query.eq('client', selectedClient);
-      }
-
       const { data, error } = await query;
 
       if (error) throw error;
       
       setReceptions(data || []);
+      
+      // Calculate variation vs previous period
+      let prevQuery: any = (supabase as any).from('receptions_clients').select('*');
+
+      if (filterType === 'month') {
+        // Previous month
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const prevDate = subMonths(new Date(y, m - 1, 1), 1);
+        const prevStartDate = format(startOfMonth(prevDate), 'yyyy-MM-dd');
+        const prevEndDate = format(endOfMonthFn(prevDate), 'yyyy-MM-dd');
+        prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
+      } else if (filterType === 'date' && selectedDate) {
+        // Previous day
+        const prevDate = subDays(selectedDate, 1);
+        const prevDateStr = format(prevDate, 'yyyy-MM-dd');
+        prevQuery = prevQuery.eq('date', prevDateStr);
+      } else if (filterType === 'range' && dateRange?.from) {
+        // Previous range (same duration)
+        const from = dateRange.from;
+        const to = dateRange.to || dateRange.from;
+        const daysDiff = differenceInDays(to, from) + 1;
+
+        const prevTo = subDays(from, 1);
+        const prevFrom = subDays(prevTo, daysDiff - 1);
+
+        const prevFromStr = format(prevFrom, 'yyyy-MM-dd');
+        const prevToStr = format(prevTo, 'yyyy-MM-dd');
+        prevQuery = prevQuery.gte('date', prevFromStr).lte('date', prevToStr);
+      } else if (filterType === 'year') {
+        // Previous year
+        const prevYear = selectedYear - 1;
+        const prevStartDate = `${prevYear}-01-01`;
+        const prevEndDate = `${prevYear}-12-31`;
+        prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
+      }
+
+      const { data: prevData } = await prevQuery;
+
+      if (prevData && prevData.length > 0) {
+        const prevTotal = prevData.reduce((sum: number, r: ReceptionData) => sum + r.poids_kg, 0);
+        const currentTotal = (data || []).reduce((sum: number, r: ReceptionData) => sum + r.poids_kg, 0);
+        const variation = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
+        setVariationPct(variation);
+      } else {
+        setVariationPct(0);
+      }
       
       // Si aucune donnée trouvée, afficher un message informatif
       if (!data || data.length === 0) {
@@ -232,36 +314,11 @@ export default function ReceptionsView({
     }
   };
 
-  // Fonction pour charger toutes les données de l'historique (indépendamment des filtres principaux)
-  const fetchHistoryReceptions = async () => {
-    setHistoryLoading(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from('receptions_clients')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      setHistoryReceptions(data || []);
-    } catch (error: any) {
-      console.error('Error fetching history receptions:', error);
-      toast.error('Erreur lors du chargement de l\'historique');
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchReceptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, selectedClient, selectedYear]);
-
-  // Charger les données de l'historique indépendamment des filtres principaux
-  useEffect(() => {
-    if (historyExpanded) {
-      fetchHistoryReceptions();
-    }
-  }, [historyExpanded]);
+  }, [startDate, endDate, selectedYear, filterType, selectedMonth, selectedDate, dateRange]);
 
   // Statistiques globales
   const stats = useMemo(() => {
@@ -282,37 +339,18 @@ export default function ReceptionsView({
     };
   }, [receptions]);
 
-  // Données pour graphiques
-  const chartData = useMemo(() => {
-    // Par date
-    const byDate = receptions.reduce((acc, r) => {
-      const date = format(new Date(r.date), 'dd/MM');
-      if (!acc[date]) {
-        acc[date] = { date, TOTAL_ENERGIES: 0, PETRO_IVOIRE: 0, VIVO_ENERGIES: 0 };
-      }
-      const clientKey = r.client as 'TOTAL_ENERGIES' | 'PETRO_IVOIRE' | 'VIVO_ENERGIES';
-      if (clientKey in acc[date]) {
-        acc[date][clientKey] += r.poids_kg;
-      }
-      return acc;
-    }, {} as Record<string, { date: string; TOTAL_ENERGIES: number; PETRO_IVOIRE: number; VIVO_ENERGIES: number }>);
-
-    return Object.values(byDate).sort((a, b) => {
-      const [dayA, monthA] = a.date.split('/').map(Number);
-      const [dayB, monthB] = b.date.split('/').map(Number);
-      return monthA - monthB || dayA - dayB;
-    });
-  }, [receptions]);
-
-  // Données par client pour graphique en barres
+  // Données par client avec pourcentages
   const clientData = useMemo(() => {
-    return Object.entries(stats.byClient).map(([client, total]) => ({
+    const clients = Object.entries(stats.byClient).map(([client, total]) => ({
       client: CLIENT_LABELS[client] || client,
-      clientKey: client, // Garder la clé originale pour les couleurs
-      total: total, // En Kg
-      count: receptions.filter(r => r.client === client).length
+      clientKey: client,
+      total: total,
+      pct: stats.total > 0 ? (total / stats.total) * 100 : 0
     }));
-  }, [stats, receptions]);
+    
+    // Trier par total décroissant
+    return clients.sort((a, b) => b.total - a.total);
+  }, [stats]);
 
   // Fonction pour obtenir la couleur selon le client
   const getClientColor = (clientKey: string) => {
@@ -341,571 +379,216 @@ export default function ReceptionsView({
     );
   }
 
+  // Format number helper
+  const formatNumber = (num: number) => {
+    return num.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold">Réceptions par Client</h2>
-        <p className="text-muted-foreground">Historique des réceptions GPL par client</p>
-        {availableYears.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Années disponibles: {availableYears.join(', ')}
-          </p>
-        )}
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">Dashboard des Réceptions</h2>
+          <p className="text-muted-foreground">Analyse des réceptions GPL par client</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range' | 'year') => setFilterType(value)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">Par mois</SelectItem>
+              <SelectItem value="date">Par date</SelectItem>
+              <SelectItem value="range">Par période</SelectItem>
+              <SelectItem value="year">Par année</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {filterType === 'month' && (
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(availableMonthsFromData.length > 0 ? availableMonthsFromData : Array.from(new Set(availableMonths))).map(month => (
+                  <SelectItem key={month} value={month}>
+                    {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {filterType === 'date' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  locale={fr}
+                  disabled={{ after: new Date() }}
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {filterType === 'range' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[280px] justify-start text-left font-normal",
+                    !dateRange && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "dd/MM/yyyy")
+                    )
+                  ) : (
+                    "Sélectionner une période"
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  locale={fr}
+                  disabled={{ after: new Date() }}
+                  numberOfMonths={2}
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {filterType === 'year' && (
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
-      {/* Filtres et Nombre de réceptions */}
-      <Card>
-        <CardHeader>
-          {receptions.length === 0 && !loading && (
-            <CardDescription className="text-amber-600 mb-4">
-              Aucune donnée pour cette période ({startDate} - {endDate}). 
-              Essayez de sélectionner une autre période, une année complète, ou vérifiez que les données ont bien été importées.
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Filtres à gauche */}
-            <div className="flex flex-wrap items-center gap-4 flex-1">
-              <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">Mois</SelectItem>
-                  <SelectItem value="date">Date</SelectItem>
-                  <SelectItem value="range">Période</SelectItem>
-                  <SelectItem value="year">Année</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {filterType === 'month' && (
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(availableMonthsFromData.length > 0 ? availableMonthsFromData : Array.from(new Set(availableMonths))).map(month => (
-                      <SelectItem key={month} value={month}>
-                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {filterType === 'year' && (
-                <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableYears.map(year => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {filterType === 'date' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      locale={fr}
-                      disabled={{ after: new Date() }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              )}
-
-              {filterType === 'range' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[300px] justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
-                        ) : (
-                          format(dateRange.from, 'PPP', { locale: fr })
-                        )
-                      ) : (
-                        'Sélectionner une période'
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      locale={fr}
-                      disabled={{ after: new Date() }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              )}
-
-              <Select value={selectedClient} onValueChange={setSelectedClient}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les clients" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les clients</SelectItem>
-                  <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
-                  <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
-                  <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
-                </SelectContent>
-              </Select>
+      {/* Réceptions Globales Section Wrapper for Export */}
+      <div ref={receptionsGlobalesRef} id="receptions-globales" className="space-y-4 p-2 bg-background/50 rounded-xl">
+        {/* Réceptions Globales - Total */}
+        <Card className="bg-orange-50/30 border-orange-200">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                Réceptions Globales
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportSectionAsImage(receptionsGlobalesRef, 'receptions-globales')}
+                  className="h-8"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Image
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportSectionAsPDF(receptionsGlobalesRef, 'receptions-globales')}
+                  className="h-8"
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+              </div>
             </div>
-
-            {/* Tonnage et Nombre de réceptions à droite */}
-            <div className="flex gap-4 items-center">
-              {/* Tonnage */}
-              <Card>
-                <CardContent className="p-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Tonnage</p>
-                    <p className="text-2xl font-bold">{stats.total.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg</p>
-                  </div>
-                </CardContent>
-              </Card>
-              {/* Nombre de réceptions */}
-              <Card>
-                <CardContent className="p-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Nombre de réceptions</p>
-                    <p className="text-2xl font-bold">{stats.count}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Répartition par Client - Pleine largeur */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Répartition par Client</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={clientData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="client" />
-              <YAxis 
-                tickFormatter={(value) => value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                width={80}
-              />
-              <Tooltip 
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div className="bg-background border rounded-lg shadow-lg p-3">
-                        <p className="font-medium">{label}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {payload[0].value?.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg
-                        </p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Bar dataKey="total" name="">
-                {clientData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getClientColor(entry.clientKey)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Graphique évolution temporelle - Pleine largeur (masqué pour un seul jour) */}
-      {filterType !== 'date' && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Évolution Temporelle</CardTitle>
-            <CardDescription>Réceptions par jour (Kg)</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={450}>
-              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" angle={-45} textAnchor="end" height={80} />
-                <YAxis 
-                  tickFormatter={(value) => value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                  width={80}
-                />
-                <Tooltip formatter={(value: number) => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg`} />
-                <Legend />
-                <Bar dataKey="TOTAL_ENERGIES" stackId="1" fill="#3b82f6" name="Total Énergies" />
-                <Bar dataKey="PETRO_IVOIRE" stackId="1" fill="#f97316" name="Petro Ivoire" />
-                <Bar dataKey="VIVO_ENERGIES" stackId="1" fill="#10b981" name="Vivo Énergies" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="text-center p-4 bg-primary/10 rounded-lg">
+              <p className="text-sm text-muted-foreground uppercase font-bold mb-1">Cumul des réceptions</p>
+              <p className="text-3xl font-extrabold text-primary">{formatNumber(stats.total)} Kg</p>
+              <div className={cn("flex items-center justify-center text-xs font-medium mt-1", variationPct >= 0 ? "text-green-600" : "text-red-600")}>
+                {variationPct >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                {Math.abs(variationPct).toFixed(1)}% vs période préc.
+              </div>
+            </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Historique avec édition et suppression */}
-      <Card>
-        <CardHeader 
-          className="cursor-pointer hover:bg-muted/50 transition-colors"
-          onClick={() => setHistoryExpanded(!historyExpanded)}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Historique des Réceptions</CardTitle>
-              <CardDescription>Modifier ou supprimer les réceptions</CardDescription>
-            </div>
-            {historyExpanded ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </div>
-        </CardHeader>
-        {historyExpanded && (
+        {/* Répartition par Client */}
+        <Card className="border-orange-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Users className="h-4 w-4 text-orange-600" />
+              Répartition par Client
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            {/* Filtres pour l'historique */}
-            <div className="mb-4 flex flex-wrap items-center gap-4 pb-4 border-b">
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">Client:</Label>
-                <Select value={historyFilterClient} onValueChange={setHistoryFilterClient}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Tous les clients" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les clients</SelectItem>
-                    <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
-                    <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
-                    <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">Date:</Label>
-                <Select value={historyFilterType} onValueChange={(v) => setHistoryFilterType(v as any)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="year">Année</SelectItem>
-                    <SelectItem value="month">Mois</SelectItem>
-                    <SelectItem value="date">Jour</SelectItem>
-                    <SelectItem value="range">Période</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              {clientData.map((client) => {
+                const color = getClientColor(client.clientKey);
+                const bgColor = client.clientKey === 'PETRO_IVOIRE' ? 'bg-orange-50/50' :
+                               client.clientKey === 'VIVO_ENERGIES' ? 'bg-green-50/50' :
+                               'bg-blue-50/50';
+                const borderColor = client.clientKey === 'PETRO_IVOIRE' ? 'border-orange-100' :
+                                   client.clientKey === 'VIVO_ENERGIES' ? 'border-green-100' :
+                                   'border-blue-100';
+                const logoPath = client.clientKey === 'PETRO_IVOIRE' ? '/images/logo-petro.png' :
+                                client.clientKey === 'VIVO_ENERGIES' ? '/images/logo-vivo.png' :
+                                '/images/logo-total.png';
 
-              {historyFilterType === 'year' && (
-                <Select value={historyFilterYear.toString()} onValueChange={(v) => setHistoryFilterYear(Number(v))}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableYears.map(year => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {historyFilterType === 'month' && (
-                <Select value={historyFilterMonth} onValueChange={setHistoryFilterMonth}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(availableMonthsFromData.length > 0 ? availableMonthsFromData : Array.from(new Set(availableMonths))).map(month => (
-                      <SelectItem key={month} value={month}>
-                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {historyFilterType === 'date' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {historyFilterDate ? format(historyFilterDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={historyFilterDate}
-                      onSelect={setHistoryFilterDate}
-                      locale={fr}
-                      disabled={{ after: new Date() }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              )}
-
-              {historyFilterType === 'range' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[300px] justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {historyFilterDateRange?.from ? (
-                        historyFilterDateRange.to ? (
-                          `${format(historyFilterDateRange.from, 'PPP', { locale: fr })} - ${format(historyFilterDateRange.to, 'PPP', { locale: fr })}`
-                        ) : (
-                          format(historyFilterDateRange.from, 'PPP', { locale: fr })
-                        )
-                      ) : (
-                        'Sélectionner une période'
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={historyFilterDateRange}
-                      onSelect={setHistoryFilterDateRange}
-                      locale={fr}
-                      disabled={{ after: new Date() }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              )}
+                return (
+                  <div key={client.clientKey} className={`p-2 ${bgColor} rounded-lg border ${borderColor}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="h-10 w-16 relative flex-shrink-0">
+                        <img src={logoPath} alt={client.client} className="h-full w-full object-contain" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold" style={{ color }}>{formatNumber(client.total)} Kg</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="text-sm font-bold text-foreground">{client.pct.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            {historyLoading ? (
-              <p className="text-center py-8 text-muted-foreground">Chargement...</p>
-            ) : (() => {
-              // Filtrer les réceptions selon les filtres de l'historique (utiliser historyReceptions au lieu de receptions)
-              let filteredReceptions = historyReceptions;
-              
-              // Filtre par client
-              if (historyFilterClient !== 'all') {
-                filteredReceptions = filteredReceptions.filter(r => r.client === historyFilterClient);
-              }
-              
-              // Filtre par date selon le type
-              if (historyFilterType === 'year') {
-                filteredReceptions = filteredReceptions.filter(r => {
-                  const year = new Date(r.date).getFullYear();
-                  return year === historyFilterYear;
-                });
-              } else if (historyFilterType === 'month' && historyFilterMonth) {
-                const [year, month] = historyFilterMonth.split('-').map(Number);
-                const start = `${year}-${String(month).padStart(2, '0')}-01`;
-                const endDateObj = endOfMonth(new Date(year, month - 1, 1));
-                const end = format(endDateObj, 'yyyy-MM-dd');
-                filteredReceptions = filteredReceptions.filter(r => r.date >= start && r.date <= end);
-              } else if (historyFilterType === 'date' && historyFilterDate) {
-                const filterDateStr = format(historyFilterDate, 'yyyy-MM-dd');
-                filteredReceptions = filteredReceptions.filter(r => r.date === filterDateStr);
-              } else if (historyFilterType === 'range' && historyFilterDateRange?.from) {
-                const fromStr = format(historyFilterDateRange.from, 'yyyy-MM-dd');
-                const toStr = historyFilterDateRange.to ? format(historyFilterDateRange.to, 'yyyy-MM-dd') : fromStr;
-                filteredReceptions = filteredReceptions.filter(r => r.date >= fromStr && r.date <= toStr);
-              }
-              
-              return filteredReceptions.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">Aucune réception trouvée avec ces filtres</p>
-              ) : (
-                <>
-                  <div className="mb-4 p-3 bg-muted/50 rounded-md">
-                    <p className="text-sm font-medium">
-                      <span className="text-primary font-bold">{filteredReceptions.length}</span> résultat(s) trouvé(s)
-                    </p>
-                  </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Client</TableHead>
-                        <TableHead className="text-right">Poids (Kg)</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredReceptions.map((reception) => (
-                    <TableRow key={reception.id}>
-                      {editingId === reception.id && editingData ? (
-                        <>
-                          <TableCell>
-                            <Input
-                              type="date"
-                              value={editingData.date}
-                              onChange={(e) => setEditingData({ ...editingData, date: e.target.value })}
-                              className="w-[150px]"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={editingData.client}
-                              onValueChange={(v) => setEditingData({ ...editingData, client: v })}
-                            >
-                              <SelectTrigger className="w-[200px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
-                                <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
-                                <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={editingData.poids_kg}
-                              onChange={(e) => setEditingData({ ...editingData, poids_kg: parseFloat(e.target.value) || 0 })}
-                              className="text-right"
-                              step="0.1"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={async () => {
-                                  try {
-                                    const { error } = await (supabase as any)
-                                      .from('receptions_clients')
-                                      .update({
-                                        date: editingData.date,
-                                        client: editingData.client,
-                                        poids_kg: editingData.poids_kg
-                                      })
-                                      .eq('id', reception.id);
-
-                                    if (error) throw error;
-
-                                    toast.success('Réception modifiée avec succès');
-                                    setEditingId(null);
-                                    setEditingData(null);
-                                    fetchReceptions();
-                                    fetchHistoryReceptions();
-                                  } catch (error: any) {
-                                    console.error('Error updating reception:', error);
-                                    toast.error('Erreur lors de la modification');
-                                  }
-                                }}
-                              >
-                                <Save className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditingId(null);
-                                  setEditingData(null);
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </>
-                      ) : (
-                        <>
-                          <TableCell>{format(new Date(reception.date), 'dd/MM/yyyy', { locale: fr })}</TableCell>
-                          <TableCell>{CLIENT_LABELS[reception.client] || reception.client}</TableCell>
-                          <TableCell className="text-right">{reception.poids_kg.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditingId(reception.id);
-                                  setEditingData({
-                                    date: reception.date,
-                                    client: reception.client,
-                                    poids_kg: reception.poids_kg
-                                  });
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setDeleteId(reception.id)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </>
-                      )}
-                      </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  </div>
-                </>
-              );
-            })()}
           </CardContent>
-        )}
-      </Card>
+        </Card>
+      </div>
 
-      {/* Dialog de confirmation de suppression */}
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette réception ? Cette action est irréversible.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!deleteId) return;
-                try {
-                  const { error } = await (supabase as any)
-                    .from('receptions_clients')
-                    .delete()
-                    .eq('id', deleteId);
-
-                  if (error) throw error;
-
-                  toast.success('Réception supprimée avec succès');
-                  setDeleteId(null);
-                  fetchReceptions();
-                  fetchHistoryReceptions();
-                } catch (error: any) {
-                  console.error('Error deleting reception:', error);
-                  toast.error('Erreur lors de la suppression');
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Supprimer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

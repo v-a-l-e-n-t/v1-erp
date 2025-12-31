@@ -31,6 +31,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
 import ReceptionsView from '@/components/dashboard/ReceptionsView';
+import ReceptionsHistoryTable from '@/components/dashboard/ReceptionsHistoryTable';
 
 // Helper function to format numbers with decimals only if significant
 const formatNumberWithDecimals = (value: number): string => {
@@ -70,6 +71,7 @@ const DashboardHistorique = () => {
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
   const [isAtelierExpanded, setIsAtelierExpanded] = useState(false);
+  const [isReceptionsExpanded, setIsReceptionsExpanded] = useState(false);
 
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
@@ -458,6 +460,17 @@ const DashboardHistorique = () => {
   const [atelierSelectedClient, setAtelierSelectedClient] = useState<AtelierClientKey | 'all'>('all');
   const [atelierSelectedBottleType, setAtelierSelectedBottleType] = useState<'BR' | 'BV' | 'BHS' | 'CPT' | 'all'>('all');
 
+  // RECEPTIONS filter state
+  const [receptionsFilterType, setReceptionsFilterType] = useState<'year' | 'month' | 'date' | 'range'>('year');
+  const [receptionsSelectedYear, setReceptionsSelectedYear] = useState<number>(new Date().getFullYear());
+  const [receptionsAvailableYears, setReceptionsAvailableYears] = useState<number[]>([]);
+  const [receptionsSelectedMonth, setReceptionsSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [receptionsSelectedDate, setReceptionsSelectedDate] = useState<Date | undefined>(undefined);
+  const [receptionsDateRange, setReceptionsDateRange] = useState<DateRange | undefined>(undefined);
+
   // Charger les années disponibles pour ATELIER
   useEffect(() => {
     const fetchAtelierYears = async () => {
@@ -491,6 +504,41 @@ const DashboardHistorique = () => {
     };
 
     fetchAtelierYears();
+  }, []);
+
+  // Charger les années disponibles pour RECEPTIONS
+  useEffect(() => {
+    const fetchReceptionsYears = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('receptions_clients')
+          .select('date')
+          .order('date', { ascending: true })
+          .limit(1);
+
+        if (error) throw error;
+
+        let minYear = new Date().getFullYear();
+        if (data && data.length > 0) {
+          const firstDate = new Date(data[0].date);
+          const firstYear = firstDate.getFullYear();
+          minYear = firstYear;
+        }
+
+        const currentYear = new Date().getFullYear();
+        const years = Array.from({ length: currentYear - minYear + 1 }, (_, i) => minYear + i);
+        setReceptionsAvailableYears(years);
+
+        // Si l'année sélectionnée n'est pas dans la liste, définir la première année disponible
+        if (years.length > 0 && !years.includes(receptionsSelectedYear)) {
+          setReceptionsSelectedYear(years[0] || new Date().getFullYear());
+        }
+      } catch (error) {
+        console.error('Error fetching receptions years:', error);
+      }
+    };
+
+    fetchReceptionsYears();
   }, []);
 
   // Charger les données ATELIER avec filtre
@@ -1430,13 +1478,13 @@ const DashboardHistorique = () => {
 
           {activeView === 'vrac' && (
             <div className="space-y-4 sm:space-y-6">
-              {/* Historique des bilans matières - Collapsible */}
+              {/* Historique Bilans - Collapsible */}
               <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                 <div
                   className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-accent/50 transition-colors"
                   onClick={() => setIsBilansExpanded(!isBilansExpanded)}
                 >
-                  <h2 className="text-xl sm:text-2xl font-bold">Historique des bilans</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold">Historique Bilans</h2>
                   <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
                     {isBilansExpanded ? (
                       <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -1458,13 +1506,50 @@ const DashboardHistorique = () => {
                 )}
               </div>
 
-              {/* Historique de Production - Collapsible */}
+              {/* Historique Réceptions - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsReceptionsExpanded(!isReceptionsExpanded)}
+                >
+                  <h2 className="text-xl sm:text-2xl font-bold">Historique Réceptions</h2>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
+                    {isReceptionsExpanded ? (
+                      <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
+                    )}
+                  </Button>
+                </div>
+                {isReceptionsExpanded && (
+                  <div className="px-6 pb-6">
+                    <ReceptionsHistoryTable
+                      filterType={receptionsFilterType}
+                      selectedYear={receptionsSelectedYear}
+                      selectedMonth={receptionsSelectedMonth}
+                      selectedDate={receptionsSelectedDate}
+                      dateRange={receptionsDateRange}
+                      onFilterChange={(type, year, month, date, range) => {
+                        setReceptionsFilterType(type);
+                        if (year !== undefined) setReceptionsSelectedYear(year);
+                        if (month !== undefined) setReceptionsSelectedMonth(month);
+                        if (date !== undefined) setReceptionsSelectedDate(date);
+                        if (range !== undefined) setReceptionsDateRange(range);
+                      }}
+                      availableMonths={availableMonths}
+                      availableYears={receptionsAvailableYears}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Historique Production - Collapsible */}
               <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                 <div
                   className="flex items-center justify-between p-6 cursor-pointer hover:bg-accent/50 transition-colors"
                   onClick={() => setIsProductionExpanded(!isProductionExpanded)}
                 >
-                  <h2 className="text-2xl font-bold">Historique de Production</h2>
+                  <h2 className="text-2xl font-bold">Historique Production</h2>
                   <Button variant="ghost" size="icon" className="h-10 w-10">
                     {isProductionExpanded ? (
                       <ChevronUp className="h-6 w-6" />
@@ -1510,13 +1595,35 @@ const DashboardHistorique = () => {
                 )}
               </div>
 
-              {/* Historique ATELIER - Collapsible */}
+              {/* Historique Distribution - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsMandatairesVentesExpanded(!isMandatairesVentesExpanded)}
+                >
+                  <h2 className="text-xl sm:text-2xl font-bold">Historique Distribution</h2>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
+                    {isMandatairesVentesExpanded ? (
+                      <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
+                    )}
+                  </Button>
+                </div>
+                {isMandatairesVentesExpanded && (
+                  <div className="px-6 pb-6">
+                    <MandatairesVentesHistory />
+                  </div>
+                )}
+              </div>
+
+              {/* Historique Atelier - Collapsible */}
               <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                 <div
                   className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-accent/50 transition-colors"
                   onClick={() => setIsAtelierExpanded(!isAtelierExpanded)}
                 >
-                  <h2 className="text-xl sm:text-2xl font-bold">Historique ATELIER</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold">Historique Atelier</h2>
                   <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
                     {isAtelierExpanded ? (
                       <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />

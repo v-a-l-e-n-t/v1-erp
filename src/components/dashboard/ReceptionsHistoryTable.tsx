@@ -1,0 +1,468 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { CalendarIcon, Pencil, Trash2, Save, X } from 'lucide-react';
+import { format, endOfMonth } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+interface ReceptionData {
+  id: string;
+  date: string;
+  client: string;
+  poids_kg: number;
+}
+
+const CLIENT_LABELS: Record<string, string> = {
+  'TOTAL_ENERGIES': 'Total Énergies',
+  'PETRO_IVOIRE': 'Petro Ivoire',
+  'VIVO_ENERGIES': 'Vivo Énergies'
+};
+
+interface ReceptionsHistoryTableProps {
+  filterType: 'year' | 'month' | 'date' | 'range';
+  selectedYear: number;
+  selectedMonth: string;
+  selectedDate: Date | undefined;
+  dateRange: DateRange | undefined;
+  onFilterChange: (type: 'year' | 'month' | 'date' | 'range', year?: number, month?: string, date?: Date, range?: DateRange) => void;
+  availableMonths: string[];
+  availableYears: number[];
+}
+
+const ReceptionsHistoryTable = ({
+  filterType,
+  selectedYear,
+  selectedMonth,
+  selectedDate,
+  dateRange,
+  onFilterChange,
+  availableMonths,
+  availableYears
+}: ReceptionsHistoryTableProps) => {
+  const isMobile = useIsMobile();
+  const [entries, setEntries] = useState<ReceptionData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<{ date: string; client: string; poids_kg: number } | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [filterClient, setFilterClient] = useState<string>('all');
+
+  // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
+  const availableMonthsForYear = useMemo(() => {
+    if (filterType !== 'month') return [];
+    // Générer les 12 mois de l'année sélectionnée
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${selectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse(); // Plus récent en premier
+  }, [selectedYear, filterType]);
+
+  useEffect(() => {
+    const fetchEntries = async () => {
+      setLoading(true);
+      try {
+        let query: any = (supabase as any).from('receptions_clients').select('*');
+
+        if (filterType === 'year') {
+          query = query.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
+        } else if (filterType === 'month' && selectedMonth) {
+          const [y, m] = selectedMonth.split('-').map(Number);
+          const start = `${y}-${String(m).padStart(2, '0')}-01`;
+          const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+          const end = format(endDateObj, 'yyyy-MM-dd');
+          query = query.gte('date', start).lte('date', end);
+        } else if (filterType === 'date' && selectedDate) {
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          query = query.eq('date', dateStr);
+        } else if (filterType === 'range' && dateRange?.from) {
+          const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+          const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+          query = query.gte('date', fromStr).lte('date', toStr);
+        }
+
+        query = query.order('date', { ascending: false });
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setEntries(data || []);
+      } catch (error: any) {
+        console.error('Error fetching receptions history:', error);
+        toast.error('Erreur lors du chargement de l\'historique');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEntries();
+  }, [filterType, selectedYear, selectedMonth, selectedDate, dateRange]);
+
+  const filteredEntries = useMemo(() => {
+    let filtered = entries;
+    if (filterClient !== 'all') {
+      filtered = filtered.filter(e => e.client === filterClient);
+    }
+    return filtered;
+  }, [entries, filterClient]);
+
+  const handleSave = async () => {
+    if (!editingId || !editingData) return;
+    try {
+      const { error } = await (supabase as any)
+        .from('receptions_clients')
+        .update({
+          date: editingData.date,
+          client: editingData.client,
+          poids_kg: editingData.poids_kg
+        })
+        .eq('id', editingId);
+
+      if (error) throw error;
+      toast.success('Réception modifiée avec succès');
+      setEditingId(null);
+      setEditingData(null);
+      // Recharger les données
+      const fetchEntries = async () => {
+        let query: any = (supabase as any).from('receptions_clients').select('*');
+        if (filterType === 'year') {
+          query = query.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
+        } else if (filterType === 'month' && selectedMonth) {
+          const [y, m] = selectedMonth.split('-').map(Number);
+          const start = `${y}-${String(m).padStart(2, '0')}-01`;
+          const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+          const end = format(endDateObj, 'yyyy-MM-dd');
+          query = query.gte('date', start).lte('date', end);
+        } else if (filterType === 'date' && selectedDate) {
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          query = query.eq('date', dateStr);
+        } else if (filterType === 'range' && dateRange?.from) {
+          const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+          const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+          query = query.gte('date', fromStr).lte('date', toStr);
+        }
+        query = query.order('date', { ascending: false });
+        const { data } = await query;
+        setEntries(data || []);
+      };
+      fetchEntries();
+    } catch (error: any) {
+      console.error('Error updating reception:', error);
+      toast.error('Erreur lors de la modification');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const { error } = await (supabase as any)
+        .from('receptions_clients')
+        .delete()
+        .eq('id', deleteId);
+
+      if (error) throw error;
+      toast.success('Réception supprimée avec succès');
+      setDeleteId(null);
+      // Recharger les données
+      const fetchEntries = async () => {
+        let query: any = (supabase as any).from('receptions_clients').select('*');
+        if (filterType === 'year') {
+          query = query.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
+        } else if (filterType === 'month' && selectedMonth) {
+          const [y, m] = selectedMonth.split('-').map(Number);
+          const start = `${y}-${String(m).padStart(2, '0')}-01`;
+          const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+          const end = format(endDateObj, 'yyyy-MM-dd');
+          query = query.gte('date', start).lte('date', end);
+        } else if (filterType === 'date' && selectedDate) {
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          query = query.eq('date', dateStr);
+        } else if (filterType === 'range' && dateRange?.from) {
+          const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+          const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+          query = query.gte('date', fromStr).lte('date', toStr);
+        }
+        query = query.order('date', { ascending: false });
+        const { data } = await query;
+        setEntries(data || []);
+      };
+      fetchEntries();
+    } catch (error: any) {
+      console.error('Error deleting reception:', error);
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  return (
+    <div>
+      {/* Filtres */}
+      <div className="mb-4 flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
+        <span className="text-sm font-semibold">Filtres:</span>
+        
+        <Select value={filterType} onValueChange={(v) => onFilterChange(v as any)}>
+          <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="year">Année</SelectItem>
+            <SelectItem value="month">Mois</SelectItem>
+            <SelectItem value="date">Jour</SelectItem>
+            <SelectItem value="range">Période</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {filterType === 'year' && (
+          <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('year', Number(v))}>
+            <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map(year => (
+                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {filterType === 'month' && (
+          <>
+            <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('year', Number(v))}>
+              <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedMonth} onValueChange={v => onFilterChange('month', undefined, v)}>
+              <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMonthsForYear.map(month => (
+                  <SelectItem key={month} value={month}>
+                    {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+
+        {filterType === 'date' && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, isMobile ? 'dd/MM' : 'PPP', { locale: fr }) : 'Sélectionner une date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => onFilterChange('date', undefined, undefined, date)}
+                locale={fr}
+                disabled={{ after: new Date() }}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {filterType === 'range' && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
+                  ) : (
+                    format(dateRange.from, 'PPP', { locale: fr })
+                  )
+                ) : (
+                  'Sélectionner une période'
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={(range) => onFilterChange('range', undefined, undefined, undefined, range)}
+                locale={fr}
+                disabled={{ after: new Date() }}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
+
+        <Select value={filterClient} onValueChange={setFilterClient}>
+          <SelectTrigger className="h-8 sm:h-9 w-[180px] text-xs sm:text-sm">
+            <SelectValue placeholder="Tous les clients" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les clients</SelectItem>
+            <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
+            <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
+            <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tableau */}
+      {loading ? (
+        <p className="text-center py-8 text-muted-foreground">Chargement...</p>
+      ) : filteredEntries.length === 0 ? (
+        <p className="text-center py-8 text-muted-foreground">Aucune réception trouvée avec ces filtres</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Client</TableHead>
+                <TableHead className="text-right">Poids (Kg)</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredEntries.map((entry) => (
+                <TableRow key={entry.id}>
+                  {editingId === entry.id && editingData ? (
+                    <>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={editingData.date}
+                          onChange={(e) => setEditingData({ ...editingData, date: e.target.value })}
+                          className="w-[150px]"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={editingData.client}
+                          onValueChange={(v) => setEditingData({ ...editingData, client: v })}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
+                            <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
+                            <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={editingData.poids_kg}
+                          onChange={(e) => setEditingData({ ...editingData, poids_kg: parseFloat(e.target.value) || 0 })}
+                          className="text-right"
+                          step="0.1"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="ghost" onClick={handleSave}>
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditingData(null); }}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell>{format(new Date(entry.date), 'dd/MM/yyyy', { locale: fr })}</TableCell>
+                      <TableCell>{CLIENT_LABELS[entry.client] || entry.client}</TableCell>
+                      <TableCell className="text-right">{entry.poids_kg.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingId(entry.id);
+                              setEditingData({
+                                date: entry.date,
+                                client: entry.client,
+                                poids_kg: entry.poids_kg
+                              });
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDeleteId(entry.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Dialog de confirmation de suppression */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette réception ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default ReceptionsHistoryTable;
