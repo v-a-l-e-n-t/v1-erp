@@ -13,8 +13,8 @@ import { fr } from 'date-fns/locale';
 interface CarteViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
-    filterType: 'month' | 'date' | 'range';
-    setFilterType: (type: 'month' | 'date' | 'range') => void;
+    filterType: 'month' | 'date' | 'range' | 'year';
+    setFilterType: (type: 'month' | 'date' | 'range' | 'year') => void;
     selectedDate: Date | undefined;
     setSelectedDate: (date: Date | undefined) => void;
     selectedMonth: string;
