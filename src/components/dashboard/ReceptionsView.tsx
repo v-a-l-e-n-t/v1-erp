@@ -529,7 +529,6 @@ export default function ReceptionsView({
                   return null;
                 }}
               />
-              <Legend />
               <Bar dataKey="total" name="">
                 {clientData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={getClientColor(entry.clientKey)} />
@@ -540,30 +539,32 @@ export default function ReceptionsView({
         </CardContent>
       </Card>
 
-      {/* Graphique évolution temporelle - Pleine largeur */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Évolution Temporelle</CardTitle>
-          <CardDescription>Réceptions par jour (Kg)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={450}>
-            <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" angle={-45} textAnchor="end" height={80} />
-              <YAxis 
-                tickFormatter={(value) => value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                width={80}
-              />
-              <Tooltip formatter={(value: number) => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg`} />
-              <Legend />
-              <Bar dataKey="TOTAL_ENERGIES" stackId="1" fill="#3b82f6" name="Total Énergies" />
-              <Bar dataKey="PETRO_IVOIRE" stackId="1" fill="#f97316" name="Petro Ivoire" />
-              <Bar dataKey="VIVO_ENERGIES" stackId="1" fill="#10b981" name="Vivo Énergies" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {/* Graphique évolution temporelle - Pleine largeur (masqué pour un seul jour) */}
+      {filterType !== 'date' && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Évolution Temporelle</CardTitle>
+            <CardDescription>Réceptions par jour (Kg)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={450}>
+              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" angle={-45} textAnchor="end" height={80} />
+                <YAxis 
+                  tickFormatter={(value) => value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                  width={80}
+                />
+                <Tooltip formatter={(value: number) => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg`} />
+                <Legend />
+                <Bar dataKey="TOTAL_ENERGIES" stackId="1" fill="#3b82f6" name="Total Énergies" />
+                <Bar dataKey="PETRO_IVOIRE" stackId="1" fill="#f97316" name="Petro Ivoire" />
+                <Bar dataKey="VIVO_ENERGIES" stackId="1" fill="#10b981" name="Vivo Énergies" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Historique avec édition et suppression */}
       <Card>
