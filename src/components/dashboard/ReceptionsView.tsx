@@ -25,8 +25,8 @@ import {
 interface ReceptionsViewProps {
   dateRange: DateRange | undefined;
   setDateRange: (range: DateRange | undefined) => void;
-  filterType: 'month' | 'date' | 'range' | 'year';
-  setFilterType: (type: 'month' | 'date' | 'range' | 'year') => void;
+  filterType: 'all' | 'year' | 'month' | 'period' | 'day';
+  setFilterType: (type: 'all' | 'year' | 'month' | 'period' | 'day') => void;
   selectedDate: Date | undefined;
   setSelectedDate: (date: Date | undefined) => void;
   selectedMonth: string;
@@ -66,35 +66,42 @@ export default function ReceptionsView({
   const [availableMonthsFromData, setAvailableMonthsFromData] = useState<string[]>([]);
   const [variationPct, setVariationPct] = useState<number>(0);
 
+  // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
+  const availableMonthsForYear = useMemo(() => {
+    if (filterType !== 'month') return [];
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${selectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse();
+  }, [selectedYear, filterType]);
+
   // Calculer les dates de début et fin selon le filtre
   const { startDate, endDate } = useMemo(() => {
-    if (filterType === 'date' && selectedDate) {
-      const date = format(selectedDate, 'yyyy-MM-dd');
-      return { startDate: date, endDate: date };
+    if (filterType === 'all') {
+      // Pas de filtre, retourner undefined pour charger toutes les données
+      return { startDate: undefined, endDate: undefined };
     }
-    if (filterType === 'range' && dateRange?.from && dateRange?.to) {
-      return {
-        startDate: format(dateRange.from, 'yyyy-MM-dd'),
-        endDate: format(dateRange.to, 'yyyy-MM-dd')
-      };
+    if (filterType === 'year') {
+      const start = `${selectedYear}-01-01`;
+      const end = `${selectedYear}-12-31`;
+      return { startDate: start, endDate: end };
     }
     if (filterType === 'month') {
-      // Si selectedMonth est défini, l'utiliser, sinon utiliser le mois en cours
-      const monthToUse = selectedMonth || (() => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      })();
-      const [year, month] = monthToUse.split('-').map(Number);
+      const [year, month] = selectedMonth.split('-').map(Number);
       const start = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDateObj = endOfMonth(new Date(year, month - 1, 1));
       const end = format(endDateObj, 'yyyy-MM-dd');
       return { startDate: start, endDate: end };
     }
-    if (filterType === 'year') {
-      // Pour l'année, on utilise selectedYear
-      const start = `${selectedYear}-01-01`;
-      const end = `${selectedYear}-12-31`;
-      return { startDate: start, endDate: end };
+    if (filterType === 'day' && selectedDate) {
+      const date = format(selectedDate, 'yyyy-MM-dd');
+      return { startDate: date, endDate: date };
+    }
+    if (filterType === 'period' && dateRange?.from) {
+      return {
+        startDate: format(dateRange.from, 'yyyy-MM-dd'),
+        endDate: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : format(dateRange.from, 'yyyy-MM-dd')
+      };
     }
     // Par défaut: mois en cours
     const now = new Date();
@@ -243,12 +250,16 @@ export default function ReceptionsView({
 
     setLoading(true);
     try {
-      let query = (supabase as any)
+      let query: any = (supabase as any)
         .from('receptions_clients')
         .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate)
         .order('date', { ascending: false });
+
+      // Appliquer les filtres de date seulement si startDate et endDate sont définis
+      if (startDate && endDate) {
+        query = query.gte('date', startDate).lte('date', endDate);
+      }
+      // Si filterType === 'all', pas de filtre de date
 
       const { data, error } = await query;
 
@@ -259,19 +270,25 @@ export default function ReceptionsView({
       // Calculate variation vs previous period
       let prevQuery: any = (supabase as any).from('receptions_clients').select('*');
 
-      if (filterType === 'month') {
+      if (filterType === 'year') {
+        // Previous year
+        const prevYear = selectedYear - 1;
+        const prevStartDate = `${prevYear}-01-01`;
+        const prevEndDate = `${prevYear}-12-31`;
+        prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
+      } else if (filterType === 'month') {
         // Previous month
         const [y, m] = selectedMonth.split('-').map(Number);
         const prevDate = subMonths(new Date(y, m - 1, 1), 1);
         const prevStartDate = format(startOfMonth(prevDate), 'yyyy-MM-dd');
         const prevEndDate = format(endOfMonthFn(prevDate), 'yyyy-MM-dd');
         prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
-      } else if (filterType === 'date' && selectedDate) {
+      } else if (filterType === 'day' && selectedDate) {
         // Previous day
         const prevDate = subDays(selectedDate, 1);
         const prevDateStr = format(prevDate, 'yyyy-MM-dd');
         prevQuery = prevQuery.eq('date', prevDateStr);
-      } else if (filterType === 'range' && dateRange?.from) {
+      } else if (filterType === 'period' && dateRange?.from) {
         // Previous range (same duration)
         const from = dateRange.from;
         const to = dateRange.to || dateRange.from;
@@ -283,13 +300,8 @@ export default function ReceptionsView({
         const prevFromStr = format(prevFrom, 'yyyy-MM-dd');
         const prevToStr = format(prevTo, 'yyyy-MM-dd');
         prevQuery = prevQuery.gte('date', prevFromStr).lte('date', prevToStr);
-      } else if (filterType === 'year') {
-        // Previous year
-        const prevYear = selectedYear - 1;
-        const prevStartDate = `${prevYear}-01-01`;
-        const prevEndDate = `${prevYear}-12-31`;
-        prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
       }
+      // 'all' = pas de calcul de variation
 
       const { data: prevData } = await prevQuery;
 
@@ -314,6 +326,20 @@ export default function ReceptionsView({
     }
   };
 
+
+  // Synchroniser selectedMonth avec selectedYear quand on change l'année dans le filtre mois
+  useEffect(() => {
+    if (filterType === 'month' && selectedMonth) {
+      const [currentYear] = selectedMonth.split('-').map(Number);
+      if (currentYear !== selectedYear) {
+        // Mettre à jour le mois pour correspondre à l'année sélectionnée
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const newMonth = `${selectedYear}-${String(currentMonth).padStart(2, '0')}`;
+        setSelectedMonth(newMonth);
+      }
+    }
+  }, [selectedYear, filterType]);
 
   useEffect(() => {
     fetchReceptions();
@@ -394,45 +420,69 @@ export default function ReceptionsView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range' | 'year') => setFilterType(value)}>
-            <SelectTrigger className="w-[160px]">
+          <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
+            <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="month">Par mois</SelectItem>
-              <SelectItem value="date">Par date</SelectItem>
-              <SelectItem value="range">Par période</SelectItem>
-              <SelectItem value="year">Par année</SelectItem>
+              <SelectItem value="all">Toutes périodes</SelectItem>
+              <SelectItem value="year">Année</SelectItem>
+              <SelectItem value="month">Mois</SelectItem>
+              <SelectItem value="period">Période</SelectItem>
+              <SelectItem value="day">Jour</SelectItem>
             </SelectContent>
           </Select>
 
-          {filterType === 'month' && (
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[180px]">
+          {filterType === 'year' && (
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+              <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(availableMonthsFromData.length > 0 ? availableMonthsFromData : Array.from(new Set(availableMonths))).map(month => (
-                  <SelectItem key={month} value={month}>
-                    {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                  </SelectItem>
+                {availableYears.length > 0 ? availableYears.map(year => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                )) : Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )}
 
-          {filterType === 'date' && (
+          {filterType === 'month' && (
+            <>
+              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.length > 0 ? availableYears.map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  )) : Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMonthsForYear.map(month => (
+                    <SelectItem key={month} value={month}>
+                      {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          {filterType === 'day' && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-[240px] justify-start text-left font-normal",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
+                <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                  {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -442,33 +492,24 @@ export default function ReceptionsView({
                   onSelect={setSelectedDate}
                   locale={fr}
                   disabled={{ after: new Date() }}
-                  className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
           )}
 
-          {filterType === 'range' && (
+          {filterType === 'period' && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-[280px] justify-start text-left font-normal",
-                    !dateRange && "text-muted-foreground"
-                  )}
-                >
+                <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {dateRange?.from ? (
                     dateRange.to ? (
-                      <>
-                        {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                      </>
+                      `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
                     ) : (
-                      format(dateRange.from, "dd/MM/yyyy")
+                      format(dateRange.from, 'PPP', { locale: fr })
                     )
                   ) : (
-                    "Sélectionner une période"
+                    'Sélectionner une période'
                   )}
                 </Button>
               </PopoverTrigger>
@@ -480,25 +521,9 @@ export default function ReceptionsView({
                   locale={fr}
                   disabled={{ after: new Date() }}
                   numberOfMonths={2}
-                  className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
-          )}
-
-          {filterType === 'year' && (
-            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableYears.map(year => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           )}
         </div>
       </div>

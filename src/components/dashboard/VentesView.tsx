@@ -41,8 +41,8 @@ import {
 interface VentesViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
-    filterType: 'month' | 'date' | 'range' | 'year';
-    setFilterType: (type: 'month' | 'date' | 'range' | 'year') => void;
+    filterType: 'all' | 'year' | 'month' | 'period' | 'day';
+    setFilterType: (type: 'all' | 'year' | 'month' | 'period' | 'day') => void;
     selectedDate: Date | undefined;
     setSelectedDate: (date: Date | undefined) => void;
     selectedMonth: string;
@@ -87,6 +87,7 @@ const VentesView = ({
 }: VentesViewProps) => {
     const [loading, setLoading] = useState(false);
     const ventesGlobalesRef = useRef<HTMLDivElement>(null);
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
     // Export functions
     const exportSectionAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
@@ -179,12 +180,34 @@ const VentesView = ({
         productionTotal: 0
     });
 
-    // Available months for filter
-    const availableMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - i);
-        return d.toISOString().slice(0, 7);
-    }), []);
+    // Années disponibles
+    const availableYears = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        return Array.from({ length: 5 }, (_, i) => currentYear - i);
+    }, []);
+
+    // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
+    const availableMonths = useMemo(() => {
+        if (filterType !== 'month') return [];
+        return Array.from({ length: 12 }, (_, i) => {
+            const month = i + 1;
+            return `${selectedYear}-${String(month).padStart(2, '0')}`;
+        }).reverse();
+    }, [selectedYear, filterType]);
+
+    // Synchroniser selectedMonth avec selectedYear quand on change l'année dans le filtre mois
+    useEffect(() => {
+        if (filterType === 'month' && selectedMonth) {
+            const [currentYear] = selectedMonth.split('-').map(Number);
+            if (currentYear !== selectedYear) {
+                // Mettre à jour le mois pour correspondre à l'année sélectionnée
+                const now = new Date();
+                const currentMonth = now.getMonth() + 1;
+                const newMonth = `${selectedYear}-${String(currentMonth).padStart(2, '0')}`;
+                setSelectedMonth(newMonth);
+            }
+        }
+    }, [selectedYear, filterType]);
 
     // Fetch ventes data
     useEffect(() => {
@@ -194,19 +217,24 @@ const VentesView = ({
                 let query: any = supabase.from('bilan_entries').select('*');
 
                 // Apply date filters
-                if (filterType === 'month') {
+                if (filterType === 'year') {
+                    const startDate = `${selectedYear}-01-01`;
+                    const endDate = `${selectedYear}-12-31`;
+                    query = query.gte('date', startDate).lte('date', endDate);
+                } else if (filterType === 'month') {
                     const startDate = `${selectedMonth}-01`;
                     const [y, m] = selectedMonth.split('-').map(Number);
                     const endDate = new Date(y, m, 0).toISOString().split('T')[0];
                     query = query.gte('date', startDate).lte('date', endDate);
-                } else if (filterType === 'date' && selectedDate) {
+                } else if (filterType === 'day' && selectedDate) {
                     const dateStr = format(selectedDate, 'yyyy-MM-dd');
                     query = query.eq('date', dateStr);
-                } else if (filterType === 'range' && dateRange?.from) {
+                } else if (filterType === 'period' && dateRange?.from) {
                     const fromStr = format(dateRange.from, 'yyyy-MM-dd');
                     const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
                     query = query.gte('date', fromStr).lte('date', toStr);
                 }
+                // 'all' = pas de filtre, utilise toutes les données
 
                 const { data: bilans, error } = await query;
                 if (error) throw error;
@@ -214,19 +242,24 @@ const VentesView = ({
                 // Fetch production data
                 let prodQuery = supabase.from('production_shifts').select('date, tonnage_total');
 
-                if (filterType === 'month') {
+                if (filterType === 'year') {
+                    const startDate = `${selectedYear}-01-01`;
+                    const endDate = `${selectedYear}-12-31`;
+                    prodQuery = prodQuery.gte('date', startDate).lte('date', endDate);
+                } else if (filterType === 'month') {
                     const startDate = `${selectedMonth}-01`;
                     const [y, m] = selectedMonth.split('-').map(Number);
                     const endDate = new Date(y, m, 0).toISOString().split('T')[0];
                     prodQuery = prodQuery.gte('date', startDate).lte('date', endDate);
-                } else if (filterType === 'date' && selectedDate) {
+                } else if (filterType === 'day' && selectedDate) {
                     const dateStr = format(selectedDate, 'yyyy-MM-dd');
                     prodQuery = prodQuery.eq('date', dateStr);
-                } else if (filterType === 'range' && dateRange?.from) {
+                } else if (filterType === 'period' && dateRange?.from) {
                     const fromStr = format(dateRange.from, 'yyyy-MM-dd');
                     const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
                     prodQuery = prodQuery.gte('date', fromStr).lte('date', toStr);
                 }
+                // 'all' = pas de filtre
 
                 const { data: production, error: prodError } = await prodQuery;
                 if (prodError) throw prodError;
@@ -259,25 +292,45 @@ const VentesView = ({
                 const productionTotal = (production?.reduce((sum: number, p: any) =>
                     sum + (Number(p.tonnage_total) || 0), 0) || 0) * 1000;
 
-                // Calculate daily evolution for the selected month
+                // Calculate daily evolution
                 const monthlyEvolution: Array<{ day: string; vrac: number; conditionne: number }> = [];
 
-                // Determine the number of days in the selected month
-                const [year, month] = selectedMonth.split('-').map(Number);
-                const daysInMonth = new Date(year, month, 0).getDate();
+                if (filterType === 'month') {
+                    // Determine the number of days in the selected month
+                    const [year, month] = selectedMonth.split('-').map(Number);
+                    const daysInMonth = new Date(year, month, 0).getDate();
 
-                for (let i = 1; i <= daysInMonth; i++) {
-                    const dayStr = i.toString().padStart(2, '0');
-                    const dateStr = `${selectedMonth}-${dayStr}`;
+                    for (let i = 1; i <= daysInMonth; i++) {
+                        const dayStr = i.toString().padStart(2, '0');
+                        const dateStr = `${selectedMonth}-${dayStr}`;
 
-                    // Find bilan for this specific date
-                    const dayBilan = bilans?.find((b: any) => b.date === dateStr);
+                        // Find bilan for this specific date
+                        const dayBilan = bilans?.find((b: any) => b.date === dateStr);
 
-                    monthlyEvolution.push({
-                        day: dayStr,
-                        vrac: dayBilan ? (dayBilan.sorties_vrac || 0) : 0,
-                        conditionne: dayBilan ? (dayBilan.sorties_conditionnees || 0) : 0
-                    });
+                        monthlyEvolution.push({
+                            day: dayStr,
+                            vrac: dayBilan ? (dayBilan.sorties_vrac || 0) : 0,
+                            conditionne: dayBilan ? (dayBilan.sorties_conditionnees || 0) : 0
+                        });
+                    }
+                } else if (filterType === 'period' && dateRange?.from) {
+                    // For period, show daily evolution
+                    const from = dateRange.from;
+                    const to = dateRange.to || dateRange.from;
+                    const currentDate = new Date(from);
+                    
+                    while (currentDate <= to) {
+                        const dateStr = format(currentDate, 'yyyy-MM-dd');
+                        const dayBilan = bilans?.find((b: any) => b.date === dateStr);
+                        
+                        monthlyEvolution.push({
+                            day: format(currentDate, 'dd'),
+                            vrac: dayBilan ? (dayBilan.sorties_vrac || 0) : 0,
+                            conditionne: dayBilan ? (dayBilan.sorties_conditionnees || 0) : 0
+                        });
+                        
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
                 }
 
                 // Calculate variation vs previous period
@@ -288,19 +341,25 @@ const VentesView = ({
                 // Fetch previous period data for comparison
                 let prevQuery: any = supabase.from('bilan_entries').select('*');
 
-                if (filterType === 'month') {
+                if (filterType === 'year') {
+                    // Previous year
+                    const prevYear = selectedYear - 1;
+                    const prevStartDate = `${prevYear}-01-01`;
+                    const prevEndDate = `${prevYear}-12-31`;
+                    prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
+                } else if (filterType === 'month') {
                     // Previous month
                     const [y, m] = selectedMonth.split('-').map(Number);
                     const prevDate = subMonths(new Date(y, m - 1, 1), 1);
                     const prevStartDate = format(startOfMonth(prevDate), 'yyyy-MM-dd');
                     const prevEndDate = format(endOfMonth(prevDate), 'yyyy-MM-dd');
                     prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
-                } else if (filterType === 'date' && selectedDate) {
+                } else if (filterType === 'day' && selectedDate) {
                     // Previous day
                     const prevDate = subDays(selectedDate, 1);
                     const prevDateStr = format(prevDate, 'yyyy-MM-dd');
                     prevQuery = prevQuery.eq('date', prevDateStr);
-                } else if (filterType === 'range' && dateRange?.from) {
+                } else if (filterType === 'period' && dateRange?.from) {
                     // Previous range (same duration)
                     const from = dateRange.from;
                     const to = dateRange.to || dateRange.from;
@@ -313,6 +372,7 @@ const VentesView = ({
                     const prevToStr = format(prevTo, 'yyyy-MM-dd');
                     prevQuery = prevQuery.gte('date', prevFromStr).lte('date', prevToStr);
                 }
+                // 'all' = pas de calcul de variation
 
                 const { data: prevBilans } = await prevQuery;
 
@@ -347,7 +407,7 @@ const VentesView = ({
         };
 
         fetchVentesData();
-    }, [filterType, selectedMonth, selectedDate, dateRange]);
+    }, [filterType, selectedMonth, selectedDate, dateRange, selectedYear]);
 
     // Pie chart data
     const pieData = [
@@ -388,48 +448,68 @@ const VentesView = ({
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold">Dashboard des Ventes</h2>
-                    <p className="text-muted-foreground">Analyse des sorties et performance commerciale</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
-                        <SelectTrigger className="w-[160px]">
+                    <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
+                        <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="month">Par mois</SelectItem>
-                            <SelectItem value="date">Par date</SelectItem>
-                            <SelectItem value="range">Par période</SelectItem>
+                            <SelectItem value="all">Toutes périodes</SelectItem>
+                            <SelectItem value="year">Année</SelectItem>
+                            <SelectItem value="month">Mois</SelectItem>
+                            <SelectItem value="period">Période</SelectItem>
+                            <SelectItem value="day">Jour</SelectItem>
                         </SelectContent>
                     </Select>
 
-                    {filterType === 'month' && (
-                        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                            <SelectTrigger className="w-[180px]">
+                    {filterType === 'year' && (
+                        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                            <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {availableMonths.map(month => (
-                                    <SelectItem key={month} value={month}>
-                                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                                    </SelectItem>
+                                {availableYears.map(year => (
+                                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     )}
 
-                    {filterType === 'date' && (
+                    {filterType === 'month' && (
+                        <>
+                            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                                <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableYears.map(year => (
+                                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                                <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableMonths.map(month => (
+                                        <SelectItem key={month} value={month}>
+                                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </>
+                    )}
+
+                    {filterType === 'day' && (
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className={cn(
-                                        "w-[240px] justify-start text-left font-normal",
-                                        !selectedDate && "text-muted-foreground"
-                                    )}
-                                >
+                                <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                                    {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
@@ -439,33 +519,24 @@ const VentesView = ({
                                     onSelect={setSelectedDate}
                                     locale={fr}
                                     disabled={{ after: new Date() }}
-                                    className="pointer-events-auto"
                                 />
                             </PopoverContent>
                         </Popover>
                     )}
 
-                    {filterType === 'range' && (
+                    {filterType === 'period' && (
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className={cn(
-                                        "w-[280px] justify-start text-left font-normal",
-                                        !dateRange && "text-muted-foreground"
-                                    )}
-                                >
+                                <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {dateRange?.from ? (
                                         dateRange.to ? (
-                                            <>
-                                                {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                                            </>
+                                            `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
                                         ) : (
-                                            format(dateRange.from, "dd/MM/yyyy")
+                                            format(dateRange.from, 'PPP', { locale: fr })
                                         )
                                     ) : (
-                                        "Sélectionner une période"
+                                        'Sélectionner une période'
                                     )}
                                 </Button>
                             </PopoverTrigger>
@@ -477,7 +548,6 @@ const VentesView = ({
                                     locale={fr}
                                     disabled={{ after: new Date() }}
                                     numberOfMonths={2}
-                                    className="pointer-events-auto"
                                 />
                             </PopoverContent>
                         </Popover>

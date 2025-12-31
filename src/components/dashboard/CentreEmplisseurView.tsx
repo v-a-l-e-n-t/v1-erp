@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
-import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown, FileSpreadsheet, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -22,8 +22,8 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 interface CentreEmplisseurViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
-    filterType: 'month' | 'date' | 'range' | 'year';
-    setFilterType: (type: 'month' | 'date' | 'range' | 'year') => void;
+    filterType: 'all' | 'year' | 'month' | 'period' | 'day';
+    setFilterType: (type: 'all' | 'year' | 'month' | 'period' | 'day') => void;
     selectedDate: Date | undefined;
     setSelectedDate: (date: Date | undefined) => void;
     selectedMonth: string;
@@ -36,6 +36,7 @@ const CentreEmplisseurView = ({
     selectedDate, setSelectedDate,
     selectedMonth, setSelectedMonth
 }: CentreEmplisseurViewProps) => {
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     // Refs for exportable sections
     const section1Ref = useRef<HTMLDivElement>(null);
     const section2Ref = useRef<HTMLDivElement>(null);
@@ -192,12 +193,20 @@ const CentreEmplisseurView = ({
     // Agent Filter States (default to current month)
     const currentMonth = new Date().toISOString().slice(0, 7);
 
-    // Generate last 12 months for filter (memoized to avoid duplicates)
-    const availableMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - i);
-        return d.toISOString().slice(0, 7);
-    }), []);
+    // Années disponibles
+    const availableYears = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        return Array.from({ length: 5 }, (_, i) => currentYear - i);
+    }, []);
+
+    // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
+    const availableMonths = useMemo(() => {
+        if (filterType !== 'month') return [];
+        return Array.from({ length: 12 }, (_, i) => {
+            const month = i + 1;
+            return `${selectedYear}-${String(month).padStart(2, '0')}`;
+        }).reverse();
+    }, [selectedYear, filterType]);
 
 
     // Fetch agent details when modal opens
@@ -212,6 +221,20 @@ const CentreEmplisseurView = ({
         };
         loadAgentDetails();
     }, [selectedAgentForModal, filterType, selectedMonth, selectedDate, dateRange]);
+
+    // Synchroniser selectedMonth avec selectedYear quand on change l'année dans le filtre mois
+    useEffect(() => {
+        if (filterType === 'month' && selectedMonth) {
+            const [currentYear] = selectedMonth.split('-').map(Number);
+            if (currentYear !== selectedYear) {
+                // Mettre à jour le mois pour correspondre à l'année sélectionnée
+                const now = new Date();
+                const currentMonth = now.getMonth() + 1;
+                const newMonth = `${selectedYear}-${String(currentMonth).padStart(2, '0')}`;
+                setSelectedMonth(newMonth);
+            }
+        }
+    }, [selectedYear, filterType]);
 
     // Load stats and agents when filters change
     useEffect(() => {
@@ -232,22 +255,28 @@ const CentreEmplisseurView = ({
             let linesQuery = supabase.from('lignes_production').select('*, production_shifts!inner(date, shift_type)');
 
             // Apply filters
-            if (filterType === 'month') {
+            if (filterType === 'year') {
+                const startDate = `${selectedYear}-01-01`;
+                const endDate = `${selectedYear}-12-31`;
+                shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
+                linesQuery = linesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
+            } else if (filterType === 'month') {
                 const startDate = `${selectedMonth}-01`;
                 const [y, m] = selectedMonth.split('-').map(Number);
                 const endDate = new Date(y, m, 0).toISOString().split('T')[0];
                 shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
                 linesQuery = linesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
-            } else if (filterType === 'date' && selectedDate) {
+            } else if (filterType === 'day' && selectedDate) {
                 const dateStr = format(selectedDate, 'yyyy-MM-dd');
                 shiftsQuery = shiftsQuery.eq('date', dateStr);
                 linesQuery = linesQuery.eq('production_shifts.date', dateStr);
-            } else if (filterType === 'range' && dateRange?.from) {
+            } else if (filterType === 'period' && dateRange?.from) {
                 const fromStr = format(dateRange.from, 'yyyy-MM-dd');
                 const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
                 shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
                 linesQuery = linesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
             }
+            // 'all' = pas de filtre, utilise toutes les données
 
             const [shiftsResult, linesResult] = await Promise.all([shiftsQuery, linesQuery]);
 
@@ -491,22 +520,28 @@ const CentreEmplisseurView = ({
                         .eq('chef_ligne_id', agent.id);
 
                     // Apply filters
-                    if (filterType === 'month') {
+                    if (filterType === 'year') {
+                        const startDate = `${selectedYear}-01-01`;
+                        const endDate = `${selectedYear}-12-31`;
+                        shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
+                        lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
+                    } else if (filterType === 'month') {
                         const startDate = `${selectedMonth}-01`;
                         const [y, m] = selectedMonth.split('-').map(Number);
                         const endDate = new Date(y, m, 0).toISOString().split('T')[0];
                         shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
                         lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
-                    } else if (filterType === 'date' && selectedDate) {
+                    } else if (filterType === 'day' && selectedDate) {
                         const dateStr = format(selectedDate, 'yyyy-MM-dd');
                         shiftsQuery = shiftsQuery.eq('date', dateStr);
                         lignesQuery = lignesQuery.eq('production_shifts.date', dateStr);
-                    } else if (filterType === 'range' && dateRange?.from) {
+                    } else if (filterType === 'period' && dateRange?.from) {
                         const fromStr = format(dateRange.from, 'yyyy-MM-dd');
                         const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
                         shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
                         lignesQuery = lignesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
                     }
+                    // 'all' = pas de filtre
 
                     const [shiftsResult, lignesResult] = await Promise.all([shiftsQuery, lignesQuery]);
                     const shiftsData = shiftsResult.data || [];
@@ -525,7 +560,7 @@ const CentreEmplisseurView = ({
                     else if (countQuart === 0 && countLigne > 0) displayRole = 'chef_ligne';
                     else if (countQuart > 0 && countLigne > 0) {
                         // Mixed roles
-                        if (filterType === 'date') {
+                        if (filterType === 'day') {
                             displayRole = 'both';
                         } else {
                             // For interval/month: "si il a occupé les 2 postes... n'affiche rien"
@@ -695,18 +730,21 @@ const CentreEmplisseurView = ({
 
             // Determine current period dates
             let startDate, endDate;
-            if (filterType === 'month') {
+            if (filterType === 'year') {
+                startDate = `${selectedYear}-01-01`;
+                endDate = `${selectedYear}-12-31`;
+            } else if (filterType === 'month') {
                 startDate = `${selectedMonth}-01`;
                 const [y, m] = selectedMonth.split('-').map(Number);
                 endDate = new Date(y, m, 0).toISOString().split('T')[0];
-            } else if (filterType === 'date' && selectedDate) {
+            } else if (filterType === 'day' && selectedDate) {
                 startDate = format(selectedDate, 'yyyy-MM-dd');
                 endDate = startDate;
-            } else if (filterType === 'range' && dateRange?.from) {
+            } else if (filterType === 'period' && dateRange?.from) {
                 startDate = format(dateRange.from, 'yyyy-MM-dd');
                 endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : startDate;
             } else {
-                return null;
+                return null; // 'all' ou autres cas non supportés
             }
 
             // Determine previous period dates for trend calculation
@@ -714,15 +752,25 @@ const CentreEmplisseurView = ({
             const startD = new Date(startDate);
             const endD = new Date(endDate);
 
-            if (filterType === 'month') {
+            if (filterType === 'year') {
+                const prevYear = selectedYear - 1;
+                prevStartDate = `${prevYear}-01-01`;
+                prevEndDate = `${prevYear}-12-31`;
+            } else if (filterType === 'month') {
                 const prevMonthDate = new Date(startD);
                 prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
                 const prevY = prevMonthDate.getFullYear();
                 const prevM = prevMonthDate.getMonth() + 1;
                 prevStartDate = `${prevY}-${String(prevM).padStart(2, '0')}-01`;
                 prevEndDate = new Date(prevY, prevM, 0).toISOString().split('T')[0];
-            } else {
-                // For date and range, shift back by duration
+            } else if (filterType === 'day' && selectedDate) {
+                // Previous day
+                const prevDate = new Date(selectedDate);
+                prevDate.setDate(prevDate.getDate() - 1);
+                prevStartDate = format(prevDate, 'yyyy-MM-dd');
+                prevEndDate = prevStartDate;
+            } else if (filterType === 'period' && dateRange?.from) {
+                // For period, shift back by duration
                 const durationMs = endD.getTime() - startD.getTime();
                 const diffDays = Math.round(durationMs / (1000 * 60 * 60 * 24)) + 1;
 
@@ -1355,7 +1403,7 @@ const CentreEmplisseurView = ({
             const globalData = [
                 ['RAPPORT CENTRE EMPLISSEUR', '', '', '', '', '', ''],
                 ['Date générée:', new Date().toLocaleString('fr-FR'), '', '', '', '', ''],
-                ['Période:', filterType === 'month' ? selectedMonth : filterType === 'date' ? (selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '-') : (dateRange?.from ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : ''}` : '-'), '', '', '', '', ''],
+                ['Période:', filterType === 'all' ? 'Toutes périodes' : filterType === 'year' ? selectedYear.toString() : filterType === 'month' ? selectedMonth : filterType === 'day' ? (selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '-') : (dateRange?.from ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : ''}` : '-'), '', '', '', '', ''],
                 ['', '', '', '', '', '', ''],
                 ['PRODUCTION TOTALE', '', '', '', '', '', ''],
                 ['Volume Total (Kg)', stats.totalTonnage * 1000, '', '', '', '', ''],
@@ -1468,56 +1516,68 @@ const CentreEmplisseurView = ({
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Tableau de Bord Production</h2>
-                    <p className="text-muted-foreground">Suivi détaillé de la production et des performances</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        variant="outline"
-                        className="h-9 gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
-                        onClick={exportDashboardToExcel}
-                    >
-                        <FileSpreadsheet className="h-4 w-4" />
-                        Rapport Excel
-                    </Button>
-                    <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range') => setFilterType(value)}>
-                        <SelectTrigger className="w-[160px]">
+                    <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
+                        <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="month">Par mois</SelectItem>
-                            <SelectItem value="date">Par date</SelectItem>
-                            <SelectItem value="range">Par période</SelectItem>
+                            <SelectItem value="all">Toutes périodes</SelectItem>
+                            <SelectItem value="year">Année</SelectItem>
+                            <SelectItem value="month">Mois</SelectItem>
+                            <SelectItem value="period">Période</SelectItem>
+                            <SelectItem value="day">Jour</SelectItem>
                         </SelectContent>
                     </Select>
 
-                    {filterType === 'month' && (
-                        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                            <SelectTrigger className="w-[180px]">
+                    {filterType === 'year' && (
+                        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                            <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {availableMonths.map(month => (
-                                    <SelectItem key={month} value={month}>
-                                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                                    </SelectItem>
+                                {availableYears.map(year => (
+                                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     )}
 
-                    {filterType === 'date' && (
+                    {filterType === 'month' && (
+                        <>
+                            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                                <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableYears.map(year => (
+                                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                                <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableMonths.map(month => (
+                                        <SelectItem key={month} value={month}>
+                                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </>
+                    )}
+
+                    {filterType === 'day' && (
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className={cn(
-                                        "w-[240px] justify-start text-left font-normal",
-                                        !selectedDate && "text-muted-foreground"
-                                    )}
-                                >
+                                <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                                    {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
@@ -1527,33 +1587,24 @@ const CentreEmplisseurView = ({
                                     onSelect={setSelectedDate}
                                     locale={fr}
                                     disabled={{ after: new Date() }}
-                                    className="pointer-events-auto"
                                 />
                             </PopoverContent>
                         </Popover>
                     )}
 
-                    {filterType === 'range' && (
+                    {filterType === 'period' && (
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className={cn(
-                                        "w-[280px] justify-start text-left font-normal",
-                                        !dateRange && "text-muted-foreground"
-                                    )}
-                                >
+                                <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {dateRange?.from ? (
                                         dateRange.to ? (
-                                            <>
-                                                {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                                            </>
+                                            `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
                                         ) : (
-                                            format(dateRange.from, "dd/MM/yyyy")
+                                            format(dateRange.from, 'PPP', { locale: fr })
                                         )
                                     ) : (
-                                        "Sélectionner une période"
+                                        'Sélectionner une période'
                                     )}
                                 </Button>
                             </PopoverTrigger>
@@ -1565,7 +1616,6 @@ const CentreEmplisseurView = ({
                                     locale={fr}
                                     disabled={{ after: new Date() }}
                                     numberOfMonths={2}
-                                    className="pointer-events-auto"
                                 />
                             </PopoverContent>
                         </Popover>
@@ -2089,7 +2139,7 @@ const CentreEmplisseurView = ({
                                     </div>
 
                                     {/* Répartition par Ligne */}
-                                    {agentModalData.lineBreakdown && agentModalData.lineBreakdown.length > 0 && (filterType === 'month' || filterType === 'range') && (
+                                    {agentModalData.lineBreakdown && agentModalData.lineBreakdown.length > 0 && (filterType === 'month' || filterType === 'period' || filterType === 'year') && (
                                         <div>
                                             <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Ligne</h4>
                                             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -2190,7 +2240,7 @@ const CentreEmplisseurView = ({
                                     </div>
 
                                     {/* Daily Evolution Curve */}
-                                    {agentModalData.dailyProductivity && agentModalData.dailyProductivity.length > 0 && (filterType === 'month' || filterType === 'range') && (
+                                    {agentModalData.dailyProductivity && agentModalData.dailyProductivity.length > 0 && (filterType === 'month' || filterType === 'period' || filterType === 'year') && (
                                         <div>
                                             <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Évolution sur la Période</h4>
                                             <ResponsiveContainer width="100%" height={200}>
@@ -2232,7 +2282,7 @@ const CentreEmplisseurView = ({
                                     </div>
 
                                     {/* Downtime per Line */}
-                                    {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (filterType === 'month' || filterType === 'range') && (
+                                    {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (filterType === 'month' || filterType === 'period' || filterType === 'year') && (
                                         <div>
                                             <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Ligne</h4>
                                             <div className="space-y-2">
