@@ -144,7 +144,8 @@ const DashboardHistorique = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedShiftForEdit, setSelectedShiftForEdit] = useState<string | null>(null);
   const [editModalData, setEditModalData] = useState<any>(null);
-  const [historyFilterType, setHistoryFilterType] = useState<'all' | 'month' | 'date' | 'range'>('all');
+  const [historyFilterType, setHistoryFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('all');
+  const [historySelectedYear, setHistorySelectedYear] = useState<number>(new Date().getFullYear());
   const [historySelectedMonth, setHistorySelectedMonth] = useState<string>(currentMonth);
   const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(undefined);
   const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
@@ -195,14 +196,22 @@ const DashboardHistorique = () => {
       // Determine date range based on filter type
       let startDate: string | undefined;
       let endDate: string | undefined;
-      if (historyFilterType === 'month') {
+      if (historyFilterType === 'all') {
+        // Pas de filtre, récupérer toutes les données
+        startDate = undefined;
+        endDate = undefined;
+      } else if (historyFilterType === 'year') {
+        startDate = `${historySelectedYear}-01-01`;
+        endDate = `${historySelectedYear}-12-31`;
+      } else if (historyFilterType === 'month') {
         startDate = `${historySelectedMonth}-01`;
         const [y, m] = historySelectedMonth.split('-').map(Number);
-        endDate = new Date(y, m, 0).toISOString().split('T')[0];
-      } else if (historyFilterType === 'date' && historySelectedDate) {
+        const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+        endDate = format(endDateObj, 'yyyy-MM-dd');
+      } else if (historyFilterType === 'day' && historySelectedDate) {
         startDate = format(historySelectedDate, 'yyyy-MM-dd');
         endDate = startDate;
-      } else if (historyFilterType === 'range' && historyDateRange?.from) {
+      } else if (historyFilterType === 'period' && historyDateRange?.from) {
         startDate = format(historyDateRange.from, 'yyyy-MM-dd');
         endDate = historyDateRange.to ? format(historyDateRange.to, 'yyyy-MM-dd') : startDate;
       }
@@ -439,6 +448,7 @@ const DashboardHistorique = () => {
     fetchAgents();
   }, [
     historyFilterType,
+    historySelectedYear,
     historySelectedMonth,
     historySelectedDate,
     historyDateRange,
@@ -490,7 +500,7 @@ const DashboardHistorique = () => {
   }, [atelierSelectedYear, atelierFilterType]);
 
   // RECEPTIONS filter state
-  const [receptionsFilterType, setReceptionsFilterType] = useState<'year' | 'month' | 'date' | 'range'>('year');
+  const [receptionsFilterType, setReceptionsFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('year');
   const [receptionsSelectedYear, setReceptionsSelectedYear] = useState<number>(new Date().getFullYear());
   const [receptionsAvailableYears, setReceptionsAvailableYears] = useState<number[]>([]);
   const [receptionsSelectedMonth, setReceptionsSelectedMonth] = useState<string>(() => {
@@ -1611,6 +1621,8 @@ const DashboardHistorique = () => {
                       loading={historyLoading}
                       filterType={historyFilterType}
                       setFilterType={setHistoryFilterType}
+                      selectedYear={historySelectedYear}
+                      setSelectedYear={setHistorySelectedYear}
                       selectedMonth={historySelectedMonth}
                       setSelectedMonth={setHistorySelectedMonth}
                       selectedDate={historySelectedDate}

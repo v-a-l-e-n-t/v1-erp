@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pencil, Save, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierEntry, AtelierData, AtelierCategory } from '@/types/atelier';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -45,12 +45,12 @@ export interface AtelierHistoryRow {
 }
 
 interface AtelierHistoryTableProps {
-  filterType: 'year' | 'month' | 'date' | 'range';
+  filterType: 'all' | 'year' | 'month' | 'period' | 'day';
   selectedYear: number;
   selectedMonth: string;
   selectedDate: Date | undefined;
   dateRange: DateRange | undefined;
-  onFilterChange: (type: 'year' | 'month' | 'date' | 'range', year?: number, month?: string, date?: Date, range?: DateRange) => void;
+  onFilterChange: (type: 'all' | 'year' | 'month' | 'period' | 'day', year?: number, month?: string, date?: Date, range?: DateRange) => void;
   availableMonths: string[];
   availableYears: number[];
 }
@@ -68,6 +68,12 @@ const AtelierHistoryTable = ({
   const isMobile = useIsMobile();
   const [entries, setEntries] = useState<AtelierEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Années disponibles (comme le filtre KPI)
+  const availableYearsList = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => currentYear - i);
+  }, []);
   
   // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
   const availableMonthsForYear = useMemo(() => {
@@ -92,17 +98,20 @@ const AtelierHistoryTable = ({
     try {
       let query = (supabase as any).from('atelier_entries').select('*').order('date', { ascending: false });
 
-      if (filterType === 'year') {
+      if (filterType === 'all') {
+        // Pas de filtre, récupérer toutes les données
+      } else if (filterType === 'year') {
         query = query.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
       } else if (filterType === 'month') {
         const [y, m] = selectedMonth.split('-').map(Number);
         const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
-        const endDate = `${y}-${String(m).padStart(2, '0')}-31`;
+        const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+        const endDate = format(endDateObj, 'yyyy-MM-dd');
         query = query.gte('date', startDate).lte('date', endDate);
-      } else if (filterType === 'date' && selectedDate) {
+      } else if (filterType === 'day' && selectedDate) {
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         query = query.eq('date', dateStr);
-      } else if (filterType === 'range' && dateRange?.from) {
+      } else if (filterType === 'period' && dateRange?.from) {
         const fromStr = format(dateRange.from, 'yyyy-MM-dd');
         const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
         query = query.gte('date', fromStr).lte('date', toStr);
@@ -336,15 +345,16 @@ const AtelierHistoryTable = ({
           <span className="text-sm font-semibold">Filtres:</span>
           
           {/* Filtre temporel - DATE */}
-          <Select value={filterType} onValueChange={(v: 'year' | 'month' | 'date' | 'range') => onFilterChange(v)}>
-            <SelectTrigger className="h-8 sm:h-9 w-[120px] sm:w-[140px] text-xs sm:text-sm">
+          <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => onFilterChange(v)}>
+            <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">Toutes périodes</SelectItem>
               <SelectItem value="year">Année</SelectItem>
               <SelectItem value="month">Mois</SelectItem>
-              <SelectItem value="date">Jour</SelectItem>
-              <SelectItem value="range">Période</SelectItem>
+              <SelectItem value="period">Période</SelectItem>
+              <SelectItem value="day">Jour</SelectItem>
             </SelectContent>
           </Select>
 
@@ -355,7 +365,7 @@ const AtelierHistoryTable = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {availableYears.map(year => (
+                {availableYearsList.map(year => (
                   <SelectItem key={year} value={year.toString()}>
                     {year}
                   </SelectItem>
@@ -366,19 +376,19 @@ const AtelierHistoryTable = ({
 
           {filterType === 'month' && (
             <>
-              <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('year', Number(v))}>
+              <Select value={selectedYear.toString()} onValueChange={v => onFilterChange('month', Number(v))}>
                 <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableYears.map(year => (
+                  {availableYearsList.map(year => (
                     <SelectItem key={year} value={year.toString()}>
                       {year}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={selectedMonth} onValueChange={v => onFilterChange('month', undefined, v)}>
+              <Select value={selectedMonth} onValueChange={v => onFilterChange('month', selectedYear, v)}>
                 <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -393,7 +403,7 @@ const AtelierHistoryTable = ({
             </>
           )}
 
-          {filterType === 'date' && (
+          {filterType === 'day' && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
@@ -405,7 +415,7 @@ const AtelierHistoryTable = ({
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(date) => onFilterChange('date', undefined, undefined, date)}
+                  onSelect={(date) => onFilterChange('day', undefined, undefined, date)}
                   locale={fr}
                   disabled={{ after: new Date() }}
                 />
@@ -413,7 +423,7 @@ const AtelierHistoryTable = ({
             </Popover>
           )}
 
-          {filterType === 'range' && (
+          {filterType === 'period' && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
@@ -433,7 +443,7 @@ const AtelierHistoryTable = ({
                 <Calendar
                   mode="range"
                   selected={dateRange}
-                  onSelect={(range) => onFilterChange('range', undefined, undefined, undefined, range)}
+                  onSelect={(range) => onFilterChange('period', undefined, undefined, undefined, range)}
                   locale={fr}
                   disabled={{ after: new Date() }}
                   numberOfMonths={2}

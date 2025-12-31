@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,9 @@ import { Download, Trash2, Pencil, CalendarIcon, FileSpreadsheet, FileText, Prin
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
 interface HistoryTableProps {
@@ -23,82 +24,181 @@ interface HistoryTableProps {
 
 const HistoryTable = ({ entries, onDelete, onEdit, onExport, onPrint }: HistoryTableProps) => {
   const [filterNature, setFilterNature] = useState<string>('all');
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [filterType, setFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('month');
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Années disponibles
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => currentYear - i);
+  }, []);
+
+  // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
+  const availableMonths = useMemo(() => {
+    if (filterType !== 'month') return [];
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${selectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse();
+  }, [selectedYear, filterType]);
+
+  // Synchroniser selectedMonth avec selectedYear quand on change l'année dans le filtre mois
+  useEffect(() => {
+    if (filterType === 'month' && selectedMonth) {
+      const [currentYear] = selectedMonth.split('-').map(Number);
+      if (currentYear !== selectedYear) {
+        // Mettre à jour le mois pour correspondre à l'année sélectionnée
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const newMonth = `${selectedYear}-${String(currentMonth).padStart(2, '0')}`;
+        setSelectedMonth(newMonth);
+      }
+    }
+  }, [selectedYear, filterType]);
 
   // Filter entries
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
       const entryDate = new Date(entry.date);
+      const entryDateStr = entry.date; // Format: YYYY-MM-DD
 
-      // Date range filter
-      if (startDate && entryDate < startDate) return false;
-      if (endDate && entryDate > endDate) return false;
+      // Date filter
+      if (filterType === 'all') {
+        // Pas de filtre de date
+      } else if (filterType === 'year') {
+        if (!entryDateStr.startsWith(selectedYear.toString())) return false;
+      } else if (filterType === 'month') {
+        const entryMonth = entryDateStr.substring(0, 7); // YYYY-MM
+        if (entryMonth !== selectedMonth) return false;
+      } else if (filterType === 'day' && selectedDate) {
+        const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+        if (entryDateStr !== selectedDateStr) return false;
+      } else if (filterType === 'period' && dateRange?.from) {
+        const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+        const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+        if (entryDateStr < fromStr || entryDateStr > toStr) return false;
+      }
 
       // Nature filter
       if (filterNature !== 'all' && entry.nature !== filterNature) return false;
 
       return true;
     });
-  }, [entries, startDate, endDate, filterNature]);
+  }, [entries, filterType, selectedYear, selectedMonth, selectedDate, dateRange, filterNature]);
 
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Date début</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? format(startDate, "PPP", { locale: fr }) : <span>Sélectionner</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={setStartDate}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
+              <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes périodes</SelectItem>
+                <SelectItem value="year">Année</SelectItem>
+                <SelectItem value="month">Mois</SelectItem>
+                <SelectItem value="period">Période</SelectItem>
+                <SelectItem value="day">Jour</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Date fin</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !endDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "PPP", { locale: fr }) : <span>Sélectionner</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={endDate}
-                  onSelect={setEndDate}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+            {filterType === 'year' && (
+              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {filterType === 'month' && (
+              <>
+                <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                  <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map(month => (
+                      <SelectItem key={month} value={month}>
+                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+
+            {filterType === 'day' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    locale={fr}
+                    disabled={{ after: new Date() }}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+
+            {filterType === 'period' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
+                      ) : (
+                        format(dateRange.from, 'PPP', { locale: fr })
+                      )
+                    ) : (
+                      'Sélectionner une période'
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    locale={fr}
+                    disabled={{ after: new Date() }}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           <div>
