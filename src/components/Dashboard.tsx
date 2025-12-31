@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DayContentProps, DateRange } from 'react-day-picker';
 import { fr } from 'date-fns/locale';
 import { format } from 'date-fns';
@@ -22,18 +22,14 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ entries }: DashboardProps) => {
-  const [filterType, setFilterType] = useState<'month' | 'date' | 'range' | 'year'>('month');
+  const [filterType, setFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('all');
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const today = new Date();
-    const yesterday = new Date(Date.now() - 86400000);
-    return { from: yesterday, to: today };
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   // Production stats state - MUST be before any early returns
   const [productionStats, setProductionStats] = useState({
@@ -81,27 +77,28 @@ const Dashboard = ({ entries }: DashboardProps) => {
           production_shifts!inner(date)
         `);
 
-        if (filterType === 'month') {
+        if (filterType === 'year') {
+          const startDate = `${selectedYear}-01-01`;
+          const endDate = `${selectedYear}-12-31`;
+          shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
+          lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
+        } else if (filterType === 'month') {
           const startDate = `${selectedMonth}-01`;
           const [y, m] = selectedMonth.split('-').map(Number);
           const endDate = new Date(y, m, 0).toISOString().split('T')[0];
           shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
           lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
-        } else if (filterType === 'year') {
-          const startDate = `${selectedYear}-01-01`;
-          const endDate = `${selectedYear}-12-31`;
-          shiftsQuery = shiftsQuery.gte('date', startDate).lte('date', endDate);
-          lignesQuery = lignesQuery.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
-        } else if (filterType === 'date' && selectedDate) {
+        } else if (filterType === 'day' && selectedDate) {
           const dateStr = format(selectedDate, 'yyyy-MM-dd');
           shiftsQuery = shiftsQuery.eq('date', dateStr);
           lignesQuery = lignesQuery.eq('production_shifts.date', dateStr);
-        } else if (filterType === 'range' && dateRange?.from) {
+        } else if (filterType === 'period' && dateRange?.from) {
           const fromStr = format(dateRange.from, 'yyyy-MM-dd');
           const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
           shiftsQuery = shiftsQuery.gte('date', fromStr).lte('date', toStr);
           lignesQuery = lignesQuery.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
         }
+        // 'all' = pas de filtre, utilise toutes les données
 
         const [shiftsResult, lignesResult] = await Promise.all([shiftsQuery, lignesQuery]);
 
@@ -157,21 +154,22 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
             // 2. Build Range Filters
             let dateFilter: any = {};
-            if (filterType === 'month') {
+            if (filterType === 'year') {
+              dateFilter = { gte: `${selectedYear}-01-01`, lte: `${selectedYear}-12-31` };
+            } else if (filterType === 'month') {
               const startDate = `${selectedMonth}-01`;
               const [y, m] = selectedMonth.split('-').map(Number);
               const endDate = new Date(y, m, 0).toISOString().split('T')[0];
               dateFilter = { gte: startDate, lte: endDate };
-            } else if (filterType === 'year') {
-              dateFilter = { gte: `${selectedYear}-01-01`, lte: `${selectedYear}-12-31` };
-            } else if (filterType === 'date' && selectedDate) {
+            } else if (filterType === 'day' && selectedDate) {
               const dateStr = format(selectedDate, 'yyyy-MM-dd');
               dateFilter = { eq: dateStr };
-            } else if (filterType === 'range' && dateRange?.from) {
+            } else if (filterType === 'period' && dateRange?.from) {
               const fromStr = format(dateRange.from, 'yyyy-MM-dd');
               const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
               dateFilter = { gte: fromStr, lte: toStr };
             }
+            // 'all' = pas de filtre
 
             // 3. Fetch Production Data (with more details for productivity calc)
             let shiftsQuery = supabase
@@ -377,27 +375,38 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Filter entries based on selected filter type
   const filteredEntries = entries.filter(entry => {
-    const entryDate = new Date(entry.date);
-
-    if (filterType === 'month') {
+    if (filterType === 'all') {
+      return true; // Toutes les entrées
+    } else if (filterType === 'year') {
+      return entry.date.startsWith(selectedYear.toString());
+    } else if (filterType === 'month') {
       const entryMonth = entry.date.substring(0, 7);
       return entryMonth === selectedMonth;
-    } else if (filterType === 'year') {
-      return entry.date.startsWith(selectedYear);
-    } else if (filterType === 'date' && selectedDate) {
+    } else if (filterType === 'day' && selectedDate) {
       const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
       return entry.date === selectedDateStr;
-    } else if (filterType === 'range' && dateRange?.from) {
-      const fromDate = dateRange.from;
-      const toDate = dateRange.to || dateRange.from;
-      return entryDate >= fromDate && entryDate <= toDate;
+    } else if (filterType === 'period' && dateRange?.from) {
+      const fromDateStr = format(dateRange.from, 'yyyy-MM-dd');
+      const toDateStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromDateStr;
+      return entry.date >= fromDateStr && entry.date <= toDateStr;
     }
     return false;
   });
 
   // Get available months from entries
-  const availableMonths = Array.from(new Set(entries.map(e => e.date.substring(0, 7)))).sort().reverse();
-  const availableYears = Array.from(new Set(entries.map(e => e.date.substring(0, 4)))).sort().reverse();
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => currentYear - i);
+  }, []);
+  
+  // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
+  const availableMonths = useMemo(() => {
+    if (filterType !== 'month') return [];
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${selectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse();
+  }, [selectedYear, filterType]);
 
   // Check for current month objective
   // Check for monthly objective based on selection
@@ -487,14 +496,16 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Generate period text for display
   const getPeriodText = () => {
-    if (filterType === 'month') {
-      const monthDate = new Date(selectedMonth + '-01');
-      return `en ${monthDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+    if (filterType === 'all') {
+      return ''; // Pas de texte pour "Toutes périodes"
     } else if (filterType === 'year') {
       return `en ${selectedYear}`;
-    } else if (filterType === 'date' && selectedDate) {
+    } else if (filterType === 'month') {
+      const monthDate = new Date(selectedMonth + '-01');
+      return `en ${monthDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+    } else if (filterType === 'day' && selectedDate) {
       return `le ${format(selectedDate, 'dd/MM/yyyy', { locale: fr })}`;
-    } else if (filterType === 'range' && dateRange?.from) {
+    } else if (filterType === 'period' && dateRange?.from) {
       if (dateRange.to) {
         return `du ${format(dateRange.from, 'dd/MM/yyyy', { locale: fr })} au ${format(dateRange.to, 'dd/MM/yyyy', { locale: fr })}`;
       } else {
@@ -668,60 +679,65 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <Select value={filterType} onValueChange={(value: 'month' | 'date' | 'range' | 'year') => setFilterType(value)}>
-              <SelectTrigger className="w-full sm:w-[160px]">
+            <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
+              <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="year">Par année</SelectItem>
-                <SelectItem value="month">Par mois</SelectItem>
-                <SelectItem value="date">Par date</SelectItem>
-                <SelectItem value="range">Par période</SelectItem>
+                <SelectItem value="all">Toutes périodes</SelectItem>
+                <SelectItem value="year">Année</SelectItem>
+                <SelectItem value="month">Mois</SelectItem>
+                <SelectItem value="period">Période</SelectItem>
+                <SelectItem value="day">Jour</SelectItem>
               </SelectContent>
             </Select>
 
             {filterType === 'year' && (
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-full sm:w-[140px]">
+              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {availableYears.map(year => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
 
             {filterType === 'month' && (
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.map(month => (
-                    <SelectItem key={month} value={month}>
-                      {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                  <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="h-8 sm:h-9 w-[160px] sm:w-[180px] text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map(month => (
+                      <SelectItem key={month} value={month}>
+                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
             )}
 
-            {filterType === 'date' && (
+            {filterType === 'day' && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full sm:w-[240px] justify-start text-left font-normal text-xs sm:text-sm",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                  >
+                  <Button variant="outline" className="h-8 sm:h-9 w-[160px] sm:w-[180px] justify-start text-left font-normal text-xs sm:text-sm">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Sélectionner une date"}
+                    {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -731,33 +747,24 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     onSelect={setSelectedDate}
                     locale={fr}
                     disabled={{ after: new Date() }}
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             )}
 
-            {filterType === 'range' && (
+            {filterType === 'period' && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full sm:w-[280px] justify-start text-left font-normal text-xs sm:text-sm",
-                      !dateRange && "text-muted-foreground"
-                    )}
-                  >
+                  <Button variant="outline" className="h-8 sm:h-9 w-[250px] sm:w-[300px] justify-start text-left font-normal text-xs sm:text-sm">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dateRange?.from ? (
                       dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                        </>
+                        `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
                       ) : (
-                        format(dateRange.from, "dd/MM/yyyy")
+                        format(dateRange.from, 'PPP', { locale: fr })
                       )
                     ) : (
-                      "Sélectionner une période"
+                      'Sélectionner une période'
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -769,7 +776,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     locale={fr}
                     disabled={{ after: new Date() }}
                     numberOfMonths={2}
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
