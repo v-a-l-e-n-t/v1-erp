@@ -31,7 +31,8 @@ import {
   Legend,
   ResponsiveContainer,
   LineChart,
-  Line
+  Line,
+  Cell
 } from 'recharts';
 import {
   AlertDialog,
@@ -308,10 +309,25 @@ export default function ReceptionsView({
   const clientData = useMemo(() => {
     return Object.entries(stats.byClient).map(([client, total]) => ({
       client: CLIENT_LABELS[client] || client,
+      clientKey: client, // Garder la clé originale pour les couleurs
       total: total, // En Kg
       count: receptions.filter(r => r.client === client).length
     }));
   }, [stats, receptions]);
+
+  // Fonction pour obtenir la couleur selon le client
+  const getClientColor = (clientKey: string) => {
+    switch (clientKey) {
+      case 'PETRO_IVOIRE':
+        return '#f97316'; // orange
+      case 'VIVO_ENERGIES':
+        return '#10b981'; // vert
+      case 'TOTAL_ENERGIES':
+        return '#3b82f6'; // bleu
+      default:
+        return '#3b82f6';
+    }
+  };
 
   // Gestion d'erreur pour éviter un écran blanc
   // S'assurer que startDate et endDate sont toujours définis
@@ -342,175 +358,187 @@ export default function ReceptionsView({
         <ReceptionsClientsImport onImportComplete={fetchReceptions} />
       </div>
 
-      {/* Filtres */}
+      {/* Filtres et Nombre de réceptions */}
       <Card>
         <CardHeader>
-          <CardTitle>Filtres</CardTitle>
           {receptions.length === 0 && !loading && (
-            <CardDescription className="text-amber-600">
+            <CardDescription className="text-amber-600 mb-4">
               Aucune donnée pour cette période ({startDate} - {endDate}). 
               Essayez de sélectionner une autre période, une année complète, ou vérifiez que les données ont bien été importées.
             </CardDescription>
           )}
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap items-center gap-4">
-            <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="month">Mois</SelectItem>
-                <SelectItem value="date">Date</SelectItem>
-                <SelectItem value="range">Période</SelectItem>
-                <SelectItem value="year">Année</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {filterType === 'month' && (
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(availableMonthsFromData.length > 0 ? availableMonthsFromData : Array.from(new Set(availableMonths))).map(month => (
-                    <SelectItem key={month} value={month}>
-                      {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {filterType === 'year' && (
-              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* Filtres à gauche */}
+            <div className="flex flex-wrap items-center gap-4 flex-1">
+              <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableYears.map(year => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="month">Mois</SelectItem>
+                  <SelectItem value="date">Date</SelectItem>
+                  <SelectItem value="range">Période</SelectItem>
+                  <SelectItem value="year">Année</SelectItem>
                 </SelectContent>
               </Select>
-            )}
 
-            {filterType === 'date' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    locale={fr}
-                    disabled={{ after: new Date() }}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+              {filterType === 'month' && (
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(availableMonthsFromData.length > 0 ? availableMonthsFromData : Array.from(new Set(availableMonths))).map(month => (
+                      <SelectItem key={month} value={month}>
+                        {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
-            {filterType === 'range' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[300px] justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
+              {filterType === 'year' && (
+                <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map(year => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {filterType === 'date' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[200px] justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, 'PPP', { locale: fr }) : 'Sélectionner une date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      locale={fr}
+                      disabled={{ after: new Date() }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {filterType === 'range' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[300px] justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          `${format(dateRange.from, 'PPP', { locale: fr })} - ${format(dateRange.to, 'PPP', { locale: fr })}`
+                        ) : (
+                          format(dateRange.from, 'PPP', { locale: fr })
+                        )
                       ) : (
-                        format(dateRange.from, 'PPP', { locale: fr })
-                      )
-                    ) : (
-                      'Sélectionner une période'
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    locale={fr}
-                    disabled={{ after: new Date() }}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+                        'Sélectionner une période'
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      locale={fr}
+                      disabled={{ after: new Date() }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
 
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Tous les clients" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les clients</SelectItem>
-                <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
-                <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
-                <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Tous les clients" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les clients</SelectItem>
+                  <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
+                  <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
+                  <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tonnage et Nombre de réceptions à droite */}
+            <div className="flex gap-4 items-center">
+              {/* Tonnage */}
+              <Card>
+                <CardContent className="p-6">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tonnage</p>
+                    <p className="text-2xl font-bold">{stats.total.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg</p>
+                  </div>
+                </CardContent>
+              </Card>
+              {/* Nombre de réceptions */}
+              <Card>
+                <CardContent className="p-6">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Nombre de réceptions</p>
+                    <p className="text-2xl font-bold">{stats.count}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Réceptions</p>
-                <p className="text-2xl font-bold">{stats.total.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg</p>
-              </div>
-              <Package className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Nombre de réceptions</p>
-                <p className="text-2xl font-bold">{stats.count}</p>
-              </div>
-              <BarChart3 className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Graphique par client */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Réceptions par Client</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={clientData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="client" />
-                <YAxis 
-                  tickFormatter={(value) => value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                  width={80}
-                />
-                <Tooltip formatter={(value: number) => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg`} />
-                <Legend />
-                <Bar dataKey="total" fill="#3b82f6" name="Kg" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Répartition par Client - Pleine largeur */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Répartition par Client</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={clientData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="client" />
+              <YAxis 
+                tickFormatter={(value) => value.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                width={80}
+              />
+              <Tooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-background border rounded-lg shadow-lg p-3">
+                        <p className="font-medium">{label}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {payload[0].value?.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Legend />
+              <Bar dataKey="total" name="">
+                {clientData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getClientColor(entry.clientKey)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Graphique évolution temporelle - Pleine largeur */}
       <Card className="mt-6">
@@ -529,8 +557,8 @@ export default function ReceptionsView({
               />
               <Tooltip formatter={(value: number) => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Kg`} />
               <Legend />
-              <Bar dataKey="TOTAL_ENERGIES" stackId="1" fill="#ef4444" name="Total Énergies" />
-              <Bar dataKey="PETRO_IVOIRE" stackId="1" fill="#3b82f6" name="Petro Ivoire" />
+              <Bar dataKey="TOTAL_ENERGIES" stackId="1" fill="#3b82f6" name="Total Énergies" />
+              <Bar dataKey="PETRO_IVOIRE" stackId="1" fill="#f97316" name="Petro Ivoire" />
               <Bar dataKey="VIVO_ENERGIES" stackId="1" fill="#10b981" name="Vivo Énergies" />
             </BarChart>
           </ResponsiveContainer>
