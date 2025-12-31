@@ -727,6 +727,30 @@ export type Database = {
           },
         ]
       }
+      receptions_clients: {
+        Row: {
+          client: string
+          created_at: string | null
+          date: string
+          id: string
+          poids_kg: number
+        }
+        Insert: {
+          client: string
+          created_at?: string | null
+          date: string
+          id?: string
+          poids_kg: number
+        }
+        Update: {
+          client?: string
+          created_at?: string | null
+          date?: string
+          id?: string
+          poids_kg?: number
+        }
+        Relationships: []
+      }
       sphere_calculations: {
         Row: {
           calculation_date: string

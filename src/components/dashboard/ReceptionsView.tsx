@@ -164,7 +164,10 @@ export default function ReceptionsView({
       if (!acc[date]) {
         acc[date] = { date, TOTAL_ENERGIES: 0, PETRO_IVOIRE: 0, VIVO_ENERGIES: 0 };
       }
-      acc[date][r.client as keyof typeof acc[string]] += r.poids_kg;
+      const clientKey = r.client as 'TOTAL_ENERGIES' | 'PETRO_IVOIRE' | 'VIVO_ENERGIES';
+      if (clientKey in acc[date]) {
+        acc[date][clientKey] += r.poids_kg;
+      }
       return acc;
     }, {} as Record<string, { date: string; TOTAL_ENERGIES: number; PETRO_IVOIRE: number; VIVO_ENERGIES: number }>);
 

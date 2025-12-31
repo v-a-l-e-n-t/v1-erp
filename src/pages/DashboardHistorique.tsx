@@ -88,7 +88,7 @@ const DashboardHistorique = () => {
   };
 
   // Filter state for Centre Emplisseur
-  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range' | 'year'>('month');
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
