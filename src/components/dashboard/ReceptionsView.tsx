@@ -10,7 +10,6 @@ import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ReceptionsClientsImport } from '@/components/receptions/ReceptionsClientsImport';
 import {
   Table,
   TableBody,
@@ -344,18 +343,15 @@ export default function ReceptionsView({
 
   return (
     <div className="space-y-6">
-      {/* Header avec import */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Réceptions par Client</h2>
-          <p className="text-muted-foreground">Historique des réceptions GPL par client</p>
-          {availableYears.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Années disponibles: {availableYears.join(', ')}
-            </p>
-          )}
-        </div>
-        <ReceptionsClientsImport onImportComplete={fetchReceptions} />
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold">Réceptions par Client</h2>
+        <p className="text-muted-foreground">Historique des réceptions GPL par client</p>
+        {availableYears.length > 0 && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Années disponibles: {availableYears.join(', ')}
+          </p>
+        )}
       </div>
 
       {/* Filtres et Nombre de réceptions */}
