@@ -60,7 +60,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -1150,6 +1150,17 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
+            variant={activeView === 'graphes' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'graphes' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('graphes')}
+          >
+            <BarChart3 className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="hidden md:inline">GRAPHES</span>
+            <span className="md:hidden">GRAPHES</span>
+          </Button>
+
+          <Button
             variant={activeView === 'vrac' ? 'default' : 'outline'}
             size="lg"
             className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
@@ -1530,6 +1541,15 @@ const DashboardHistorique = () => {
               setSelectedMonth={setSelectedMonth}
               availableMonths={availableMonths}
             />
+          )}
+
+          {activeView === 'graphes' && (
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-card rounded-lg border shadow-sm p-6">
+                <h2 className="text-2xl font-bold mb-4">Graphes</h2>
+                <p className="text-muted-foreground">Contenu à venir...</p>
+              </div>
+            </div>
           )}
 
           {activeView === 'vrac' && (
