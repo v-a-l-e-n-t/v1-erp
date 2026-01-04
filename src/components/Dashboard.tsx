@@ -17,6 +17,45 @@ import { format, endOfMonth, subMonths, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
+// Fonction pour normaliser les noms de mandataires similaires (identique à DistributionView)
+const normalizeMandataireName = (nom: string): string => {
+    if (!nom) return nom;
+    
+    const cleaned = nom.trim().toUpperCase();
+    
+    if (cleaned.includes('IVOIRE TRANSPORT')) {
+        return 'IVOIRE TRANSPORT';
+    }
+    
+    if (cleaned.includes('IDM')) {
+        return 'IDM';
+    }
+    
+    if (cleaned.includes('LOGIS TRANSPORT')) {
+        return 'LOGIS TRANSPORT ET LOGISTIQUE';
+    }
+    
+    if (cleaned.includes('IVOIRE BUTANE')) {
+        return 'IVOIRE BUTANE';
+    }
+    
+    const patternsToRemove = [
+        /\s+INTER\s+\d+$/i,
+        /\s+CENTRE$/i,
+        /\s+BASSAM$/i,
+        /\s+COCODY\s+\d+$/i,
+        /\s+SUD\s+COMOE\s+\d+$/i,
+        /\s+\d+$/i,
+    ];
+    
+    let normalized = cleaned;
+    for (const pattern of patternsToRemove) {
+        normalized = normalized.replace(pattern, '');
+    }
+    
+    return normalized.trim();
+};
+
 interface DashboardProps {
   entries: BilanEntry[];
 }
@@ -54,6 +93,9 @@ const Dashboard = ({ entries }: DashboardProps) => {
     topAgentByTonnage: null,
     topAgentByProductivity: null
   });
+
+  // Top mandataires state
+  const [topMandataires, setTopMandataires] = useState<Array<{ nom: string; tonnage: number }>>([]);
 
   // Monthly objective state
   const [showObjectiveDialog, setShowObjectiveDialog] = useState(false);
@@ -487,7 +529,100 @@ const Dashboard = ({ entries }: DashboardProps) => {
     fetchProductionStats();
   }, [filterType, selectedMonth, selectedYear, selectedDate, dateRange]);
 
+  // Fetch top mandataires
+  useEffect(() => {
+    const fetchTopMandataires = async () => {
+      try {
+        let query = supabase
+          .from('ventes_mandataires')
+          .select(`
+            *,
+            mandataires:mandataire_id (id, nom)
+          `);
 
+        if (filterType === 'all') {
+          // Pas de filtre
+        } else if (filterType === 'year') {
+          const startDate = `${selectedYear}-01-01`;
+          const endDate = `${selectedYear}-12-31`;
+          query = query.gte('date', startDate).lte('date', endDate);
+        } else if (filterType === 'month') {
+          const startDate = `${selectedMonth}-01`;
+          const [y, m] = selectedMonth.split('-').map(Number);
+          const monthDate = new Date(y, m - 1, 1);
+          const endDate = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+          query = query.gte('date', startDate).lte('date', endDate);
+        } else if (filterType === 'day' && selectedDate) {
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          query = query.eq('date', dateStr);
+        } else if (filterType === 'period' && dateRange?.from) {
+          const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+          const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+          query = query.gte('date', fromStr).lte('date', toStr);
+        }
+
+        // Batch fetch pour éviter la limite
+        const BATCH_SIZE = 1000;
+        const allVentes: any[] = [];
+        let offset = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await query
+            .range(offset, offset + BATCH_SIZE - 1)
+            .order('date', { ascending: false });
+
+          if (error) {
+            console.error('Batch error:', error);
+            break;
+          }
+
+          if (data && data.length > 0) {
+            allVentes.push(...data);
+            hasMore = data.length === BATCH_SIZE;
+            offset += BATCH_SIZE;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        // Calculer le tonnage
+        const calculateTonnage = (v: any) => {
+          const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 12.5;
+          const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 12.5;
+          return recharges + consignes;
+        };
+
+        // Grouper par mandataire (avec normalisation)
+        const mandataireMap = new Map<string, { nom: string; tonnage: number }>();
+        allVentes.forEach(v => {
+          const mandataire = v.mandataires as any;
+          if (mandataire) {
+            const normalizedName = normalizeMandataireName(mandataire.nom);
+            const existing = mandataireMap.get(normalizedName);
+            const tonnage = calculateTonnage(v);
+            if (existing) {
+              existing.tonnage += tonnage;
+            } else {
+              mandataireMap.set(normalizedName, { nom: normalizedName, tonnage });
+            }
+          }
+        });
+
+        // Top 3 mandataires
+        const top3 = Array.from(mandataireMap.values())
+          .sort((a, b) => b.tonnage - a.tonnage)
+          .slice(0, 3);
+
+        console.log('Top mandataires:', top3);
+        setTopMandataires(top3);
+      } catch (error) {
+        console.error('Error fetching top mandataires:', error);
+      }
+    };
+
+    fetchTopMandataires();
+  }, [filterType, selectedMonth, selectedYear, selectedDate, dateRange]);
 
   // Filter entries based on selected filter type
   const filteredEntries = entries.filter(entry => {
@@ -1127,51 +1262,72 @@ const Dashboard = ({ entries }: DashboardProps) => {
       </div>
 
       {/* ========== ROW 3: TOP PERFORMERS ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
         {/* Top Performers - Tonnage */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-semibold">📊 Top Performers - Tonnage</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="space-y-2 flex-1">
               {/* Meilleure Ligne */}
-              <div className="bg-white p-2 sm:p-3 rounded-lg border border-blue-100 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Meilleure Ligne</p>
-                {topPerformers.topLine ? (
-                  <>
-                    <p className="text-xs sm:text-sm font-semibold text-blue-700">{topPerformers.topLine.name}</p>
-                    <p className="text-sm sm:text-lg font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">-</p>
-                )}
-              </div>
+              {topPerformers.topLine ? (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-orange-600">#1</span>
+                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topLine.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
+                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topLine.percentage.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
+                </div>
+              )}
               {/* Chef de Quart */}
-              <div className="bg-white p-2 sm:p-3 rounded-lg border border-blue-100 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Chef de Quart</p>
-                {topPerformers.topChefByTonnage ? (
-                  <>
-                    <p className="text-xs sm:text-sm font-semibold text-blue-700 truncate">{topPerformers.topChefByTonnage.name}</p>
-                    <p className="text-sm sm:text-lg font-semibold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">-</p>
-                )}
-              </div>
+              {topPerformers.topChefByTonnage ? (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-orange-600">#2</span>
+                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topChefByTonnage.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
+                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topChefByTonnage.percentage.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
+                </div>
+              )}
               {/* Chef de Ligne */}
-              <div className="bg-white p-2 sm:p-3 rounded-lg border border-blue-100 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Chef de Ligne</p>
-                {topPerformers.topAgentByTonnage ? (
-                  <>
-                    <p className="text-xs sm:text-sm font-semibold text-blue-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
-                    <p className="text-sm sm:text-lg font-semibold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">-</p>
-                )}
-              </div>
+              {topPerformers.topAgentByTonnage ? (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-orange-600">#3</span>
+                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
+                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topAgentByTonnage.percentage.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1182,44 +1338,99 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <CardTitle className="text-base font-semibold">🎯 Top Performers - Productivité</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="space-y-2 flex-1">
               {/* Meilleure Ligne */}
-              <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Meilleure Ligne</p>
-                {topPerformers.topLine ? (
-                  <>
-                    <p className="text-sm font-semibold text-green-700">{topPerformers.topLine.name}</p>
-                    <p className="text-lg font-semibold text-green-600">{topPerformers.topLine.percentage.toFixed(1)}%</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">-</p>
-                )}
-              </div>
+              {topPerformers.topLine ? (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-orange-600">#1</span>
+                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topLine.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
+                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topLine.percentage.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
+                </div>
+              )}
               {/* Chef de Quart */}
-              <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Chef de Quart</p>
-                {topPerformers.topChefByProductivity ? (
-                  <>
-                    <p className="text-sm font-semibold text-green-700 truncate">{topPerformers.topChefByProductivity.name}</p>
-                    <p className="text-lg font-semibold text-green-600">{topPerformers.topChefByProductivity.productivity.toFixed(1)}%</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">-</p>
-                )}
-              </div>
+              {topPerformers.topChefByProductivity ? (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-orange-600">#2</span>
+                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topChefByProductivity.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topChefByProductivity.tonnage)} Kg</p>
+                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topChefByProductivity.productivity.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
+                </div>
+              )}
               {/* Chef de Ligne */}
-              <div className="bg-white p-3 rounded-lg border border-green-100 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Chef de Ligne</p>
-                {topPerformers.topAgentByProductivity ? (
-                  <>
-                    <p className="text-sm font-semibold text-green-700 truncate">{topPerformers.topAgentByProductivity.name}</p>
-                    <p className="text-lg font-semibold text-green-600">{topPerformers.topAgentByProductivity.productivity.toFixed(1)}%</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">-</p>
-                )}
-              </div>
+              {topPerformers.topAgentByProductivity ? (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-orange-600">#3</span>
+                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topAgentByProductivity.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topAgentByProductivity.tonnage)} Kg</p>
+                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topAgentByProductivity.productivity.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-2 rounded-lg border border-orange-100">
+                  <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Mandataire */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">🚚 Top Mandataire</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="space-y-2 flex-1">
+              {topMandataires.length > 0 ? (
+                topMandataires.map((mandataire, index) => {
+                  const totalTonnage = topMandataires.reduce((sum, m) => sum + m.tonnage, 0);
+                  const percentage = totalTonnage > 0 ? (mandataire.tonnage / totalTonnage) * 100 : 0;
+                  return (
+                    <div key={index} className="bg-white p-2 rounded-lg border border-orange-100">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-semibold text-orange-600">#{index + 1}</span>
+                          <p className="text-xs font-semibold text-orange-700 truncate">{mandataire.nom}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                        <span className="text-xs font-semibold text-orange-600">{percentage.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+              )}
             </div>
           </CardContent>
         </Card>
