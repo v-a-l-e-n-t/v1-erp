@@ -14,6 +14,52 @@ import { supabase } from '@/integrations/supabase/client';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+// Fonction pour normaliser les noms de mandataires similaires
+const normalizeMandataireName = (nom: string): string => {
+    if (!nom) return nom;
+    
+    // Convertir en majuscules et nettoyer les espaces
+    const cleaned = nom.trim().toUpperCase();
+    
+    // Patterns pour identifier et normaliser les noms similaires
+    // IVOIRE TRANSPORT (avec toutes ses variantes)
+    if (cleaned.includes('IVOIRE TRANSPORT')) {
+        return 'IVOIRE TRANSPORT';
+    }
+    
+    // IDM (avec ou sans "Sarl")
+    if (cleaned.includes('IDM')) {
+        return 'IDM';
+    }
+    
+    // LOGIS TRANSPORT ET LOGISTIQUE
+    if (cleaned.includes('LOGIS TRANSPORT')) {
+        return 'LOGIS TRANSPORT ET LOGISTIQUE';
+    }
+    
+    // IVOIRE BUTANE reste tel quel
+    if (cleaned.includes('IVOIRE BUTANE')) {
+        return 'IVOIRE BUTANE';
+    }
+    
+    // Pour les autres, on peut essayer d'enlever les suffixes numériques et géographiques communs
+    const patternsToRemove = [
+        /\s+INTER\s+\d+$/i,
+        /\s+CENTRE$/i,
+        /\s+BASSAM$/i,
+        /\s+COCODY\s+\d+$/i,
+        /\s+SUD\s+COMOE\s+\d+$/i,
+        /\s+\d+$/i, // Numéro à la fin
+    ];
+    
+    let normalized = cleaned;
+    for (const pattern of patternsToRemove) {
+        normalized = normalized.replace(pattern, '');
+    }
+    
+    return normalized.trim();
+};
+
 interface DistributionViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
@@ -226,26 +272,30 @@ const DistributionView = ({
                     return recharges + consignes;
                 };
 
-                const currentTotal = allVentes.reduce((sum, v) => sum + calculateTonnage(v), 0);
-                setTotalTonnage(currentTotal);
-
-                // Group by mandataire
+                // Group by mandataire (avec normalisation des noms similaires)
                 const mandataireMap = new Map<string, { id: string; nom: string; tonnage: number }>();
                 allVentes.forEach(v => {
                     const mandataire = v.mandataires as any;
                     if (mandataire) {
-                        const key = mandataire.id;
+                        const normalizedName = normalizeMandataireName(mandataire.nom);
+                        const key = normalizedName; // Utiliser le nom normalisé comme clé
                         const existing = mandataireMap.get(key);
                         const tonnage = calculateTonnage(v);
                         if (existing) {
                             existing.tonnage += tonnage;
                         } else {
-                            mandataireMap.set(key, { id: mandataire.id, nom: mandataire.nom, tonnage });
+                            mandataireMap.set(key, { 
+                                id: mandataire.id, 
+                                nom: normalizedName, 
+                                tonnage
+                            });
                         }
                     }
                 });
 
+                // Calculer le total uniquement à partir des mandataires groupés (pour cohérence)
                 const totalTonnage = Array.from(mandataireMap.values()).reduce((sum, m) => sum + m.tonnage, 0);
+                setTotalTonnage(totalTonnage);
                 const mandataireStatsArray = Array.from(mandataireMap.values())
                     .map(m => ({
                         ...m,
@@ -308,7 +358,11 @@ const DistributionView = ({
     }, [filterType, selectedMonth, selectedDate, dateRange, selectedYear]);
 
     const formatNumber = (num: number) => {
-        return num.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+        // Afficher avec précision maximale (3 décimales comme dans calculations.ts)
+        return num.toLocaleString('fr-FR', { 
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3 
+        });
     };
 
     return (
