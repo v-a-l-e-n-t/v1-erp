@@ -16,6 +16,7 @@ import { fr } from 'date-fns/locale';
 import { format, endOfMonth, subMonths, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
 
 // Fonction pour normaliser les noms de mandataires similaires (identique à DistributionView)
 const normalizeMandataireName = (nom: string): string => {
@@ -61,14 +62,50 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ entries }: DashboardProps) => {
-  const [filterType, setFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('month');
-  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+  // Charger les filtres sauvegardés
+  const loadDashboardFilters = (): { filterType: FilterType; selectedYear: number; selectedMonth: string; selectedDate: Date | undefined; dateRange: DateRange | undefined } => {
+    const saved = loadFilterState('dashboard_overview');
+    if (saved) {
+      return {
+        filterType: saved.filterType,
+        selectedYear: saved.selectedYear || new Date().getFullYear(),
+        selectedMonth: saved.selectedMonth || (() => {
+          const now = new Date();
+          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        })(),
+        selectedDate: stateToDate(saved.selectedDate),
+        dateRange: stateToDateRange(saved.dateRange)
+      };
+    }
+    // Valeurs par défaut
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    return {
+      filterType: 'month',
+      selectedYear: now.getFullYear(),
+      selectedMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      selectedDate: undefined,
+      dateRange: undefined
+    };
+  };
+
+  const initialFilters = loadDashboardFilters();
+
+  const [filterType, setFilterType] = useState<FilterType>(initialFilters.filterType);
+  const [selectedYear, setSelectedYear] = useState<number>(initialFilters.selectedYear);
+  const [selectedMonth, setSelectedMonth] = useState<string>(initialFilters.selectedMonth);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialFilters.selectedDate);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(initialFilters.dateRange);
+
+  // Sauvegarder les filtres quand ils changent
+  useEffect(() => {
+    saveFilterState('dashboard_overview', {
+      filterType,
+      selectedYear,
+      selectedMonth,
+      selectedDate: selectedDate?.toISOString(),
+      dateRange: dateRangeToState(dateRange)
+    });
+  }, [filterType, selectedYear, selectedMonth, selectedDate, dateRange]);
 
   // Production stats state - MUST be before any early returns
   const [productionStats, setProductionStats] = useState({

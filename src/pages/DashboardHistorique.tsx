@@ -28,6 +28,7 @@ import CarteView from '@/components/dashboard/CarteView';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
 import ReceptionsView from '@/components/dashboard/ReceptionsView';
@@ -91,34 +92,104 @@ const DashboardHistorique = () => {
   };
 
   // Filter state for Centre Emplisseur
-  const [filterType, setFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('month');
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+  const loadCentreEmplisseurFilters = () => {
+    const saved = loadFilterState('historique_centre_emplisseur');
+    if (saved) {
+      return {
+        filterType: saved.filterType,
+        selectedYear: saved.selectedYear || new Date().getFullYear(),
+        selectedMonth: saved.selectedMonth || (() => {
+          const now = new Date();
+          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        })(),
+        selectedDate: stateToDate(saved.selectedDate),
+        dateRange: stateToDateRange(saved.dateRange) || (() => {
+          const today = new Date();
+          const yesterday = new Date(Date.now() - 86400000);
+          return { from: yesterday, to: today };
+        })()
+      };
+    }
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const today = new Date();
     const yesterday = new Date(Date.now() - 86400000);
-    return { from: yesterday, to: today };
-  });
+    return {
+      filterType: 'month' as FilterType,
+      selectedYear: now.getFullYear(),
+      selectedMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      selectedDate: undefined,
+      dateRange: { from: yesterday, to: today }
+    };
+  };
+
+  const initialCentreEmplisseurFilters = loadCentreEmplisseurFilters();
+  const [filterType, setFilterType] = useState<FilterType>(initialCentreEmplisseurFilters.filterType);
+  const [selectedMonth, setSelectedMonth] = useState<string>(initialCentreEmplisseurFilters.selectedMonth);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialCentreEmplisseurFilters.selectedDate);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(initialCentreEmplisseurFilters.dateRange);
 
   // Year filter for annual sections
-  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number>(initialCentreEmplisseurFilters.selectedYear);
+
+  // Sauvegarder les filtres Centre Emplisseur
+  useEffect(() => {
+    saveFilterState('historique_centre_emplisseur', {
+      filterType,
+      selectedYear,
+      selectedMonth,
+      selectedDate: selectedDate?.toISOString(),
+      dateRange: dateRangeToState(dateRange)
+    });
+  }, [filterType, selectedYear, selectedMonth, selectedDate, dateRange]);
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 5 }, (_, i) => currentYear - i);
   }, []);
 
   // Filtre unique pour les 4 cartes KPI
-  const [kpiFilterType, setKpiFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('all');
-  const [kpiSelectedYear, setKpiSelectedYear] = useState<number>(() => new Date().getFullYear());
-  const [kpiSelectedMonth, setKpiSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [kpiSelectedDate, setKpiSelectedDate] = useState<Date | undefined>(undefined);
-  const [kpiDateRange, setKpiDateRange] = useState<DateRange | undefined>(undefined);
+  const loadKPIFilters = () => {
+    const saved = loadFilterState('historique_kpi');
+    if (saved) {
+      return {
+        filterType: saved.filterType,
+        selectedYear: saved.selectedYear || new Date().getFullYear(),
+        selectedMonth: saved.selectedMonth || (() => {
+          const now = new Date();
+          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        })(),
+        selectedDate: stateToDate(saved.selectedDate),
+        dateRange: stateToDateRange(saved.dateRange)
+      };
+    }
+    return {
+      filterType: 'all' as FilterType,
+      selectedYear: new Date().getFullYear(),
+      selectedMonth: (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      })(),
+      selectedDate: undefined,
+      dateRange: undefined
+    };
+  };
+
+  const initialKPIFilters = loadKPIFilters();
+  const [kpiFilterType, setKpiFilterType] = useState<FilterType>(initialKPIFilters.filterType);
+  const [kpiSelectedYear, setKpiSelectedYear] = useState<number>(initialKPIFilters.selectedYear);
+  const [kpiSelectedMonth, setKpiSelectedMonth] = useState<string>(initialKPIFilters.selectedMonth);
+  const [kpiSelectedDate, setKpiSelectedDate] = useState<Date | undefined>(initialKPIFilters.selectedDate);
+  const [kpiDateRange, setKpiDateRange] = useState<DateRange | undefined>(initialKPIFilters.dateRange);
+
+  // Sauvegarder les filtres KPI
+  useEffect(() => {
+    saveFilterState('historique_kpi', {
+      filterType: kpiFilterType,
+      selectedYear: kpiSelectedYear,
+      selectedMonth: kpiSelectedMonth,
+      selectedDate: kpiSelectedDate?.toISOString(),
+      dateRange: dateRangeToState(kpiDateRange)
+    });
+  }, [kpiFilterType, kpiSelectedYear, kpiSelectedMonth, kpiSelectedDate, kpiDateRange]);
   
   // Mois disponibles pour l'année sélectionnée (pour le filtre KPI)
   const kpiAvailableMonths = useMemo(() => {
@@ -144,11 +215,44 @@ const DashboardHistorique = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedShiftForEdit, setSelectedShiftForEdit] = useState<string | null>(null);
   const [editModalData, setEditModalData] = useState<any>(null);
-  const [historyFilterType, setHistoryFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('all');
-  const [historySelectedYear, setHistorySelectedYear] = useState<number>(new Date().getFullYear());
-  const [historySelectedMonth, setHistorySelectedMonth] = useState<string>(currentMonth);
-  const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(undefined);
-  const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(undefined);
+  // Production History filters with persistence
+  const loadProductionHistoryFilters = () => {
+    const saved = loadFilterState('historique_production');
+    if (saved) {
+      return {
+        filterType: saved.filterType,
+        selectedYear: saved.selectedYear || new Date().getFullYear(),
+        selectedMonth: saved.selectedMonth || currentMonth,
+        selectedDate: stateToDate(saved.selectedDate),
+        dateRange: stateToDateRange(saved.dateRange)
+      };
+    }
+    return {
+      filterType: 'all' as FilterType,
+      selectedYear: new Date().getFullYear(),
+      selectedMonth: currentMonth,
+      selectedDate: undefined,
+      dateRange: undefined
+    };
+  };
+
+  const initialProductionHistoryFilters = loadProductionHistoryFilters();
+  const [historyFilterType, setHistoryFilterType] = useState<FilterType>(initialProductionHistoryFilters.filterType);
+  const [historySelectedYear, setHistorySelectedYear] = useState<number>(initialProductionHistoryFilters.selectedYear);
+  const [historySelectedMonth, setHistorySelectedMonth] = useState<string>(initialProductionHistoryFilters.selectedMonth);
+  const [historySelectedDate, setHistorySelectedDate] = useState<Date | undefined>(initialProductionHistoryFilters.selectedDate);
+  const [historyDateRange, setHistoryDateRange] = useState<DateRange | undefined>(initialProductionHistoryFilters.dateRange);
+
+  // Sauvegarder les filtres Production History
+  useEffect(() => {
+    saveFilterState('historique_production', {
+      filterType: historyFilterType,
+      selectedYear: historySelectedYear,
+      selectedMonth: historySelectedMonth,
+      selectedDate: historySelectedDate?.toISOString(),
+      dateRange: dateRangeToState(historyDateRange)
+    });
+  }, [historyFilterType, historySelectedYear, historySelectedMonth, historySelectedDate, historyDateRange]);
   const [historyShiftFilter, setHistoryShiftFilter] = useState<string>('all');
   const [historyLigneFilter, setHistoryLigneFilter] = useState<string>('all');
   const [historyChefFilter, setHistoryChefFilter] = useState<string>('all');
@@ -458,15 +562,48 @@ const DashboardHistorique = () => {
   ]);
 
   // ATELIER filter state
-  const [atelierFilterType, setAtelierFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('month');
-  const [atelierSelectedYear, setAtelierSelectedYear] = useState<number>(new Date().getFullYear());
-  const [atelierAvailableYears, setAtelierAvailableYears] = useState<number[]>([new Date().getFullYear()]);
-  const [atelierSelectedMonth, setAtelierSelectedMonth] = useState<string>(() => {
+  const loadAtelierFilters = () => {
+    const saved = loadFilterState('historique_atelier');
+    if (saved) {
+      return {
+        filterType: saved.filterType,
+        selectedYear: saved.selectedYear || new Date().getFullYear(),
+        selectedMonth: saved.selectedMonth || (() => {
+          const now = new Date();
+          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        })(),
+        selectedDate: stateToDate(saved.selectedDate),
+        dateRange: stateToDateRange(saved.dateRange)
+      };
+    }
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [atelierSelectedDate, setAtelierSelectedDate] = useState<Date | undefined>(undefined);
-  const [atelierDateRange, setAtelierDateRange] = useState<DateRange | undefined>(undefined);
+    return {
+      filterType: 'month' as FilterType,
+      selectedYear: now.getFullYear(),
+      selectedMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      selectedDate: undefined,
+      dateRange: undefined
+    };
+  };
+
+  const initialAtelierFilters = loadAtelierFilters();
+  const [atelierFilterType, setAtelierFilterType] = useState<FilterType>(initialAtelierFilters.filterType);
+  const [atelierSelectedYear, setAtelierSelectedYear] = useState<number>(initialAtelierFilters.selectedYear);
+  const [atelierAvailableYears, setAtelierAvailableYears] = useState<number[]>([new Date().getFullYear()]);
+  const [atelierSelectedMonth, setAtelierSelectedMonth] = useState<string>(initialAtelierFilters.selectedMonth);
+  const [atelierSelectedDate, setAtelierSelectedDate] = useState<Date | undefined>(initialAtelierFilters.selectedDate);
+  const [atelierDateRange, setAtelierDateRange] = useState<DateRange | undefined>(initialAtelierFilters.dateRange);
+
+  // Sauvegarder les filtres ATELIER
+  useEffect(() => {
+    saveFilterState('historique_atelier', {
+      filterType: atelierFilterType,
+      selectedYear: atelierSelectedYear,
+      selectedMonth: atelierSelectedMonth,
+      selectedDate: atelierSelectedDate?.toISOString(),
+      dateRange: dateRangeToState(atelierDateRange)
+    });
+  }, [atelierFilterType, atelierSelectedYear, atelierSelectedMonth, atelierSelectedDate, atelierDateRange]);
   const [atelierSelectedClient, setAtelierSelectedClient] = useState<AtelierClientKey | 'all'>('all');
   const [atelierSelectedBottleType, setAtelierSelectedBottleType] = useState<'BR' | 'BV' | 'BHS' | 'CPT' | 'all'>('all');
 
@@ -500,15 +637,50 @@ const DashboardHistorique = () => {
   }, [atelierSelectedYear, atelierFilterType]);
 
   // RECEPTIONS filter state
-  const [receptionsFilterType, setReceptionsFilterType] = useState<'all' | 'year' | 'month' | 'period' | 'day'>('year');
-  const [receptionsSelectedYear, setReceptionsSelectedYear] = useState<number>(new Date().getFullYear());
+  const loadReceptionsFilters = () => {
+    const saved = loadFilterState('historique_receptions');
+    if (saved) {
+      return {
+        filterType: saved.filterType,
+        selectedYear: saved.selectedYear || new Date().getFullYear(),
+        selectedMonth: saved.selectedMonth || (() => {
+          const now = new Date();
+          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        })(),
+        selectedDate: stateToDate(saved.selectedDate),
+        dateRange: stateToDateRange(saved.dateRange)
+      };
+    }
+    return {
+      filterType: 'year' as FilterType,
+      selectedYear: new Date().getFullYear(),
+      selectedMonth: (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      })(),
+      selectedDate: undefined,
+      dateRange: undefined
+    };
+  };
+
+  const initialReceptionsFilters = loadReceptionsFilters();
+  const [receptionsFilterType, setReceptionsFilterType] = useState<FilterType>(initialReceptionsFilters.filterType);
+  const [receptionsSelectedYear, setReceptionsSelectedYear] = useState<number>(initialReceptionsFilters.selectedYear);
   const [receptionsAvailableYears, setReceptionsAvailableYears] = useState<number[]>([]);
-  const [receptionsSelectedMonth, setReceptionsSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const [receptionsSelectedDate, setReceptionsSelectedDate] = useState<Date | undefined>(undefined);
-  const [receptionsDateRange, setReceptionsDateRange] = useState<DateRange | undefined>(undefined);
+  const [receptionsSelectedMonth, setReceptionsSelectedMonth] = useState<string>(initialReceptionsFilters.selectedMonth);
+  const [receptionsSelectedDate, setReceptionsSelectedDate] = useState<Date | undefined>(initialReceptionsFilters.selectedDate);
+  const [receptionsDateRange, setReceptionsDateRange] = useState<DateRange | undefined>(initialReceptionsFilters.dateRange);
+
+  // Sauvegarder les filtres RECEPTIONS
+  useEffect(() => {
+    saveFilterState('historique_receptions', {
+      filterType: receptionsFilterType,
+      selectedYear: receptionsSelectedYear,
+      selectedMonth: receptionsSelectedMonth,
+      selectedDate: receptionsSelectedDate?.toISOString(),
+      dateRange: dateRangeToState(receptionsDateRange)
+    });
+  }, [receptionsFilterType, receptionsSelectedYear, receptionsSelectedMonth, receptionsSelectedDate, receptionsDateRange]);
 
   // Charger les années disponibles pour ATELIER
   useEffect(() => {
