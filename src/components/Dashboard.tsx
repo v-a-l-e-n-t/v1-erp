@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect, useMemo } from 'react';
 import { DayContentProps, DateRange } from 'react-day-picker';
 import { fr } from 'date-fns/locale';
-import { format } from 'date-fns';
+import { format, endOfMonth, subMonths, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -59,6 +59,122 @@ const Dashboard = ({ entries }: DashboardProps) => {
   const [showObjectiveDialog, setShowObjectiveDialog] = useState(false);
   const [objectiveValue, setObjectiveValue] = useState('');
   const [currentObjective, setCurrentObjective] = useState<number | null>(null);
+
+  // Réceptions clients state
+  const [receptionsClients, setReceptionsClients] = useState<{
+    total: number;
+    byClient: { [key: string]: number };
+    loading: boolean;
+  }>({
+    total: 0,
+    byClient: {},
+    loading: false
+  });
+
+  // Fetch réceptions clients data
+  useEffect(() => {
+    const fetchReceptionsClients = async () => {
+      setReceptionsClients(prev => ({ ...prev, loading: true }));
+      try {
+        let query = supabase.from('receptions_clients').select('*');
+
+        if (filterType === 'all') {
+          // Pas de filtre, récupérer toutes les données (batch fetch pour éviter la limite)
+          const BATCH_SIZE = 1000;
+          const allData: any[] = [];
+          let offset = 0;
+          let hasMore = true;
+
+          while (hasMore) {
+            const { data: batchData, error: batchError } = await query
+              .range(offset, offset + BATCH_SIZE - 1)
+              .order('date', { ascending: false });
+
+            if (batchError) {
+              console.error('Batch error:', batchError);
+              break;
+            }
+
+            if (batchData && batchData.length > 0) {
+              allData.push(...batchData);
+              hasMore = batchData.length === BATCH_SIZE;
+              offset += BATCH_SIZE;
+            } else {
+              hasMore = false;
+            }
+          }
+
+          // Calculer les stats par client
+          const byClient: { [key: string]: number } = {};
+          let total = 0;
+
+          allData.forEach((r: any) => {
+            const client = r.client;
+            const poids = Number(r.poids_kg) || 0;
+            byClient[client] = (byClient[client] || 0) + poids;
+            total += poids;
+          });
+
+          console.log('Receptions clients data (all):', { data: allData.length, total, byClient });
+
+          setReceptionsClients({
+            total,
+            byClient,
+            loading: false
+          });
+          return;
+        } else if (filterType === 'year') {
+          const startDate = `${selectedYear}-01-01`;
+          const endDate = `${selectedYear}-12-31`;
+          query = query.gte('date', startDate).lte('date', endDate);
+        } else if (filterType === 'month' && selectedMonth) {
+          const startDate = `${selectedMonth}-01`;
+          const [y, m] = selectedMonth.split('-').map(Number);
+          const monthDate = new Date(y, m - 1, 1);
+          const endDate = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+          query = query.gte('date', startDate).lte('date', endDate);
+        } else if (filterType === 'day' && selectedDate) {
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+          query = query.eq('date', dateStr);
+        } else if (filterType === 'period' && dateRange?.from) {
+          const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+          const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+          query = query.gte('date', fromStr).lte('date', toStr);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('Error fetching receptions clients:', error);
+          throw error;
+        }
+
+        // Calculer les stats par client
+        const byClient: { [key: string]: number } = {};
+        let total = 0;
+
+        (data || []).forEach((r: any) => {
+          const client = r.client;
+          const poids = Number(r.poids_kg) || 0;
+          byClient[client] = (byClient[client] || 0) + poids;
+          total += poids;
+        });
+
+        console.log('Receptions clients data:', { data: data?.length, total, byClient });
+
+        setReceptionsClients({
+          total,
+          byClient,
+          loading: false
+        });
+      } catch (error) {
+        console.error('Error fetching receptions clients:', error);
+        setReceptionsClients(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchReceptionsClients();
+  }, [filterType, selectedMonth, selectedYear, selectedDate, dateRange]);
 
   useEffect(() => {
     const fetchProductionStats = async () => {
@@ -786,8 +902,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
 
 
-      {/* ========== ROW 1: BUTANES SPHERES + VENTES ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+      {/* ========== ROW 1: BUTANES SPHERES + REPARTITIONS RECEPTIONS CLIENTS + VENTES ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         {/* BUTANES SPHERES */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -825,6 +941,58 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 {totalDisponible > 0 ? ((totalSorties / totalDisponible) * 100).toFixed(1) : '0.0'}%
               </span>
               <span className="text-xs text-muted-foreground"> des réceptions</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* REPARTITIONS RECEPTIONS CLIENTS */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold text-orange-700">📦 RÉPARTITIONS RÉCEPTIONS CLIENTS</CardTitle>
+            <Package className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="space-y-3">
+              <div className="text-2xl font-bold">{formatNumber(receptionsClients.total)} Kg</div>
+              <p className="text-xs text-muted-foreground">Cumul des réceptions par client</p>
+              <div className="space-y-2 border-t pt-2">
+                {/* TOTAL_ENERGIES */}
+                <div className="flex items-center justify-between">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-lg font-semibold">
+                    {formatNumber(receptionsClients.byClient['TOTAL_ENERGIES'] || 0)} Kg 
+                    <span className="text-sm font-semibold text-orange-600 ml-2">
+                      {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['TOTAL_ENERGIES'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
+                    </span>
+                  </span>
+                </div>
+                {/* PETRO_IVOIRE */}
+                <div className="flex items-center justify-between">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-lg font-semibold">
+                    {formatNumber(receptionsClients.byClient['PETRO_IVOIRE'] || 0)} Kg 
+                    <span className="text-sm font-semibold text-orange-600 ml-2">
+                      {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['PETRO_IVOIRE'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
+                    </span>
+                  </span>
+                </div>
+                {/* VIVO_ENERGIES */}
+                <div className="flex items-center justify-between">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-lg font-semibold">
+                    {formatNumber(receptionsClients.byClient['VIVO_ENERGIES'] || 0)} Kg 
+                    <span className="text-sm font-semibold text-orange-600 ml-2">
+                      {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['VIVO_ENERGIES'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
+                    </span>
+                  </span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
