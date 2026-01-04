@@ -25,6 +25,7 @@ import { useMemo } from 'react';
 import VentesView from '@/components/dashboard/VentesView';
 import DistributionView from '@/components/dashboard/DistributionView';
 import CarteView from '@/components/dashboard/CarteView';
+import GraphesView from '@/components/dashboard/GraphesView';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1716,12 +1717,7 @@ const DashboardHistorique = () => {
           )}
 
           {activeView === 'graphes' && (
-            <div className="space-y-4 sm:space-y-6">
-              <div className="bg-card rounded-lg border shadow-sm p-6">
-                <h2 className="text-2xl font-bold mb-4">Graphes</h2>
-                <p className="text-muted-foreground">Contenu à venir...</p>
-              </div>
-            </div>
+            <GraphesView />
           )}
 
           {activeView === 'vrac' && (
