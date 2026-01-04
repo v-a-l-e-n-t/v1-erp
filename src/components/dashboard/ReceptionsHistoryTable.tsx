@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, Pencil, Trash2, Save, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarIcon, Pencil, Trash2, Save, X, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -27,6 +27,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -72,6 +80,13 @@ const ReceptionsHistoryTable = ({
   const [editingData, setEditingData] = useState<{ date: string; client: string; poids_kg: number } | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filterClient, setFilterClient] = useState<string>('all');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newReception, setNewReception] = useState<{ date: string; client: string; poids_kg: number }>({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    client: 'TOTAL_ENERGIES',
+    poids_kg: 0
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -253,10 +268,105 @@ const ReceptionsHistoryTable = ({
     }
   };
 
+  const handleAddReception = async () => {
+    if (!newReception.date || !newReception.client || newReception.poids_kg <= 0) {
+      toast.error('Veuillez remplir tous les champs correctement');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('receptions_clients')
+        .insert([{
+          date: newReception.date,
+          client: newReception.client,
+          poids_kg: newReception.poids_kg
+        }]);
+
+      if (error) throw error;
+      
+      toast.success('Réception enregistrée avec succès');
+      setIsAddModalOpen(false);
+      setNewReception({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        client: 'TOTAL_ENERGIES',
+        poids_kg: 0
+      });
+      
+      // Recharger les données
+      const fetchEntries = async () => {
+        setLoading(true);
+        try {
+          const BATCH_SIZE = 1000;
+          const allEntries: ReceptionData[] = [];
+          let offset = 0;
+          let hasMore = true;
+
+          while (hasMore) {
+            let query: any = (supabase as any).from('receptions_clients').select('*');
+
+            if (filterType === 'all') {
+              // Pas de filtre, récupérer toutes les données
+            } else if (filterType === 'year') {
+              query = query.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
+            } else if (filterType === 'month' && selectedMonth) {
+              const [y, m] = selectedMonth.split('-').map(Number);
+              const start = `${y}-${String(m).padStart(2, '0')}-01`;
+              const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+              const end = format(endDateObj, 'yyyy-MM-dd');
+              query = query.gte('date', start).lte('date', end);
+            } else if (filterType === 'day' && selectedDate) {
+              const dateStr = format(selectedDate, 'yyyy-MM-dd');
+              query = query.eq('date', dateStr);
+            } else if (filterType === 'period' && dateRange?.from) {
+              const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+              const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+              query = query.gte('date', fromStr).lte('date', toStr);
+            }
+
+            query = query.order('date', { ascending: false }).range(offset, offset + BATCH_SIZE - 1);
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+              allEntries.push(...data);
+              hasMore = data.length === BATCH_SIZE;
+              offset += BATCH_SIZE;
+            } else {
+              hasMore = false;
+            }
+          }
+
+          setEntries(allEntries);
+        } catch (error: any) {
+          console.error('Error fetching receptions history:', error);
+          toast.error('Erreur lors du chargement de l\'historique');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchEntries();
+    } catch (error: any) {
+      console.error('Error adding reception:', error);
+      toast.error('Erreur lors de l\'enregistrement');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div>
       {/* Filtres */}
       <div className="mb-4 flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
+        <Button
+          onClick={() => setIsAddModalOpen(true)}
+          className="h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Saisie
+        </Button>
         <span className="text-sm font-semibold">Filtres:</span>
         
         <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => onFilterChange(v)}>
@@ -566,6 +676,82 @@ const ReceptionsHistoryTable = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de saisie de réception */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Nouvelle réception</DialogTitle>
+            <DialogDescription>
+              Saisissez les informations de la réception à enregistrer
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={newReception.date}
+                onChange={(e) => setNewReception({ ...newReception, date: e.target.value })}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client">Client</Label>
+              <Select
+                value={newReception.client}
+                onValueChange={(value) => setNewReception({ ...newReception, client: value })}
+              >
+                <SelectTrigger id="client" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
+                  <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
+                  <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="poids">Poids (Kg)</Label>
+              <Input
+                id="poids"
+                type="number"
+                value={newReception.poids_kg || ''}
+                onChange={(e) => setNewReception({ ...newReception, poids_kg: parseFloat(e.target.value) || 0 })}
+                step="0.1"
+                min="0"
+                placeholder="0.0"
+                className="w-full"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddModalOpen(false);
+                setNewReception({
+                  date: format(new Date(), 'yyyy-MM-dd'),
+                  client: 'TOTAL_ENERGIES',
+                  poids_kg: 0
+                });
+              }}
+              disabled={isSubmitting}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleAddReception}
+              disabled={isSubmitting || !newReception.date || !newReception.client || newReception.poids_kg <= 0}
+            >
+              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
