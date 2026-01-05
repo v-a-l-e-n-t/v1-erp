@@ -8,8 +8,8 @@ import { Users, MapPin, Truck } from 'lucide-react';
 import { SearchableSelect } from './SearchableSelect';
 
 interface VentesParMandataireTableProps {
-  startDate: string;
-  endDate: string;
+  startDate: string | undefined;
+  endDate: string | undefined;
 }
 
 interface MandataireStats {
@@ -72,14 +72,19 @@ const VentesParMandataireTable = ({ startDate, endDate }: VentesParMandataireTab
         let hasMore = true;
 
         while (hasMore) {
-          const { data, error } = await supabase
+          let query = supabase
             .from('ventes_mandataires')
             .select(`
               *,
               mandataires:mandataire_id (id, nom)
-            `)
-            .gte('date', startDate)
-            .lte('date', endDate)
+            `);
+          
+          // Appliquer les filtres de date seulement s'ils sont définis
+          if (startDate && endDate) {
+            query = query.gte('date', startDate).lte('date', endDate);
+          }
+          
+          const { data, error } = await query
             .range(offset, offset + BATCH_SIZE - 1)
             .order('date', { ascending: false });
 

@@ -64,17 +64,40 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
   // Unique clients from data
   const clients = ['TOTAL ENERGIES', 'PETRO IVOIRE', 'VIVO ENERGIES'];
 
+  // Calculate tonnage from a vente record
+  const calculateTonnage = (vente: any): number => {
+    const recharges = 
+      (vente.r_b6 || 0) * BOTTLE_WEIGHTS.b6 +
+      (vente.r_b12 || 0) * BOTTLE_WEIGHTS.b12 +
+      (vente.r_b28 || 0) * BOTTLE_WEIGHTS.b28 +
+      (vente.r_b38 || 0) * BOTTLE_WEIGHTS.b38 +
+      (vente.r_b11_carbu || 0) * BOTTLE_WEIGHTS.b11_carbu;
+    
+    const consignes = 
+      (vente.c_b6 || 0) * BOTTLE_WEIGHTS.b6 +
+      (vente.c_b12 || 0) * BOTTLE_WEIGHTS.b12 +
+      (vente.c_b28 || 0) * BOTTLE_WEIGHTS.b28 +
+      (vente.c_b38 || 0) * BOTTLE_WEIGHTS.b38 +
+      (vente.c_b11_carbu || 0) * BOTTLE_WEIGHTS.b11_carbu;
+    
+    return recharges + consignes;
+  };
+
   // Calculate mandataire stats with colors (dynamically generated)
   const mandatairesWithStats = useMemo(() => {
     const statsMap = new Map<string, number>();
     
-    // Aggregate tonnage per mandataire from all destinations
-    destinations.forEach(dest => {
-      dest.mandataires.forEach(m => {
-        const current = statsMap.get(m.id) || 0;
-        statsMap.set(m.id, current + m.tonnage);
+    // Calculate tonnage from ALL ventes (not just those with geolocation)
+    // This ensures accurate tonnage display in the filter
+    if (allVentesData && allVentesData.length > 0) {
+      allVentesData.forEach(vente => {
+        if (vente.mandataire_id) {
+          const tonnage = calculateTonnage(vente);
+          const current = statsMap.get(vente.mandataire_id) || 0;
+          statsMap.set(vente.mandataire_id, current + tonnage);
+        }
       });
-    });
+    }
     
     // Build array with stats and colors
     const result = mandataires.map((m, originalIndex) => {
@@ -101,7 +124,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
       ...m,
       color: colorMap.get(m.id) || '#f97316'
     }));
-  }, [mandataires, destinations]);
+  }, [mandataires, allVentesData]);
 
   // Clients with stats and colors
   const clientsWithStats = useMemo(() => {
@@ -147,25 +170,6 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
     };
     fetchToken();
   }, []);
-
-  // Calculate tonnage from a vente record
-  const calculateTonnage = (vente: any): number => {
-    const recharges = 
-      (vente.r_b6 || 0) * BOTTLE_WEIGHTS.b6 +
-      (vente.r_b12 || 0) * BOTTLE_WEIGHTS.b12 +
-      (vente.r_b28 || 0) * BOTTLE_WEIGHTS.b28 +
-      (vente.r_b38 || 0) * BOTTLE_WEIGHTS.b38 +
-      (vente.r_b11_carbu || 0) * BOTTLE_WEIGHTS.b11_carbu;
-    
-    const consignes = 
-      (vente.c_b6 || 0) * BOTTLE_WEIGHTS.b6 +
-      (vente.c_b12 || 0) * BOTTLE_WEIGHTS.b12 +
-      (vente.c_b28 || 0) * BOTTLE_WEIGHTS.b28 +
-      (vente.c_b38 || 0) * BOTTLE_WEIGHTS.b38 +
-      (vente.c_b11_carbu || 0) * BOTTLE_WEIGHTS.b11_carbu;
-    
-    return recharges + consignes;
-  };
 
   // Fetch data
   useEffect(() => {

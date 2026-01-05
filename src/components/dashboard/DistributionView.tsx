@@ -21,43 +21,23 @@ const normalizeMandataireName = (nom: string): string => {
     // Convertir en majuscules et nettoyer les espaces
     const cleaned = nom.trim().toUpperCase();
     
-    // Patterns pour identifier et normaliser les noms similaires
-    // IVOIRE TRANSPORT (avec toutes ses variantes)
+    // Regrouper tous ceux qui contiennent "IVOIRE TRANSPORT"
     if (cleaned.includes('IVOIRE TRANSPORT')) {
         return 'IVOIRE TRANSPORT';
     }
     
-    // IDM (avec ou sans "Sarl")
-    if (cleaned.includes('IDM')) {
-        return 'IDM';
+    // Regrouper tous ceux qui contiennent "ANGELIQUE"
+    if (cleaned.includes('ANGELIQUE')) {
+        return 'ANGELIQUE';
     }
     
-    // LOGIS TRANSPORT ET LOGISTIQUE
-    if (cleaned.includes('LOGIS TRANSPORT')) {
-        return 'LOGIS TRANSPORT ET LOGISTIQUE';
+    // Regrouper tous ceux qui contiennent "PROXI"
+    if (cleaned.includes('PROXI')) {
+        return 'PROXI ENERGIE';
     }
     
-    // IVOIRE BUTANE reste tel quel
-    if (cleaned.includes('IVOIRE BUTANE')) {
-        return 'IVOIRE BUTANE';
-    }
-    
-    // Pour les autres, on peut essayer d'enlever les suffixes numériques et géographiques communs
-    const patternsToRemove = [
-        /\s+INTER\s+\d+$/i,
-        /\s+CENTRE$/i,
-        /\s+BASSAM$/i,
-        /\s+COCODY\s+\d+$/i,
-        /\s+SUD\s+COMOE\s+\d+$/i,
-        /\s+\d+$/i, // Numéro à la fin
-    ];
-    
-    let normalized = cleaned;
-    for (const pattern of patternsToRemove) {
-        normalized = normalized.replace(pattern, '');
-    }
-    
-    return normalized.trim();
+    // Retourner le nom tel quel pour les autres
+    return cleaned;
 };
 
 interface DistributionViewProps {

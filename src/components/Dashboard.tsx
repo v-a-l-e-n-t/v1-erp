@@ -22,39 +22,26 @@ import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, s
 const normalizeMandataireName = (nom: string): string => {
     if (!nom) return nom;
     
+    // Convertir en majuscules et nettoyer les espaces
     const cleaned = nom.trim().toUpperCase();
     
+    // Regrouper tous ceux qui contiennent "IVOIRE TRANSPORT"
     if (cleaned.includes('IVOIRE TRANSPORT')) {
         return 'IVOIRE TRANSPORT';
     }
     
-    if (cleaned.includes('IDM')) {
-        return 'IDM';
+    // Regrouper tous ceux qui contiennent "ANGELIQUE"
+    if (cleaned.includes('ANGELIQUE')) {
+        return 'ANGELIQUE';
     }
     
-    if (cleaned.includes('LOGIS TRANSPORT')) {
-        return 'LOGIS TRANSPORT ET LOGISTIQUE';
+    // Regrouper tous ceux qui contiennent "PROXI"
+    if (cleaned.includes('PROXI')) {
+        return 'PROXI ENERGIE';
     }
     
-    if (cleaned.includes('IVOIRE BUTANE')) {
-        return 'IVOIRE BUTANE';
-    }
-    
-    const patternsToRemove = [
-        /\s+INTER\s+\d+$/i,
-        /\s+CENTRE$/i,
-        /\s+BASSAM$/i,
-        /\s+COCODY\s+\d+$/i,
-        /\s+SUD\s+COMOE\s+\d+$/i,
-        /\s+\d+$/i,
-    ];
-    
-    let normalized = cleaned;
-    for (const pattern of patternsToRemove) {
-        normalized = normalized.replace(pattern, '');
-    }
-    
-    return normalized.trim();
+    // Retourner le nom tel quel pour les autres
+    return cleaned;
 };
 
 interface DashboardProps {
@@ -133,6 +120,11 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Top mandataires state
   const [topMandataires, setTopMandataires] = useState<Array<{ nom: string; tonnage: number }>>([]);
+  
+  // Top mandataires par client state
+  const [topMandatairesByClient, setTopMandatairesByClient] = useState<{
+    [client: string]: Array<{ nom: string; tonnage: number }>;
+  }>({});
 
   // Monthly objective state
   const [showObjectiveDialog, setShowObjectiveDialog] = useState(false);
@@ -653,6 +645,66 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
         console.log('Top mandataires:', top3);
         setTopMandataires(top3);
+
+        // Calculer les top 3 mandataires par client
+        const mandatairesByClient: { [client: string]: Map<string, { nom: string; tonnage: number }> } = {
+          'TOTAL_ENERGIES': new Map(),
+          'PETRO_IVOIRE': new Map(),
+          'VIVO_ENERGIES': new Map()
+        };
+
+        // Debug: collecter tous les clients uniques pour voir ce qui existe
+        const uniqueClients = new Set<string>();
+        allVentes.forEach(v => {
+          if (v.client) {
+            uniqueClients.add(v.client);
+          }
+        });
+        console.log('Clients uniques trouvés dans les ventes:', Array.from(uniqueClients));
+
+        allVentes.forEach(v => {
+          const mandataire = v.mandataires as any;
+          const client = v.client;
+          
+          if (mandataire && client) {
+            // Normaliser le nom du client pour correspondre aux clés
+            const normalizedClient = client.toUpperCase().trim();
+            
+            // Mapper les variations possibles
+            let clientKey: string | null = null;
+            if (normalizedClient.includes('TOTAL') || normalizedClient === 'TOTAL_ENERGIES') {
+              clientKey = 'TOTAL_ENERGIES';
+            } else if (normalizedClient.includes('PETRO') || normalizedClient === 'PETRO_IVOIRE') {
+              clientKey = 'PETRO_IVOIRE';
+            } else if (normalizedClient.includes('VIVO') || normalizedClient === 'VIVO_ENERGIES') {
+              clientKey = 'VIVO_ENERGIES';
+            }
+            
+            if (clientKey && mandatairesByClient[clientKey]) {
+              const normalizedName = normalizeMandataireName(mandataire.nom);
+              const tonnage = calculateTonnage(v);
+              const existing = mandatairesByClient[clientKey].get(normalizedName);
+              if (existing) {
+                existing.tonnage += tonnage;
+              } else {
+                mandatairesByClient[clientKey].set(normalizedName, { nom: normalizedName, tonnage });
+              }
+            }
+          }
+        });
+
+        // Top 3 par client
+        const topByClient: { [client: string]: Array<{ nom: string; tonnage: number }> } = {};
+        Object.keys(mandatairesByClient).forEach(client => {
+          const mandataires = Array.from(mandatairesByClient[client].values())
+            .sort((a, b) => b.tonnage - a.tonnage)
+            .slice(0, 3);
+          topByClient[client] = mandataires;
+          console.log(`Top mandataires pour ${client}:`, mandataires);
+        });
+
+        console.log('Top mandataires par client (final):', topByClient);
+        setTopMandatairesByClient(topByClient);
       } catch (error) {
         console.error('Error fetching top mandataires:', error);
       }
@@ -1468,6 +1520,112 @@ const Dashboard = ({ entries }: DashboardProps) => {
               ) : (
                 <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ========== ROW 3.5: TOP MANDATAIRE CLIENT ========== */}
+      <div className="mt-3 sm:mt-4">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">🚚 Top Mandataire Client</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* TOTAL_ENERGIES */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-8 w-12 relative flex-shrink-0">
+                    <img src="/images/logo-total.png" alt="Total Énergies" className="h-full w-full object-contain" />
+                  </div>
+                </div>
+                {topMandatairesByClient['TOTAL_ENERGIES'] && topMandatairesByClient['TOTAL_ENERGIES'].length > 0 ? (
+                  topMandatairesByClient['TOTAL_ENERGIES'].map((mandataire, index) => {
+                    const clientTotal = topMandatairesByClient['TOTAL_ENERGIES'].reduce((sum, m) => sum + m.tonnage, 0);
+                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
+                    return (
+                      <div key={index} className="bg-white p-2 rounded-lg border border-blue-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-blue-600">#{index + 1}</span>
+                            <p className="text-xs font-semibold text-blue-700 truncate">{mandataire.nom}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                          <span className="text-xs font-semibold text-blue-600">{percentage.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+                )}
+              </div>
+
+              {/* PETRO_IVOIRE */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-8 w-12 relative flex-shrink-0">
+                    <img src="/images/logo-petro.png" alt="Petro Ivoire" className="h-full w-full object-contain" />
+                  </div>
+                </div>
+                {topMandatairesByClient['PETRO_IVOIRE'] && topMandatairesByClient['PETRO_IVOIRE'].length > 0 ? (
+                  topMandatairesByClient['PETRO_IVOIRE'].map((mandataire, index) => {
+                    const clientTotal = topMandatairesByClient['PETRO_IVOIRE'].reduce((sum, m) => sum + m.tonnage, 0);
+                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
+                    return (
+                      <div key={index} className="bg-white p-2 rounded-lg border border-orange-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-orange-600">#{index + 1}</span>
+                            <p className="text-xs font-semibold text-orange-700 truncate">{mandataire.nom}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                          <span className="text-xs font-semibold text-orange-600">{percentage.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+                )}
+              </div>
+
+              {/* VIVO_ENERGIES */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-8 w-12 relative flex-shrink-0">
+                    <img src="/images/logo-vivo.png" alt="Vivo Énergies" className="h-full w-full object-contain" />
+                  </div>
+                </div>
+                {topMandatairesByClient['VIVO_ENERGIES'] && topMandatairesByClient['VIVO_ENERGIES'].length > 0 ? (
+                  topMandatairesByClient['VIVO_ENERGIES'].map((mandataire, index) => {
+                    const clientTotal = topMandatairesByClient['VIVO_ENERGIES'].reduce((sum, m) => sum + m.tonnage, 0);
+                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
+                    return (
+                      <div key={index} className="bg-white p-2 rounded-lg border border-green-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-green-600">#{index + 1}</span>
+                            <p className="text-xs font-semibold text-green-700 truncate">{mandataire.nom}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                          <span className="text-xs font-semibold text-green-600">{percentage.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

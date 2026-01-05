@@ -29,14 +29,13 @@ interface MandataireComboboxProps {
   mandataires: MandataireWithStats[];
   value: string;
   onValueChange: (value: string) => void;
-  topN: number;
+  topN?: number; // Optionnel, plus utilisé mais gardé pour compatibilité
 }
 
 export function MandataireCombobox({ 
   mandataires, 
   value, 
-  onValueChange,
-  topN
+  onValueChange
 }: MandataireComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,10 +49,6 @@ export function MandataireCombobox({
     const query = searchQuery.toLowerCase();
     return sorted.filter(m => m.nom.toLowerCase().includes(query));
   }, [mandataires, searchQuery]);
-
-  // Get top N and "others"
-  const topMandataires = sortedMandataires.slice(0, topN);
-  const otherMandataires = sortedMandataires.slice(topN);
   
   const selectedMandataire = mandataires.find(m => m.id === value);
   
@@ -137,11 +132,11 @@ export function MandataireCombobox({
               </CommandItem>
             </CommandGroup>
 
-            {/* Top mandataires */}
-            {topMandataires.length > 0 && (
-              <CommandGroup heading={`Top ${Math.min(topN, topMandataires.length)}`}>
-                <ScrollArea className="max-h-[200px]">
-                  {topMandataires.map((m) => (
+            {/* All mandataires */}
+            {sortedMandataires.length > 0 && (
+              <CommandGroup heading={`Mandataires (${sortedMandataires.length})`}>
+                <div className="max-h-[400px] overflow-y-auto">
+                  {sortedMandataires.map((m) => (
                     <CommandItem
                       key={m.id}
                       value={m.id}
@@ -168,42 +163,7 @@ export function MandataireCombobox({
                       </Badge>
                     </CommandItem>
                   ))}
-                </ScrollArea>
-              </CommandGroup>
-            )}
-
-            {/* Other mandataires */}
-            {otherMandataires.length > 0 && !searchQuery && (
-              <CommandGroup heading={`Autres (${otherMandataires.length})`}>
-                <ScrollArea className="max-h-[150px]">
-                  {otherMandataires.map((m) => (
-                    <CommandItem
-                      key={m.id}
-                      value={m.id}
-                      onSelect={() => {
-                        onValueChange(m.id);
-                        setOpen(false);
-                        setSearchQuery('');
-                      }}
-                      className="cursor-pointer"
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          value === m.id ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      <div 
-                        className="w-3 h-3 rounded-full mr-2 shrink-0" 
-                        style={{ backgroundColor: m.color }}
-                      />
-                      <span className="truncate flex-1">{m.nom}</span>
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {formatTonnage(m.tonnage)}
-                      </Badge>
-                    </CommandItem>
-                  ))}
-                </ScrollArea>
+                </div>
               </CommandGroup>
             )}
           </CommandList>
