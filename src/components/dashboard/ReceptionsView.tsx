@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, TrendingUp, TrendingDown, Package, Download, FileDown, Users } from 'lucide-react';
+import { CalendarIcon, TrendingUp, TrendingDown, Package, Download, FileDown, Users, Plus } from 'lucide-react';
 import { format, endOfMonth, subDays, differenceInDays, startOfMonth, endOfMonth as endOfMonthFn, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -21,6 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface ReceptionsViewProps {
   dateRange: DateRange | undefined;
@@ -65,6 +75,13 @@ export default function ReceptionsView({
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [availableMonthsFromData, setAvailableMonthsFromData] = useState<string[]>([]);
   const [variationPct, setVariationPct] = useState<number>(0);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newReception, setNewReception] = useState<{ date: string; client: string; poids_kg: number }>({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    client: 'TOTAL_ENERGIES',
+    poids_kg: 0
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mois disponibles pour l'année sélectionnée (pour le filtre mois)
   const availableMonthsForYear = useMemo(() => {
@@ -358,6 +375,42 @@ export default function ReceptionsView({
     }
   };
 
+  const handleAddReception = async () => {
+    if (!newReception.date || !newReception.client || newReception.poids_kg <= 0) {
+      toast.error('Veuillez remplir tous les champs correctement');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('receptions_clients')
+        .insert([{
+          date: newReception.date,
+          client: newReception.client,
+          poids_kg: newReception.poids_kg
+        }]);
+
+      if (error) throw error;
+      
+      toast.success('Réception enregistrée avec succès');
+      setIsAddModalOpen(false);
+      setNewReception({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        client: 'TOTAL_ENERGIES',
+        poids_kg: 0
+      });
+      
+      // Recharger les données
+      fetchReceptions();
+    } catch (error: any) {
+      console.error('Error adding reception:', error);
+      toast.error('Erreur lors de l\'enregistrement');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
   // Synchroniser selectedMonth avec selectedYear quand on change l'année dans le filtre mois
   useEffect(() => {
@@ -452,6 +505,13 @@ export default function ReceptionsView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setIsAddModalOpen(true)}
+            className="h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Saisie
+          </Button>
           <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
             <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
               <SelectValue />
@@ -642,6 +702,82 @@ export default function ReceptionsView({
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog de saisie de réception */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Nouvelle réception</DialogTitle>
+            <DialogDescription>
+              Saisissez les informations de la réception à enregistrer
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={newReception.date}
+                onChange={(e) => setNewReception({ ...newReception, date: e.target.value })}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client">Client</Label>
+              <Select
+                value={newReception.client}
+                onValueChange={(value) => setNewReception({ ...newReception, client: value })}
+              >
+                <SelectTrigger id="client" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
+                  <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
+                  <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="poids">Poids (Kg)</Label>
+              <Input
+                id="poids"
+                type="number"
+                value={newReception.poids_kg || ''}
+                onChange={(e) => setNewReception({ ...newReception, poids_kg: parseFloat(e.target.value) || 0 })}
+                step="0.1"
+                min="0"
+                placeholder="0.0"
+                className="w-full"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddModalOpen(false);
+                setNewReception({
+                  date: format(new Date(), 'yyyy-MM-dd'),
+                  client: 'TOTAL_ENERGIES',
+                  poids_kg: 0
+                });
+              }}
+              disabled={isSubmitting}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleAddReception}
+              disabled={isSubmitting || !newReception.date || !newReception.client || newReception.poids_kg <= 0}
+            >
+              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
