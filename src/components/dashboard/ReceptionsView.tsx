@@ -241,8 +241,8 @@ export default function ReceptionsView({
   };
 
   const fetchReceptions = async () => {
-    // Vérifier que startDate et endDate sont définis avant de faire la requête
-    if (!startDate || !endDate) {
+    // Si filterType === 'all', startDate et endDate sont undefined, c'est normal
+    if (filterType !== 'all' && (!startDate || !endDate)) {
       console.warn('startDate or endDate is not defined yet, skipping fetch');
       setLoading(false);
       return;
@@ -250,73 +250,105 @@ export default function ReceptionsView({
 
     setLoading(true);
     try {
-      let query: any = (supabase as any)
-        .from('receptions_clients')
-        .select('*')
-        .order('date', { ascending: false });
+      // Si filterType === 'all', utiliser batch fetching pour récupérer toutes les données
+      if (filterType === 'all') {
+        const BATCH_SIZE = 1000;
+        const allData: ReceptionData[] = [];
+        let offset = 0;
+        let hasMore = true;
 
-      // Appliquer les filtres de date seulement si startDate et endDate sont définis
-      if (startDate && endDate) {
-        query = query.gte('date', startDate).lte('date', endDate);
-      }
-      // Si filterType === 'all', pas de filtre de date
+        while (hasMore) {
+          const { data, error } = await (supabase as any)
+            .from('receptions_clients')
+            .select('*')
+            .order('date', { ascending: false })
+            .range(offset, offset + BATCH_SIZE - 1);
 
-      const { data, error } = await query;
+          if (error) throw error;
 
-      if (error) throw error;
-      
-      setReceptions(data || []);
-      
-      // Calculate variation vs previous period
-      let prevQuery: any = (supabase as any).from('receptions_clients').select('*');
+          if (data && data.length > 0) {
+            allData.push(...data);
+            hasMore = data.length === BATCH_SIZE;
+            offset += BATCH_SIZE;
+          } else {
+            hasMore = false;
+          }
+        }
 
-      if (filterType === 'year') {
-        // Previous year
-        const prevYear = selectedYear - 1;
-        const prevStartDate = `${prevYear}-01-01`;
-        const prevEndDate = `${prevYear}-12-31`;
-        prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
-      } else if (filterType === 'month') {
-        // Previous month
-        const [y, m] = selectedMonth.split('-').map(Number);
-        const prevDate = subMonths(new Date(y, m - 1, 1), 1);
-        const prevStartDate = format(startOfMonth(prevDate), 'yyyy-MM-dd');
-        const prevEndDate = format(endOfMonthFn(prevDate), 'yyyy-MM-dd');
-        prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
-      } else if (filterType === 'day' && selectedDate) {
-        // Previous day
-        const prevDate = subDays(selectedDate, 1);
-        const prevDateStr = format(prevDate, 'yyyy-MM-dd');
-        prevQuery = prevQuery.eq('date', prevDateStr);
-      } else if (filterType === 'period' && dateRange?.from) {
-        // Previous range (same duration)
-        const from = dateRange.from;
-        const to = dateRange.to || dateRange.from;
-        const daysDiff = differenceInDays(to, from) + 1;
-
-        const prevTo = subDays(from, 1);
-        const prevFrom = subDays(prevTo, daysDiff - 1);
-
-        const prevFromStr = format(prevFrom, 'yyyy-MM-dd');
-        const prevToStr = format(prevTo, 'yyyy-MM-dd');
-        prevQuery = prevQuery.gte('date', prevFromStr).lte('date', prevToStr);
-      }
-      // 'all' = pas de calcul de variation
-
-      const { data: prevData } = await prevQuery;
-
-      if (prevData && prevData.length > 0) {
-        const prevTotal = prevData.reduce((sum: number, r: ReceptionData) => sum + r.poids_kg, 0);
-        const currentTotal = (data || []).reduce((sum: number, r: ReceptionData) => sum + r.poids_kg, 0);
-        const variation = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
-        setVariationPct(variation);
+        setReceptions(allData);
       } else {
+        // Pour les autres filtres, utiliser la requête normale avec dates
+        let query: any = (supabase as any)
+          .from('receptions_clients')
+          .select('*')
+          .order('date', { ascending: false });
+
+        // Appliquer les filtres de date seulement si startDate et endDate sont définis
+        if (startDate && endDate) {
+          query = query.gte('date', startDate).lte('date', endDate);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        
+        setReceptions(data || []);
+      }
+      
+      // Calculate variation vs previous period (seulement si filterType !== 'all')
+      if (filterType !== 'all') {
+        let prevQuery: any = (supabase as any).from('receptions_clients').select('*');
+
+        if (filterType === 'year') {
+          // Previous year
+          const prevYear = selectedYear - 1;
+          const prevStartDate = `${prevYear}-01-01`;
+          const prevEndDate = `${prevYear}-12-31`;
+          prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
+        } else if (filterType === 'month') {
+          // Previous month
+          const [y, m] = selectedMonth.split('-').map(Number);
+          const prevDate = subMonths(new Date(y, m - 1, 1), 1);
+          const prevStartDate = format(startOfMonth(prevDate), 'yyyy-MM-dd');
+          const prevEndDate = format(endOfMonthFn(prevDate), 'yyyy-MM-dd');
+          prevQuery = prevQuery.gte('date', prevStartDate).lte('date', prevEndDate);
+        } else if (filterType === 'day' && selectedDate) {
+          // Previous day
+          const prevDate = subDays(selectedDate, 1);
+          const prevDateStr = format(prevDate, 'yyyy-MM-dd');
+          prevQuery = prevQuery.eq('date', prevDateStr);
+        } else if (filterType === 'period' && dateRange?.from) {
+          // Previous range (same duration)
+          const from = dateRange.from;
+          const to = dateRange.to || dateRange.from;
+          const daysDiff = differenceInDays(to, from) + 1;
+
+          const prevTo = subDays(from, 1);
+          const prevFrom = subDays(prevTo, daysDiff - 1);
+
+          const prevFromStr = format(prevFrom, 'yyyy-MM-dd');
+          const prevToStr = format(prevTo, 'yyyy-MM-dd');
+          prevQuery = prevQuery.gte('date', prevFromStr).lte('date', prevToStr);
+        }
+
+        const { data: prevData } = await prevQuery;
+
+        if (prevData && prevData.length > 0) {
+          const prevTotal = prevData.reduce((sum: number, r: ReceptionData) => sum + r.poids_kg, 0);
+          const currentTotal = receptions.reduce((sum: number, r: ReceptionData) => sum + r.poids_kg, 0);
+          const variation = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
+          setVariationPct(variation);
+        } else {
+          setVariationPct(0);
+        }
+      } else {
+        // Pour 'all', pas de calcul de variation
         setVariationPct(0);
       }
       
       // Si aucune donnée trouvée, afficher un message informatif
-      if (!data || data.length === 0) {
-        console.log('Aucune réception trouvée pour la période:', { startDate, endDate });
+      if (receptions.length === 0) {
+        console.log('Aucune réception trouvée pour la période:', { filterType, startDate, endDate });
       }
     } catch (error: any) {
       console.error('Error fetching receptions:', error);
@@ -393,8 +425,8 @@ export default function ReceptionsView({
   };
 
   // Gestion d'erreur pour éviter un écran blanc
-  // S'assurer que startDate et endDate sont toujours définis
-  if (!startDate || !endDate) {
+  // Si filterType !== 'all', s'assurer que startDate et endDate sont définis
+  if (filterType !== 'all' && (!startDate || !endDate)) {
     // Si les dates ne sont pas encore calculées, afficher un message de chargement
     return (
       <div className="space-y-6">
