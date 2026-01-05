@@ -175,6 +175,7 @@ export default function GraphesView({}: GraphesViewProps) {
   useEffect(() => {
     const fetchTauxEnlevementData = async () => {
       setLoadingTaux(true);
+      
       try {
         // Récupérer les réceptions avec batch fetching
         const BATCH_SIZE = 1000;
@@ -188,12 +189,15 @@ export default function GraphesView({}: GraphesViewProps) {
           if (startDate && endDate) {
             receptionsQuery = receptionsQuery.gte('date', startDate).lte('date', endDate);
           }
+          // Si filterType === 'all', pas de filtre de date
 
           const { data, error } = await receptionsQuery
             .range(receptionsOffset, receptionsOffset + BATCH_SIZE - 1)
             .order('date', { ascending: true });
 
-          if (error) throw error;
+          if (error) {
+            throw error;
+          }
 
           if (data && data.length > 0) {
             allReceptions.push(...data);
@@ -204,64 +208,88 @@ export default function GraphesView({}: GraphesViewProps) {
           }
         }
 
-        // Récupérer les ventes avec batch fetching
-        const allVentes: any[] = [];
-        let ventesOffset = 0;
-        let ventesHasMore = true;
+        // Récupérer les ventes depuis bilan_entries (comme dans VentesView)
+        const allBilans: any[] = [];
+        let bilansOffset = 0;
+        let bilansHasMore = true;
 
-        while (ventesHasMore) {
-          let ventesQuery = supabase
-            .from('ventes_mandataires')
-            .select('*, mandataires:mandataire_id (id, nom)');
+        while (bilansHasMore) {
+          let bilansQuery = supabase.from('bilan_entries').select('*');
 
           if (startDate && endDate) {
-            ventesQuery = ventesQuery.gte('date', startDate).lte('date', endDate);
+            bilansQuery = bilansQuery.gte('date', startDate).lte('date', endDate);
+          }
+          // Si filterType === 'all', pas de filtre de date
+
+          const { data, error } = await bilansQuery
+            .order('date', { ascending: false })
+            .range(bilansOffset, bilansOffset + BATCH_SIZE - 1);
+
+          if (error) {
+            throw error;
           }
 
-          const { data, error } = await ventesQuery
-            .range(ventesOffset, ventesOffset + BATCH_SIZE - 1)
-            .order('date', { ascending: true });
-
-          if (error) throw error;
-
           if (data && data.length > 0) {
-            allVentes.push(...data);
-            ventesHasMore = data.length === BATCH_SIZE;
-            ventesOffset += BATCH_SIZE;
+            allBilans.push(...data);
+            // Continuer tant qu'on récupère exactement BATCH_SIZE lignes
+            bilansHasMore = data.length === BATCH_SIZE;
+            bilansOffset += BATCH_SIZE;
           } else {
-            ventesHasMore = false;
+            bilansHasMore = false;
           }
         }
 
-        // Calculer le tonnage des ventes
-        const calculateTonnage = (v: any) => {
-          const recharges = (v.r_b6 || 0) * 6 + (v.r_b12 || 0) * 12.5 + (v.r_b28 || 0) * 28 + (v.r_b38 || 0) * 38 + (v.r_b11_carbu || 0) * 12.5;
-          const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 12.5;
-          return recharges + consignes;
+        // Calculer le tonnage des ventes depuis les bilans
+        // Ventes = sorties_vrac + sorties_conditionnees (en kg)
+        const calculateTonnageFromBilan = (b: any) => {
+          const vrac = Number(b.sorties_vrac || 0);
+          const conditionne = Number(b.sorties_conditionnees || 0);
+          return vrac + conditionne; // Déjà en kg dans bilan_entries
         };
 
         // Grouper par mois
         const monthlyReceptions: { [key: string]: number } = {};
         allReceptions.forEach((r: any) => {
-          const date = new Date(r.date);
-          const monthKey = format(date, 'yyyy-MM');
-          monthlyReceptions[monthKey] = (monthlyReceptions[monthKey] || 0) + Number(r.poids_kg || 0);
+          if (r.date) {
+            try {
+              const date = new Date(r.date);
+              if (!isNaN(date.getTime())) {
+                const monthKey = format(date, 'yyyy-MM');
+                monthlyReceptions[monthKey] = (monthlyReceptions[monthKey] || 0) + Number(r.poids_kg || 0);
+              }
+            } catch (e) {
+              // Ignore invalid dates
+            }
+          }
         });
 
         const monthlyVentes: { [key: string]: number } = {};
-        allVentes.forEach((v: any) => {
-          const date = new Date(v.date);
-          const monthKey = format(date, 'yyyy-MM');
-          monthlyVentes[monthKey] = (monthlyVentes[monthKey] || 0) + calculateTonnage(v);
+        allBilans.forEach((b: any) => {
+          if (b.date) {
+            try {
+              const date = new Date(b.date);
+              if (!isNaN(date.getTime())) {
+                const monthKey = format(date, 'yyyy-MM');
+                monthlyVentes[monthKey] = (monthlyVentes[monthKey] || 0) + calculateTonnageFromBilan(b);
+              }
+            } catch (e) {
+              // Ignore invalid dates
+            }
+          }
         });
 
         // Calculer le taux d'enlèvement (%)
-        const allMonths = new Set([...Object.keys(monthlyReceptions), ...Object.keys(monthlyVentes)]);
-        const chartData = Array.from(allMonths)
+        // Le taux d'enlèvement = (Ventes / Réceptions) * 100
+        // Cela représente le pourcentage des ventes par rapport aux réceptions
+        // N'afficher que les mois où il y a des ventes (pour éviter d'afficher des zéros)
+        const monthsWithVentes = Object.keys(monthlyVentes);
+        
+        const chartData = monthsWithVentes
           .sort()
           .map(month => {
             const reception = monthlyReceptions[month] || 0;
             const vente = monthlyVentes[month] || 0;
+            // Taux = (Ventes / Réceptions) * 100
             const taux = reception > 0 ? (vente / reception) * 100 : 0;
             
             return {
@@ -269,16 +297,6 @@ export default function GraphesView({}: GraphesViewProps) {
               volume: Number(taux.toFixed(2))
             };
           });
-
-        // Debug logs pour diagnostiquer
-        console.log('=== TAUX D\'ENLEVEMENT DEBUG ===');
-        console.log('Filter:', { filterType, startDate, endDate });
-        console.log('Total receptions count:', allReceptions.length);
-        console.log('Total ventes count:', allVentes.length);
-        console.log('Monthly Receptions:', monthlyReceptions);
-        console.log('Monthly Ventes:', monthlyVentes);
-        console.log('Chart Data:', chartData);
-        console.log('==============================');
 
         setTauxEnlevementData(chartData);
       } catch (error) {
@@ -289,7 +307,7 @@ export default function GraphesView({}: GraphesViewProps) {
     };
 
     fetchTauxEnlevementData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, filterType]);
 
   // Données pour le graphique 3: EVOLUTION DES SORTIE COND
   const [sortieCondData, setSortieCondData] = useState<ChartDataPoint[]>([]);
