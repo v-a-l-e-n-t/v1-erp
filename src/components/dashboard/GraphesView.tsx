@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, TrendingUp } from 'lucide-react';
 import { format, endOfMonth, startOfMonth, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
+import GraphComparisonDialog from './GraphComparisonDialog';
 
 interface GraphesViewProps {}
 
@@ -62,6 +63,7 @@ export default function GraphesView({}: GraphesViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialFilters.selectedDate);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialFilters.dateRange);
   const [selectedClient, setSelectedClient] = useState<string>(initialFilters.selectedClient || 'all');
+  const [comparisonDialogOpen, setComparisonDialogOpen] = useState(false);
 
   // Sauvegarder les filtres
   useEffect(() => {
@@ -476,7 +478,17 @@ export default function GraphesView({}: GraphesViewProps) {
       {/* Filtres */}
       <Card>
         <CardHeader>
-          <CardTitle>Filtres</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Filtres</CardTitle>
+            <Button
+              onClick={() => setComparisonDialogOpen(true)}
+              variant="outline"
+              className="gap-2"
+            >
+              <TrendingUp className="h-4 w-4" />
+              Comparer les périodes
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
@@ -749,6 +761,13 @@ export default function GraphesView({}: GraphesViewProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Modale de comparaison */}
+      <GraphComparisonDialog
+        open={comparisonDialogOpen}
+        onOpenChange={setComparisonDialogOpen}
+        selectedClient={selectedClient}
+      />
     </div>
   );
 }
