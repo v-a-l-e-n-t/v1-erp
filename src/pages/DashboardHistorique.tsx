@@ -34,12 +34,13 @@ import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory,
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
 import ReceptionsView from '@/components/dashboard/ReceptionsView';
 import ReceptionsHistoryTable from '@/components/dashboard/ReceptionsHistoryTable';
+import StocksView from '@/components/dashboard/StocksView';
 
 // Helper function to format numbers with decimals only if significant
 const formatNumberWithDecimals = (value: number): string => {
   const rounded = Math.round(value * 1000) / 1000; // Round to 3 decimals
   const hasDecimals = rounded % 1 !== 0;
-  
+
   if (hasDecimals) {
     return rounded.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
   } else {
@@ -62,7 +63,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'stocks' | 'atelier' | 'carte' | 'graphes'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -191,7 +192,7 @@ const DashboardHistorique = () => {
       dateRange: dateRangeToState(kpiDateRange)
     });
   }, [kpiFilterType, kpiSelectedYear, kpiSelectedMonth, kpiSelectedDate, kpiDateRange]);
-  
+
   // Mois disponibles pour l'année sélectionnée (pour le filtre KPI)
   const kpiAvailableMonths = useMemo(() => {
     if (kpiFilterType !== 'month') return [];
@@ -201,7 +202,7 @@ const DashboardHistorique = () => {
       return `${kpiSelectedYear}-${String(month).padStart(2, '0')}`;
     }).reverse(); // Plus récent en premier
   }, [kpiSelectedYear, kpiFilterType]);
-  
+
   // Réinitialiser le mois quand l'année change
   useEffect(() => {
     if (kpiFilterType === 'month') {
@@ -839,8 +840,8 @@ const DashboardHistorique = () => {
 
     const totalBouteilles = Object.values(clients).reduce((sum, c) => sum + c.total, 0);
     Object.keys(clients).forEach(client => {
-      clients[client as AtelierClientKey].pct = totalBouteilles > 0 
-        ? (clients[client as AtelierClientKey].total / totalBouteilles) * 100 
+      clients[client as AtelierClientKey].pct = totalBouteilles > 0
+        ? (clients[client as AtelierClientKey].total / totalBouteilles) * 100
         : 0;
     });
 
@@ -1245,101 +1246,112 @@ const DashboardHistorique = () => {
           </Button>
         </div>
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-start sm:justify-center gap-1 sm:gap-1.5 md:gap-2 mb-4 sm:mb-6 md:mb-8 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <div className="flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 mb-4 sm:mb-6 md:mb-8 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
           <Button
             variant={activeView === 'overview' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('overview')}
           >
-            <BarChart3 className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <BarChart3 className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden sm:inline">Vue d'ensemble</span>
             <span className="sm:hidden">Vue</span>
           </Button>
 
           <Button
             variant={activeView === 'receptions' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'receptions' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'receptions' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('receptions')}
           >
-            <PackageIcon className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <PackageIcon className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden sm:inline">Réceptions</span>
             <span className="sm:hidden">Récep.</span>
           </Button>
 
           <Button
+            variant={activeView === 'stocks' ? 'default' : 'outline'}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'stocks' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('stocks')}
+          >
+            <PackageIcon className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="hidden md:inline">STOCKS</span>
+            <span className="md:hidden">STOCKS</span>
+          </Button>
+
+          <Button
             variant={activeView === 'emplisseur' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('emplisseur')}
           >
-            <Calculator className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <Calculator className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden sm:inline">PRODUCTION</span>
             <span className="sm:hidden">PROD</span>
           </Button>
 
           <Button
-            variant={activeView === 'sorties' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-            onClick={() => setActiveView('sorties')}
-          >
-            <ArrowUpRight className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            VENTES
-          </Button>
-
-          <Button
-            variant={activeView === 'distribution' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'distribution' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-            onClick={() => setActiveView('distribution')}
-          >
-            <FileText className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden md:inline">DISTRIBUTION</span>
-            <span className="md:hidden">DISTRIB</span>
-          </Button>
-
-          <Button
             variant={activeView === 'atelier' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'atelier' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'atelier' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('atelier')}
           >
-            <Wrench className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <Wrench className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden md:inline">ATELIER</span>
             <span className="md:hidden">ATELIER</span>
           </Button>
 
           <Button
+            variant={activeView === 'distribution' ? 'default' : 'outline'}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'distribution' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('distribution')}
+          >
+            <FileText className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="hidden md:inline">DISTRIBUTION</span>
+            <span className="md:hidden">DISTRIB</span>
+          </Button>
+
+          <Button
+            variant={activeView === 'sorties' ? 'default' : 'outline'}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('sorties')}
+          >
+            <ArrowUpRight className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            VENTES
+          </Button>
+
+          <Button
             variant={activeView === 'carte' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'carte' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'carte' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('carte')}
           >
-            <MapIcon className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <MapIcon className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden md:inline">CARTE</span>
             <span className="md:hidden">CARTE</span>
           </Button>
 
           <Button
             variant={activeView === 'graphes' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'graphes' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'graphes' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('graphes')}
           >
-            <BarChart3 className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <BarChart3 className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden md:inline">GRAPHES</span>
             <span className="md:hidden">GRAPHES</span>
           </Button>
 
           <Button
             variant={activeView === 'vrac' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-8 sm:h-9 md:h-10 px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('vrac')}
           >
-            <FileText className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <FileText className="mr-1 sm:mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>Historiques</span>
           </Button>
         </div>
@@ -1362,6 +1374,10 @@ const DashboardHistorique = () => {
               setSelectedMonth={setSelectedMonth}
               availableMonths={availableMonths}
             />
+          )}
+
+          {activeView === 'stocks' && (
+            <StocksView />
           )}
 
           {activeView === 'atelier' && (
@@ -1638,13 +1654,13 @@ const DashboardHistorique = () => {
                           atelierEntries.forEach(entry => {
                             const data = (entry.data as any)?.[client];
                             if (!data) return;
-                            
+
                             (['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).forEach(formatKey => {
                               const br = data?.bouteilles_reeprouvees?.[formatKey] || 0;
                               const bv = data?.bouteilles_vidangees?.[formatKey] || 0;
                               const bhs = data?.bouteilles_hs?.[formatKey] || 0;
                               const cpt = data?.clapet_monte?.[formatKey] || 0;
-                              
+
                               clientData.reeprouvees += br;
                               clientData.vidangees += bv;
                               clientData.hs += bhs;
@@ -1653,8 +1669,8 @@ const DashboardHistorique = () => {
                           });
 
                           clientData.total = clientData.reeprouvees + clientData.vidangees + clientData.hs + clientData.clapet;
-                          const clientPct = atelierStats.totalBouteilles > 0 
-                            ? (clientData.total / atelierStats.totalBouteilles) * 100 
+                          const clientPct = atelierStats.totalBouteilles > 0
+                            ? (clientData.total / atelierStats.totalBouteilles) * 100
                             : 0;
 
                           return (
