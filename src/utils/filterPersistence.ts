@@ -12,6 +12,7 @@ export interface FilterState {
     from?: string; // ISO string
     to?: string; // ISO string
   };
+  selectedClient?: string;
 }
 
 // Sauvegarder les filtres pour une vue spécifique
