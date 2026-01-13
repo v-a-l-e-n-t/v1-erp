@@ -351,18 +351,27 @@ const DashboardHistorique = () => {
       if (error) throw error;
 
       // Fetch chef_quart data separately since FK relationship doesn't exist
+      // Also check chefs_ligne table since the form allows selecting chefs de ligne as chef de quart
       let shiftsWithChefs = data || [];
       if (shiftsWithChefs.length > 0) {
         const chefIds = [...new Set(shiftsWithChefs.map((s: any) => s.chef_quart_id).filter(Boolean))];
         if (chefIds.length > 0) {
-          const { data: chefsData } = await supabase
-            .from('chefs_quart')
-            .select('id, nom, prenom')
-            .in('id', chefIds);
+          // Fetch from both tables
+          const [chefsQuartResult, chefsLigneResult] = await Promise.all([
+            supabase.from('chefs_quart').select('id, nom, prenom').in('id', chefIds),
+            supabase.from('chefs_ligne').select('id, nom, prenom').in('id', chefIds)
+          ]);
 
           const chefsMap: Map<string, any> = new Map();
-          (chefsData || []).forEach((c: any) => {
+          // Add chefs from chefs_quart table
+          (chefsQuartResult.data || []).forEach((c: any) => {
             chefsMap.set(c.id, c);
+          });
+          // Add chefs from chefs_ligne table (won't overwrite if already in chefs_quart)
+          (chefsLigneResult.data || []).forEach((c: any) => {
+            if (!chefsMap.has(c.id)) {
+              chefsMap.set(c.id, c);
+            }
           });
           shiftsWithChefs = shiftsWithChefs.map((shift: any) => ({
             ...shift,
