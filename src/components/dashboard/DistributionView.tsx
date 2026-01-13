@@ -324,7 +324,7 @@ const DistributionView = ({
                         const consignes = (v.c_b6 || 0) * 6 + (v.c_b12 || 0) * 12.5 + (v.c_b28 || 0) * 28 + (v.c_b38 || 0) * 38 + (v.c_b11_carbu || 0) * 12.5;
                         return sum + recharges + consignes;
                     }, 0);
-                    const variation = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
+                    const variation = prevTotal > 0 ? ((totalTonnage - prevTotal) / prevTotal) * 100 : 0;
                     setVariationPct(variation);
                 } else {
                     setVariationPct(0);
