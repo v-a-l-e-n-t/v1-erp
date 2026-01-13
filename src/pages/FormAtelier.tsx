@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Save } from 'lucide-react';
 
-const CLIENTS: AtelierClientKey[] = ['SIMAM', 'PETRO_IVOIRE', 'VIVO_ENERGY', 'TOTAL_ENERGIES'];
+const CLIENTS: AtelierClientKey[] = ['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY', 'SIMAM'];
 const CATEGORIES: AtelierCategory[] = [
   'bouteilles_vidangees',
   'bouteilles_reeprouvees',
