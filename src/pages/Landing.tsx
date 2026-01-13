@@ -95,7 +95,7 @@ const Landing = () => {
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight px-2">
             Pilotez votre
-            <span className="text-primary"> centre emplisseur </span>
+            <span className="text-primary"> dépôt GPL et votre centre emplisseur </span>
             en toute simplicité
           </h1>
 
