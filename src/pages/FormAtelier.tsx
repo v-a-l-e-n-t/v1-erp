@@ -59,7 +59,7 @@ const FormAtelier = () => {
 
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [shiftType, setShiftType] = useState<ShiftType>('10h-19h');
-  const [chefQuartId, setChefQuartId] = useState<string>('');
+  const [chefEquipeAtelierId, setChefEquipeAtelierId] = useState<string>('');
   const [agents, setAgents] = useState<Agent[]>([]);
   const [data, setData] = useState<AtelierData>(() => createEmptyAtelierData());
   const [submitting, setSubmitting] = useState(false);
@@ -67,11 +67,11 @@ const FormAtelier = () => {
   useEffect(() => {
     const loadAgents = async () => {
       try {
-        // Charger depuis la table agents (chefs de quart et chefs de ligne)
+        // Charger depuis la table agents (chefs d'équipe atelier uniquement)
         const { data, error } = await supabase
           .from('agents')
           .select('*')
-          .in('role', ['chef_quart', 'chef_ligne'])
+          .eq('role', 'chef_equipe_atelier')
           .eq('actif', true)
           .order('nom');
 
@@ -81,7 +81,7 @@ const FormAtelier = () => {
           id: agent.id,
           nom: agent.nom,
           prenom: agent.prenom,
-          role: agent.role as 'chef_quart' | 'chef_ligne',
+          role: agent.role as 'chef_equipe_atelier',
         }));
 
         setAgents(agentsList);
@@ -89,7 +89,7 @@ const FormAtelier = () => {
         console.error('Error loading agents:', error);
         toast({
           title: 'Erreur',
-          description: "Impossible de charger les chefs de quart et chefs de ligne",
+          description: "Impossible de charger les chefs d'équipe atelier",
           variant: 'destructive',
         });
       }
@@ -127,10 +127,10 @@ const FormAtelier = () => {
       });
       return;
     }
-    if (!chefQuartId) {
+    if (!chefEquipeAtelierId) {
       toast({
-        title: 'Chef de quart manquant',
-        description: 'Veuillez sélectionner un chef de quart.',
+        title: "Chef d'équipe atelier manquant",
+        description: "Veuillez sélectionner un chef d'équipe atelier.",
         variant: 'destructive',
       });
       return;
@@ -167,7 +167,7 @@ const FormAtelier = () => {
       const { error: insertError } = await (supabase.from('atelier_entries' as any).insert({
         date: dateStr,
         shift_type: shiftType,
-        chef_quart_id: chefQuartId,
+        chef_quart_id: chefEquipeAtelierId,
         data,
         user_id: userId,
       }) as any);
@@ -184,7 +184,7 @@ const FormAtelier = () => {
       // Reset complet après validation (date, shift, chef, quantités)
       setDate(undefined);
       setShiftType('10h-19h');
-      setChefQuartId('');
+      setChefEquipeAtelierId('');
       setData(createEmptyAtelierData());
     } catch (error: any) {
       console.error('Error saving atelier entry:', error);
@@ -257,10 +257,10 @@ const FormAtelier = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Chef de quart</Label>
-              <Select value={chefQuartId} onValueChange={setChefQuartId}>
+              <Label>Chef d'équipe atelier</Label>
+              <Select value={chefEquipeAtelierId} onValueChange={setChefEquipeAtelierId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un chef de quart" />
+                  <SelectValue placeholder="Sélectionner un chef d'équipe atelier" />
                 </SelectTrigger>
                 <SelectContent>
                   {agents.map(agent => (

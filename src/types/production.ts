@@ -29,11 +29,12 @@ export interface ChefQuart {
   prenom: string;
 }
 
-export type AgentRole = 'chef_ligne' | 'chef_quart' | 'agent_exploitation' | 'agent_mouvement';
+export type AgentRole = 'chef_ligne' | 'chef_quart' | 'chef_equipe_atelier' | 'agent_exploitation' | 'agent_mouvement';
 
 export const AGENT_ROLES: Record<AgentRole, string> = {
   chef_ligne: 'Chef de ligne',
   chef_quart: 'Chef de quart',
+  chef_equipe_atelier: "Chef d'équipe atelier",
   agent_exploitation: 'Agent Exploitation',
   agent_mouvement: 'Agent Mouvement',
 };

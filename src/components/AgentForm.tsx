@@ -17,7 +17,7 @@ const agentSchema = z.object({
         .trim()
         .min(1, "Le prénom est requis")
         .max(100, "Le prénom ne peut pas dépasser 100 caractères"),
-    role: z.enum(['chef_ligne', 'chef_quart', 'agent_exploitation', 'agent_mouvement'] as [string, ...string[]], {
+    role: z.enum(['chef_ligne', 'chef_quart', 'chef_equipe_atelier', 'agent_exploitation', 'agent_mouvement'] as [string, ...string[]], {
         required_error: "Le rôle est requis",
     })
 });
