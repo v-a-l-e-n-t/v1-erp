@@ -865,6 +865,75 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          bottle_type: string
+          category: string
+          client: string | null
+          created_at: string
+          date: string
+          destination: string | null
+          ecart: number | null
+          id: string
+          justification_ecart: string | null
+          last_modified_at: string | null
+          last_modified_by: string | null
+          motif: string | null
+          movement_type: string
+          provenance: string | null
+          quantity: number
+          site: string
+          stock_reel: number | null
+          stock_theorique: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bottle_type: string
+          category: string
+          client?: string | null
+          created_at?: string
+          date: string
+          destination?: string | null
+          ecart?: number | null
+          id?: string
+          justification_ecart?: string | null
+          last_modified_at?: string | null
+          last_modified_by?: string | null
+          motif?: string | null
+          movement_type: string
+          provenance?: string | null
+          quantity: number
+          site: string
+          stock_reel?: number | null
+          stock_theorique?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bottle_type?: string
+          category?: string
+          client?: string | null
+          created_at?: string
+          date?: string
+          destination?: string | null
+          ecart?: number | null
+          id?: string
+          justification_ecart?: string | null
+          last_modified_at?: string | null
+          last_modified_by?: string | null
+          motif?: string | null
+          movement_type?: string
+          provenance?: string | null
+          quantity?: number
+          site?: string
+          stock_reel?: number | null
+          stock_theorique?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
