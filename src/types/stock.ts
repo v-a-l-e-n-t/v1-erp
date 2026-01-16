@@ -1,5 +1,5 @@
 // Catégories de bouteilles
-export type StockCategory = 
+export type StockCategory =
   | 'bouteilles_neuves'      // Btles Neuve _ DV
   | 'bouteilles_hs'          // Btles HS _ DV
   | 'reconfiguration'        // RECONFIGURATION
@@ -18,7 +18,7 @@ export type StockSite = 'depot_vrac' | 'centre_emplisseur';
 export type MovementType = 'entree' | 'sortie' | 'inventaire' | 'transfert';
 
 // Client (pour parc CE)
-export type StockClient = 'PI' | 'TEMCI' | 'VIVO' | 'TOTAL' | null;
+export type StockClient = 'PI' | 'VIVO' | 'TOTAL' | null;
 
 // Entrée de mouvement de stock
 export interface StockMovement {
@@ -65,9 +65,10 @@ export const STOCK_CATEGORY_LABELS: Record<StockCategory, string> = {
   bouteilles_hs: 'Bouteilles HS',
   reconfiguration: 'Reconfiguration',
   consignes: 'Consignes',
-  parc_ce: 'Parc CE',
-  stock_outils_vivo: 'Stock Outils VIVO',
-  peinture: 'Peinture'
+  // parc_ce: 'Parc CE', // Removed as per request
+  stock_outils_vivo: 'Stock Outils',
+  peinture: 'Peinture',
+  parc_ce: 'Parc CE' // Keeping key for safety but hidden from UI if needed, or remove if unused. User list omitted it.
 };
 
 export const STOCK_SITE_LABELS: Record<StockSite, string> = {
@@ -91,7 +92,6 @@ export const BOTTLE_TYPE_LABELS: Record<BottleType, string> = {
 
 export const STOCK_CLIENT_LABELS: Record<Exclude<StockClient, null>, string> = {
   PI: 'Petro Ivoire',
-  TEMCI: 'TEMCI',
   VIVO: 'VIVO Energy',
   TOTAL: 'Total Energies'
 };
