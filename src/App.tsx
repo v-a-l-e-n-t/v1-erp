@@ -19,6 +19,7 @@ import VracAdminPanel from "./pages/VracAdminPanel";
 import VracChargementDashboard from "./pages/VracChargementDashboard";
 import NotFound from "./pages/NotFound";
 import FormAtelier from "./pages/FormAtelier";
+import StockManagement from "./pages/StockManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/agents" element={<AgentsManagement />} />
           <Route path="/import_data" element={<ImportData />} />
           <Route path="/new-bilan" element={<NewBilan />} />
+          <Route path="/stock" element={<StockManagement />} />
           {/* VRAC Module Routes - Public Access */}
           <Route path="/vrac-login" element={<VracLogin />} />
           <Route path="/vrac" element={<VracClientPortal />} />

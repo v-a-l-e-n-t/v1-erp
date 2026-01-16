@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Package, Users, Factory } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +34,7 @@ import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory,
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
 import ReceptionsView from '@/components/dashboard/ReceptionsView';
 import ReceptionsHistoryTable from '@/components/dashboard/ReceptionsHistoryTable';
+import StockView from '@/components/dashboard/StockView';
 
 // Helper function to format numbers with decimals only if significant
 const formatNumberWithDecimals = (value: number): string => {
@@ -62,7 +63,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'stock' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -1278,6 +1279,17 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
+            variant={activeView === 'stock' ? 'default' : 'outline'}
+            size="lg"
+            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'stock' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('stock')}
+          >
+            <Package className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="hidden sm:inline">STOCK</span>
+            <span className="sm:hidden">STOCK</span>
+          </Button>
+
+          <Button
             variant={activeView === 'emplisseur' ? 'default' : 'outline'}
             size="lg"
             className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
@@ -1361,6 +1373,20 @@ const DashboardHistorique = () => {
 
           {activeView === 'receptions' && (
             <ReceptionsView
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              availableMonths={availableMonths}
+            />
+          )}
+
+          {activeView === 'stock' && (
+            <StockView
               dateRange={dateRange}
               setDateRange={setDateRange}
               filterType={filterType}
