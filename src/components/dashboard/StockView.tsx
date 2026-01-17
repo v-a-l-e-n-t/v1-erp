@@ -6,7 +6,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarIcon, Package, TrendingUp, TrendingDown, AlertTriangle, BarChart3 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CalendarIcon, Package, TrendingUp, TrendingDown, AlertTriangle, FileText, Warehouse, Building2 } from 'lucide-react';
 import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -63,13 +64,6 @@ export default function StockView({
   const [stockStates, setStockStates] = useState<StockState[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [stats, setStats] = useState({
-    total_movements: 0,
-    total_entrees: 0,
-    total_sorties: 0,
-    total_inventaires: 0,
-    total_ecarts: 0
-  });
 
   // Mois disponibles pour l'année sélectionnée
   const availableMonthsForYear = useMemo(() => {
@@ -115,19 +109,17 @@ export default function StockView({
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [movementsData, statesData, statsData] = await Promise.all([
+        const [movementsData, statesData] = await Promise.all([
           loadStockMovements({
             startDate,
             endDate,
             dateRange: filterType === 'period' ? dateRange : undefined
           }),
-          calculateAllStockStatesFromDB(),
-          getStockStats(startDate, endDate)
+          calculateAllStockStatesFromDB()
         ]);
 
         setMovements(movementsData);
         setStockStates(statesData);
-        setStats(statsData);
       } catch (error) {
         console.error('Error loading stock data:', error);
       } finally {
@@ -138,108 +130,54 @@ export default function StockView({
     fetchData();
   }, [startDate, endDate, filterType, dateRange]);
 
-  // Calculer les KPI
-  const kpis = useMemo(() => {
-    const totalStock = stockStates.reduce((sum, state) => sum + state.stock_theorique, 0);
-    const totalEntrees = movements
-      .filter(m => m.movement_type === 'entree' || m.movement_type === 'transfert')
-      .reduce((sum, m) => sum + m.quantity, 0);
-    const totalSorties = movements
-      .filter(m => m.movement_type === 'sortie')
-      .reduce((sum, m) => sum + m.quantity, 0);
-    const ecartsSignificatifs = detectSignificantDiscrepancies(stockStates, 10);
-
-    return {
-      totalStock,
-      totalEntrees,
-      totalSorties,
-      ecartsSignificatifs: ecartsSignificatifs.length
-    };
-  }, [stockStates, movements]);
-
-  // Générer la synthèse
+  // Générer la synthèse complète (logique Excel)
   const summary = useMemo(() => {
     return generateStockSummary(movements, startDate, endDate);
   }, [movements, startDate, endDate]);
 
-  // Répartition par catégorie
-  const byCategory = useMemo(() => {
-    const categoryMap = new Map<StockCategory, { entrees: number; sorties: number; stock: number }>();
-    
-    stockStates.forEach(state => {
-      const existing = categoryMap.get(state.category) || { entrees: 0, sorties: 0, stock: 0 };
-      existing.stock += state.stock_theorique;
-      categoryMap.set(state.category, existing);
-    });
-
-    movements.forEach(m => {
-      const existing = categoryMap.get(m.category) || { entrees: 0, sorties: 0, stock: 0 };
-      if (m.movement_type === 'entree' || m.movement_type === 'transfert') {
-        existing.entrees += m.quantity;
-      } else if (m.movement_type === 'sortie') {
-        existing.sorties += m.quantity;
-      }
-      categoryMap.set(m.category, existing);
-    });
-
-    return Array.from(categoryMap.entries()).map(([category, data]) => ({
-      category,
-      ...data
-    }));
-  }, [stockStates, movements]);
-
-  // Répartition par type de bouteille
-  const byBottleType = useMemo(() => {
-    const typeMap = new Map<BottleType, { entrees: number; sorties: number; stock: number }>();
-    
-    stockStates.forEach(state => {
-      const existing = typeMap.get(state.bottle_type) || { entrees: 0, sorties: 0, stock: 0 };
-      existing.stock += state.stock_theorique;
-      typeMap.set(state.bottle_type, existing);
-    });
-
-    movements.forEach(m => {
-      const existing = typeMap.get(m.bottle_type) || { entrees: 0, sorties: 0, stock: 0 };
-      if (m.movement_type === 'entree' || m.movement_type === 'transfert') {
-        existing.entrees += m.quantity;
-      } else if (m.movement_type === 'sortie') {
-        existing.sorties += m.quantity;
-      }
-      typeMap.set(m.bottle_type, existing);
-    });
-
-    return Array.from(typeMap.entries()).map(([type, data]) => ({
-      type,
-      ...data
-    }));
-  }, [stockStates, movements]);
+  // Calculer les KPI principaux
+  const kpis = useMemo(() => {
+    const ecartsSignificatifs = detectSignificantDiscrepancies(stockStates, 10);
+    return {
+      totalStock: summary.total_stock_theorique,
+      totalEntrees: summary.total_entrees,
+      totalSorties: summary.total_sorties,
+      ecartsSignificatifs: ecartsSignificatifs.length,
+      solde: summary.total_entrees - summary.total_sorties
+    };
+  }, [stockStates, summary]);
 
   const getPeriodText = () => {
-    if (filterType === 'all') return '';
-    if (filterType === 'year') return `en ${selectedYear}`;
+    if (filterType === 'all') return 'Toutes périodes';
+    if (filterType === 'year') return `Année ${selectedYear}`;
     if (filterType === 'month') {
       const monthDate = new Date(selectedMonth + '-01');
-      return `en ${monthDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+      return monthDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     }
     if (filterType === 'day' && selectedDate) {
-      return `le ${format(selectedDate, 'dd/MM/yyyy', { locale: fr })}`;
+      return format(selectedDate, 'dd MMMM yyyy', { locale: fr });
     }
     if (filterType === 'period' && dateRange?.from) {
       if (dateRange.to) {
-        return `du ${format(dateRange.from, 'dd/MM/yyyy', { locale: fr })} au ${format(dateRange.to, 'dd/MM/yyyy', { locale: fr })}`;
+        return `Du ${format(dateRange.from, 'dd/MM/yyyy', { locale: fr })} au ${format(dateRange.to, 'dd/MM/yyyy', { locale: fr })}`;
       }
-      return `le ${format(dateRange.from, 'dd/MM/yyyy', { locale: fr })}`;
+      return format(dateRange.from, 'dd MMMM yyyy', { locale: fr });
     }
     return '';
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Filtres */}
+      {/* En-tête avec filtres */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold">Gestion de Stock</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground">Suivi des mouvements de bouteilles GPL</p>
+          <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <FileText className="h-6 w-6 text-primary" />
+            Synthèse des Stocks
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            Vue d'ensemble des mouvements et stocks de bouteilles GPL
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -363,44 +301,60 @@ export default function StockView({
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* KPI Cards - Vue d'ensemble */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             <Card className="bg-blue-50/50 border-blue-200">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-semibold">Total Stock</CardTitle>
+                <CardTitle className="text-sm font-semibold">Stock Théorique</CardTitle>
                 <Package className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-700">
                   {kpis.totalStock.toLocaleString('fr-FR')}
                 </div>
-                <p className="text-xs text-muted-foreground">Bouteilles en stock {getPeriodText()}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total bouteilles</p>
               </CardContent>
             </Card>
 
             <Card className="bg-green-50/50 border-green-200">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-semibold">Entrées</CardTitle>
+                <CardTitle className="text-sm font-semibold">Entrées</CardTitle>
                 <TrendingUp className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-700">
                   {kpis.totalEntrees.toLocaleString('fr-FR')}
                 </div>
-                <p className="text-xs text-muted-foreground">Bouteilles entrées {getPeriodText()}</p>
+                <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
               </CardContent>
             </Card>
 
             <Card className="bg-red-50/50 border-red-200">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-semibold">Sorties</CardTitle>
+                <CardTitle className="text-sm font-semibold">Sorties</CardTitle>
                 <TrendingDown className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-700">
                   {kpis.totalSorties.toLocaleString('fr-FR')}
                 </div>
-                <p className="text-xs text-muted-foreground">Bouteilles sorties {getPeriodText()}</p>
+                <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-purple-50/50 border-purple-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-semibold">Solde</CardTitle>
+                <FileText className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className={cn(
+                  "text-2xl font-bold",
+                  kpis.solde >= 0 ? "text-green-700" : "text-red-700"
+                )}>
+                  {kpis.solde >= 0 ? '+' : ''}{kpis.solde.toLocaleString('fr-FR')}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Entrées - Sorties</p>
               </CardContent>
             </Card>
 
@@ -409,7 +363,7 @@ export default function StockView({
               kpis.ecartsSignificatifs > 0 ? "bg-amber-50/50 border-amber-200" : "bg-gray-50/50 border-gray-200"
             )}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-semibold">Écarts</CardTitle>
+                <CardTitle className="text-sm font-semibold">Écarts</CardTitle>
                 <AlertTriangle className={cn(
                   "h-4 w-4",
                   kpis.ecartsSignificatifs > 0 ? "text-amber-600" : "text-gray-600"
@@ -422,98 +376,242 @@ export default function StockView({
                 )}>
                   {kpis.ecartsSignificatifs}
                 </div>
-                <p className="text-xs text-muted-foreground">Écarts significatifs détectés</p>
+                <p className="text-xs text-muted-foreground mt-1">Écarts significatifs</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Répartition par catégorie */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Répartition par Catégorie</CardTitle>
-              <CardDescription>Stocks et mouvements par catégorie de bouteilles</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Catégorie</TableHead>
-                      <TableHead className="text-right">Stock Théorique</TableHead>
-                      <TableHead className="text-right">Entrées</TableHead>
-                      <TableHead className="text-right">Sorties</TableHead>
-                      <TableHead className="text-right">Solde</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {byCategory.map((item) => (
-                      <TableRow key={item.category}>
-                        <TableCell className="font-medium">
-                          {STOCK_CATEGORY_LABELS[item.category]}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.stock.toLocaleString('fr-FR')}
-                        </TableCell>
-                        <TableCell className="text-right text-green-600">
-                          {item.entrees.toLocaleString('fr-FR')}
-                        </TableCell>
-                        <TableCell className="text-right text-red-600">
-                          {item.sorties.toLocaleString('fr-FR')}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {(item.entrees - item.sorties).toLocaleString('fr-FR')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Synthèse principale avec onglets */}
+          <Tabs defaultValue="categories" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="categories">Par Catégorie</TabsTrigger>
+              <TabsTrigger value="sites">Par Site</TabsTrigger>
+              <TabsTrigger value="bottles">Par Type de Bouteille</TabsTrigger>
+            </TabsList>
 
-          {/* Répartition par type de bouteille */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Répartition par Type de Bouteille</CardTitle>
-              <CardDescription>Stocks et mouvements par type (B6, B12, B28, B38)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Stock Théorique</TableHead>
-                      <TableHead className="text-right">Entrées</TableHead>
-                      <TableHead className="text-right">Sorties</TableHead>
-                      <TableHead className="text-right">Solde</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {byBottleType.map((item) => (
-                      <TableRow key={item.type}>
-                        <TableCell className="font-medium">
-                          {BOTTLE_TYPE_LABELS[item.type]}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.stock.toLocaleString('fr-FR')}
-                        </TableCell>
-                        <TableCell className="text-right text-green-600">
-                          {item.entrees.toLocaleString('fr-FR')}
-                        </TableCell>
-                        <TableCell className="text-right text-red-600">
-                          {item.sorties.toLocaleString('fr-FR')}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {(item.entrees - item.sorties).toLocaleString('fr-FR')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Synthèse par Catégorie */}
+            <TabsContent value="categories" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Synthèse par Catégorie
+                  </CardTitle>
+                  <CardDescription>
+                    Vue détaillée des stocks et mouvements par catégorie {getPeriodText() && `- ${getPeriodText()}`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="font-bold">Catégorie</TableHead>
+                          <TableHead className="text-right font-bold">Stock Théorique</TableHead>
+                          <TableHead className="text-right font-bold text-green-700">Entrées</TableHead>
+                          <TableHead className="text-right font-bold text-red-700">Sorties</TableHead>
+                          <TableHead className="text-right font-bold">Solde</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(summary.categories)
+                          .filter(([category]) => category !== 'parc_ce')
+                          .map(([category, data]) => (
+                          <TableRow key={category} className="hover:bg-muted/30">
+                            <TableCell className="font-medium">
+                              {STOCK_CATEGORY_LABELS[category as StockCategory]}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {data.stock_theorique.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className="text-right text-green-600 font-medium">
+                              {data.entrees.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className="text-right text-red-600 font-medium">
+                              {data.sorties.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className={cn(
+                              "text-right font-bold",
+                              (data.entrees - data.sorties) >= 0 ? "text-green-700" : "text-red-700"
+                            )}>
+                              {(data.entrees - data.sorties).toLocaleString('fr-FR')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted font-bold border-t-2">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="text-right">
+                            {summary.total_stock_theorique.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className="text-right text-green-700">
+                            {summary.total_entrees.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className="text-right text-red-700">
+                            {summary.total_sorties.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className={cn(
+                            "text-right",
+                            kpis.solde >= 0 ? "text-green-700" : "text-red-700"
+                          )}>
+                            {kpis.solde.toLocaleString('fr-FR')}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Synthèse par Site */}
+            <TabsContent value="sites" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Warehouse className="h-5 w-5" />
+                    Synthèse par Site
+                  </CardTitle>
+                  <CardDescription>
+                    Comparaison Dépôt Vrac vs Centre Emplisseur {getPeriodText() && `- ${getPeriodText()}`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="font-bold">Site</TableHead>
+                          <TableHead className="text-right font-bold">Stock Théorique</TableHead>
+                          <TableHead className="text-right font-bold text-green-700">Entrées</TableHead>
+                          <TableHead className="text-right font-bold text-red-700">Sorties</TableHead>
+                          <TableHead className="text-right font-bold">Solde</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(summary.sites).map(([site, data]) => (
+                          <TableRow key={site} className="hover:bg-muted/30">
+                            <TableCell className="font-medium flex items-center gap-2">
+                              {site === 'depot_vrac' ? (
+                                <Warehouse className="h-4 w-4 text-blue-600" />
+                              ) : (
+                                <Building2 className="h-4 w-4 text-green-600" />
+                              )}
+                              {STOCK_SITE_LABELS[site as StockSite]}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {data.stock_theorique.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className="text-right text-green-600 font-medium">
+                              {data.entrees.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className="text-right text-red-600 font-medium">
+                              {data.sorties.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className={cn(
+                              "text-right font-bold",
+                              (data.entrees - data.sorties) >= 0 ? "text-green-700" : "text-red-700"
+                            )}>
+                              {(data.entrees - data.sorties).toLocaleString('fr-FR')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted font-bold border-t-2">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="text-right">
+                            {summary.total_stock_theorique.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className="text-right text-green-700">
+                            {summary.total_entrees.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className="text-right text-red-700">
+                            {summary.total_sorties.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className={cn(
+                            "text-right",
+                            kpis.solde >= 0 ? "text-green-700" : "text-red-700"
+                          )}>
+                            {kpis.solde.toLocaleString('fr-FR')}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Synthèse par Type de Bouteille */}
+            <TabsContent value="bottles" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Synthèse par Type de Bouteille
+                  </CardTitle>
+                  <CardDescription>
+                    Répartition par type (B6, B12, B28, B38) {getPeriodText() && `- ${getPeriodText()}`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="font-bold">Type de Bouteille</TableHead>
+                          <TableHead className="text-right font-bold">Stock Théorique</TableHead>
+                          <TableHead className="text-right font-bold text-green-700">Entrées</TableHead>
+                          <TableHead className="text-right font-bold text-red-700">Sorties</TableHead>
+                          <TableHead className="text-right font-bold">Solde</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(summary.bottle_types).map(([type, data]) => (
+                          <TableRow key={type} className="hover:bg-muted/30">
+                            <TableCell className="font-medium">
+                              {BOTTLE_TYPE_LABELS[type as BottleType]}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {data.stock_theorique.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className="text-right text-green-600 font-medium">
+                              {data.entrees.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className="text-right text-red-600 font-medium">
+                              {data.sorties.toLocaleString('fr-FR')}
+                            </TableCell>
+                            <TableCell className={cn(
+                              "text-right font-bold",
+                              (data.entrees - data.sorties) >= 0 ? "text-green-700" : "text-red-700"
+                            )}>
+                              {(data.entrees - data.sorties).toLocaleString('fr-FR')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted font-bold border-t-2">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="text-right">
+                            {summary.total_stock_theorique.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className="text-right text-green-700">
+                            {summary.total_entrees.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className="text-right text-red-700">
+                            {summary.total_sorties.toLocaleString('fr-FR')}
+                          </TableCell>
+                          <TableCell className={cn(
+                            "text-right",
+                            kpis.solde >= 0 ? "text-green-700" : "text-red-700"
+                          )}>
+                            {kpis.solde.toLocaleString('fr-FR')}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
 
           {/* Écarts significatifs */}
           {kpis.ecartsSignificatifs > 0 && (
@@ -576,59 +674,6 @@ export default function StockView({
               </CardContent>
             </Card>
           )}
-
-          {/* Mouvements récents */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Mouvements Récents</CardTitle>
-              <CardDescription>Derniers mouvements enregistrés {getPeriodText()}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {movements.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">Aucun mouvement pour cette période</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Catégorie</TableHead>
-                        <TableHead>Site</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Bouteille</TableHead>
-                        <TableHead className="text-right">Quantité</TableHead>
-                        <TableHead>Mouvement</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {movements.slice(0, 20).map((movement) => (
-                        <TableRow key={movement.id}>
-                          <TableCell className="font-medium">
-                            {format(new Date(movement.date), 'dd/MM/yyyy', { locale: fr })}
-                          </TableCell>
-                          <TableCell>{STOCK_CATEGORY_LABELS[movement.category]}</TableCell>
-                          <TableCell>{STOCK_SITE_LABELS[movement.site]}</TableCell>
-                          <TableCell>{BOTTLE_TYPE_LABELS[movement.bottle_type]}</TableCell>
-                          <TableCell className="text-right">
-                            {movement.quantity.toLocaleString('fr-FR')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              movement.movement_type === 'entree' ? 'default' :
-                              movement.movement_type === 'sortie' ? 'destructive' :
-                              movement.movement_type === 'inventaire' ? 'secondary' : 'outline'
-                            }>
-                              {MOVEMENT_TYPE_LABELS[movement.movement_type]}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </>
       )}
     </div>

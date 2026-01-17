@@ -39,7 +39,9 @@ const StockManagement = () => {
         >
           <div className="overflow-x-auto pb-2">
             <TabsList className="w-full justify-start h-auto p-1 bg-muted/50">
-              {Object.entries(STOCK_CATEGORY_LABELS).map(([key, label]) => (
+              {Object.entries(STOCK_CATEGORY_LABELS)
+                .filter(([key]) => key !== 'parc_ce')
+                .map(([key, label]) => (
                 <TabsTrigger
                   key={key}
                   value={key}
@@ -51,7 +53,9 @@ const StockManagement = () => {
             </TabsList>
           </div>
 
-          {Object.keys(STOCK_CATEGORY_LABELS).map((key) => (
+          {Object.keys(STOCK_CATEGORY_LABELS)
+            .filter((key) => key !== 'parc_ce')
+            .map((key) => (
             <TabsContent key={key} value={key} className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold tracking-tight">
