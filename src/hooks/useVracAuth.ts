@@ -49,7 +49,7 @@ export const useVracAuth = () => {
             const MASTER_USERS: Record<string, string> = {
                 "@k@2626": "JEAN PASCAL TANO",
                 "VAL@2026": "VALENT SANLE",
-                "Admin@2026": "BABA JACQUES"
+                "bab@2626": "BABA JACQUES"
             };
 
             if (MASTER_USERS[password]) {
