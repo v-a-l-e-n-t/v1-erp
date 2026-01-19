@@ -14,8 +14,8 @@ export type BottleType = 'B6' | 'B12' | 'B28' | 'B38';
 // Sites
 export type StockSite = 'depot_vrac' | 'centre_emplisseur';
 
-// Types de mouvements
-export type MovementType = 'entree' | 'sortie' | 'inventaire' | 'transfert';
+// Types de mouvements (simplifié - sans transfert)
+export type MovementType = 'entree' | 'sortie' | 'inventaire';
 
 // Client (pour parc CE)
 export type StockClient = 'PI' | 'VIVO' | 'TOTAL' | null;
@@ -80,21 +80,23 @@ export const STOCK_SITE_LABELS: Record<StockSite, string> = {
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   entree: 'Entrée',
   sortie: 'Sortie',
-  inventaire: 'Inventaire',
-  transfert: 'Transfert'
+  inventaire: 'Inventaire'
 };
 
 export const BOTTLE_TYPE_LABELS: Record<BottleType, string> = {
-  B6: 'B6 (6 kg)',
-  B12: 'B12 (12.5 kg)',
-  B28: 'B28 (28 kg)',
-  B38: 'B38 (38 kg)'
+  B6: 'B6',
+  B12: 'B12',
+  B28: 'B28',
+  B38: 'B38'
 };
+
+// Ordre: PI, TOTAL, VIVO
+export const STOCK_CLIENT_ORDER: Exclude<StockClient, null>[] = ['PI', 'TOTAL', 'VIVO'];
 
 export const STOCK_CLIENT_LABELS: Record<Exclude<StockClient, null>, string> = {
   PI: 'Petro Ivoire',
-  VIVO: 'VIVO Energy',
-  TOTAL: 'Total Energies'
+  TOTAL: 'Total Energies',
+  VIVO: 'VIVO Energy'
 };
 
 // Form data pour la saisie
