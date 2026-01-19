@@ -30,6 +30,7 @@ export interface StockMovement {
   bottle_type: BottleType;
   quantity: number; // Nombre de bouteilles
   client?: StockClient; // Pour parc CE
+  bon_numero?: string; // Numéro du bon autorisant l'opération
   motif?: string; // Motif de sortie
   provenance?: string; // Provenance pour entrée
   destination?: string; // Destination pour sortie
@@ -105,6 +106,7 @@ export interface StockMovementFormData {
   bottle_type: BottleType;
   quantity: string; // String pour le formulaire
   client?: StockClient;
+  bon_numero?: string; // Numéro du bon autorisant l'opération
   motif?: string;
   provenance?: string;
   destination?: string;
