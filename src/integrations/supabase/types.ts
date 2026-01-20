@@ -751,6 +751,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sigma_stock: {
+        Row: {
+          bottle_origin: string
+          bottle_type: string
+          client: string
+          created_at: string
+          current_stock: number
+          id: string
+          initial_stock: number
+          last_modified_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          bottle_origin: string
+          bottle_type: string
+          client: string
+          created_at?: string
+          current_stock?: number
+          id?: string
+          initial_stock?: number
+          last_modified_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bottle_origin?: string
+          bottle_type?: string
+          client?: string
+          created_at?: string
+          current_stock?: number
+          id?: string
+          initial_stock?: number
+          last_modified_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sphere_calculations: {
         Row: {
           calculation_date: string
@@ -867,66 +903,78 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          bottle_origin: string | null
           bottle_type: string
           category: string
           client: string | null
           created_at: string
           date: string
           destination: string | null
+          destination_warehouse: string | null
           ecart: number | null
           id: string
           justification_ecart: string | null
           last_modified_at: string | null
           last_modified_by: string | null
+          linked_movement_id: string | null
           motif: string | null
           movement_type: string
           provenance: string | null
           quantity: number
           site: string
+          source_warehouse: string | null
           stock_reel: number | null
           stock_theorique: number | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          bottle_origin?: string | null
           bottle_type: string
           category: string
           client?: string | null
           created_at?: string
           date: string
           destination?: string | null
+          destination_warehouse?: string | null
           ecart?: number | null
           id?: string
           justification_ecart?: string | null
           last_modified_at?: string | null
           last_modified_by?: string | null
+          linked_movement_id?: string | null
           motif?: string | null
           movement_type: string
           provenance?: string | null
           quantity: number
           site: string
+          source_warehouse?: string | null
           stock_reel?: number | null
           stock_theorique?: number | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          bottle_origin?: string | null
           bottle_type?: string
           category?: string
           client?: string | null
           created_at?: string
           date?: string
           destination?: string | null
+          destination_warehouse?: string | null
           ecart?: number | null
           id?: string
           justification_ecart?: string | null
           last_modified_at?: string | null
           last_modified_by?: string | null
+          linked_movement_id?: string | null
           motif?: string | null
           movement_type?: string
           provenance?: string | null
           quantity?: number
           site?: string
+          source_warehouse?: string | null
           stock_reel?: number | null
           stock_theorique?: number | null
           updated_at?: string
