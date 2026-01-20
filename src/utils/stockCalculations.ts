@@ -36,7 +36,7 @@ export function calculateTheoreticalStock(
 
   // Calculer les cumuls
   sortedMovements.forEach(movement => {
-    if (movement.movement_type === 'entree' || movement.movement_type === 'transfert') {
+    if (movement.movement_type === 'entree') {
       cumulEntrees = cumulEntrees.plus(movement.quantity);
     } else if (movement.movement_type === 'sortie') {
       cumulSorties = cumulSorties.plus(movement.quantity);
@@ -106,7 +106,7 @@ export function calculateStockState(
     );
 
     movementsAfterInventory.forEach(movement => {
-      if (movement.movement_type === 'entree' || movement.movement_type === 'transfert') {
+      if (movement.movement_type === 'entree') {
         cumulEntrees = cumulEntrees.plus(movement.quantity);
       } else if (movement.movement_type === 'sortie') {
         cumulSorties = cumulSorties.plus(movement.quantity);
@@ -115,7 +115,7 @@ export function calculateStockState(
   } else {
     // Pas d'inventaire, calculer depuis le début
     sortedMovements.forEach(movement => {
-      if (movement.movement_type === 'entree' || movement.movement_type === 'transfert') {
+      if (movement.movement_type === 'entree') {
         cumulEntrees = cumulEntrees.plus(movement.quantity);
       } else if (movement.movement_type === 'sortie') {
         cumulSorties = cumulSorties.plus(movement.quantity);
@@ -250,12 +250,12 @@ export function generateStockSummary(
 
   const categories: Record<StockCategory, { entrees: Decimal; sorties: Decimal; stock_theorique: Decimal }> = {
     bouteilles_neuves: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
+    consignes: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
+    stock_outils: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
     bouteilles_hs: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
     reconfiguration: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
-    consignes: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
-    parc_ce: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
-    stock_outils_vivo: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
-    peinture: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) }
+    sigma: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) },
+    parc_ce: { entrees: new Decimal(0), sorties: new Decimal(0), stock_theorique: new Decimal(0) }
   };
 
   const sites: Record<StockSite, { entrees: Decimal; sorties: Decimal; stock_theorique: Decimal }> = {
@@ -274,7 +274,7 @@ export function generateStockSummary(
   filteredMovements.forEach(movement => {
     const qty = new Decimal(movement.quantity);
 
-    if (movement.movement_type === 'entree' || movement.movement_type === 'transfert') {
+    if (movement.movement_type === 'entree') {
       totalEntrees = totalEntrees.plus(qty);
       categories[movement.category].entrees = categories[movement.category].entrees.plus(qty);
       sites[movement.site].entrees = sites[movement.site].entrees.plus(qty);

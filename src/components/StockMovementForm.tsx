@@ -154,13 +154,7 @@ const StockMovementForm = ({ onSave, editMovement, onCancel }: StockMovementForm
         }
       }
 
-      if (formData.movement_type === 'transfert') {
-        if (!formData.provenance || !formData.destination) {
-          toast.error('La provenance et la destination sont requises pour un transfert');
-          setLoading(false);
-          return;
-        }
-      }
+      // Note: transfert type removed - inter-warehouse movements are handled via linked_movement_id
 
       // Validation client pour parc_ce
       if (formData.category === 'parc_ce' && !formData.client) {
@@ -210,7 +204,6 @@ const StockMovementForm = ({ onSave, editMovement, onCancel }: StockMovementForm
   const isInventaire = formData.movement_type === 'inventaire';
   const isEntree = formData.movement_type === 'entree';
   const isSortie = formData.movement_type === 'sortie';
-  const isTransfert = formData.movement_type === 'transfert';
   const isParcCE = formData.category === 'parc_ce';
 
   return (
@@ -370,7 +363,7 @@ const StockMovementForm = ({ onSave, editMovement, onCancel }: StockMovementForm
       </Card>
 
       {/* Champs conditionnels selon le type de mouvement */}
-      {(isEntree || isTransfert) && (
+      {isEntree && (
         <Card>
           <CardHeader>
             <CardTitle>Provenance</CardTitle>
@@ -419,27 +412,6 @@ const StockMovementForm = ({ onSave, editMovement, onCancel }: StockMovementForm
           </CardContent>
         </Card>
       )}
-
-      {isTransfert && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Destination</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="destination">Destination *</Label>
-              <Input
-                id="destination"
-                value={formData.destination}
-                onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
-                placeholder="Ex: Autre site, Autre catégorie, etc."
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {isInventaire && (
         <Card>
           <CardHeader>
