@@ -27,7 +27,11 @@ import {
   StockCategory,
   StockClient,
   MovementType,
+  BottleOrigin,
   MOVEMENT_TYPE_LABELS,
+  WAREHOUSE_LIST,
+  STOCK_CATEGORY_LABELS,
+  BOTTLE_ORIGIN_LABELS,
 } from '@/types/stock';
 
 interface StockEntryTableProps {
@@ -45,6 +49,7 @@ interface GroupedRow {
   movement_type: MovementType;
   bon_numero?: string;
   provenance_destination?: string;
+  bottle_origin?: BottleOrigin;
   b6?: {
     id: string;
     quantity: number;
@@ -72,7 +77,8 @@ export const StockEntryTable = ({
   const [newDate, setNewDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [newType, setNewType] = useState<MovementType>('entree');
   const [newBon, setNewBon] = useState('');
-  const [newProvDest, setNewProvDest] = useState('');
+  const [newWarehouse, setNewWarehouse] = useState<StockCategory | ''>('');
+  const [newBottleOrigin, setNewBottleOrigin] = useState<BottleOrigin>('fabrique');
   // B6
   const [newQtyB6, setNewQtyB6] = useState('');
   const [newInvB6, setNewInvB6] = useState('');
@@ -81,6 +87,11 @@ export const StockEntryTable = ({
   const [newInvB12, setNewInvB12] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Liste des magasins disponibles (exclure le magasin actuel)
+  const availableWarehouses = useMemo(() => {
+    return WAREHOUSE_LIST.filter(w => w !== category);
+  }, [category]);
 
   // Mois en cours pour le filtrage du tableau
   const currentMonth = useMemo(() => {
@@ -229,6 +240,7 @@ export const StockEntryTable = ({
           movement_type: m.movement_type,
           bon_numero: m.bon_numero,
           provenance_destination: m.provenance || m.destination,
+          bottle_origin: m.bottle_origin,
           b6: m.bottle_type === 'B6' ? bottleData : undefined,
           b12: m.bottle_type === 'B12' ? bottleData : undefined
         });
@@ -242,6 +254,10 @@ export const StockEntryTable = ({
         // Mettre à jour provenance/destination si pas encore défini
         if (!existing.provenance_destination) {
           existing.provenance_destination = m.provenance || m.destination;
+        }
+        // Mettre à jour bottle_origin si pas encore défini
+        if (!existing.bottle_origin) {
+          existing.bottle_origin = m.bottle_origin;
         }
       }
     });
@@ -280,8 +296,11 @@ export const StockEntryTable = ({
           quantity: newType === 'inventaire' ? 0 : qtyB6,
           client,
           bon_numero: newBon || undefined,
-          provenance: newType === 'entree' ? newProvDest : undefined,
-          destination: newType === 'sortie' ? newProvDest : undefined,
+          bottle_origin: newBottleOrigin,
+          provenance: newType === 'entree' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
+          destination: newType === 'sortie' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
+          source_warehouse: newType === 'entree' && newWarehouse ? newWarehouse : undefined,
+          destination_warehouse: newType === 'sortie' && newWarehouse ? newWarehouse : undefined,
           stock_theorique: currentStockB6,
           stock_reel: newType === 'inventaire' ? invB6 : undefined,
           ecart: newType === 'inventaire' ? invB6 - currentStockB6 : undefined
@@ -303,8 +322,11 @@ export const StockEntryTable = ({
           quantity: newType === 'inventaire' ? 0 : qtyB12,
           client,
           bon_numero: newBon || undefined,
-          provenance: newType === 'entree' ? newProvDest : undefined,
-          destination: newType === 'sortie' ? newProvDest : undefined,
+          bottle_origin: newBottleOrigin,
+          provenance: newType === 'entree' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
+          destination: newType === 'sortie' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
+          source_warehouse: newType === 'entree' && newWarehouse ? newWarehouse : undefined,
+          destination_warehouse: newType === 'sortie' && newWarehouse ? newWarehouse : undefined,
           stock_theorique: currentStockB12,
           stock_reel: newType === 'inventaire' ? invB12 : undefined,
           ecart: newType === 'inventaire' ? invB12 - currentStockB12 : undefined
@@ -316,7 +338,7 @@ export const StockEntryTable = ({
 
       // Reset formulaire
       setNewBon('');
-      setNewProvDest('');
+      setNewWarehouse('');
       setNewQtyB6('');
       setNewInvB6('');
       setNewQtyB12('');
@@ -407,6 +429,7 @@ export const StockEntryTable = ({
               <TableHead rowSpan={2} className="w-[100px] border-r font-bold">TYPE MVT</TableHead>
               <TableHead rowSpan={2} className="w-[100px] border-r font-bold">BON</TableHead>
               <TableHead rowSpan={2} className="w-[150px] border-r font-bold">PROV / DEST</TableHead>
+              <TableHead rowSpan={2} className="w-[110px] border-r font-bold">TYPE BTLE</TableHead>
               <TableHead colSpan={4} className="text-center border-r bg-blue-50 font-bold">B6</TableHead>
               <TableHead colSpan={4} className="text-center border-r bg-green-50 font-bold">B12</TableHead>
               <TableHead rowSpan={2} className="w-[50px]"></TableHead>
@@ -455,12 +478,35 @@ export const StockEntryTable = ({
                 />
               </TableCell>
               <TableCell className="p-1">
-                <Input
-                  placeholder={newType === 'sortie' ? 'Destination' : 'Provenance'}
-                  value={newProvDest}
-                  onChange={e => setNewProvDest(e.target.value)}
-                  className="h-9 text-sm"
-                />
+                <Select 
+                  value={newWarehouse} 
+                  onValueChange={(v: StockCategory | '') => setNewWarehouse(v as StockCategory)}
+                  disabled={newType === 'inventaire'}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder={newType === 'sortie' ? 'Destination' : 'Provenance'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableWarehouses.map((w) => (
+                      <SelectItem key={w} value={w}>{STOCK_CATEGORY_LABELS[w]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell className="p-1">
+                <Select 
+                  value={newBottleOrigin} 
+                  onValueChange={(v: BottleOrigin) => setNewBottleOrigin(v)}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(BOTTLE_ORIGIN_LABELS).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </TableCell>
               {/* B6 */}
               <TableCell className="p-1 bg-blue-50/30">
@@ -549,6 +595,9 @@ export const StockEntryTable = ({
                 </TableCell>
                 <TableCell className="border-r py-2 text-xs">
                   {row.provenance_destination || '-'}
+                </TableCell>
+                <TableCell className="border-r py-2 text-xs">
+                  {row.bottle_origin ? BOTTLE_ORIGIN_LABELS[row.bottle_origin] : '-'}
                 </TableCell>
                 {/* B6 */}
                 <TableCell className={cn(

@@ -1,12 +1,30 @@
-// Catégories de bouteilles
+// Catégories de bouteilles (magasins)
 export type StockCategory =
-  | 'bouteilles_neuves'      // Btles Neuve _ DV
-  | 'bouteilles_hs'          // Btles HS _ DV
-  | 'reconfiguration'        // RECONFIGURATION
-  | 'consignes'              // Consigne _ CE
-  | 'parc_ce'                // PARC BOUTEILLES CE (PI & TEMCI)
-  | 'stock_outils_vivo'      // STOCK OUTILS VIVO
-  | 'peinture';              // PEINTURE TDS
+  | 'bouteilles_neuves'      // Btles Neuve
+  | 'consignes'              // Consignes
+  | 'stock_outils'           // Stock Outils
+  | 'bouteilles_hs'          // Btles HS
+  | 'reconfiguration'        // Reconfiguration
+  | 'sigma'                  // SIGMA - Magasin d'approvisionnement
+  | 'parc_ce';               // PARC BOUTEILLES CE (caché)
+
+// Liste des magasins pour dropdown destination/provenance (ordre spécifique)
+export const WAREHOUSE_LIST: StockCategory[] = [
+  'bouteilles_neuves',
+  'consignes',
+  'stock_outils',
+  'bouteilles_hs',
+  'reconfiguration',
+  'sigma'
+];
+
+// Origine des bouteilles
+export type BottleOrigin = 'fabrique' | 'requalifie';
+
+export const BOTTLE_ORIGIN_LABELS: Record<BottleOrigin, string> = {
+  fabrique: 'Fabriqué',
+  requalifie: 'Requalifié'
+};
 
 // Types de bouteilles
 export type BottleType = 'B6' | 'B12' | 'B28' | 'B38';
@@ -31,9 +49,13 @@ export interface StockMovement {
   quantity: number; // Nombre de bouteilles
   client?: StockClient; // Pour parc CE
   bon_numero?: string; // Numéro du bon autorisant l'opération
+  bottle_origin?: BottleOrigin; // Origine: Fabriqué ou Requalifié
   motif?: string; // Motif de sortie
-  provenance?: string; // Provenance pour entrée
-  destination?: string; // Destination pour sortie
+  provenance?: string; // Provenance pour entrée (texte libre ou magasin)
+  destination?: string; // Destination pour sortie (texte libre ou magasin)
+  source_warehouse?: StockCategory; // Magasin source (pour mouvements inter-magasins)
+  destination_warehouse?: StockCategory; // Magasin destination (pour mouvements inter-magasins)
+  linked_movement_id?: string; // ID du mouvement lié (entrée ↔ sortie inter-magasins)
   justification_ecart?: string; // Pour inventaire avec écart
   stock_theorique?: number; // Stock théorique avant mouvement
   stock_reel?: number; // Stock réel (pour inventaire)
@@ -63,13 +85,12 @@ export interface StockState {
 // Labels pour affichage
 export const STOCK_CATEGORY_LABELS: Record<StockCategory, string> = {
   bouteilles_neuves: 'Bouteilles Neuves',
+  consignes: 'Consignes',
+  stock_outils: 'Stock Outils',
   bouteilles_hs: 'Bouteilles HS',
   reconfiguration: 'Reconfiguration',
-  consignes: 'Consignes',
-  // parc_ce: 'Parc CE', // Removed as per request
-  stock_outils_vivo: 'Stock Outils',
-  peinture: 'Peinture',
-  parc_ce: 'Parc CE' // Keeping key for safety but hidden from UI if needed, or remove if unused. User list omitted it.
+  sigma: 'SIGMA',
+  parc_ce: 'Parc CE'
 };
 
 export const STOCK_SITE_LABELS: Record<StockSite, string> = {
@@ -99,6 +120,19 @@ export const STOCK_CLIENT_LABELS: Record<Exclude<StockClient, null>, string> = {
   VIVO: 'VIVO Energy'
 };
 
+// Stock SIGMA configurable par client
+export interface SigmaStock {
+  id: string;
+  client: StockClient;
+  bottle_type: BottleType;
+  bottle_origin: BottleOrigin;
+  initial_stock: number;
+  current_stock: number;
+  created_at: string;
+  updated_at: string;
+  last_modified_by?: string;
+}
+
 // Form data pour la saisie
 export interface StockMovementFormData {
   date: string;
@@ -109,9 +143,12 @@ export interface StockMovementFormData {
   quantity: string; // String pour le formulaire
   client?: StockClient;
   bon_numero?: string; // Numéro du bon autorisant l'opération
+  bottle_origin?: BottleOrigin; // Origine: Fabriqué ou Requalifié
   motif?: string;
   provenance?: string;
   destination?: string;
+  source_warehouse?: StockCategory; // Magasin source
+  destination_warehouse?: StockCategory; // Magasin destination
   justification_ecart?: string;
   stock_theorique?: string; // String pour le formulaire
   stock_reel?: string; // String pour le formulaire
