@@ -95,14 +95,38 @@ export const StockEntryTable = ({
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // État pour le popup d'alerte stock SIGMA insuffisant
-  const [sigmaAlertOpen, setSigmaAlertOpen] = useState(false);
-  const [sigmaAlertMessages, setSigmaAlertMessages] = useState<string[]>([]);
+  // État pour le popup d'alerte stock insuffisant
+  const [stockAlertOpen, setStockAlertOpen] = useState(false);
+  const [stockAlertMessages, setStockAlertMessages] = useState<string[]>([]);
+  const [stockAlertTitle, setStockAlertTitle] = useState('');
 
-  // Liste des magasins disponibles (exclure le magasin actuel)
+  // Liste des magasins disponibles (exclure le magasin actuel et SIGMA qui est dans les options supplémentaires)
   const availableWarehouses = useMemo(() => {
-    return WAREHOUSE_LIST.filter(w => w !== category);
+    const warehouses = WAREHOUSE_LIST.filter(w => w !== category && w !== 'sigma');
+    return warehouses;
   }, [category]);
+
+  // Mapping des labels pour les options supplémentaires
+  const EXTRA_LABELS: Record<string, string> = {
+    sigma: 'SIGMA',
+    ventes_consignes: 'Ventes Consignes',
+  };
+
+  // Fonction pour obtenir le label d'une provenance/destination
+  const getWarehouseLabel = (value: string): string => {
+    if (EXTRA_LABELS[value]) return EXTRA_LABELS[value];
+    if (STOCK_CATEGORY_LABELS[value as StockCategory]) return STOCK_CATEGORY_LABELS[value as StockCategory];
+    return value;
+  };
+
+  // Options supplémentaires filtrées selon le type de mouvement
+  const extraOptionsFiltered = useMemo(() => {
+    const options = [
+      { value: 'sigma', label: 'SIGMA', forType: 'entree' as const },
+      { value: 'ventes_consignes', label: 'Ventes Consignes', forType: 'sortie' as const },
+    ];
+    return options.filter(opt => opt.forType === newType);
+  }, [newType]);
 
   // Pour Bouteilles Neuves, définir SIGMA comme provenance par défaut pour les entrées
   useEffect(() => {
@@ -321,8 +345,32 @@ export const StockEntryTable = ({
       
       // Si stock insuffisant pour B6 et/ou B12, bloquer l'enregistrement
       if (insufficientStock.length > 0) {
-        setSigmaAlertMessages(insufficientStock);
-        setSigmaAlertOpen(true);
+        setStockAlertTitle('Stock SIGMA insuffisant');
+        setStockAlertMessages(insufficientStock);
+        setStockAlertOpen(true);
+        return;
+      }
+    }
+
+    // Pour les sorties, vérifier que le stock local est suffisant
+    if (newType === 'sortie') {
+      const insufficientStock: string[] = [];
+      
+      // Vérifier B6 si nécessaire
+      if (hasB6 && qtyB6 > 0 && qtyB6 > currentStockB6) {
+        insufficientStock.push(`B6: demandé ${qtyB6.toLocaleString('fr-FR')}, disponible ${currentStockB6.toLocaleString('fr-FR')}`);
+      }
+      
+      // Vérifier B12 si nécessaire
+      if (hasB12 && qtyB12 > 0 && qtyB12 > currentStockB12) {
+        insufficientStock.push(`B12: demandé ${qtyB12.toLocaleString('fr-FR')}, disponible ${currentStockB12.toLocaleString('fr-FR')}`);
+      }
+      
+      // Si stock insuffisant, bloquer l'enregistrement
+      if (insufficientStock.length > 0) {
+        setStockAlertTitle(`Stock insuffisant dans ${STOCK_CATEGORY_LABELS[category]}`);
+        setStockAlertMessages(insufficientStock);
+        setStockAlertOpen(true);
         return;
       }
     }
@@ -345,10 +393,10 @@ export const StockEntryTable = ({
           client,
           bon_numero: newBon || undefined,
           bottle_origin: newBottleOrigin,
-          provenance: newType === 'entree' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
-          destination: newType === 'sortie' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
-          source_warehouse: newType === 'entree' && newWarehouse ? newWarehouse : undefined,
-          destination_warehouse: newType === 'sortie' && newWarehouse ? newWarehouse : undefined,
+          provenance: newType === 'entree' && newWarehouse ? getWarehouseLabel(newWarehouse) : undefined,
+          destination: newType === 'sortie' && newWarehouse ? getWarehouseLabel(newWarehouse) : undefined,
+          source_warehouse: newType === 'entree' && newWarehouse ? (newWarehouse as StockCategory) : undefined,
+          destination_warehouse: newType === 'sortie' && newWarehouse ? (newWarehouse as StockCategory) : undefined,
           stock_theorique: currentStockB6,
           stock_reel: newType === 'inventaire' ? invB6 : undefined,
           ecart: newType === 'inventaire' ? invB6 - currentStockB6 : undefined
@@ -370,10 +418,10 @@ export const StockEntryTable = ({
           client,
           bon_numero: newBon || undefined,
           bottle_origin: newBottleOrigin,
-          provenance: newType === 'entree' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
-          destination: newType === 'sortie' && newWarehouse ? STOCK_CATEGORY_LABELS[newWarehouse] : undefined,
-          source_warehouse: newType === 'entree' && newWarehouse ? newWarehouse : undefined,
-          destination_warehouse: newType === 'sortie' && newWarehouse ? newWarehouse : undefined,
+          provenance: newType === 'entree' && newWarehouse ? getWarehouseLabel(newWarehouse) : undefined,
+          destination: newType === 'sortie' && newWarehouse ? getWarehouseLabel(newWarehouse) : undefined,
+          source_warehouse: newType === 'entree' && newWarehouse ? (newWarehouse as StockCategory) : undefined,
+          destination_warehouse: newType === 'sortie' && newWarehouse ? (newWarehouse as StockCategory) : undefined,
           stock_theorique: currentStockB12,
           stock_reel: newType === 'inventaire' ? invB12 : undefined,
           ecart: newType === 'inventaire' ? invB12 - currentStockB12 : undefined
@@ -532,13 +580,18 @@ export const StockEntryTable = ({
               <TableCell className="p-1">
                 <Select 
                   value={newWarehouse} 
-                  onValueChange={(v: StockCategory | '') => setNewWarehouse(v as StockCategory)}
+                  onValueChange={(v: string) => setNewWarehouse(v as StockCategory)}
                   disabled={newType === 'inventaire'}
                 >
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder={newType === 'sortie' ? 'Destination' : 'Provenance'} />
                   </SelectTrigger>
                   <SelectContent>
+                    {/* Options supplémentaires (SIGMA, Ventes Consignes, etc.) */}
+                    {extraOptionsFiltered.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                    {/* Magasins */}
                     {availableWarehouses.map((w) => (
                       <SelectItem key={w} value={w}>{STOCK_CATEGORY_LABELS[w]}</SelectItem>
                     ))}
@@ -737,22 +790,22 @@ export const StockEntryTable = ({
         </Table>
       </div>
 
-      {/* Popup d'alerte stock SIGMA insuffisant */}
-      <Dialog open={sigmaAlertOpen} onOpenChange={setSigmaAlertOpen}>
+      {/* Popup d'alerte stock insuffisant */}
+      <Dialog open={stockAlertOpen} onOpenChange={setStockAlertOpen}>
         <DialogContent className="sm:max-w-md border-red-500 border-2">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600 text-lg">
               <AlertCircle className="h-6 w-6" />
-              Stock SIGMA insuffisant
+              {stockAlertTitle}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-red-800 font-medium mb-3">
-                Impossible d'enregistrer ce mouvement. Le stock SIGMA est insuffisant :
+                Impossible d'enregistrer ce mouvement. Stock insuffisant :
               </p>
               <ul className="space-y-2">
-                {sigmaAlertMessages.map((msg, i) => (
+                {stockAlertMessages.map((msg, i) => (
                   <li key={i} className="flex items-center gap-2 text-red-700">
                     <span className="w-2 h-2 bg-red-500 rounded-full"></span>
                     <span className="font-semibold">{msg}</span>
@@ -761,13 +814,13 @@ export const StockEntryTable = ({
               </ul>
             </div>
             <p className="text-sm text-muted-foreground">
-              Veuillez d'abord enregistrer une entrée dans SIGMA ou réduire la quantité demandée.
+              Veuillez d'abord enregistrer une entrée ou réduire la quantité demandée.
             </p>
           </div>
           <div className="flex justify-end">
             <Button
               variant="destructive"
-              onClick={() => setSigmaAlertOpen(false)}
+              onClick={() => setStockAlertOpen(false)}
             >
               Fermer
             </Button>

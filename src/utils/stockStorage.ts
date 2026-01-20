@@ -1,15 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
-import { StockMovement, StockState, StockCategory, StockSite, BottleType, StockClient, WAREHOUSE_LIST, SigmaStock, BottleOrigin } from '@/types/stock';
+import { StockMovement, StockState, StockCategory, StockSite, BottleType, StockClient, INTER_WAREHOUSE_LIST, SigmaStock, BottleOrigin } from '@/types/stock';
 import { calculateStockState, calculateTheoreticalStock, calculateAllStockStates } from './stockCalculations';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 
 /**
- * Vérifie si une catégorie est un magasin valide pour les mouvements inter-magasins
+ * Vérifie si une catégorie est un magasin valide pour les mouvements inter-magasins automatiques
+ * Note: SIGMA est exclu car c'est un magasin d'approvisionnement géré séparément
  */
 export function isValidWarehouse(category: StockCategory | undefined): boolean {
   if (!category) return false;
-  return WAREHOUSE_LIST.includes(category);
+  return INTER_WAREHOUSE_LIST.includes(category);
 }
 
 /**

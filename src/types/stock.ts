@@ -18,6 +18,16 @@ export const WAREHOUSE_LIST: StockCategory[] = [
   'sigma'
 ];
 
+// Liste des magasins pour mouvements inter-magasins automatiques (miroir)
+// SIGMA est exclu car c'est un magasin d'approvisionnement géré séparément
+export const INTER_WAREHOUSE_LIST: StockCategory[] = [
+  'bouteilles_neuves',
+  'consignes',
+  'stock_outils',
+  'bouteilles_hs',
+  'reconfiguration'
+];
+
 // Origine des bouteilles
 export type BottleOrigin = 'fabrique' | 'requalifie';
 
@@ -84,11 +94,11 @@ export interface StockState {
 
 // Labels pour affichage
 export const STOCK_CATEGORY_LABELS: Record<StockCategory, string> = {
-  bouteilles_neuves: 'Bouteilles Neuves',
-  consignes: 'Consignes',
-  stock_outils: 'Stock Outils',
-  bouteilles_hs: 'Bouteilles HS',
-  reconfiguration: 'Reconfiguration',
+  bouteilles_neuves: 'Bouteilles Neuves - CE',
+  consignes: 'Consignes - CE',
+  stock_outils: 'Stock Outils - CE',
+  bouteilles_hs: 'Bouteilles HS - DV',
+  reconfiguration: 'Reconfiguration - DV',
   sigma: 'SIGMA',
   parc_ce: 'Parc CE'
 };
