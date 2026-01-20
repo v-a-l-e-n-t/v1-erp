@@ -120,12 +120,11 @@ export const STOCK_CLIENT_LABELS: Record<Exclude<StockClient, null>, string> = {
   VIVO: 'VIVO Energy'
 };
 
-// Stock SIGMA configurable par client
+// Stock SIGMA configurable par client (simplifié: client + type bouteille)
 export interface SigmaStock {
   id: string;
   client: StockClient;
   bottle_type: BottleType;
-  bottle_origin: BottleOrigin;
   initial_stock: number;
   current_stock: number;
   created_at: string;

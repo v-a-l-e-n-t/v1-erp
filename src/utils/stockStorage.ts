@@ -524,12 +524,11 @@ export async function loadSigmaStocks(): Promise<SigmaStock[]> {
 }
 
 /**
- * Récupère le stock SIGMA pour un client, type de bouteille et origine spécifiques
+ * Récupère le stock SIGMA pour un client et type de bouteille (simplifié)
  */
-export async function getSigmaStock(
+export async function getSigmaStockSimple(
   client: StockClient,
-  bottleType: BottleType,
-  bottleOrigin: BottleOrigin
+  bottleType: BottleType
 ): Promise<SigmaStock | null> {
   try {
     const { data, error } = await (supabase as any)
@@ -537,7 +536,6 @@ export async function getSigmaStock(
       .select('*')
       .eq('client', client)
       .eq('bottle_type', bottleType)
-      .eq('bottle_origin', bottleOrigin)
       .single();
 
     if (error) {
@@ -552,21 +550,32 @@ export async function getSigmaStock(
 }
 
 /**
+ * Récupère le stock SIGMA pour un client, type de bouteille et origine spécifiques (legacy)
+ */
+export async function getSigmaStock(
+  client: StockClient,
+  bottleType: BottleType,
+  bottleOrigin: BottleOrigin
+): Promise<SigmaStock | null> {
+  // Pour compatibilité, on utilise maintenant la version simplifiée
+  return getSigmaStockSimple(client, bottleType);
+}
+
+/**
  * Vérifie si le stock SIGMA est suffisant pour une entrée
  */
 export async function checkSigmaStockAvailable(
   client: StockClient,
   bottleType: BottleType,
-  bottleOrigin: BottleOrigin,
   quantity: number
 ): Promise<{ available: boolean; currentStock: number; message?: string }> {
-  const sigmaStock = await getSigmaStock(client, bottleType, bottleOrigin);
+  const sigmaStock = await getSigmaStockSimple(client, bottleType);
   
   if (!sigmaStock) {
     return {
       available: false,
       currentStock: 0,
-      message: `Aucun stock SIGMA configuré pour ${client} - ${bottleType} (${bottleOrigin === 'fabrique' ? 'Fabriqué' : 'Requalifié'})`
+      message: `Aucun stock SIGMA configuré pour ${client} - ${bottleType}`
     };
   }
 
@@ -585,20 +594,19 @@ export async function checkSigmaStockAvailable(
 }
 
 /**
- * Crée ou met à jour un stock SIGMA
+ * Crée ou met à jour un stock SIGMA (simplifié: client + type bouteille)
  */
 export async function saveSigmaStock(
   client: StockClient,
   bottleType: BottleType,
-  bottleOrigin: BottleOrigin,
   initialStock: number
 ): Promise<{ success: boolean; data?: SigmaStock; error?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const userEmail = user?.email || 'Inconnu';
 
-    // Vérifier si le stock existe déjà
-    const existing = await getSigmaStock(client, bottleType, bottleOrigin);
+    // Vérifier si le stock existe déjà (par client + type)
+    const existing = await getSigmaStockSimple(client, bottleType);
 
     if (existing) {
       // Mettre à jour
@@ -622,7 +630,6 @@ export async function saveSigmaStock(
         .insert({
           client,
           bottle_type: bottleType,
-          bottle_origin: bottleOrigin,
           initial_stock: initialStock,
           current_stock: initialStock,
           last_modified_by: userEmail
@@ -645,11 +652,10 @@ export async function saveSigmaStock(
 export async function decrementSigmaStock(
   client: StockClient,
   bottleType: BottleType,
-  bottleOrigin: BottleOrigin,
   quantity: number
 ): Promise<{ success: boolean; newStock?: number; error?: string }> {
   try {
-    const sigmaStock = await getSigmaStock(client, bottleType, bottleOrigin);
+    const sigmaStock = await getSigmaStockSimple(client, bottleType);
     
     if (!sigmaStock) {
       return { success: false, error: 'Stock SIGMA non trouvé' };
@@ -683,11 +689,10 @@ export async function decrementSigmaStock(
 export async function incrementSigmaStock(
   client: StockClient,
   bottleType: BottleType,
-  bottleOrigin: BottleOrigin,
   quantity: number
 ): Promise<{ success: boolean; newStock?: number; error?: string }> {
   try {
-    const sigmaStock = await getSigmaStock(client, bottleType, bottleOrigin);
+    const sigmaStock = await getSigmaStockSimple(client, bottleType);
     
     if (!sigmaStock) {
       return { success: false, error: 'Stock SIGMA non trouvé' };

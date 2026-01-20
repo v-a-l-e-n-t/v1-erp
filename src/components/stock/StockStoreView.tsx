@@ -58,11 +58,10 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
     const handleAddMovement = async (movementData: Omit<StockMovement, 'id' | 'created_at' | 'updated_at'>) => {
         try {
             // Pour les entrées (sauf dans SIGMA), vérifier le stock SIGMA disponible
-            if (movementData.movement_type === 'entree' && category !== 'sigma' && movementData.bottle_origin && movementData.client) {
+            if (movementData.movement_type === 'entree' && category !== 'sigma' && movementData.client) {
                 const sigmaCheck = await checkSigmaStockAvailable(
                     movementData.client,
                     movementData.bottle_type,
-                    movementData.bottle_origin,
                     movementData.quantity
                 );
 
@@ -78,11 +77,10 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
 
             if (result.success && result.data) {
                 // Décrémenter le stock SIGMA pour les entrées
-                if (movementData.movement_type === 'entree' && category !== 'sigma' && movementData.bottle_origin && movementData.client) {
+                if (movementData.movement_type === 'entree' && category !== 'sigma' && movementData.client) {
                     await decrementSigmaStock(
                         movementData.client,
                         movementData.bottle_type,
-                        movementData.bottle_origin,
                         movementData.quantity
                     );
                 }

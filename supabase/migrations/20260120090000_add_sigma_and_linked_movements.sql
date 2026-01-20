@@ -57,13 +57,12 @@ CREATE TABLE IF NOT EXISTS public.sigma_stock (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   client text NOT NULL CHECK (client IN ('PI', 'TOTAL', 'VIVO')),
   bottle_type text NOT NULL CHECK (bottle_type IN ('B6', 'B12', 'B28', 'B38')),
-  bottle_origin text NOT NULL CHECK (bottle_origin IN ('fabrique', 'requalifie')),
   initial_stock integer NOT NULL DEFAULT 0 CHECK (initial_stock >= 0),
   current_stock integer NOT NULL DEFAULT 0,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   last_modified_by text,
-  UNIQUE(client, bottle_type, bottle_origin)
+  UNIQUE(client, bottle_type)
 );
 
 -- 9. Activer RLS sur sigma_stock

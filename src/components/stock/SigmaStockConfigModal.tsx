@@ -31,11 +31,9 @@ import {
     SigmaStock,
     StockClient,
     BottleType,
-    BottleOrigin,
     STOCK_CLIENT_ORDER,
     STOCK_CLIENT_LABELS,
     BOTTLE_TYPE_LABELS,
-    BOTTLE_ORIGIN_LABELS,
 } from '@/types/stock';
 import { loadSigmaStocks, saveSigmaStock, deleteSigmaStock } from '@/utils/stockStorage';
 
@@ -49,10 +47,9 @@ export const SigmaStockConfigModal = ({ open, onOpenChange }: SigmaStockConfigMo
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Formulaire d'ajout
+    // Formulaire d'ajout (simplifié: Client, Type, Quantité)
     const [newClient, setNewClient] = useState<StockClient>('PI');
     const [newBottleType, setNewBottleType] = useState<BottleType>('B6');
-    const [newBottleOrigin, setNewBottleOrigin] = useState<BottleOrigin>('fabrique');
     const [newInitialStock, setNewInitialStock] = useState('');
 
     const loadData = async () => {
@@ -79,7 +76,6 @@ export const SigmaStockConfigModal = ({ open, onOpenChange }: SigmaStockConfigMo
             const result = await saveSigmaStock(
                 newClient,
                 newBottleType,
-                newBottleOrigin,
                 parseInt(newInitialStock)
             );
 
@@ -128,7 +124,7 @@ export const SigmaStockConfigModal = ({ open, onOpenChange }: SigmaStockConfigMo
                     {/* Formulaire d'ajout */}
                     <div className="bg-slate-50 p-4 rounded-lg border">
                         <h4 className="font-medium mb-3">Ajouter / Modifier un stock</h4>
-                        <div className="grid grid-cols-5 gap-3">
+                        <div className="grid grid-cols-4 gap-3">
                             <div>
                                 <Label className="text-xs">Client</Label>
                                 <Select value={newClient || ''} onValueChange={(v) => setNewClient(v as StockClient)}>
@@ -156,20 +152,7 @@ export const SigmaStockConfigModal = ({ open, onOpenChange }: SigmaStockConfigMo
                                 </Select>
                             </div>
                             <div>
-                                <Label className="text-xs">Origine</Label>
-                                <Select value={newBottleOrigin} onValueChange={(v) => setNewBottleOrigin(v as BottleOrigin)}>
-                                    <SelectTrigger className="h-9">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Object.entries(BOTTLE_ORIGIN_LABELS).map(([k, v]) => (
-                                            <SelectItem key={k} value={k}>{v}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label className="text-xs">Stock Initial</Label>
+                                <Label className="text-xs">Quantité</Label>
                                 <Input
                                     type="number"
                                     placeholder="0"
@@ -209,7 +192,6 @@ export const SigmaStockConfigModal = ({ open, onOpenChange }: SigmaStockConfigMo
                                     <TableRow>
                                         <TableHead>Client</TableHead>
                                         <TableHead>Type Bouteille</TableHead>
-                                        <TableHead>Origine</TableHead>
                                         <TableHead className="text-right">Stock Initial</TableHead>
                                         <TableHead className="text-right">Stock Actuel</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
@@ -222,7 +204,6 @@ export const SigmaStockConfigModal = ({ open, onOpenChange }: SigmaStockConfigMo
                                                 {stock.client ? STOCK_CLIENT_LABELS[stock.client] : '-'}
                                             </TableCell>
                                             <TableCell>{BOTTLE_TYPE_LABELS[stock.bottle_type]}</TableCell>
-                                            <TableCell>{BOTTLE_ORIGIN_LABELS[stock.bottle_origin]}</TableCell>
                                             <TableCell className="text-right font-mono">
                                                 {stock.initial_stock.toLocaleString('fr-FR')}
                                             </TableCell>
