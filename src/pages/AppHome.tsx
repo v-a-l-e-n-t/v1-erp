@@ -168,7 +168,6 @@ export default function Home() {
                         {item.description}
                       </CardDescription>
                     </CardHeader>
-                    {/* Removed Button to make the whole card clickable and cleaner */}
                   </Card>
                 );
               })}

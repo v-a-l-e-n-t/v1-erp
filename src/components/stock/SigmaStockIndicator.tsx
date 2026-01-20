@@ -3,38 +3,70 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Package } from 'lucide-react';
 import {
-    SigmaStock,
+    StockMovement,
     StockClient,
+    BottleType,
     STOCK_CLIENT_ORDER,
     STOCK_CLIENT_LABELS,
     BOTTLE_TYPE_LABELS,
 } from '@/types/stock';
-import { loadSigmaStocks } from '@/utils/stockStorage';
+import { loadStockMovements } from '@/utils/stockStorage';
 
 interface SigmaStockIndicatorProps {
     refreshTrigger?: number;
 }
 
+interface StockByClientType {
+    B6: number;
+    B12: number;
+}
+
 export const SigmaStockIndicator = ({ refreshTrigger }: SigmaStockIndicatorProps) => {
-    const [stocks, setStocks] = useState<SigmaStock[]>([]);
+    const [stocksByClient, setStocksByClient] = useState<Record<StockClient, StockByClientType>>({
+        PI: { B6: 0, B12: 0 },
+        TOTAL: { B6: 0, B12: 0 },
+        VIVO: { B6: 0, B12: 0 }
+    });
     const [loading, setLoading] = useState(true);
 
     const loadData = async () => {
         setLoading(true);
-        const data = await loadSigmaStocks();
-        setStocks(data);
+        const allMovements = await loadStockMovements();
+        
+        // Filtrer les mouvements SIGMA
+        const sigmaMovements = allMovements.filter(m => m.category === 'sigma');
+        
+        // Calculer le stock par client et type de bouteille
+        const stocks: Record<StockClient, StockByClientType> = {
+            PI: { B6: 0, B12: 0 },
+            TOTAL: { B6: 0, B12: 0 },
+            VIVO: { B6: 0, B12: 0 }
+        };
+        
+        sigmaMovements.forEach(m => {
+            if (!m.client) return;
+            const client = m.client as StockClient;
+            const bottleType = m.bottle_type as 'B6' | 'B12';
+            
+            if (bottleType !== 'B6' && bottleType !== 'B12') return;
+            
+            if (m.movement_type === 'entree') {
+                stocks[client][bottleType] += m.quantity;
+            } else if (m.movement_type === 'sortie') {
+                stocks[client][bottleType] -= m.quantity;
+            } else if (m.movement_type === 'inventaire' && m.stock_reel !== undefined) {
+                // Pour l'inventaire, on prend le stock réel comme nouvelle valeur
+                stocks[client][bottleType] = m.stock_reel;
+            }
+        });
+        
+        setStocksByClient(stocks);
         setLoading(false);
     };
 
     useEffect(() => {
         loadData();
     }, [refreshTrigger]);
-
-    // Grouper les stocks par client
-    const stocksByClient = STOCK_CLIENT_ORDER.reduce((acc, client) => {
-        acc[client] = stocks.filter(s => s.client === client);
-        return acc;
-    }, {} as Record<StockClient, SigmaStock[]>);
 
     if (loading) {
         return (
@@ -56,9 +88,9 @@ export const SigmaStockIndicator = ({ refreshTrigger }: SigmaStockIndicatorProps
     return (
         <div className="grid grid-cols-3 gap-4 mb-6">
             {STOCK_CLIENT_ORDER.map((client) => {
-                const clientStocks = stocksByClient[client] || [];
-                const totalStock = clientStocks.reduce((sum, s) => sum + s.current_stock, 0);
-                const hasStock = clientStocks.length > 0;
+                const clientStock = stocksByClient[client];
+                const totalStock = clientStock.B6 + clientStock.B12;
+                const hasStock = totalStock > 0;
 
                 return (
                     <Card 
@@ -72,29 +104,26 @@ export const SigmaStockIndicator = ({ refreshTrigger }: SigmaStockIndicatorProps
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {hasStock ? (
-                                <div className="space-y-2">
-                                    <div className="text-2xl font-bold text-green-700">
-                                        {totalStock.toLocaleString('fr-FR')}
-                                        <span className="text-sm font-normal text-muted-foreground ml-1">btles</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1">
-                                        {clientStocks.map((s) => (
-                                            <Badge 
-                                                key={s.id} 
-                                                variant={s.current_stock > 0 ? 'default' : 'destructive'}
-                                                className="text-xs"
-                                            >
-                                                {BOTTLE_TYPE_LABELS[s.bottle_type]}: {s.current_stock.toLocaleString('fr-FR')}
-                                            </Badge>
-                                        ))}
-                                    </div>
+                            <div className="space-y-2">
+                                <div className={`text-2xl font-bold ${hasStock ? 'text-green-700' : 'text-muted-foreground'}`}>
+                                    {totalStock.toLocaleString('fr-FR')}
+                                    <span className="text-sm font-normal text-muted-foreground ml-1">btles</span>
                                 </div>
-                            ) : (
-                                <div className="text-orange-600 text-sm">
-                                    Non configuré
+                                <div className="flex flex-wrap gap-1">
+                                    <Badge 
+                                        variant={clientStock.B6 > 0 ? 'default' : 'secondary'}
+                                        className="text-xs"
+                                    >
+                                        B6: {clientStock.B6.toLocaleString('fr-FR')}
+                                    </Badge>
+                                    <Badge 
+                                        variant={clientStock.B12 > 0 ? 'default' : 'secondary'}
+                                        className="text-xs"
+                                    >
+                                        B12: {clientStock.B12.toLocaleString('fr-FR')}
+                                    </Badge>
                                 </div>
-                            )}
+                            </div>
                         </CardContent>
                     </Card>
                 );

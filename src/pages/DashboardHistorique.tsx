@@ -1935,7 +1935,25 @@ const DashboardHistorique = () => {
                 )}
               </div>
 
-
+              {/* Historique Stock - En développement */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between p-4 sm:p-6">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl sm:text-2xl font-bold text-muted-foreground">Historique Stock</h2>
+                    <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                      En développement
+                    </span>
+                  </div>
+                </div>
+                <div className="px-6 pb-6">
+                  <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    <div className="text-center space-y-2">
+                      <p className="text-lg font-medium">Fonctionnalité en cours de développement</p>
+                      <p className="text-sm">L'historique des mouvements de stock sera bientôt disponible.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Historique des ventes par mandataire MOVED TO DISTRIBUTION VIEW */}
 

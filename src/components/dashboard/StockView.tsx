@@ -1,11 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, TrendingUp, TrendingDown, Users } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Package, TrendingUp, TrendingDown, Users, CalendarIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { loadStockMovements } from '@/utils/stockStorage';
 import { StockMovement, STOCK_CLIENT_ORDER, STOCK_CLIENT_LABELS, StockClient } from '@/types/stock';
 
@@ -21,12 +31,37 @@ interface StockViewProps {
   availableMonths: string[];
 }
 
-export default function StockView(props: StockViewProps) {
+export default function StockView({
+  dateRange,
+  setDateRange,
+  filterType,
+  setFilterType,
+  selectedDate,
+  setSelectedDate,
+  selectedMonth,
+  setSelectedMonth,
+  availableMonths
+}: StockViewProps) {
   const navigate = useNavigate();
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // Mois en cours
+  // Années disponibles pour le filtre
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => currentYear - i);
+  }, []);
+
+  // Mois disponibles pour l'année sélectionnée
+  const monthOptions = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${selectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse();
+  }, [selectedYear]);
+
+  // Mois en cours (pour affichage par défaut)
   const currentMonth = useMemo(() => {
     const now = new Date();
     return {
@@ -47,9 +82,58 @@ export default function StockView(props: StockViewProps) {
     load();
   }, []);
 
+  // Label de la période filtrée
+  const filterLabel = useMemo(() => {
+    if (filterType === 'all') return 'Toutes périodes';
+    if (filterType === 'year') return `Année ${selectedYear}`;
+    if (filterType === 'month' && selectedMonth) {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      return format(new Date(y, m - 1, 1), 'MMMM yyyy', { locale: fr });
+    }
+    if (filterType === 'day' && selectedDate) {
+      return format(selectedDate, 'dd MMMM yyyy', { locale: fr });
+    }
+    if (filterType === 'period' && dateRange?.from) {
+      const from = format(dateRange.from, 'dd/MM/yyyy');
+      const to = dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : from;
+      return `${from} - ${to}`;
+    }
+    return currentMonth.label;
+  }, [filterType, selectedYear, selectedMonth, selectedDate, dateRange, currentMonth.label]);
+
   // Calculer les stats globales
   const stats = useMemo(() => {
-    // Stock actuel par client et type de bouteille
+    // Fonction pour vérifier si une date est dans la période filtrée
+    const isInFilterPeriod = (dateStr: string): boolean => {
+      const date = new Date(dateStr);
+      
+      if (filterType === 'all') return true;
+      
+      if (filterType === 'year') {
+        return date.getFullYear() === selectedYear;
+      }
+      
+      if (filterType === 'month' && selectedMonth) {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const start = new Date(y, m - 1, 1);
+        const end = new Date(y, m, 0);
+        return date >= start && date <= end;
+      }
+      
+      if (filterType === 'day' && selectedDate) {
+        return format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+      }
+      
+      if (filterType === 'period' && dateRange?.from) {
+        const from = dateRange.from;
+        const to = dateRange.to || dateRange.from;
+        return date >= from && date <= to;
+      }
+      
+      return true;
+    };
+
+    // Stock actuel par client et type de bouteille (toujours calculé sur tous les mouvements)
     const calculateStockForClientAndBottle = (client: StockClient, bottleType: 'B6' | 'B12') => {
       const filtered = movements
         .filter(m => m.client === client && m.bottle_type === bottleType)
@@ -72,15 +156,14 @@ export default function StockView(props: StockViewProps) {
       return stock;
     };
 
-    // Cumuls du mois par client
-    const calculateMonthCumulForClient = (client: StockClient) => {
-      const monthMovements = movements.filter(m => {
-        const date = new Date(m.date);
-        return m.client === client && date >= currentMonth.start && date <= currentMonth.end;
+    // Cumuls par client (filtrés par période)
+    const calculateCumulForClient = (client: StockClient) => {
+      const filteredMovements = movements.filter(m => {
+        return m.client === client && isInFilterPeriod(m.date);
       });
 
       let entreeB6 = 0, sortieB6 = 0, entreeB12 = 0, sortieB12 = 0;
-      monthMovements.forEach(m => {
+      filteredMovements.forEach(m => {
         if (m.bottle_type === 'B6') {
           if (m.movement_type === 'entree') entreeB6 += m.quantity;
           else if (m.movement_type === 'sortie') sortieB6 += m.quantity;
@@ -97,7 +180,7 @@ export default function StockView(props: StockViewProps) {
     const clientStats = STOCK_CLIENT_ORDER.map(client => {
       const stockB6 = calculateStockForClientAndBottle(client, 'B6');
       const stockB12 = calculateStockForClientAndBottle(client, 'B12');
-      const cumul = calculateMonthCumulForClient(client);
+      const cumul = calculateCumulForClient(client);
       return {
         client,
         label: STOCK_CLIENT_LABELS[client],
@@ -124,7 +207,7 @@ export default function StockView(props: StockViewProps) {
       totalEntreeB12,
       totalSortieB12
     };
-  }, [movements, currentMonth]);
+  }, [movements, filterType, selectedYear, selectedMonth, selectedDate, dateRange]);
 
   // Logos clients
   const clientLogos: Record<string, string> = {
@@ -135,18 +218,145 @@ export default function StockView(props: StockViewProps) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header avec bouton Saisie */}
-      <div className="flex items-center justify-between">
+      {/* Header avec filtres et bouton Saisie */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold">Module Stock</h2>
           <p className="text-sm text-muted-foreground mt-1 capitalize">
-            Données du mois de {currentMonth.label}
+            {filterLabel}
           </p>
         </div>
-        <Button onClick={() => navigate('/stock')}>
-          <Package className="mr-2 h-4 w-4" />
-          Saisie
-        </Button>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Filtre type de période */}
+          <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
+            <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes périodes</SelectItem>
+              <SelectItem value="year">Année</SelectItem>
+              <SelectItem value="month">Mois</SelectItem>
+              <SelectItem value="period">Période</SelectItem>
+              <SelectItem value="day">Jour</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Sélecteur d'année */}
+          {filterType === 'year' && (
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+              <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Sélecteur de mois */}
+          {filterType === 'month' && (
+            <>
+              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+                <SelectTrigger className="h-8 sm:h-9 w-[100px] text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="h-8 sm:h-9 w-[120px] text-xs sm:text-sm">
+                  <SelectValue placeholder="Mois" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((m) => {
+                    const [y, month] = m.split('-').map(Number);
+                    return (
+                      <SelectItem key={m} value={m}>
+                        {format(new Date(y, month - 1, 1), 'MMMM', { locale: fr })}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          {/* Sélecteur de jour */}
+          {filterType === 'day' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "h-8 sm:h-9 w-[140px] justify-start text-left font-normal text-xs sm:text-sm",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : "Choisir"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  locale={fr}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* Sélecteur de période */}
+          {filterType === 'period' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "h-8 sm:h-9 w-[200px] justify-start text-left font-normal text-xs sm:text-sm",
+                    !dateRange?.from && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, 'dd/MM/yy')} - {format(dateRange.to, 'dd/MM/yy')}
+                      </>
+                    ) : (
+                      format(dateRange.from, 'dd/MM/yyyy')
+                    )
+                  ) : (
+                    "Choisir période"
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  locale={fr}
+                  numberOfMonths={2}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          <Button onClick={() => navigate('/stock')}>
+            <Package className="mr-2 h-4 w-4" />
+            Saisie
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -165,7 +375,7 @@ export default function StockView(props: StockViewProps) {
             {/* Stock Total */}
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
               <div className="text-center mb-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Stock Théorique</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Stock Théorique actuel</p>
                 <div className="flex justify-center gap-8">
                   <div>
                     <p className="text-4xl font-extrabold text-blue-600 tracking-tight">
@@ -188,7 +398,7 @@ export default function StockView(props: StockViewProps) {
                   <div className="text-center mb-2">
                     <p className="text-xs text-muted-foreground uppercase font-bold flex items-center justify-center gap-1">
                       <TrendingUp className="h-3 w-3 text-green-600" />
-                      Cumul Entrées (mois)
+                      Cumul Entrées
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center text-sm">
@@ -206,7 +416,7 @@ export default function StockView(props: StockViewProps) {
                   <div className="text-center mb-2">
                     <p className="text-xs text-muted-foreground uppercase font-bold flex items-center justify-center gap-1">
                       <TrendingDown className="h-3 w-3 text-red-600" />
-                      Cumul Sorties (mois)
+                      Cumul Sorties
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center text-sm">

@@ -14,10 +14,9 @@ import { AlertTriangle } from 'lucide-react';
 import { StockEntryTable } from './StockEntryTable';
 import { SigmaStockIndicator } from './SigmaStockIndicator';
 import { StockMovement, StockCategory, StockClient, STOCK_CLIENT_LABELS, STOCK_CLIENT_ORDER, STOCK_CATEGORY_LABELS } from '@/types/stock';
-import { loadStockMovements, saveStockMovement, deleteStockMovement, getLinkedMovement, checkSigmaStockAvailable, decrementSigmaStock } from '@/utils/stockStorage';
+import { loadStockMovements, saveStockMovement, deleteStockMovement, getLinkedMovement, decrementSigmaStock } from '@/utils/stockStorage';
 import { useAudit } from '@/hooks/useAudit';
 import { toast } from 'sonner';
-import { AlertCircle } from 'lucide-react';
 
 interface StockStoreViewProps {
     category: StockCategory;
@@ -34,11 +33,6 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
     const [movementToDelete, setMovementToDelete] = useState<string | null>(null);
     const [linkedMovement, setLinkedMovement] = useState<StockMovement | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-
-    // État pour le modal d'avertissement stock SIGMA insuffisant
-    const [sigmaWarningOpen, setSigmaWarningOpen] = useState(false);
-    const [sigmaWarningMessage, setSigmaWarningMessage] = useState('');
-    const [sigmaCurrentStock, setSigmaCurrentStock] = useState(0);
 
     const loadData = async () => {
         setLoading(true);
@@ -58,27 +52,11 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
 
     const handleAddMovement = async (movementData: Omit<StockMovement, 'id' | 'created_at' | 'updated_at'>) => {
         try {
-            // Pour les entrées (sauf dans SIGMA), vérifier le stock SIGMA disponible
-            if (movementData.movement_type === 'entree' && category !== 'sigma' && movementData.client) {
-                const sigmaCheck = await checkSigmaStockAvailable(
-                    movementData.client,
-                    movementData.bottle_type,
-                    movementData.quantity
-                );
-
-                if (!sigmaCheck.available) {
-                    setSigmaWarningMessage(sigmaCheck.message || 'Stock SIGMA insuffisant');
-                    setSigmaCurrentStock(sigmaCheck.currentStock);
-                    setSigmaWarningOpen(true);
-                    return; // Ne pas enregistrer le mouvement
-                }
-            }
-
             const result = await saveStockMovement(movementData);
 
             if (result.success && result.data) {
-                // Décrémenter le stock SIGMA pour les entrées
-                if (movementData.movement_type === 'entree' && category !== 'sigma' && movementData.client) {
+                // Décrémenter le stock SIGMA pour les entrées dans Bouteilles Neuves uniquement
+                if (movementData.movement_type === 'entree' && category === 'bouteilles_neuves' && movementData.client) {
                     await decrementSigmaStock(
                         movementData.client,
                         movementData.bottle_type,
@@ -166,6 +144,11 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
 
     return (
         <div className="space-y-4">
+            {/* Indicateurs de stock SIGMA (visible uniquement dans l'onglet SIGMA) */}
+            {category === 'sigma' && (
+                <SigmaStockIndicator />
+            )}
+
             {/* Onglets clients */}
             <Tabs value={activeClient || 'PI'} onValueChange={(v) => setActiveClient(v as StockClient)}>
                 <TabsList className="bg-muted h-11 p-1 gap-1">
@@ -180,11 +163,6 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
                     ))}
                 </TabsList>
             </Tabs>
-
-            {/* Indicateur de stock SIGMA (visible uniquement dans l'onglet SIGMA) */}
-            {category === 'sigma' && (
-                <SigmaStockIndicator />
-            )}
 
             {/* Tableau de saisie */}
             <Card className="border shadow-sm">
@@ -268,41 +246,6 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
                                 Supprimer
                             </Button>
                         )}
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Modal d'avertissement stock SIGMA insuffisant */}
-            <Dialog open={sigmaWarningOpen} onOpenChange={setSigmaWarningOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-red-600">
-                            <AlertCircle className="h-5 w-5" />
-                            Stock SIGMA insuffisant
-                        </DialogTitle>
-                        <DialogDescription>
-                            <div className="space-y-3 mt-2">
-                                <p className="text-red-600 font-medium">
-                                    {sigmaWarningMessage}
-                                </p>
-                                <div className="bg-red-50 p-3 rounded-md border border-red-200">
-                                    <p className="text-sm">
-                                        <strong>Stock SIGMA actuel :</strong> {sigmaCurrentStock} bouteilles
-                                    </p>
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                    Veuillez configurer le stock SIGMA ou réduire la quantité demandée.
-                                </p>
-                            </div>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setSigmaWarningOpen(false)}
-                        >
-                            Fermer
-                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

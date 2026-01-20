@@ -1,10 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Save, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import { Save, Trash2, TrendingUp, TrendingDown, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -33,6 +39,7 @@ import {
   STOCK_CATEGORY_LABELS,
   BOTTLE_ORIGIN_LABELS,
 } from '@/types/stock';
+import { checkSigmaStockAvailable } from '@/utils/stockStorage';
 
 interface StockEntryTableProps {
   category: StockCategory;
@@ -88,10 +95,21 @@ export const StockEntryTable = ({
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // État pour le popup d'alerte stock SIGMA insuffisant
+  const [sigmaAlertOpen, setSigmaAlertOpen] = useState(false);
+  const [sigmaAlertMessages, setSigmaAlertMessages] = useState<string[]>([]);
+
   // Liste des magasins disponibles (exclure le magasin actuel)
   const availableWarehouses = useMemo(() => {
     return WAREHOUSE_LIST.filter(w => w !== category);
   }, [category]);
+
+  // Pour Bouteilles Neuves, définir SIGMA comme provenance par défaut pour les entrées
+  useEffect(() => {
+    if (category === 'bouteilles_neuves' && newType === 'entree') {
+      setNewWarehouse('sigma');
+    }
+  }, [category, newType]);
 
   // Mois en cours pour le filtrage du tableau
   const currentMonth = useMemo(() => {
@@ -278,13 +296,43 @@ export const StockEntryTable = ({
       return;
     }
 
+    const qtyB6 = parseInt(newQtyB6) || 0;
+    const qtyB12 = parseInt(newQtyB12) || 0;
+
+    // Pour les entrées dans Bouteilles Neuves, vérifier le stock SIGMA AVANT d'enregistrer
+    if (newType === 'entree' && category === 'bouteilles_neuves') {
+      const insufficientStock: string[] = [];
+      
+      // Vérifier B6 si nécessaire
+      if (hasB6 && qtyB6 > 0) {
+        const checkB6 = await checkSigmaStockAvailable(client, 'B6', qtyB6);
+        if (!checkB6.available) {
+          insufficientStock.push(`B6: demandé ${qtyB6.toLocaleString('fr-FR')}, disponible ${checkB6.currentStock.toLocaleString('fr-FR')}`);
+        }
+      }
+      
+      // Vérifier B12 si nécessaire
+      if (hasB12 && qtyB12 > 0) {
+        const checkB12 = await checkSigmaStockAvailable(client, 'B12', qtyB12);
+        if (!checkB12.available) {
+          insufficientStock.push(`B12: demandé ${qtyB12.toLocaleString('fr-FR')}, disponible ${checkB12.currentStock.toLocaleString('fr-FR')}`);
+        }
+      }
+      
+      // Si stock insuffisant pour B6 et/ou B12, bloquer l'enregistrement
+      if (insufficientStock.length > 0) {
+        setSigmaAlertMessages(insufficientStock);
+        setSigmaAlertOpen(true);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const promises: Promise<void>[] = [];
 
       // Mouvement B6
       if (hasB6) {
-        const qtyB6 = parseInt(newQtyB6) || 0;
         const invB6 = parseInt(newInvB6) || 0;
 
         const movementB6: Omit<StockMovement, 'id' | 'created_at' | 'updated_at'> = {
@@ -310,7 +358,6 @@ export const StockEntryTable = ({
 
       // Mouvement B12
       if (hasB12) {
-        const qtyB12 = parseInt(newQtyB12) || 0;
         const invB12 = parseInt(newInvB12) || 0;
 
         const movementB12: Omit<StockMovement, 'id' | 'created_at' | 'updated_at'> = {
@@ -344,9 +391,12 @@ export const StockEntryTable = ({
       setNewQtyB12('');
       setNewInvB12('');
       toast.success('Mouvement(s) enregistré(s)');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Erreur lors de l\'enregistrement');
+      // Ne pas afficher de toast si c'est une erreur SIGMA (le modal s'affiche déjà)
+      if (error?.message !== 'SIGMA_INSUFFICIENT') {
+        toast.error('Erreur lors de l\'enregistrement');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -364,55 +414,57 @@ export const StockEntryTable = ({
 
   return (
     <div className="space-y-4">
-      {/* Bandeau récapitulatif */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* B6 */}
-        <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-bold text-blue-800">B6</h3>
-            <div className="text-right">
-              <div className="text-xs text-muted-foreground">Stock Théorique Actuel</div>
-              <div className="text-2xl font-bold text-blue-700">{currentStockB6.toLocaleString('fr-FR')}</div>
+      {/* Bandeau récapitulatif (masqué pour SIGMA car les indicateurs sont déjà en haut) */}
+      {category !== 'sigma' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* B6 */}
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-blue-800">B6</h3>
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground">Stock Théorique Actuel</div>
+                <div className="text-2xl font-bold text-blue-700">{currentStockB6.toLocaleString('fr-FR')}</div>
+              </div>
+            </div>
+            <div className="flex gap-4 text-sm pt-2 border-t border-blue-200">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-muted-foreground">Cumul Entrée:</span>
+                <span className="font-semibold text-green-600">+{cumulEntreeB6.toLocaleString('fr-FR')}</span>
+              </div>
+              <div className="w-px bg-blue-300 mx-2"></div>
+              <div className="flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-red-600" />
+                <span className="text-muted-foreground">Cumul Sortie:</span>
+                <span className="font-semibold text-red-600">-{cumulSortieB6.toLocaleString('fr-FR')}</span>
+              </div>
             </div>
           </div>
-          <div className="flex gap-4 text-sm pt-2 border-t border-blue-200">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-muted-foreground">Cumul Entrée:</span>
-              <span className="font-semibold text-green-600">+{cumulEntreeB6.toLocaleString('fr-FR')}</span>
+          {/* B12 */}
+          <div className="p-4 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-lg border border-emerald-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-emerald-800">B12</h3>
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground">Stock Théorique Actuel</div>
+                <div className="text-2xl font-bold text-emerald-700">{currentStockB12.toLocaleString('fr-FR')}</div>
+              </div>
             </div>
-            <div className="w-px bg-blue-300 mx-2"></div>
-            <div className="flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" />
-              <span className="text-muted-foreground">Cumul Sortie:</span>
-              <span className="font-semibold text-red-600">-{cumulSortieB6.toLocaleString('fr-FR')}</span>
+            <div className="flex gap-4 text-sm pt-2 border-t border-emerald-200">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-muted-foreground">Cumul Entrée:</span>
+                <span className="font-semibold text-green-600">+{cumulEntreeB12.toLocaleString('fr-FR')}</span>
+              </div>
+              <div className="w-px bg-emerald-300 mx-2"></div>
+              <div className="flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-red-600" />
+                <span className="text-muted-foreground">Cumul Sortie:</span>
+                <span className="font-semibold text-red-600">-{cumulSortieB12.toLocaleString('fr-FR')}</span>
+              </div>
             </div>
           </div>
         </div>
-        {/* B12 */}
-        <div className="p-4 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-lg border border-emerald-200">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-bold text-emerald-800">B12</h3>
-            <div className="text-right">
-              <div className="text-xs text-muted-foreground">Stock Théorique Actuel</div>
-              <div className="text-2xl font-bold text-emerald-700">{currentStockB12.toLocaleString('fr-FR')}</div>
-            </div>
-          </div>
-          <div className="flex gap-4 text-sm pt-2 border-t border-emerald-200">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-muted-foreground">Cumul Entrée:</span>
-              <span className="font-semibold text-green-600">+{cumulEntreeB12.toLocaleString('fr-FR')}</span>
-            </div>
-            <div className="w-px bg-emerald-300 mx-2"></div>
-            <div className="flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" />
-              <span className="text-muted-foreground">Cumul Sortie:</span>
-              <span className="font-semibold text-red-600">-{cumulSortieB12.toLocaleString('fr-FR')}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Titre du mois */}
       <div className="flex items-center justify-between">
@@ -684,6 +736,44 @@ export const StockEntryTable = ({
           </TableBody>
         </Table>
       </div>
+
+      {/* Popup d'alerte stock SIGMA insuffisant */}
+      <Dialog open={sigmaAlertOpen} onOpenChange={setSigmaAlertOpen}>
+        <DialogContent className="sm:max-w-md border-red-500 border-2">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600 text-lg">
+              <AlertCircle className="h-6 w-6" />
+              Stock SIGMA insuffisant
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 font-medium mb-3">
+                Impossible d'enregistrer ce mouvement. Le stock SIGMA est insuffisant :
+              </p>
+              <ul className="space-y-2">
+                {sigmaAlertMessages.map((msg, i) => (
+                  <li key={i} className="flex items-center gap-2 text-red-700">
+                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span className="font-semibold">{msg}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Veuillez d'abord enregistrer une entrée dans SIGMA ou réduire la quantité demandée.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant="destructive"
+              onClick={() => setSigmaAlertOpen(false)}
+            >
+              Fermer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -12,10 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Edit, Plus, Upload, List } from 'lucide-react';
+import { Edit, Plus, Upload, List, Loader2 } from 'lucide-react';
 import { useAudit } from "@/hooks/useAudit";
 import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
 import { supabase } from "@/integrations/supabase/client";
+import PasswordGate from "@/components/PasswordGate";
 
 const NewBilan = () => {
   const [entries, setEntries] = useState<BilanEntry[]>([]);
@@ -23,10 +24,32 @@ const NewBilan = () => {
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [activeTab, setActiveTab] = useState('new');
   const { logAction } = useAudit();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // Vérification de l'authentification (mêmes 3 accès que le dashboard)
+  useEffect(() => {
+    const checkAuth = async () => {
+      // 1. Check Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // 2. Check Local Storage (LoginDialog - propriétaire)
+      const localAuth = localStorage.getItem("isAuthenticated") === "true";
+      
+      // 3. Check Session Storage (PasswordGate)
+      const sessionAuth = sessionStorage.getItem("dashboard_authenticated") === "true";
+      
+      const authorized = !!session || localAuth || sessionAuth;
+      setIsAuthenticated(authorized);
+    };
+    
+    checkAuth();
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
 
   const loadData = async () => {
     setLoading(true);
@@ -139,6 +162,20 @@ const NewBilan = () => {
       (hasCondTotal && !hasCondDetails) ||
       (hasFuyardesTotal && !hasFuyardesDetails);
   };
+
+  // Afficher un loader pendant la vérification d'authentification
+  if (isAuthenticated === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Afficher le formulaire de mot de passe si non authentifié
+  if (!isAuthenticated) {
+    return <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-background">

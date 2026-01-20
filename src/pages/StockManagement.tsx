@@ -1,34 +1,19 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
 import { StockStoreView } from '@/components/stock/StockStoreView';
-import { SigmaStockConfigModal } from '@/components/stock/SigmaStockConfigModal';
 import {
   STOCK_CATEGORY_LABELS,
-  StockCategory,
   WAREHOUSE_LIST
 } from '@/types/stock';
 
 const StockManagement = () => {
   const [activeCategory, setActiveCategory] = useState<string>('bouteilles_neuves');
-  const [sigmaConfigOpen, setSigmaConfigOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-primary">Saisie stock</h1>
-          {activeCategory === 'sigma' && (
-            <Button
-              variant="outline"
-              onClick={() => setSigmaConfigOpen(true)}
-              className="gap-2"
-            >
-              <Settings className="h-4 w-4" />
-              Config. SIGMA
-            </Button>
-          )}
         </div>
       </header>
 
@@ -66,12 +51,6 @@ const StockManagement = () => {
           ))}
         </Tabs>
       </main>
-
-      {/* Modal de configuration SIGMA */}
-      <SigmaStockConfigModal
-        open={sigmaConfigOpen}
-        onOpenChange={setSigmaConfigOpen}
-      />
     </div>
   );
 };
