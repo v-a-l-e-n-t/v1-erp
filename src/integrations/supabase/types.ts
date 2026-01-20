@@ -753,7 +753,6 @@ export type Database = {
       }
       sigma_stock: {
         Row: {
-          bottle_origin: string
           bottle_type: string
           client: string
           created_at: string
@@ -764,7 +763,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          bottle_origin: string
           bottle_type: string
           client: string
           created_at?: string
@@ -775,7 +773,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          bottle_origin?: string
           bottle_type?: string
           client?: string
           created_at?: string
