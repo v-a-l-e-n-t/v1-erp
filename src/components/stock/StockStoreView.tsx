@@ -185,7 +185,7 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
 
             {/* Dialogue de confirmation de suppression */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="max-w-[95vw] sm:max-w-xl md:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -212,39 +212,55 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
                             )}
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="flex-col sm:flex-row gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setDeleteDialogOpen(false)}
-                            disabled={isDeleting}
-                        >
-                            Annuler
-                        </Button>
+                    <DialogFooter className="flex-col gap-2 sm:gap-3">
                         {linkedMovement ? (
                             <>
+                                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handleDeleteSingle}
+                                        disabled={isDeleting}
+                                        className="flex-1 text-xs sm:text-sm"
+                                    >
+                                        Supprimer ce mouvement uniquement
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={handleDeleteBoth}
+                                        disabled={isDeleting}
+                                        className="flex-1 text-xs sm:text-sm"
+                                    >
+                                        Supprimer les 2 mouvements
+                                    </Button>
+                                </div>
                                 <Button
-                                    variant="secondary"
-                                    onClick={handleDeleteSingle}
+                                    variant="outline"
+                                    onClick={() => setDeleteDialogOpen(false)}
                                     disabled={isDeleting}
+                                    className="w-full"
                                 >
-                                    Supprimer ce mouvement uniquement
+                                    Annuler
+                                </Button>
+                            </>
+                        ) : (
+                            <div className="flex flex-col sm:flex-row gap-2 w-full">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setDeleteDialogOpen(false)}
+                                    disabled={isDeleting}
+                                    className="flex-1"
+                                >
+                                    Annuler
                                 </Button>
                                 <Button
                                     variant="destructive"
                                     onClick={handleDeleteBoth}
                                     disabled={isDeleting}
+                                    className="flex-1"
                                 >
-                                    Supprimer les 2 mouvements
+                                    Supprimer
                                 </Button>
-                            </>
-                        ) : (
-                            <Button
-                                variant="destructive"
-                                onClick={handleDeleteBoth}
-                                disabled={isDeleting}
-                            >
-                                Supprimer
-                            </Button>
+                            </div>
                         )}
                     </DialogFooter>
                 </DialogContent>
