@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import { AlertTriangle } from 'lucide-react';
 import { StockEntryTable } from './StockEntryTable';
-import { StockMovement, StockCategory, StockClient, STOCK_CLIENT_LABELS, STOCK_CLIENT_ORDER, STOCK_CATEGORY_LABELS, BottleOrigin, BOTTLE_ORIGIN_LABELS } from '@/types/stock';
+import { SigmaStockIndicator } from './SigmaStockIndicator';
+import { StockMovement, StockCategory, StockClient, STOCK_CLIENT_LABELS, STOCK_CLIENT_ORDER, STOCK_CATEGORY_LABELS } from '@/types/stock';
 import { loadStockMovements, saveStockMovement, deleteStockMovement, getLinkedMovement, checkSigmaStockAvailable, decrementSigmaStock } from '@/utils/stockStorage';
 import { useAudit } from '@/hooks/useAudit';
 import { toast } from 'sonner';
@@ -179,6 +180,11 @@ export const StockStoreView = ({ category }: StockStoreViewProps) => {
                     ))}
                 </TabsList>
             </Tabs>
+
+            {/* Indicateur de stock SIGMA (visible uniquement dans l'onglet SIGMA) */}
+            {category === 'sigma' && (
+                <SigmaStockIndicator />
+            )}
 
             {/* Tableau de saisie */}
             <Card className="border shadow-sm">

@@ -512,8 +512,7 @@ export async function loadSigmaStocks(): Promise<SigmaStock[]> {
       .from('sigma_stock')
       .select('*')
       .order('client')
-      .order('bottle_type')
-      .order('bottle_origin');
+      .order('bottle_type');
 
     if (error) throw error;
     return (data || []) as SigmaStock[];
