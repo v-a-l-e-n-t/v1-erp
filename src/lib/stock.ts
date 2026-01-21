@@ -30,7 +30,7 @@ export async function getSigmaStocks(): Promise<SigmaStock[]> {
     .order('bottle_type');
 
   if (error) throw error;
-  return (data || []) as unknown as SigmaStock[];
+  return (data || []) as SigmaStock[];
 }
 
 export async function getSigmaStock(
@@ -73,7 +73,7 @@ export async function updateSigmaStock(
         client,
         bottle_type: bottleType,
         current_stock: quantity,
-      } as Record<string, unknown>);
+      });
     if (error) throw error;
   }
 }
@@ -90,7 +90,7 @@ export async function canReduceSigmaStock(
   });
 
   if (error) throw error;
-  return data as CanReduceSigmaResult;
+  return data as unknown as CanReduceSigmaResult;
 }
 
 // =============================================
@@ -150,7 +150,7 @@ export async function createStockMovement(
   });
 
   if (error) throw error;
-  return data as CreateMovementResult;
+  return data as unknown as CreateMovementResult;
 }
 
 export async function updateStockMovement(
@@ -173,7 +173,7 @@ export async function updateStockMovement(
   });
 
   if (error) throw error;
-  return data as CreateMovementResult;
+  return data as unknown as CreateMovementResult;
 }
 
 export async function deleteStockMovement(
@@ -184,7 +184,7 @@ export async function deleteStockMovement(
   });
 
   if (error) throw error;
-  return data as DeleteMovementResult;
+  return data as unknown as DeleteMovementResult;
 }
 
 // =============================================
@@ -208,12 +208,12 @@ export async function createInventory(
       quantity_b6: quantityB6,
       quantity_b12: quantityB12,
       notes: notes || null,
-    } as Record<string, unknown>)
+    })
     .select()
     .single();
 
   if (error) throw error;
-  return data as unknown as StockInventory;
+  return data as StockInventory;
 }
 
 export async function getLastInventory(
@@ -230,7 +230,7 @@ export async function getLastInventory(
     .single();
 
   if (error && error.code !== 'PGRST116') throw error;
-  return data as unknown as StockInventory | null;
+  return data as StockInventory | null;
 }
 
 // =============================================
@@ -266,8 +266,8 @@ export async function getTheoreticalStock(
   return {
     warehouse,
     client,
-    b6: b6Data ?? 0,
-    b12: b12Data ?? 0,
+    b6: (b6Data as number) ?? 0,
+    b12: (b12Data as number) ?? 0,
   };
 }
 
