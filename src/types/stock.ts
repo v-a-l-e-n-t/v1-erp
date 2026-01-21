@@ -193,3 +193,22 @@ export const STOCK_STATUS_TEXT_COLORS: Record<StockStatus, string> = {
   low: 'text-orange-600',
   empty: 'text-red-600',
 };
+
+// Client colors (PI = blue-violet, TOTAL = red, VIVO = green)
+export const CLIENT_COLORS: Record<StockClientType, { bg: string; border: string; text: string }> = {
+  petro_ivoire: {
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-400',
+    text: 'text-indigo-700',
+  },
+  total_energies: {
+    bg: 'bg-red-50',
+    border: 'border-red-400',
+    text: 'text-red-700',
+  },
+  vivo_energy: {
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-400',
+    text: 'text-emerald-700',
+  },
+};

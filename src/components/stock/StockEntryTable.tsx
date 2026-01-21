@@ -53,6 +53,7 @@ import {
   WarehouseType,
   StockClientType,
   StockMovement,
+  StockInventory,
   MovementType,
   BottleOrigin,
   TheoreticalStock,
@@ -67,6 +68,7 @@ import {
   updateStockMovement,
   deleteStockMovement,
   getTheoreticalStock,
+  getLastInventory,
 } from '@/lib/stock';
 import { formatNumber, validateMovementQuantities } from '@/lib/stockCalculations';
 
@@ -88,6 +90,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
   const [currentPage, setCurrentPage] = useState(0);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [theoreticalStock, setTheoreticalStock] = useState<TheoreticalStock | null>(null);
+  const [lastInventory, setLastInventory] = useState<StockInventory | null>(null);
 
   const [formData, setFormData] = useState({
     movement_type: 'entree' as MovementType,
@@ -118,7 +121,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      const [movementsData, stockData] = await Promise.all([
+      const [movementsData, stockData, inventoryData] = await Promise.all([
         getStockMovements(
           warehouse,
           client,
@@ -127,11 +130,13 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
           currentPage * ITEMS_PER_PAGE
         ),
         getTheoreticalStock(warehouse, client),
+        getLastInventory(warehouse, client),
       ]);
 
       setMovements(movementsData.movements);
       setTotalCount(movementsData.totalCount);
       setTheoreticalStock(stockData);
+      setLastInventory(inventoryData);
     } catch (error) {
       console.error('Error loading movements:', error);
       toast({
@@ -373,6 +378,23 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
     );
   };
 
+  const renderGap = (gap: number) => {
+    if (gap === 0) {
+      return <span className="text-muted-foreground font-mono">0</span>;
+    }
+    if (gap > 0) {
+      return <span className="text-red-600 font-mono font-semibold">-{formatNumber(gap)}</span>;
+    }
+    return <span className="text-green-600 font-mono font-semibold">+{formatNumber(Math.abs(gap))}</span>;
+  };
+
+  const b6Gap = theoreticalStock && lastInventory 
+    ? theoreticalStock.b6 - lastInventory.quantity_b6 
+    : 0;
+  const b12Gap = theoreticalStock && lastInventory 
+    ? theoreticalStock.b12 - lastInventory.quantity_b12 
+    : 0;
+
   if (loading && movements.length === 0) {
     return (
       <div className="space-y-4">
@@ -565,7 +587,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
 
       {/* Movements Table */}
       <Card>
-        <CardContent className="pt-4">
+        <CardContent className="pt-4 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -573,76 +595,105 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
                 <TableHead>Type</TableHead>
                 <TableHead>N° Bon</TableHead>
                 <TableHead>Origine/Dest.</TableHead>
-                <TableHead className="text-right">B6</TableHead>
-                <TableHead className="text-right">B12</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
+                <TableHead className="text-right bg-primary/5">B6 Qté</TableHead>
+                <TableHead className="text-right bg-primary/5">B6 Stock</TableHead>
+                <TableHead className="text-right bg-primary/5">B6 Inv</TableHead>
+                <TableHead className="text-right bg-primary/5">Écart B6</TableHead>
+                <TableHead className="text-right bg-amber-50">B12 Qté</TableHead>
+                <TableHead className="text-right bg-amber-50">B12 Stock</TableHead>
+                <TableHead className="text-right bg-amber-50">B12 Inv</TableHead>
+                <TableHead className="text-right bg-amber-50">Écart B12</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {movements.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
                     Aucun mouvement pour ce mois
                   </TableCell>
                 </TableRow>
               ) : (
-                movements.map((movement) => (
-                  <TableRow key={movement.id}>
-                    <TableCell>
-                      {format(parseISO(movement.movement_date), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell>{getMovementTypeBadge(movement.movement_type)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {movement.bon_number || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {movement.origin && (
-                        <Badge variant="outline" className="text-xs">
-                          {BOTTLE_ORIGIN_LABELS[movement.origin]}
-                        </Badge>
-                      )}
-                      {movement.destination_warehouse && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <ArrowRightLeft className="w-3 h-3" />
-                          {WAREHOUSE_LABELS[movement.destination_warehouse]}
+                movements.map((movement) => {
+                  const isInventory = movement.movement_type === 'inventaire';
+                  return (
+                    <TableRow key={movement.id} className={isInventory ? 'bg-slate-50' : ''}>
+                      <TableCell>
+                        {format(parseISO(movement.movement_date), 'dd/MM/yyyy')}
+                      </TableCell>
+                      <TableCell>{getMovementTypeBadge(movement.movement_type)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {movement.bon_number || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {movement.origin && (
+                          <Badge variant="outline" className="text-xs">
+                            {BOTTLE_ORIGIN_LABELS[movement.origin]}
+                          </Badge>
+                        )}
+                        {movement.destination_warehouse && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <ArrowRightLeft className="w-3 h-3" />
+                            {WAREHOUSE_LABELS[movement.destination_warehouse]}
+                          </div>
+                        )}
+                        {movement.source_warehouse && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <ArrowRightLeft className="w-3 h-3" />
+                            De: {WAREHOUSE_LABELS[movement.source_warehouse]}
+                          </div>
+                        )}
+                        {!movement.origin && !movement.destination_warehouse && !movement.source_warehouse && '-'}
+                      </TableCell>
+                      {/* B6 Columns */}
+                      <TableCell className="text-right font-mono bg-primary/5">
+                        {isInventory ? '-' : formatNumber(movement.quantity_b6)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono bg-primary/5">
+                        {theoreticalStock ? formatNumber(theoreticalStock.b6) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono bg-primary/5">
+                        {isInventory ? formatNumber(movement.quantity_b6) : (lastInventory ? formatNumber(lastInventory.quantity_b6) : '-')}
+                      </TableCell>
+                      <TableCell className="text-right bg-primary/5">
+                        {isInventory ? renderGap(theoreticalStock ? theoreticalStock.b6 - movement.quantity_b6 : 0) : (lastInventory ? renderGap(b6Gap) : '-')}
+                      </TableCell>
+                      {/* B12 Columns */}
+                      <TableCell className="text-right font-mono bg-amber-50">
+                        {isInventory ? '-' : formatNumber(movement.quantity_b12)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono bg-amber-50">
+                        {theoreticalStock ? formatNumber(theoreticalStock.b12) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono bg-amber-50">
+                        {isInventory ? formatNumber(movement.quantity_b12) : (lastInventory ? formatNumber(lastInventory.quantity_b12) : '-')}
+                      </TableCell>
+                      <TableCell className="text-right bg-amber-50">
+                        {isInventory ? renderGap(theoreticalStock ? theoreticalStock.b12 - movement.quantity_b12 : 0) : (lastInventory ? renderGap(b12Gap) : '-')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditClick(movement)}
+                            disabled={loading}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(movement)}
+                            disabled={loading}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
                         </div>
-                      )}
-                      {movement.source_warehouse && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <ArrowRightLeft className="w-3 h-3" />
-                          De: {WAREHOUSE_LABELS[movement.source_warehouse]}
-                        </div>
-                      )}
-                      {!movement.origin && !movement.destination_warehouse && !movement.source_warehouse && '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatNumber(movement.quantity_b6)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatNumber(movement.quantity_b12)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditClick(movement)}
-                          disabled={loading}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(movement)}
-                          disabled={loading}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
