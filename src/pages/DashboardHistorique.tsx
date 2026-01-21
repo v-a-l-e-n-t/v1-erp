@@ -34,7 +34,6 @@ import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory,
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
 import ReceptionsView from '@/components/dashboard/ReceptionsView';
 import ReceptionsHistoryTable from '@/components/dashboard/ReceptionsHistoryTable';
-import StockView from '@/components/dashboard/StockView';
 
 // Helper function to format numbers with decimals only if significant
 const formatNumberWithDecimals = (value: number): string => {
@@ -1373,20 +1372,6 @@ const DashboardHistorique = () => {
 
           {activeView === 'receptions' && (
             <ReceptionsView
-              dateRange={dateRange}
-              setDateRange={setDateRange}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              selectedMonth={selectedMonth}
-              setSelectedMonth={setSelectedMonth}
-              availableMonths={availableMonths}
-            />
-          )}
-
-          {activeView === 'stock' && (
-            <StockView
               dateRange={dateRange}
               setDateRange={setDateRange}
               filterType={filterType}
