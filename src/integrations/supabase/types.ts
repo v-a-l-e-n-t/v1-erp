@@ -1356,7 +1356,7 @@ export type Database = {
         | "probleme_approvisionnement"
         | "panne_ligne"
         | "autre"
-      bottle_origin: "fabrique" | "requalifie"
+      bottle_origin: "fabrique" | "requalifie" | "ventes"
       bottle_type: "B6" | "B12"
       etape_ligne:
         | "BASCULES"
@@ -1514,7 +1514,7 @@ export const Constants = {
         "panne_ligne",
         "autre",
       ],
-      bottle_origin: ["fabrique", "requalifie"],
+      bottle_origin: ["fabrique", "requalifie", "ventes"],
       bottle_type: ["B6", "B12"],
       etape_ligne: [
         "BASCULES",
