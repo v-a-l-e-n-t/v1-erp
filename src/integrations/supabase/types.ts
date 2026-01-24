@@ -781,6 +781,45 @@ export type Database = {
         }
         Relationships: []
       }
+      sigma_stock_history: {
+        Row: {
+          bottle_type: Database["public"]["Enums"]["bottle_type"]
+          change_amount: number
+          change_type: string
+          client: Database["public"]["Enums"]["stock_client_type"]
+          created_at: string | null
+          created_by: string | null
+          id: string
+          new_stock: number
+          notes: string | null
+          previous_stock: number
+        }
+        Insert: {
+          bottle_type: Database["public"]["Enums"]["bottle_type"]
+          change_amount?: number
+          change_type: string
+          client: Database["public"]["Enums"]["stock_client_type"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_stock?: number
+          notes?: string | null
+          previous_stock?: number
+        }
+        Update: {
+          bottle_type?: Database["public"]["Enums"]["bottle_type"]
+          change_amount?: number
+          change_type?: string
+          client?: Database["public"]["Enums"]["stock_client_type"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_stock?: number
+          notes?: string | null
+          previous_stock?: number
+        }
+        Relationships: []
+      }
       sphere_calculations: {
         Row: {
           calculation_date: string
@@ -1294,6 +1333,24 @@ export type Database = {
         }
         Returns: number
       }
+      get_sigma_stock_history: {
+        Args: {
+          p_client?: Database["public"]["Enums"]["stock_client_type"]
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          bottle_type: Database["public"]["Enums"]["bottle_type"]
+          change_amount: number
+          change_type: string
+          client: Database["public"]["Enums"]["stock_client_type"]
+          created_at: string
+          id: string
+          new_stock: number
+          notes: string
+          previous_stock: number
+        }[]
+      }
       get_stock_movements_paginated: {
         Args: {
           p_client: Database["public"]["Enums"]["stock_client_type"]
@@ -1334,6 +1391,16 @@ export type Database = {
           p_quantity: number
         }
         Returns: boolean
+      }
+      update_sigma_stock_with_history: {
+        Args: {
+          p_bottle_type: Database["public"]["Enums"]["bottle_type"]
+          p_change_type?: string
+          p_client: Database["public"]["Enums"]["stock_client_type"]
+          p_new_quantity: number
+          p_notes?: string
+        }
+        Returns: Json
       }
       update_stock_movement: {
         Args: {
