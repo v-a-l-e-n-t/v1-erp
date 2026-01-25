@@ -9,7 +9,7 @@ export type WarehouseType =
   | 'stock_outils'
   | 'bouteilles_hs'
   | 'reconfiguration'
-  | 'sigma';
+  | 'depot_lub';
 
 export type StockClientType = 
   | 'petro_ivoire'
@@ -20,7 +20,7 @@ export type BottleType = 'B6' | 'B12';
 
 export type MovementType = 'entree' | 'sortie' | 'inventaire';
 
-export type BottleOrigin = 'fabrique' | 'requalifie';
+export type BottleOrigin = 'fabrique' | 'requalifie' | 'ventes';
 
 // Labels for display
 export const WAREHOUSE_LABELS: Record<WarehouseType, string> = {
@@ -29,7 +29,7 @@ export const WAREHOUSE_LABELS: Record<WarehouseType, string> = {
   stock_outils: 'Stock Outils - CE',
   bouteilles_hs: 'Bouteilles HS - DV',
   reconfiguration: 'Reconfiguration - DV',
-  sigma: 'SIGMA',
+  depot_lub: 'Dépôt LUB',
 };
 
 export const CLIENT_LABELS: Record<StockClientType, string> = {
@@ -53,9 +53,10 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
 export const BOTTLE_ORIGIN_LABELS: Record<BottleOrigin, string> = {
   fabrique: 'Fabriqué',
   requalifie: 'Requalifié',
+  ventes: 'Ventes',
 };
 
-// Warehouses list (excluding SIGMA for inter-warehouse transfers)
+// Warehouses list (excluding Dépôt LUB for inter-warehouse transfers)
 export const INTER_WAREHOUSE_LIST: WarehouseType[] = [
   'bouteilles_neuves',
   'consignes',
@@ -66,7 +67,7 @@ export const INTER_WAREHOUSE_LIST: WarehouseType[] = [
 
 export const ALL_WAREHOUSES: WarehouseType[] = [
   ...INTER_WAREHOUSE_LIST,
-  'sigma',
+  'depot_lub',
 ];
 
 export const ALL_CLIENTS: StockClientType[] = [
@@ -78,7 +79,7 @@ export const ALL_CLIENTS: StockClientType[] = [
 export const ALL_BOTTLE_TYPES: BottleType[] = ['B6', 'B12'];
 
 // Database row types
-export interface SigmaStock {
+export interface DepotLubStock {
   id: string;
   client: StockClientType;
   bottle_type: BottleType;
@@ -87,6 +88,9 @@ export interface SigmaStock {
   created_at: string;
   updated_at: string;
 }
+
+// Keep SigmaStock as alias for backward compatibility
+export type SigmaStock = DepotLubStock;
 
 export interface StockMovement {
   id: string;
@@ -103,7 +107,7 @@ export interface StockMovement {
   linked_movement_id: string | null;
   notes: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   created_by: string | null;
 }
 
@@ -128,14 +132,18 @@ export interface StockMovementFormData {
   quantity_b6: number;
   quantity_b12: number;
   destination_warehouse?: WarehouseType;
+  source_warehouse?: WarehouseType;
   notes?: string;
 }
 
-export interface SigmaStockFormData {
+export interface DepotLubStockFormData {
   client: StockClientType;
   bottle_type: BottleType;
   quantity: number;
 }
+
+// Keep SigmaStockFormData as alias for backward compatibility
+export type SigmaStockFormData = DepotLubStockFormData;
 
 // API response types
 export interface CreateMovementResult {
@@ -158,12 +166,15 @@ export interface DeleteMovementResult {
   deleted_linked_id?: string;
 }
 
-export interface CanReduceSigmaResult {
+export interface CanReduceDepotLubResult {
   can_reduce: boolean;
   error?: string;
   total_used?: number;
   requested?: number;
 }
+
+// Keep CanReduceSigmaResult as alias for backward compatibility
+export type CanReduceSigmaResult = CanReduceDepotLubResult;
 
 // Theoretical stock
 export interface TheoreticalStock {

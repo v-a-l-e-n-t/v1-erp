@@ -16,10 +16,10 @@ import { SigmaDashboard, StockEntryTable } from '@/components/stock';
 
 const Stock: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseType>('sigma');
+  const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseType>('depot_lub');
   const [selectedClient, setSelectedClient] = useState<StockClientType>('petro_ivoire');
 
-  const allWarehouses: WarehouseType[] = ['sigma', ...INTER_WAREHOUSE_LIST];
+  const allWarehouses: WarehouseType[] = ['depot_lub', ...INTER_WAREHOUSE_LIST];
   const allClients: StockClientType[] = ['petro_ivoire', 'total_energies', 'vivo_energy'];
 
   return (
@@ -73,8 +73,8 @@ const Stock: React.FC = () => {
             ))}
           </TabsList>
 
-          {/* SIGMA Tab Content */}
-          <TabsContent value="sigma" className="mt-6">
+          {/* Dépôt LUB Tab Content */}
+          <TabsContent value="depot_lub" className="mt-6">
             <SigmaDashboard />
           </TabsContent>
 

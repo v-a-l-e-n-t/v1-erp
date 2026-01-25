@@ -381,6 +381,75 @@ export type Database = {
         }
         Relationships: []
       }
+      depot_lub_stock: {
+        Row: {
+          alert_threshold: number | null
+          bottle_type: Database["public"]["Enums"]["bottle_type"]
+          client: Database["public"]["Enums"]["stock_client_type"]
+          created_at: string | null
+          current_stock: number
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          alert_threshold?: number | null
+          bottle_type: Database["public"]["Enums"]["bottle_type"]
+          client: Database["public"]["Enums"]["stock_client_type"]
+          created_at?: string | null
+          current_stock?: number
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          alert_threshold?: number | null
+          bottle_type?: Database["public"]["Enums"]["bottle_type"]
+          client?: Database["public"]["Enums"]["stock_client_type"]
+          created_at?: string | null
+          current_stock?: number
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      depot_lub_stock_history: {
+        Row: {
+          bottle_type: Database["public"]["Enums"]["bottle_type"]
+          change_amount: number
+          change_type: string
+          client: Database["public"]["Enums"]["stock_client_type"]
+          created_at: string | null
+          created_by: string | null
+          id: string
+          new_stock: number
+          notes: string | null
+          previous_stock: number
+        }
+        Insert: {
+          bottle_type: Database["public"]["Enums"]["bottle_type"]
+          change_amount?: number
+          change_type: string
+          client: Database["public"]["Enums"]["stock_client_type"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_stock?: number
+          notes?: string | null
+          previous_stock?: number
+        }
+        Update: {
+          bottle_type?: Database["public"]["Enums"]["bottle_type"]
+          change_amount?: number
+          change_type?: string
+          client?: Database["public"]["Enums"]["stock_client_type"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_stock?: number
+          notes?: string | null
+          previous_stock?: number
+        }
+        Relationships: []
+      }
       destinations_geolocation: {
         Row: {
           created_at: string
@@ -748,75 +817,6 @@ export type Database = {
           date?: string
           id?: string
           poids_kg?: number
-        }
-        Relationships: []
-      }
-      sigma_stock: {
-        Row: {
-          alert_threshold: number | null
-          bottle_type: Database["public"]["Enums"]["bottle_type"]
-          client: Database["public"]["Enums"]["stock_client_type"]
-          created_at: string | null
-          current_stock: number
-          id: string
-          updated_at: string | null
-        }
-        Insert: {
-          alert_threshold?: number | null
-          bottle_type: Database["public"]["Enums"]["bottle_type"]
-          client: Database["public"]["Enums"]["stock_client_type"]
-          created_at?: string | null
-          current_stock?: number
-          id?: string
-          updated_at?: string | null
-        }
-        Update: {
-          alert_threshold?: number | null
-          bottle_type?: Database["public"]["Enums"]["bottle_type"]
-          client?: Database["public"]["Enums"]["stock_client_type"]
-          created_at?: string | null
-          current_stock?: number
-          id?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      sigma_stock_history: {
-        Row: {
-          bottle_type: Database["public"]["Enums"]["bottle_type"]
-          change_amount: number
-          change_type: string
-          client: Database["public"]["Enums"]["stock_client_type"]
-          created_at: string | null
-          created_by: string | null
-          id: string
-          new_stock: number
-          notes: string | null
-          previous_stock: number
-        }
-        Insert: {
-          bottle_type: Database["public"]["Enums"]["bottle_type"]
-          change_amount?: number
-          change_type: string
-          client: Database["public"]["Enums"]["stock_client_type"]
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          new_stock?: number
-          notes?: string | null
-          previous_stock?: number
-        }
-        Update: {
-          bottle_type?: Database["public"]["Enums"]["bottle_type"]
-          change_amount?: number
-          change_type?: string
-          client?: Database["public"]["Enums"]["stock_client_type"]
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          new_stock?: number
-          notes?: string | null
-          previous_stock?: number
         }
         Relationships: []
       }
@@ -1293,7 +1293,7 @@ export type Database = {
         }
         Returns: number
       }
-      can_reduce_sigma_stock: {
+      can_reduce_depot_lub_stock: {
         Args: {
           p_bottle_type: Database["public"]["Enums"]["bottle_type"]
           p_client: Database["public"]["Enums"]["stock_client_type"]
@@ -1317,7 +1317,7 @@ export type Database = {
         }
         Returns: Json
       }
-      decrement_sigma_stock: {
+      decrement_depot_lub_stock: {
         Args: {
           p_client: Database["public"]["Enums"]["stock_client_type"]
           p_quantity_b12: number
@@ -1326,14 +1326,14 @@ export type Database = {
         Returns: boolean
       }
       delete_stock_movement: { Args: { p_movement_id: string }; Returns: Json }
-      get_sigma_stock: {
+      get_depot_lub_stock: {
         Args: {
           p_bottle_type: Database["public"]["Enums"]["bottle_type"]
           p_client: Database["public"]["Enums"]["stock_client_type"]
         }
         Returns: number
       }
-      get_sigma_stock_history: {
+      get_depot_lub_stock_history: {
         Args: {
           p_client?: Database["public"]["Enums"]["stock_client_type"]
           p_limit?: number
@@ -1354,10 +1354,15 @@ export type Database = {
       get_stock_movements_paginated: {
         Args: {
           p_client: Database["public"]["Enums"]["stock_client_type"]
+          p_end_date?: string
+          p_filter_type?: string
           p_limit?: number
           p_month?: string
           p_offset?: number
+          p_specific_date?: string
+          p_start_date?: string
           p_warehouse: Database["public"]["Enums"]["warehouse_type"]
+          p_year?: number
         }
         Returns: {
           bon_number: string
@@ -1384,7 +1389,15 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_sigma_stock: {
+      increment_depot_lub_stock: {
+        Args: {
+          p_client: Database["public"]["Enums"]["stock_client_type"]
+          p_quantity_b12: number
+          p_quantity_b6: number
+        }
+        Returns: boolean
+      }
+      update_depot_lub_stock: {
         Args: {
           p_bottle_type: Database["public"]["Enums"]["bottle_type"]
           p_client: Database["public"]["Enums"]["stock_client_type"]
@@ -1392,7 +1405,15 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_sigma_stock_with_history: {
+      update_depot_lub_stock_threshold: {
+        Args: {
+          p_bottle_type: Database["public"]["Enums"]["bottle_type"]
+          p_client: Database["public"]["Enums"]["stock_client_type"]
+          p_threshold: number
+        }
+        Returns: boolean
+      }
+      update_depot_lub_stock_with_history: {
         Args: {
           p_bottle_type: Database["public"]["Enums"]["bottle_type"]
           p_change_type?: string
@@ -1405,12 +1426,15 @@ export type Database = {
       update_stock_movement: {
         Args: {
           p_bon_number?: string
-          p_movement_date: string
+          p_destination_warehouse?: Database["public"]["Enums"]["warehouse_type"]
+          p_movement_date?: string
           p_movement_id: string
+          p_movement_type?: Database["public"]["Enums"]["movement_type"]
           p_notes?: string
           p_origin?: Database["public"]["Enums"]["bottle_origin"]
-          p_quantity_b12: number
-          p_quantity_b6: number
+          p_quantity_b12?: number
+          p_quantity_b6?: number
+          p_source_warehouse?: Database["public"]["Enums"]["warehouse_type"]
         }
         Returns: Json
       }
@@ -1445,7 +1469,7 @@ export type Database = {
         | "stock_outils"
         | "bouteilles_hs"
         | "reconfiguration"
-        | "sigma"
+        | "depot_lub"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1604,7 +1628,7 @@ export const Constants = {
         "stock_outils",
         "bouteilles_hs",
         "reconfiguration",
-        "sigma",
+        "depot_lub",
       ],
     },
   },
