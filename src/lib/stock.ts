@@ -9,36 +9,40 @@ import type {
   BottleType,
   MovementType,
   BottleOrigin,
+  DepotLubStock,
   SigmaStock,
   StockMovement,
   StockInventory,
   CreateMovementResult,
   DeleteMovementResult,
-  CanReduceSigmaResult,
+  CanReduceDepotLubResult,
   TheoreticalStock,
 } from '@/types/stock';
 
 // =============================================
-// SIGMA STOCK OPERATIONS
+// DEPOT LUB STOCK OPERATIONS
 // =============================================
 
-export async function getSigmaStocks(): Promise<SigmaStock[]> {
+export async function getDepotLubStocks(): Promise<DepotLubStock[]> {
   const { data, error } = await supabase
-    .from('sigma_stock')
+    .from('depot_lub_stock')
     .select('*')
     .order('client')
     .order('bottle_type');
 
   if (error) throw error;
-  return (data || []) as SigmaStock[];
+  return (data || []) as DepotLubStock[];
 }
 
-export async function getSigmaStock(
+// Alias for backward compatibility
+export const getSigmaStocks = getDepotLubStocks;
+
+export async function getDepotLubStock(
   client: StockClientType,
   bottleType: BottleType
 ): Promise<number> {
   const { data, error } = await supabase
-    .from('sigma_stock')
+    .from('depot_lub_stock')
     .select('current_stock')
     .eq('client', client)
     .eq('bottle_type', bottleType)
@@ -48,13 +52,16 @@ export async function getSigmaStock(
   return data?.current_stock ?? 0;
 }
 
-export async function updateSigmaStock(
+// Alias for backward compatibility
+export const getSigmaStock = getDepotLubStock;
+
+export async function updateDepotLubStock(
   client: StockClientType,
   bottleType: BottleType,
   quantity: number
 ): Promise<void> {
   const { data: existing } = await supabase
-    .from('sigma_stock')
+    .from('depot_lub_stock')
     .select('id')
     .eq('client', client)
     .eq('bottle_type', bottleType)
@@ -62,13 +69,13 @@ export async function updateSigmaStock(
 
   if (existing) {
     const { error } = await supabase
-      .from('sigma_stock')
+      .from('depot_lub_stock')
       .update({ current_stock: quantity, updated_at: new Date().toISOString() })
       .eq('id', existing.id);
     if (error) throw error;
   } else {
     const { error } = await supabase
-      .from('sigma_stock')
+      .from('depot_lub_stock')
       .insert({
         client,
         bottle_type: bottleType,
@@ -78,20 +85,26 @@ export async function updateSigmaStock(
   }
 }
 
-export async function canReduceSigmaStock(
+// Alias for backward compatibility
+export const updateSigmaStock = updateDepotLubStock;
+
+export async function canReduceDepotLubStock(
   client: StockClientType,
   bottleType: BottleType,
   newQuantity: number
-): Promise<CanReduceSigmaResult> {
-  const { data, error } = await supabase.rpc('can_reduce_sigma_stock', {
+): Promise<CanReduceDepotLubResult> {
+  const { data, error } = await supabase.rpc('can_reduce_depot_lub_stock', {
     p_client: client,
     p_bottle_type: bottleType,
     p_new_quantity: newQuantity,
   });
 
   if (error) throw error;
-  return data as unknown as CanReduceSigmaResult;
+  return data as unknown as CanReduceDepotLubResult;
 }
+
+// Alias for backward compatibility
+export const canReduceSigmaStock = canReduceDepotLubStock;
 
 // =============================================
 // STOCK MOVEMENTS OPERATIONS
@@ -107,6 +120,7 @@ export async function getStockMovements(
   const { data, error } = await supabase.rpc('get_stock_movements_paginated', {
     p_warehouse: warehouse,
     p_client: client,
+    p_filter_type: month ? 'month' : 'all',
     p_month: month ? month.toISOString().split('T')[0] : null,
     p_limit: limit,
     p_offset: offset,
@@ -133,6 +147,7 @@ export async function createStockMovement(
   bonNumber?: string,
   origin?: BottleOrigin,
   destinationWarehouse?: WarehouseType,
+  sourceWarehouse?: WarehouseType,
   notes?: string
 ): Promise<CreateMovementResult> {
   const { data, error } = await supabase.rpc('create_stock_movement', {
@@ -145,7 +160,7 @@ export async function createStockMovement(
     p_bon_number: bonNumber || null,
     p_origin: origin || null,
     p_destination_warehouse: destinationWarehouse || null,
-    p_source_warehouse: null,
+    p_source_warehouse: sourceWarehouse || null,
     p_notes: notes || null,
   });
 
@@ -286,17 +301,20 @@ export async function getAllTheoreticalStocks(
 }
 
 // =============================================
-// SIGMA DASHBOARD DATA
+// DEPOT LUB DASHBOARD DATA
 // =============================================
 
-export interface SigmaDashboardData {
-  stocks: SigmaStock[];
+export interface DepotLubDashboardData {
+  stocks: DepotLubStock[];
   totalB6: number;
   totalB12: number;
 }
 
-export async function getSigmaDashboardData(): Promise<SigmaDashboardData> {
-  const stocks = await getSigmaStocks();
+// Alias for backward compatibility
+export type SigmaDashboardData = DepotLubDashboardData;
+
+export async function getDepotLubDashboardData(): Promise<DepotLubDashboardData> {
+  const stocks = await getDepotLubStocks();
   
   const totalB6 = stocks
     .filter((s) => s.bottle_type === 'B6')
@@ -308,3 +326,6 @@ export async function getSigmaDashboardData(): Promise<SigmaDashboardData> {
 
   return { stocks, totalB6, totalB12 };
 }
+
+// Alias for backward compatibility
+export const getSigmaDashboardData = getDepotLubDashboardData;
