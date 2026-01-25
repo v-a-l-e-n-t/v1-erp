@@ -47,6 +47,8 @@ import {
   ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  Filter,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -57,10 +59,13 @@ import {
   MovementType,
   BottleOrigin,
   TheoreticalStock,
+  DateFilterOptions,
   MOVEMENT_TYPE_LABELS,
   BOTTLE_ORIGIN_LABELS,
+  BOTTLE_NATURE_LABELS,
   WAREHOUSE_LABELS,
-  INTER_WAREHOUSE_LIST,
+  ALL_WAREHOUSES_FOR_TRANSFERS,
+  DATE_FILTER_LABELS,
 } from '@/types/stock';
 import {
   getStockMovements,
@@ -77,7 +82,7 @@ interface StockEntryTableProps {
   client: StockClientType;
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 30;
 
 export const StockEntryTable: React.FC<StockEntryTableProps> = ({
   warehouse,
@@ -88,7 +93,10 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [dateFilter, setDateFilter] = useState<DateFilterOptions>({
+    type: 'month',
+    month: new Date(),
+  });
   const [theoreticalStock, setTheoreticalStock] = useState<TheoreticalStock | null>(null);
   const [lastInventory, setLastInventory] = useState<StockInventory | null>(null);
 
@@ -100,6 +108,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
     quantity_b6: '',
     quantity_b12: '',
     destination_warehouse: '' as WarehouseType | '',
+    source_warehouse: '' as WarehouseType | '',
     notes: '',
   });
 
@@ -125,7 +134,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
         getStockMovements(
           warehouse,
           client,
-          currentMonth,
+          dateFilter,
           ITEMS_PER_PAGE,
           currentPage * ITEMS_PER_PAGE
         ),
@@ -151,7 +160,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [warehouse, client, currentMonth, currentPage]);
+  }, [warehouse, client, dateFilter, currentPage]);
 
   const resetForm = () => {
     setFormData({
@@ -162,6 +171,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
       quantity_b6: '',
       quantity_b12: '',
       destination_warehouse: '',
+      source_warehouse: '',
       notes: '',
     });
   };
@@ -204,6 +214,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
         formData.bon_number || undefined,
         formData.origin as BottleOrigin || undefined,
         formData.destination_warehouse as WarehouseType || undefined,
+        formData.source_warehouse as WarehouseType || undefined,
         formData.notes || undefined
       );
 
@@ -246,6 +257,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
       quantity_b6: movement.quantity_b6.toString(),
       quantity_b12: movement.quantity_b12.toString(),
       destination_warehouse: movement.destination_warehouse || '',
+      source_warehouse: movement.source_warehouse || '',
       notes: movement.notes || '',
     });
     setEditModalOpen(true);
@@ -271,11 +283,14 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
     try {
       const result = await updateStockMovement(
         editingMovement.id,
+        formData.movement_type,
         new Date(formData.movement_date),
         quantityB6,
         quantityB12,
         formData.bon_number || undefined,
         formData.origin as BottleOrigin || undefined,
+        formData.destination_warehouse as WarehouseType || undefined,
+        formData.source_warehouse as WarehouseType || undefined,
         formData.notes || undefined
       );
 
@@ -351,15 +366,20 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentMonth((prev) => {
-      const newDate = new Date(prev);
-      if (direction === 'prev') {
-        newDate.setMonth(newDate.getMonth() - 1);
-      } else {
-        newDate.setMonth(newDate.getMonth() + 1);
-      }
-      return newDate;
-    });
+    if (dateFilter.type !== 'month') return;
+    const currentMonth = dateFilter.month || new Date();
+    const newDate = new Date(currentMonth);
+    if (direction === 'prev') {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setDateFilter({ ...dateFilter, month: newDate });
+    setCurrentPage(0);
+  };
+
+  const handleDateFilterChange = (newFilter: DateFilterOptions) => {
+    setDateFilter(newFilter);
     setCurrentPage(0);
   };
 
@@ -485,9 +505,58 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
                 />
               </div>
 
+              {/* Provenance - Pour les entrées */}
               {formData.movement_type === 'entree' && (
                 <div className="space-y-2">
-                  <Label>Origine</Label>
+                  <Label>Provenance</Label>
+                  <Select
+                    value={formData.source_warehouse}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, source_warehouse: value as WarehouseType })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_WAREHOUSES_FOR_TRANSFERS.filter((w) => w !== warehouse).map((w) => (
+                        <SelectItem key={w} value={w}>
+                          {WAREHOUSE_LABELS[w]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Destination - Pour les sorties */}
+              {formData.movement_type === 'sortie' && (
+                <div className="space-y-2">
+                  <Label>Destination</Label>
+                  <Select
+                    value={formData.destination_warehouse}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, destination_warehouse: value as WarehouseType })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_WAREHOUSES_FOR_TRANSFERS.filter((w) => w !== warehouse).map((w) => (
+                        <SelectItem key={w} value={w}>
+                          {WAREHOUSE_LABELS[w]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Nature - Pour les entrées */}
+              {formData.movement_type === 'entree' && (
+                <div className="space-y-2">
+                  <Label>Nature</Label>
                   <Select
                     value={formData.origin}
                     onValueChange={(value) =>
@@ -500,29 +569,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
                     <SelectContent>
                       <SelectItem value="fabrique">Fabriqué</SelectItem>
                       <SelectItem value="requalifie">Requalifié</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {formData.movement_type === 'sortie' && (
-                <div className="space-y-2">
-                  <Label>Destination</Label>
-                  <Select
-                    value={formData.destination_warehouse}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, destination_warehouse: value as WarehouseType })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Optionnel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INTER_WAREHOUSE_LIST.filter((w) => w !== warehouse).map((w) => (
-                        <SelectItem key={w} value={w}>
-                          {WAREHOUSE_LABELS[w]}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="ventes">Ventes</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -565,25 +612,126 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
         </CardContent>
       </Card>
 
-      {/* Month Navigation */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
-          <ChevronLeft className="w-4 h-4 mr-1" />
-          Mois précédent
-        </Button>
-        <span className="font-medium">
-          {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigateMonth('next')}
-          disabled={currentMonth >= new Date()}
-        >
-          Mois suivant
-          <ChevronRight className="w-4 h-4 ml-1" />
-        </Button>
-      </div>
+      {/* Date Filter Section */}
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Label className="text-sm font-medium">Période:</Label>
+          </div>
+
+          <Select
+            value={dateFilter.type}
+            onValueChange={(value) =>
+              handleDateFilterChange({ ...dateFilter, type: value as DateFilterOptions['type'] })
+            }
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toute période</SelectItem>
+              <SelectItem value="year">Année</SelectItem>
+              <SelectItem value="month">Mois</SelectItem>
+              <SelectItem value="range">Période</SelectItem>
+              <SelectItem value="day">Jour</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Year filter */}
+          {dateFilter.type === 'year' && (
+            <Select
+              value={(dateFilter.year || new Date().getFullYear()).toString()}
+              onValueChange={(value) =>
+                handleDateFilterChange({ ...dateFilter, year: parseInt(value) })
+              }
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Month filter */}
+          {dateFilter.type === 'month' && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="font-medium min-w-[150px] text-center">
+                {format(dateFilter.month || new Date(), 'MMMM yyyy', { locale: fr })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateMonth('next')}
+                disabled={(dateFilter.month || new Date()) >= new Date()}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Date range filter */}
+          {dateFilter.type === 'range' && (
+            <>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs">Du:</Label>
+                <Input
+                  type="date"
+                  className="w-40"
+                  value={dateFilter.startDate ? format(dateFilter.startDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) =>
+                    handleDateFilterChange({
+                      ...dateFilter,
+                      startDate: e.target.value ? new Date(e.target.value) : undefined,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs">Au:</Label>
+                <Input
+                  type="date"
+                  className="w-40"
+                  value={dateFilter.endDate ? format(dateFilter.endDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) =>
+                    handleDateFilterChange({
+                      ...dateFilter,
+                      endDate: e.target.value ? new Date(e.target.value) : undefined,
+                    })
+                  }
+                />
+              </div>
+            </>
+          )}
+
+          {/* Specific day filter */}
+          {dateFilter.type === 'day' && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">Date:</Label>
+              <Input
+                type="date"
+                className="w-40"
+                value={dateFilter.specificDate ? format(dateFilter.specificDate, 'yyyy-MM-dd') : ''}
+                onChange={(e) =>
+                  handleDateFilterChange({
+                    ...dateFilter,
+                    specificDate: e.target.value ? new Date(e.target.value) : undefined,
+                  })
+                }
+              />
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* Movements Table */}
       <Card>
@@ -729,12 +877,31 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
 
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Modifier le mouvement</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              {/* Type de mouvement */}
+              <div className="space-y-2">
+                <Label>Type de mouvement</Label>
+                <Select
+                  value={formData.movement_type}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, movement_type: value as MovementType })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entree">Entrée</SelectItem>
+                    <SelectItem value="sortie">Sortie</SelectItem>
+                    <SelectItem value="inventaire">Inventaire</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Date</Label>
                 <Input
@@ -756,6 +923,79 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {/* Provenance (pour entrées) */}
+              {formData.movement_type === 'entree' && (
+                <div className="space-y-2">
+                  <Label>Provenance</Label>
+                  <Select
+                    value={formData.source_warehouse || ''}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, source_warehouse: value as WarehouseType })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_WAREHOUSES_FOR_TRANSFERS.filter((w) => w !== editingMovement?.warehouse).map((w) => (
+                        <SelectItem key={w} value={w}>
+                          {WAREHOUSE_LABELS[w]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Destination (pour sorties) */}
+              {formData.movement_type === 'sortie' && (
+                <div className="space-y-2">
+                  <Label>Destination</Label>
+                  <Select
+                    value={formData.destination_warehouse || ''}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, destination_warehouse: value as WarehouseType })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_WAREHOUSES_FOR_TRANSFERS.filter((w) => w !== editingMovement?.warehouse).map((w) => (
+                        <SelectItem key={w} value={w}>
+                          {WAREHOUSE_LABELS[w]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Nature (pour entrées) */}
+              {formData.movement_type === 'entree' && (
+                <div className="space-y-2">
+                  <Label>Nature</Label>
+                  <Select
+                    value={formData.origin || ''}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, origin: value as BottleOrigin })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Optionnel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fabrique">Fabriqué</SelectItem>
+                      <SelectItem value="requalifie">Requalifié</SelectItem>
+                      <SelectItem value="ventes">Ventes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>B6</Label>
@@ -780,6 +1020,7 @@ export const StockEntryTable: React.FC<StockEntryTableProps> = ({
                 />
               </div>
             </div>
+
             {editingMovement?.linked_movement_id && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
                 <AlertTriangle className="w-4 h-4 inline mr-2" />

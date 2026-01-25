@@ -3,13 +3,13 @@
 // =============================================
 
 // Enums matching database
-export type WarehouseType = 
+export type WarehouseType =
   | 'bouteilles_neuves'
   | 'consignes'
   | 'stock_outils'
   | 'bouteilles_hs'
   | 'reconfiguration'
-  | 'sigma';
+  | 'depot_lub';
 
 export type StockClientType = 
   | 'petro_ivoire'
@@ -20,7 +20,7 @@ export type BottleType = 'B6' | 'B12';
 
 export type MovementType = 'entree' | 'sortie' | 'inventaire';
 
-export type BottleOrigin = 'fabrique' | 'requalifie';
+export type BottleOrigin = 'fabrique' | 'requalifie' | 'ventes';
 
 // Labels for display
 export const WAREHOUSE_LABELS: Record<WarehouseType, string> = {
@@ -29,7 +29,7 @@ export const WAREHOUSE_LABELS: Record<WarehouseType, string> = {
   stock_outils: 'Stock Outils - CE',
   bouteilles_hs: 'Bouteilles HS - DV',
   reconfiguration: 'Reconfiguration - DV',
-  sigma: 'SIGMA',
+  depot_lub: 'Dépôt LUB',
 };
 
 export const CLIENT_LABELS: Record<StockClientType, string> = {
@@ -53,9 +53,13 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
 export const BOTTLE_ORIGIN_LABELS: Record<BottleOrigin, string> = {
   fabrique: 'Fabriqué',
   requalifie: 'Requalifié',
+  ventes: 'Ventes',
 };
 
-// Warehouses list (excluding SIGMA for inter-warehouse transfers)
+// Alias pour Nature des bouteilles
+export const BOTTLE_NATURE_LABELS = BOTTLE_ORIGIN_LABELS;
+
+// Warehouses list (excluding Dépôt LUB for tab display)
 export const INTER_WAREHOUSE_LIST: WarehouseType[] = [
   'bouteilles_neuves',
   'consignes',
@@ -64,9 +68,20 @@ export const INTER_WAREHOUSE_LIST: WarehouseType[] = [
   'reconfiguration',
 ];
 
+// All warehouses including Dépôt LUB
 export const ALL_WAREHOUSES: WarehouseType[] = [
   ...INTER_WAREHOUSE_LIST,
-  'sigma',
+  'depot_lub',
+];
+
+// All warehouses for transfers (provenance/destination dropdowns)
+export const ALL_WAREHOUSES_FOR_TRANSFERS: WarehouseType[] = [
+  'depot_lub',
+  'bouteilles_neuves',
+  'consignes',
+  'stock_outils',
+  'bouteilles_hs',
+  'reconfiguration',
 ];
 
 export const ALL_CLIENTS: StockClientType[] = [
@@ -78,7 +93,7 @@ export const ALL_CLIENTS: StockClientType[] = [
 export const ALL_BOTTLE_TYPES: BottleType[] = ['B6', 'B12'];
 
 // Database row types
-export interface SigmaStock {
+export interface DepotLubStock {
   id: string;
   client: StockClientType;
   bottle_type: BottleType;
@@ -87,6 +102,9 @@ export interface SigmaStock {
   created_at: string;
   updated_at: string;
 }
+
+// Alias pour compatibilité avec l'ancien code
+export type SigmaStock = DepotLubStock;
 
 export interface StockMovement {
   id: string;
@@ -131,11 +149,42 @@ export interface StockMovementFormData {
   notes?: string;
 }
 
-export interface SigmaStockFormData {
+export interface DepotLubStockFormData {
   client: StockClientType;
   bottle_type: BottleType;
   quantity: number;
 }
+
+// Alias pour compatibilité
+export type SigmaStockFormData = DepotLubStockFormData;
+
+// Interface pour le formulaire de configuration multi-clients
+export interface DepotLubConfigFormData {
+  [key: string]: {
+    b6_increment: string;
+    b12_increment: string;
+    b6_threshold: string;
+    b12_threshold: string;
+  };
+}
+
+// Interface pour le filtre de date avancé
+export interface DateFilterOptions {
+  type: 'all' | 'year' | 'month' | 'range' | 'day';
+  year?: number;
+  month?: Date;
+  startDate?: Date;
+  endDate?: Date;
+  specificDate?: Date;
+}
+
+export const DATE_FILTER_LABELS: Record<DateFilterOptions['type'], string> = {
+  all: 'Toute période',
+  year: 'Année',
+  month: 'Mois',
+  range: 'Période',
+  day: 'Jour',
+};
 
 // API response types
 export interface CreateMovementResult {
@@ -158,12 +207,15 @@ export interface DeleteMovementResult {
   deleted_linked_id?: string;
 }
 
-export interface CanReduceSigmaResult {
+export interface CanReduceDepotLubResult {
   can_reduce: boolean;
   error?: string;
   total_used?: number;
   requested?: number;
 }
+
+// Alias pour compatibilité
+export type CanReduceSigmaResult = CanReduceDepotLubResult;
 
 // Theoretical stock
 export interface TheoreticalStock {
@@ -194,12 +246,12 @@ export const STOCK_STATUS_TEXT_COLORS: Record<StockStatus, string> = {
   empty: 'text-red-600',
 };
 
-// Client colors (PI = blue-violet, TOTAL = red, VIVO = green)
+// Client colors (PI = bleu pur, TOTAL = red, VIVO = green)
 export const CLIENT_COLORS: Record<StockClientType, { bg: string; border: string; text: string }> = {
   petro_ivoire: {
-    bg: 'bg-indigo-50',
-    border: 'border-indigo-400',
-    text: 'text-indigo-700',
+    bg: 'bg-blue-50',
+    border: 'border-blue-400',
+    text: 'text-blue-700',
   },
   total_energies: {
     bg: 'bg-red-50',

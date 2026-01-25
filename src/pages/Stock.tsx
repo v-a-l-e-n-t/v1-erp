@@ -12,14 +12,14 @@ import {
   CLIENT_COLORS,
   INTER_WAREHOUSE_LIST,
 } from '@/types/stock';
-import { SigmaDashboard, StockEntryTable } from '@/components/stock';
+import { DepotLubDashboard, StockEntryTable } from '@/components/stock';
 
 const Stock: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseType>('sigma');
+  const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseType>('depot_lub');
   const [selectedClient, setSelectedClient] = useState<StockClientType>('petro_ivoire');
 
-  const allWarehouses: WarehouseType[] = ['sigma', ...INTER_WAREHOUSE_LIST];
+  const allWarehouses: WarehouseType[] = ['depot_lub', ...INTER_WAREHOUSE_LIST];
   const allClients: StockClientType[] = ['petro_ivoire', 'total_energies', 'vivo_energy'];
 
   return (
@@ -73,9 +73,9 @@ const Stock: React.FC = () => {
             ))}
           </TabsList>
 
-          {/* SIGMA Tab Content */}
-          <TabsContent value="sigma" className="mt-6">
-            <SigmaDashboard />
+          {/* Dépôt LUB Tab Content */}
+          <TabsContent value="depot_lub" className="mt-6">
+            <DepotLubDashboard />
           </TabsContent>
 
           {/* Other Warehouse Tabs */}
@@ -90,8 +90,8 @@ const Stock: React.FC = () => {
                 <TabsList className="bg-white border">
                   {allClients.map((client) => {
                     const colors = CLIENT_COLORS[client];
-                    const activeClass = client === 'petro_ivoire' 
-                      ? 'data-[state=active]:bg-indigo-600 data-[state=active]:text-white'
+                    const activeClass = client === 'petro_ivoire'
+                      ? 'data-[state=active]:bg-blue-600 data-[state=active]:text-white'
                       : client === 'total_energies'
                       ? 'data-[state=active]:bg-red-600 data-[state=active]:text-white'
                       : 'data-[state=active]:bg-emerald-600 data-[state=active]:text-white';
