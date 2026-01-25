@@ -181,6 +181,7 @@ export async function createStockMovement(
   bonNumber?: string,
   origin?: BottleOrigin,
   destinationWarehouse?: WarehouseType,
+  sourceWarehouse?: WarehouseType,
   notes?: string
 ): Promise<CreateMovementResult> {
   const { data, error } = await supabase.rpc('create_stock_movement', {
@@ -193,7 +194,7 @@ export async function createStockMovement(
     p_bon_number: bonNumber || null,
     p_origin: origin || null,
     p_destination_warehouse: destinationWarehouse || null,
-    p_source_warehouse: null,
+    p_source_warehouse: sourceWarehouse || null,
     p_notes: notes || null,
   });
 

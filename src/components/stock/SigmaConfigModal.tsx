@@ -44,7 +44,7 @@ import {
   ALL_CLIENTS,
   ALL_BOTTLE_TYPES,
 } from '@/types/stock';
-import { updateSigmaStock, canReduceSigmaStock } from '@/lib/stock';
+import { updateDepotLubStock, canReduceDepotLubStock } from '@/lib/stock';
 import { formatNumber } from '@/lib/stockCalculations';
 
 interface SigmaConfigModalProps {
@@ -96,22 +96,22 @@ export const SigmaConfigModal: React.FC<SigmaConfigModalProps> = ({
 
     setLoading(true);
     try {
-      await updateSigmaStock(
+      await updateDepotLubStock(
         formData.client as StockClientType,
         formData.bottle_type as BottleType,
         quantity
       );
       toast({
-        title: 'Stock SIGMA mis à jour',
+        title: 'Stock Dépôt LUB mis à jour',
         description: `${CLIENT_LABELS[formData.client as StockClientType]} - ${formData.bottle_type}: ${formatNumber(quantity)}`,
       });
       setFormData({ client: '', bottle_type: '', quantity: '' });
       onStockUpdated();
     } catch (error) {
-      console.error('Error updating SIGMA stock:', error);
+      console.error('Error updating Dépôt LUB stock:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de mettre à jour le stock SIGMA',
+        description: 'Impossible de mettre à jour le stock Dépôt LUB',
         variant: 'destructive',
       });
     } finally {
@@ -122,7 +122,7 @@ export const SigmaConfigModal: React.FC<SigmaConfigModalProps> = ({
   const handleDeleteClick = async (stock: SigmaStock) => {
     setLoading(true);
     try {
-      const result = await canReduceSigmaStock(stock.client, stock.bottle_type, 0);
+      const result = await canReduceDepotLubStock(stock.client, stock.bottle_type, 0);
       if (!result.can_reduce) {
         setDeleteConfirm({
           open: true,
@@ -152,21 +152,21 @@ export const SigmaConfigModal: React.FC<SigmaConfigModalProps> = ({
 
     setLoading(true);
     try {
-      await updateSigmaStock(
+      await updateDepotLubStock(
         deleteConfirm.stock.client,
         deleteConfirm.stock.bottle_type,
         0
       );
       toast({
-        title: 'Stock SIGMA supprimé',
+        title: 'Stock Dépôt LUB supprimé',
         description: `${CLIENT_LABELS[deleteConfirm.stock.client]} - ${deleteConfirm.stock.bottle_type}`,
       });
       onStockUpdated();
     } catch (error) {
-      console.error('Error deleting SIGMA stock:', error);
+      console.error('Error deleting Dépôt LUB stock:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de supprimer le stock SIGMA',
+        description: 'Impossible de supprimer le stock Dépôt LUB',
         variant: 'destructive',
       });
     } finally {
@@ -185,7 +185,7 @@ export const SigmaConfigModal: React.FC<SigmaConfigModalProps> = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Configuration Stock SIGMA</DialogTitle>
+            <DialogTitle>Configuration Stock Dépôt LUB</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -339,7 +339,7 @@ export const SigmaConfigModal: React.FC<SigmaConfigModalProps> = ({
               {deleteConfirm.error ? (
                 <span className="text-red-600">{deleteConfirm.error}</span>
               ) : (
-                `Voulez-vous vraiment supprimer le stock SIGMA pour ${
+                `Voulez-vous vraiment supprimer le stock Dépôt LUB pour ${
                   deleteConfirm.stock
                     ? CLIENT_LABELS[deleteConfirm.stock.client]
                     : ''

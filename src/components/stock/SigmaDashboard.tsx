@@ -16,7 +16,7 @@ import {
 import { Settings, Package, ArrowDownUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
-  SigmaStock,
+  DepotLubStock,
   StockClientType,
   StockMovement,
   CLIENT_LABELS,
@@ -26,7 +26,7 @@ import {
   STOCK_STATUS_TEXT_COLORS,
   CLIENT_COLORS,
 } from '@/types/stock';
-import { getSigmaDashboardData, getStockMovements } from '@/lib/stock';
+import { getDepotLubDashboardData, getStockMovements } from '@/lib/stock';
 import { formatNumber } from '@/lib/stockCalculations';
 import SigmaConfigModal from './SigmaConfigModal';
 
@@ -35,30 +35,30 @@ const DEFAULT_THRESHOLD = 100;
 export const SigmaDashboard: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [stocks, setStocks] = useState<SigmaStock[]>([]);
+  const [stocks, setStocks] = useState<DepotLubStock[]>([]);
   const [totalB6, setTotalB6] = useState(0);
   const [totalB12, setTotalB12] = useState(0);
   const [configModalOpen, setConfigModalOpen] = useState(false);
-  const [sigmaMovements, setSigmaMovements] = useState<StockMovement[]>([]);
+  const [depotLubMovements, setDepotLubMovements] = useState<StockMovement[]>([]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [dashboardData, movementsData] = await Promise.all([
-        getSigmaDashboardData(),
+        getDepotLubDashboardData(),
         getStockMovements('bouteilles_neuves', 'petro_ivoire', new Date(), 50, 0),
       ]);
       setStocks(dashboardData.stocks);
       setTotalB6(dashboardData.totalB6);
       setTotalB12(dashboardData.totalB12);
-      setSigmaMovements(movementsData.movements.filter(m => 
-        m.source_warehouse === 'sigma' || m.destination_warehouse === 'sigma'
+      setDepotLubMovements(movementsData.movements.filter(m => 
+        m.source_warehouse === 'depot_lub' || m.destination_warehouse === 'depot_lub'
       ));
     } catch (error) {
-      console.error('Error loading SIGMA data:', error);
+      console.error('Error loading Dépôt LUB data:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de charger les données SIGMA',
+        description: 'Impossible de charger les données Dépôt LUB',
         variant: 'destructive',
       });
     } finally {
@@ -119,7 +119,7 @@ export const SigmaDashboard: React.FC = () => {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Package className="w-6 h-6 text-primary" />
-          <h2 className="text-xl font-bold">Stock SIGMA</h2>
+          <h2 className="text-xl font-bold">Stock Dépôt LUB</h2>
         </div>
         <Button onClick={() => setConfigModalOpen(true)}>
           <Settings className="w-4 h-4 mr-2" />
@@ -202,12 +202,12 @@ export const SigmaDashboard: React.FC = () => {
         })}
       </div>
 
-      {/* SIGMA Movements Table */}
+      {/* Depot LUB Movements Table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <ArrowDownUp className="w-5 h-5" />
-            Mouvements SIGMA ↔ Bouteilles Neuves
+            Mouvements Dépôt LUB ↔ Bouteilles Neuves
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -222,15 +222,15 @@ export const SigmaDashboard: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sigmaMovements.length === 0 ? (
+              {depotLubMovements.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    Aucun mouvement SIGMA enregistré
+                    Aucun mouvement Dépôt LUB enregistré
                   </TableCell>
                 </TableRow>
               ) : (
-                sigmaMovements.slice(0, 10).map((movement) => {
-                  const isEntry = movement.source_warehouse === 'sigma';
+                depotLubMovements.slice(0, 10).map((movement) => {
+                  const isEntry = movement.source_warehouse === 'depot_lub';
                   return (
                     <TableRow key={movement.id}>
                       <TableCell>
@@ -243,7 +243,7 @@ export const SigmaDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Badge variant={isEntry ? 'default' : 'secondary'}>
-                          {isEntry ? 'Entrée BN' : 'Sortie SIGMA'}
+                          {isEntry ? 'Entrée BN' : 'Sortie Dépôt LUB'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-mono">

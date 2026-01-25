@@ -121,7 +121,7 @@ export interface StockMovement {
   linked_movement_id: string | null;
   notes: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   created_by: string | null;
 }
 
@@ -146,6 +146,7 @@ export interface StockMovementFormData {
   quantity_b6: number;
   quantity_b12: number;
   destination_warehouse?: WarehouseType;
+  source_warehouse?: WarehouseType;
   notes?: string;
 }
 
