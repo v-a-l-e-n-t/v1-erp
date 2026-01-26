@@ -483,18 +483,15 @@ const ReceptionsHistoryTable = ({
           </SelectContent>
         </Select>
 
-        {/* Indicateur du nombre de résultats */}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            {loading ? (
-              'Chargement...'
-            ) : (
-              <>
-                <span className="font-semibold text-foreground">{filteredEntries.length}</span>
-                {' réception' + (filteredEntries.length > 1 ? 's' : '')}
-              </>
-            )}
-          </span>
+        {/* Indicateur du nombre de répartitions */}
+        <div className="ml-auto">
+          {loading ? (
+            <span className="text-sm text-muted-foreground">Chargement...</span>
+          ) : (
+            <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-medium">
+              {filteredEntries.length} répartition{filteredEntries.length > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
 
