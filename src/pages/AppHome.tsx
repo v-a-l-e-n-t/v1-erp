@@ -12,8 +12,7 @@ import {
   Settings,
   LayoutDashboard,
   Shield,
-  UserCircle,
-  Package
+  UserCircle
 } from 'lucide-react';
 
 export default function Home() {
@@ -78,19 +77,6 @@ export default function Home() {
           icon: Users,
           path: '/agents',
           color: 'text-pink-500',
-        },
-      ]
-    },
-    {
-      title: "Stock",
-      description: "Gestion des stocks de bouteilles GPL",
-      items: [
-        {
-          title: 'Gestion Stock',
-          description: 'Saisie et suivi des mouvements de stock',
-          icon: Package,
-          path: '/stock',
-          color: 'text-indigo-500',
         },
       ]
     },

@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Package, Users, Factory } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,7 +62,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'stock' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -1278,17 +1278,6 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
-            variant={activeView === 'stock' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'stock' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
-            onClick={() => setActiveView('stock')}
-          >
-            <Package className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden sm:inline">STOCK</span>
-            <span className="sm:hidden">STOCK</span>
-          </Button>
-
-          <Button
             variant={activeView === 'emplisseur' ? 'default' : 'outline'}
             size="lg"
             className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
@@ -1918,26 +1907,6 @@ const DashboardHistorique = () => {
                     />
                   </div>
                 )}
-              </div>
-
-              {/* Historique Stock - En développement */}
-              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between p-4 sm:p-6">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl sm:text-2xl font-bold text-muted-foreground">Historique Stock</h2>
-                    <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
-                      En développement
-                    </span>
-                  </div>
-                </div>
-                <div className="px-6 pb-6">
-                  <div className="flex items-center justify-center py-12 text-muted-foreground">
-                    <div className="text-center space-y-2">
-                      <p className="text-lg font-medium">Fonctionnalité en cours de développement</p>
-                      <p className="text-sm">L'historique des mouvements de stock sera bientôt disponible.</p>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Historique des ventes par mandataire MOVED TO DISTRIBUTION VIEW */}
