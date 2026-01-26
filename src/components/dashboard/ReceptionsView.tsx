@@ -130,52 +130,59 @@ export default function ReceptionsView({
     return { startDate: start, endDate: end };
   }, [filterType, selectedDate, dateRange, selectedMonth, selectedYear]);
 
-  // Charger les années et mois disponibles au montage
+  // Charger les années et mois disponibles au montage (même logique que l'historique)
   useEffect(() => {
     const fetchAvailableData = async () => {
       try {
+        // Récupérer la date la plus ancienne pour déterminer la plage d'années
         const { data, error } = await (supabase as any)
           .from('receptions_clients')
           .select('date')
-          .order('date', { ascending: false });
-        
+          .order('date', { ascending: true })
+          .limit(1);
+
         if (error) throw error;
-        
-        const years = new Set<number>();
-        const months = new Set<string>();
-        
-        (data || []).forEach((r: ReceptionData) => {
-          const date = new Date(r.date);
-          const year = date.getFullYear();
-          const month = `${year}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          years.add(year);
-          months.add(month);
-        });
-        
-        const yearsArray = Array.from(years).sort((a, b) => b - a);
-        const monthsArray = Array.from(months).sort((a, b) => {
-          // Trier par date décroissante (plus récent en premier)
-          return b.localeCompare(a);
-        });
-        
+
+        let minYear = new Date().getFullYear();
+        if (data && data.length > 0) {
+          const firstDate = new Date(data[0].date);
+          minYear = firstDate.getFullYear();
+        }
+
+        const currentYear = new Date().getFullYear();
+        // Générer toutes les années de minYear à currentYear (ordre décroissant)
+        const yearsArray = Array.from(
+          { length: currentYear - minYear + 1 },
+          (_, i) => currentYear - i
+        );
+
         setAvailableYears(yearsArray);
-        setAvailableMonthsFromData(monthsArray);
-        
+
+        // Charger les mois disponibles séparément
+        const { data: allData, error: allError } = await (supabase as any)
+          .from('receptions_clients')
+          .select('date');
+
+        if (!allError && allData) {
+          const months = new Set<string>();
+          (allData || []).forEach((r: ReceptionData) => {
+            const date = new Date(r.date);
+            const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            months.add(month);
+          });
+          const monthsArray = Array.from(months).sort((a, b) => b.localeCompare(a));
+          setAvailableMonthsFromData(monthsArray);
+        }
+
         // Si l'année actuelle n'a pas de données, utiliser la première année disponible
         if (yearsArray.length > 0 && !yearsArray.includes(selectedYear)) {
           setSelectedYear(yearsArray[0]);
-        }
-        
-        // Si aucun mois n'est sélectionné ou si le mois sélectionné n'existe pas dans les données, utiliser le premier mois disponible
-        if (monthsArray.length > 0 && (!selectedMonth || !monthsArray.includes(selectedMonth))) {
-          // Ne pas mettre à jour selectedMonth si c'est déjà défini par le parent
-          // setSelectedMonth(monthsArray[0]);
         }
       } catch (error) {
         console.error('Error fetching available data:', error);
       }
     };
-    
+
     fetchAvailableData();
   }, []);
 
@@ -531,9 +538,7 @@ export default function ReceptionsView({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {availableYears.length > 0 ? availableYears.map(year => (
-                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                )) : Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                {availableYears.map(year => (
                   <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                 ))}
               </SelectContent>
@@ -547,9 +552,7 @@ export default function ReceptionsView({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableYears.length > 0 ? availableYears.map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  )) : Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                  {availableYears.map(year => (
                     <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                   ))}
                 </SelectContent>
