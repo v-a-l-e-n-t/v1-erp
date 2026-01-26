@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
-const AUTHORIZED_PASSWORDS = ['@k@2626', 'VAL@2026', 'Admin@2026'];
+const AUTHORIZED_PASSWORDS = ['@k@2626', 'VAL@2026', 'Admin@2026', 'bab@2626'];
 
 interface PasswordGateProps {
   onAuthenticated: () => void;
