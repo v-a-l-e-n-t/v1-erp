@@ -68,6 +68,7 @@ const DashboardHistorique = () => {
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
   const [sortieVracAnnuelle, setSortieVracAnnuelle] = useState<number>(0);
   const [ventesCE, setVentesCE] = useState<number>(0);
+  const [cumulReception, setCumulReception] = useState<number>(0);
   const [showImport, setShowImport] = useState(false);
   const [isBilansExpanded, setIsBilansExpanded] = useState(false);
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
@@ -553,6 +554,7 @@ const DashboardHistorique = () => {
     loadProductionAnnuelle();
     loadSortieVracAnnuelle();
     loadVentesCE();
+    loadCumulReception();
   }, [
     kpiFilterType, kpiSelectedMonth, kpiSelectedYear, kpiSelectedDate, kpiDateRange
   ]);
@@ -956,6 +958,37 @@ const DashboardHistorique = () => {
     setVentesCE(total);
   };
 
+  const loadCumulReception = async () => {
+    let query = supabase.from('bilan_entries').select('reception_gpl');
+
+    if (kpiFilterType === 'year') {
+      query = query.gte('date', `${kpiSelectedYear}-01-01`).lte('date', `${kpiSelectedYear}-12-31`);
+    } else if (kpiFilterType === 'month') {
+      const startDate = `${kpiSelectedMonth}-01`;
+      const [y, m] = kpiSelectedMonth.split('-').map(Number);
+      const endDate = new Date(y, m, 0).toISOString().split('T')[0];
+      query = query.gte('date', startDate).lte('date', endDate);
+    } else if (kpiFilterType === 'day' && kpiSelectedDate) {
+      const dateStr = format(kpiSelectedDate, 'yyyy-MM-dd');
+      query = query.eq('date', dateStr);
+    } else if (kpiFilterType === 'period' && kpiDateRange?.from) {
+      const fromStr = format(kpiDateRange.from, 'yyyy-MM-dd');
+      const toStr = kpiDateRange.to ? format(kpiDateRange.to, 'yyyy-MM-dd') : fromStr;
+      query = query.gte('date', fromStr).lte('date', toStr);
+    }
+    // 'all' = pas de filtre
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Erreur chargement cumul réception:', error);
+      return;
+    }
+
+    const total = data?.reduce((sum, entry) => sum + (entry.reception_gpl || 0), 0) || 0;
+    setCumulReception(total);
+  };
+
   const handleDelete = async (id: string) => {
     const success = await deleteEntry(id);
 
@@ -1168,19 +1201,18 @@ const DashboardHistorique = () => {
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 md:gap-4 w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent -mx-3 sm:-mx-4 px-3 sm:px-4">
-                  {/* VENTES VRAC - Always visible */}
-                  <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col h-[80px] sm:h-[85px] md:h-[90px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
+                  {/* CUMUL RECEPTION */}
+                  <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border-2 border-cyan-500/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col h-[80px] sm:h-[85px] md:h-[90px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
                     <p className="text-[9px] sm:text-[10px] font-semibold text-black uppercase tracking-wider mb-0.5">
-                      VENTES VRAC :
+                      CUMUL RECEPTION :
                     </p>
-                    <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-orange-600 tracking-tight">
-                      {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-orange-600/60 ml-1 sm:ml-1.5">Kg</span>
+                    <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-cyan-600 tracking-tight">
+                      {cumulReception.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-cyan-600/60 ml-1 sm:ml-1.5">Kg</span>
                     </p>
                   </div>
 
-
-                  {/* PRODUCTION CE - Always visible */}
+                  {/* PRODUCTION CE */}
                   <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col h-[80px] sm:h-[85px] md:h-[90px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
                     <p className="text-[9px] sm:text-[10px] font-semibold text-black uppercase tracking-wider mb-0.5">
                       PRODUCTION CE :
@@ -1191,8 +1223,18 @@ const DashboardHistorique = () => {
                     </p>
                   </div>
 
+                  {/* VENTES VRAC */}
+                  <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col h-[80px] sm:h-[85px] md:h-[90px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
+                    <p className="text-[9px] sm:text-[10px] font-semibold text-black uppercase tracking-wider mb-0.5">
+                      VENTES VRAC :
+                    </p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-orange-600 tracking-tight">
+                      {sortieVracAnnuelle.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                      <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-orange-600/60 ml-1 sm:ml-1.5">Kg</span>
+                    </p>
+                  </div>
 
-                  {/* VENTES CE - Always visible */}
+                  {/* VENTES CE */}
                   <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col h-[80px] sm:h-[85px] md:h-[90px] min-w-[140px] sm:min-w-[160px] md:min-w-[200px] flex-shrink-0">
                     <p className="text-[9px] sm:text-[10px] font-semibold text-black uppercase tracking-wider mb-0.5">
                       VENTES CE :
@@ -1203,7 +1245,7 @@ const DashboardHistorique = () => {
                     </p>
                   </div>
 
-                  {/* BILAN MATIÈRE - Always visible */}
+                  {/* BILAN MATIÈRE */}
                   <div className={`bg-gradient-to-br ${getBilanColor().gradient} border-2 ${getBilanColor().border} rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 shadow-sm flex flex-col h-[80px] sm:h-[85px] md:h-[90px] min-w-[180px] sm:min-w-[200px] md:min-w-[240px] flex-shrink-0`}>
                     <p className="text-[9px] sm:text-[10px] font-semibold text-black uppercase tracking-wider mb-0.5">
                       BILAN MATIÈRE :
