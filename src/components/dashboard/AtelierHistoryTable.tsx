@@ -4,8 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Save, X, Trash2 } from 'lucide-react';
+import { Pencil, Save, X, Trash2, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierEntry, AtelierData, AtelierCategory } from '@/types/atelier';
@@ -338,6 +339,63 @@ const AtelierHistoryTable = ({
     }
   };
 
+  const handleExportExcel = () => {
+    if (historyRows.length === 0) {
+      toast.error('Aucune donnée à exporter');
+      return;
+    }
+
+    try {
+      // Préparer les données pour l'export
+      const exportData = historyRows.map(row => ({
+        'Date': format(new Date(row.date), 'dd/MM/yyyy'),
+        'Shift': row.shift_type,
+        'Client': ATELIER_CLIENT_LABELS[row.client],
+        'BR 6kg': row.br6,
+        'BR 12kg': row.br12,
+        'BR 28kg': row.br28,
+        'BR 38kg': row.br38,
+        'BV 6kg': row.bv6,
+        'BV 12kg': row.bv12,
+        'BV 28kg': row.bv28,
+        'BV 38kg': row.bv38,
+        'BHS 6kg': row.bhs6,
+        'BHS 12kg': row.bhs12,
+        'BHS 28kg': row.bhs28,
+        'BHS 38kg': row.bhs38,
+        'CPT 6kg': row.cpt6,
+        'CPT 12kg': row.cpt12,
+        'CPT 28kg': row.cpt28,
+        'CPT 38kg': row.cpt38,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Définir les largeurs de colonnes
+      ws['!cols'] = [
+        { wch: 12 }, // Date
+        { wch: 8 },  // Shift
+        { wch: 20 }, // Client
+        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, // BR
+        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, // BV
+        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, // BHS
+        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, // CPT
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Historique Atelier');
+
+      // Générer le nom du fichier avec la date
+      const timestamp = format(new Date(), 'yyyy-MM-dd');
+      XLSX.writeFile(wb, `historique-atelier-${timestamp}.xlsx`);
+
+      toast.success('Export Excel réussi');
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel:', error);
+      toast.error('Erreur lors de l\'export Excel');
+    }
+  };
+
   return (
     <div>
         {/* Filtres */}
@@ -480,6 +538,18 @@ const AtelierHistoryTable = ({
               <SelectItem value="CPT">Clapet monté (CPT)</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Bouton d'export Excel */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={historyRows.length === 0}
+            className="ml-auto"
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Exporter Excel
+          </Button>
         </div>
 
         {/* Tableau */}
