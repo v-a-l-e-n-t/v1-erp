@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,7 +11,9 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory, Download, FileDown } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,6 +77,9 @@ const DashboardHistorique = () => {
   const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
   const [isAtelierExpanded, setIsAtelierExpanded] = useState(false);
   const [isReceptionsExpanded, setIsReceptionsExpanded] = useState(false);
+  const kpiSectionRef = useRef<HTMLDivElement>(null);
+  const atelierDashboardRef = useRef<HTMLDivElement>(null);
+  const atelierHistoryRef = useRef<HTMLDivElement>(null);
 
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
@@ -91,6 +96,240 @@ const DashboardHistorique = () => {
     sessionStorage.removeItem("dashboard_authenticated");
     setIsAuthenticated(false);
     navigate("/");
+  };
+
+  // KPI Section Export functions
+  const exportKpiAsImage = async () => {
+    if (!kpiSectionRef.current) return;
+
+    try {
+      const canvas = await html2canvas(kpiSectionRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(kpiSectionRef.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      const link = document.createElement('a');
+      link.download = `kpi-dashboard_${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Image KPI exportée avec succès');
+    } catch (error) {
+      console.error('Error exporting KPI image:', error);
+      toast.error('Erreur lors de l\'export image');
+    }
+  };
+
+  const exportKpiAsPDF = async () => {
+    if (!kpiSectionRef.current) return;
+
+    try {
+      const canvas = await html2canvas(kpiSectionRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(kpiSectionRef.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      pdf.save(`kpi-dashboard_${timestamp}.pdf`);
+      toast.success('PDF KPI exporté avec succès');
+    } catch (error) {
+      console.error('Error exporting KPI PDF:', error);
+      toast.error('Erreur lors de l\'export PDF');
+    }
+  };
+
+  // ATELIER Dashboard Export functions
+  const exportAtelierAsImage = async () => {
+    if (!atelierDashboardRef.current) return;
+
+    try {
+      const canvas = await html2canvas(atelierDashboardRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(atelierDashboardRef.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      const link = document.createElement('a');
+      link.download = `dashboard-atelier_${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Image Atelier exportée avec succès');
+    } catch (error) {
+      console.error('Error exporting Atelier image:', error);
+      toast.error('Erreur lors de l\'export image');
+    }
+  };
+
+  const exportAtelierAsPDF = async () => {
+    if (!atelierDashboardRef.current) return;
+
+    try {
+      const canvas = await html2canvas(atelierDashboardRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(atelierDashboardRef.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      pdf.save(`dashboard-atelier_${timestamp}.pdf`);
+      toast.success('PDF Atelier exporté avec succès');
+    } catch (error) {
+      console.error('Error exporting Atelier PDF:', error);
+      toast.error('Erreur lors de l\'export PDF');
+    }
+  };
+
+  // ATELIER History Export functions
+  const exportAtelierHistoryAsImage = async () => {
+    if (!atelierHistoryRef.current) return;
+
+    try {
+      const canvas = await html2canvas(atelierHistoryRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      } as any);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      const link = document.createElement('a');
+      link.download = `historique-atelier_${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Image Historique Atelier exportée avec succès');
+    } catch (error) {
+      console.error('Error exporting Atelier History image:', error);
+      toast.error('Erreur lors de l\'export image');
+    }
+  };
+
+  const exportAtelierHistoryAsPDF = async () => {
+    if (!atelierHistoryRef.current) return;
+
+    try {
+      const canvas = await html2canvas(atelierHistoryRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      } as any);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      pdf.save(`historique-atelier_${timestamp}.pdf`);
+      toast.success('PDF Historique Atelier exporté avec succès');
+    } catch (error) {
+      console.error('Error exporting Atelier History PDF:', error);
+      toast.error('Erreur lors de l\'export PDF');
+    }
   };
 
   // Filter state for Centre Emplisseur
@@ -1094,9 +1333,9 @@ const DashboardHistorique = () => {
 
             {/* KPI Cards Section - Collapsible */}
             {isHeaderExpanded && (
-              <div className="flex flex-col gap-3 sm:gap-4 animate-in slide-in-from-top-4 fade-in duration-300">
+              <div ref={kpiSectionRef} className="flex flex-col gap-3 sm:gap-4 animate-in slide-in-from-top-4 fade-in duration-300 bg-background/95 p-3 rounded-lg">
                 {/* Filtre unique pour les 4 cartes */}
-                <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   <Select value={kpiFilterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setKpiFilterType(v)}>
                     <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
                       <SelectValue />
@@ -1198,6 +1437,28 @@ const DashboardHistorique = () => {
                       </PopoverContent>
                     </Popover>
                   )}
+
+                  {/* Boutons d'export KPI */}
+                  <div className="ml-auto flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportKpiAsImage}
+                      className="h-8 sm:h-9"
+                    >
+                      <Download className="h-4 w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Image</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportKpiAsPDF}
+                      className="h-8 sm:h-9"
+                    >
+                      <FileDown className="h-4 w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">PDF</span>
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 md:gap-4 w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent -mx-3 sm:-mx-4 px-3 sm:px-4">
@@ -1422,14 +1683,34 @@ const DashboardHistorique = () => {
                 <div>
                   <h2 className="text-2xl font-bold">Dashboard Atelier</h2>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs sm:text-sm font-semibold px-3 py-1"
-                  onClick={() => navigate('/atelier-form')}
-                >
-                  SAISIE
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportAtelierAsImage}
+                    className="h-8 sm:h-9"
+                  >
+                    <Download className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Image</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportAtelierAsPDF}
+                    className="h-8 sm:h-9"
+                  >
+                    <FileDown className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">PDF</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs sm:text-sm font-semibold px-3 py-1"
+                    onClick={() => navigate('/atelier-form')}
+                  >
+                    SAISIE
+                  </Button>
+                </div>
               </div>
 
               {/* Filtres */}
@@ -1541,12 +1822,13 @@ const DashboardHistorique = () => {
                 )}
               </div>
 
-              {atelierLoading ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Chargement des données...</p>
-              ) : atelierEntries.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Aucune donnée ATELIER à afficher pour le moment.
-                </p>
+              <div ref={atelierDashboardRef} className="bg-background p-2 rounded-lg">
+                {atelierLoading ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Chargement des données...</p>
+                ) : atelierEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    Aucune donnée ATELIER à afficher pour le moment.
+                  </p>
               ) : (
                 <>
                   {/* Section principale - Atelier et Catégories */}
@@ -1750,6 +2032,7 @@ const DashboardHistorique = () => {
 
                 </>
               )}
+              </div>
             </div>
           )}
 
@@ -1921,16 +2204,46 @@ const DashboardHistorique = () => {
                   onClick={() => setIsAtelierExpanded(!isAtelierExpanded)}
                 >
                   <h2 className="text-xl sm:text-2xl font-bold">Historique Atelier</h2>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
-                    {isAtelierExpanded ? (
-                      <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <div className="flex items-center gap-2">
+                    {isAtelierExpanded && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportAtelierHistoryAsImage();
+                          }}
+                          className="h-8 sm:h-9"
+                        >
+                          <Download className="h-4 w-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">Image</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportAtelierHistoryAsPDF();
+                          }}
+                          className="h-8 sm:h-9"
+                        >
+                          <FileDown className="h-4 w-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">PDF</span>
+                        </Button>
+                      </>
                     )}
-                  </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
+                      {isAtelierExpanded ? (
+                        <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 {isAtelierExpanded && (
-                  <div className="px-6 pb-6">
+                  <div ref={atelierHistoryRef} className="px-6 pb-6 bg-white">
                     <AtelierHistoryTable
                       filterType={atelierFilterType}
                       selectedYear={atelierSelectedYear}

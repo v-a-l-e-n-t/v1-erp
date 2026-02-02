@@ -1,12 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Save, X, Trash2, FileSpreadsheet } from 'lucide-react';
+import { Pencil, Save, X, Trash2, FileSpreadsheet, Download, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierEntry, AtelierData, AtelierCategory } from '@/types/atelier';
@@ -69,6 +71,89 @@ const AtelierHistoryTable = ({
   const isMobile = useIsMobile();
   const [entries, setEntries] = useState<AtelierEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  // Export functions
+  const exportSectionAsImage = async () => {
+    if (!tableRef.current) return;
+
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(tableRef.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      const link = document.createElement('a');
+      link.download = `historique-atelier_${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Image exportée avec succès');
+    } catch (error) {
+      console.error('Error exporting image:', error);
+      toast.error('Erreur lors de l\'export image');
+    }
+  };
+
+  const exportSectionAsPDF = async () => {
+    if (!tableRef.current) return;
+
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (document) => {
+          const element = document.getElementById(tableRef.current?.id || '');
+          if (element) {
+            element.style.transform = 'none';
+          }
+        }
+      } as any);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+
+      pdf.save(`historique-atelier_${timestamp}.pdf`);
+      toast.success('PDF exporté avec succès');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Erreur lors de l\'export PDF');
+    }
+  };
   
   // Années disponibles (comme le filtre KPI)
   const availableYearsList = useMemo(() => {
@@ -399,8 +484,9 @@ const AtelierHistoryTable = ({
   return (
     <div>
         {/* Filtres */}
-        <div className="mb-4 flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
-          <span className="text-sm font-semibold">Filtres:</span>
+        <div className="mb-4 p-4 bg-muted/30 rounded-lg space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold">Filtres:</span>
           
           {/* Filtre temporel - DATE */}
           <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => onFilterChange(v)}>
@@ -548,8 +634,9 @@ const AtelierHistoryTable = ({
             className="ml-auto"
           >
             <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Exporter Excel
+            Excel
           </Button>
+          </div>
         </div>
 
         {/* Tableau */}
@@ -558,7 +645,7 @@ const AtelierHistoryTable = ({
         ) : historyRows.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Aucune donnée</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div ref={tableRef} className="overflow-x-auto bg-white p-4 rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
