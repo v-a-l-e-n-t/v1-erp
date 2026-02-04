@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
-import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown, ChevronDown, ChevronUp, Camera, FileText } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -18,6 +18,27 @@ import * as XLSX from 'xlsx-js-style';
 import { toast } from 'sonner';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+// Helper function to calculate real worked hours from shift times
+const calculateShiftHours = (heureDebut: string, heureFin: string): number => {
+    try {
+        const [startHours, startMinutes] = heureDebut.split(':').map(Number);
+        const [endHours, endMinutes] = heureFin.split(':').map(Number);
+
+        let totalHours = endHours - startHours;
+        let totalMinutes = endMinutes - startMinutes;
+
+        // Handle overnight shifts (e.g., 20h-5h)
+        if (totalHours < 0) {
+            totalHours += 24;
+        }
+
+        return totalHours + (totalMinutes / 60);
+    } catch (error) {
+        console.error('Error calculating shift hours:', error);
+        return 9; // Fallback to 9 hours if parsing fails
+    }
+};
 
 interface CentreEmplisseurViewProps {
     dateRange: DateRange | undefined;
@@ -594,40 +615,29 @@ const CentreEmplisseurView = ({
                     }
 
                     // 3. Productivity - Calculate per line, then average for Chef de Quart
-                    const lineProductivities: number[] = []; // For Chef de Quart: average of line productivities
-                    let productionTheoriqueLigne = 0; // For Chef de Ligne: simple ratio
-                    let tonnageReelLigne = 0;
+                    // Use global ratio for ALL cases: Sum of real tonnages / Sum of theoretical tonnages
+                    let productionTheoriqueTotal = 0;
+                    let tonnageReelTotal = 0;
 
-                    // A. Process shifts (Chef de Quart) - Calculate productivity PER LINE then average
+                    // A. Process shifts (Chef de Quart) - Accumulate totals for global ratio
                     (shiftsData as any[]).forEach((s: any) => {
                         const shiftLines = s.lignes_production || [];
-                        const shiftArrets = s.arrets_production || [];
+
+                        // Calculate real shift hours from actual start/end times
+                        const shiftHours = calculateShiftHours(
+                            s.heure_debut_reelle || '10:00',
+                            s.heure_fin_reelle || '19:00'
+                        );
 
                         shiftLines.forEach((l: any) => {
-                            // Find stops affecting THIS specific line
-                            const lineArrets = shiftArrets.filter((a: any) =>
-                                a.lignes_concernees && a.lignes_concernees.some((lc: any) => Number(lc) === Number(l.numero_ligne))
-                            );
-
-                            // Calculate downtime for this line (using duree_minutes or fallback)
-                            let ligneTempsArret = 0;
-                            lineArrets.forEach((a: any) => {
-                                if (a.duree_minutes && a.duree_minutes > 0) {
-                                    ligneTempsArret += a.duree_minutes;
-                                } else if (a.heure_debut && a.heure_fin) {
-                                    // Fallback for legacy data
-                                    const [hD, mD] = a.heure_debut.split(':').map(Number);
-                                    const [hF, mF] = a.heure_fin.split(':').map(Number);
-                                    let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
-                                    if (diffMins < 0) diffMins += 24 * 60;
-                                    ligneTempsArret += diffMins;
-                                }
-                            });
+                            // Nouvelle structure: temps d'arrêt stocké directement dans lignes_production
+                            const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
 
                             // Calculate theoretical for THIS line only
-                            // Cap downtime at 540 min (9h) to avoid negative hours
-                            const effectiveDowntime = Math.min(ligneTempsArret, 540);
-                            const productiveHours = 9 - (effectiveDowntime / 60);
+                            // Cap downtime at shift hours to avoid negative hours
+                            const maxDowntimeMinutes = shiftHours * 60;
+                            const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                            const productiveHours = shiftHours - (effectiveDowntime / 60);
 
                             // Rate: Lines 1-4 = B6 (1600 × 6kg), Line 5 = B12 (900 × 12.5kg)
                             const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
@@ -636,43 +646,40 @@ const CentreEmplisseurView = ({
                             // Get real tonnage for this line
                             const reel = Number(l.tonnage_ligne) || 0;
 
-                            // Calculate productivity for THIS line
-                            if (theorique > 0) {
-                                const lineProd = (reel / theorique) * 100;
-                                lineProductivities.push(lineProd);
-                            }
+                            // Accumulate totals for global ratio
+                            productionTheoriqueTotal += theorique;
+                            tonnageReelTotal += reel;
                         });
                     });
 
-                    // B. Process lignes (Chef de Ligne) - Simple ratio (one line)
+                    // B. Process lignes (Chef de Ligne) - Accumulate totals for global ratio
                     (lignesData as any[]).forEach((l: any) => {
                         // Temps d'arrêt is now stored directly in lignes_production
                         const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
 
+                        // Get shift hours from the associated shift
+                        const shift = l.production_shifts;
+                        const shiftHours = shift ? calculateShiftHours(
+                            shift.heure_debut_reelle || '10:00',
+                            shift.heure_fin_reelle || '19:00'
+                        ) : 9;
+
                         // Calculate theoretical for this line
-                        const effectiveDowntime = Math.min(ligneTempsArret, 540);
-                        const productiveHours = 9 - (effectiveDowntime / 60);
+                        const maxDowntimeMinutes = shiftHours * 60;
+                        const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                        const productiveHours = shiftHours - (effectiveDowntime / 60);
                         const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
                         const theorique = (rate * productiveHours) / 1000;
 
-                        productionTheoriqueLigne += theorique;
-                        tonnageReelLigne += Number(l.tonnage_ligne) || 0;
+                        productionTheoriqueTotal += theorique;
+                        tonnageReelTotal += Number(l.tonnage_ligne) || 0;
                     });
 
-                    // Calculate final productivity based on role
+                    // Calculate final productivity using GLOBAL RATIO for all cases
                     let productivite = 0;
-                    if (displayRole === 'chef_quart' && lineProductivities.length > 0) {
-                        // Chef de Quart: AVERAGE of line productivities
-                        productivite = lineProductivities.reduce((sum, p) => sum + p, 0) / lineProductivities.length;
-                    } else if (displayRole === 'chef_ligne' && productionTheoriqueLigne > 0) {
-                        // Chef de Ligne: Simple ratio
-                        productivite = (tonnageReelLigne / productionTheoriqueLigne) * 100;
-                    } else if (lineProductivities.length > 0) {
-                        // Fallback: use average if we have line data
-                        productivite = lineProductivities.reduce((sum, p) => sum + p, 0) / lineProductivities.length;
-                    } else if (productionTheoriqueLigne > 0) {
-                        // Fallback: use simple ratio
-                        productivite = (tonnageReelLigne / productionTheoriqueLigne) * 100;
+                    if (productionTheoriqueTotal > 0) {
+                        // Unified formula: (Sum of real tonnages / Sum of theoretical tonnages) × 100
+                        productivite = (tonnageReelTotal / productionTheoriqueTotal) * 100;
                     }
 
                     // 4. Collect Lines (for Chef de Ligne)
@@ -918,30 +925,38 @@ const CentreEmplisseurView = ({
             // Get unique lines occupied as chef de ligne
             const lignesOccupees = Array.from(new Set(lignes.map(l => l.numero_ligne))).sort();
 
-            // NEW: Calculate productivity as average of individual session productivities
-            const sessionProductivities: number[] = [];
+            // NEW: Calculate productivity using GLOBAL RATIO (same as main list)
+            // Sum of real tonnages / Sum of theoretical tonnages
+            let productionTheoriqueTotal = 0;
+            let tonnageReelTotal = 0;
 
             // Calculate productivity for each Chef de Quart shift
             shifts.forEach(shift => {
                 const shiftTonnage = Number(shift.tonnage_total) || 0;
-                const shiftTempsArret = Number(shift.temps_arret_total_minutes) || 0;
-                const heuresProductives = 9 - (shiftTempsArret / 60);
+
+                // Use real shift hours instead of fixed 9 hours
+                const shiftHours = calculateShiftHours(
+                    shift.heure_debut_reelle || '10:00',
+                    shift.heure_fin_reelle || '19:00'
+                );
 
                 // Production théorique for all lines in this shift
-                let productionTheorique = 0;
                 const shiftLignes = shift.lignes_production || [];
                 shiftLignes.forEach((l: any) => {
-                    if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
-                        productionTheorique += (1600 * 6 * heuresProductives) / 1000; // Tonnes
-                    } else if (l.numero_ligne === 5) {
-                        productionTheorique += (900 * 12.5 * heuresProductives) / 1000; // Tonnes
-                    }
+                    const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
+                    const maxDowntimeMinutes = shiftHours * 60;
+                    const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                    const heuresProductives = shiftHours - (effectiveDowntime / 60);
+
+                    const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                    const theorique = (rate * heuresProductives) / 1000; // Tonnes
+
+                    // Accumulate totals for global ratio
+                    productionTheoriqueTotal += theorique;
                 });
 
-                if (productionTheorique > 0) {
-                    const shiftProductivity = (shiftTonnage / productionTheorique) * 100;
-                    sessionProductivities.push(shiftProductivity);
-                }
+                // Accumulate real tonnage
+                tonnageReelTotal += shiftTonnage;
             });
 
             // Calculate productivity for each Chef de Ligne session
@@ -949,82 +964,90 @@ const CentreEmplisseurView = ({
                 const ligneTonnage = Number(ligne.tonnage_ligne) || 0;
                 const shift = ligne.production_shifts;
 
+                // Use real shift hours from associated shift
+                const shiftHours = shift ? calculateShiftHours(
+                    shift.heure_debut_reelle || '10:00',
+                    shift.heure_fin_reelle || '19:00'
+                ) : 9;
+
                 // Temps d'arrêt is now stored directly in lignes_production
                 const ligneTempsArret = Number(ligne.temps_arret_ligne_minutes) || 0;
-                const heuresProductives = 9 - (ligneTempsArret / 60);
+                const maxDowntimeMinutes = shiftHours * 60;
+                const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                const heuresProductives = shiftHours - (effectiveDowntime / 60);
 
                 // Production théorique for this specific line
-                let productionTheorique = 0;
-                if (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) {
-                    productionTheorique = (1600 * 6 * heuresProductives) / 1000; // Tonnes
-                } else if (ligne.numero_ligne === 5) {
-                    productionTheorique = (900 * 12.5 * heuresProductives) / 1000; // Tonnes
-                }
+                const rate = (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                const theorique = (rate * heuresProductives) / 1000; // Tonnes
 
-                if (productionTheorique > 0) {
-                    const ligneProductivity = (ligneTonnage / productionTheorique) * 100;
-                    sessionProductivities.push(ligneProductivity);
-                }
+                // Accumulate totals for global ratio
+                productionTheoriqueTotal += theorique;
+                tonnageReelTotal += ligneTonnage;
             });
 
-            // Calculate average productivity
-            const tauxPerformance = sessionProductivities.length > 0
-                ? sessionProductivities.reduce((sum, p) => sum + p, 0) / sessionProductivities.length
+            // Calculate GLOBAL RATIO productivity (same formula as main list)
+            const tauxPerformance = productionTheoriqueTotal > 0
+                ? (tonnageReelTotal / productionTheoriqueTotal) * 100
                 : 0;
 
-            // Calculate ACTUAL performance for each day in daily history
+            // Calculate ACTUAL performance for each day in daily history using GLOBAL RATIO
             Object.keys(dailyHistory).forEach(date => {
-                const dayProductivities: number[] = [];
+                let dayTheoriqueTotal = 0;
+                let dayReelTotal = 0;
 
-                // Get productivities from shifts on this date
+                // Get data from shifts on this date
                 shifts.forEach(shift => {
                     if (shift.date === date) {
                         const shiftTonnage = Number(shift.tonnage_total) || 0;
-                        const shiftTempsArret = Number(shift.temps_arret_total_minutes) || 0;
-                        const heuresProductives = 9 - (shiftTempsArret / 60);
 
-                        let productionTheorique = 0;
+                        // Use real shift hours
+                        const shiftHours = calculateShiftHours(
+                            shift.heure_debut_reelle || '10:00',
+                            shift.heure_fin_reelle || '19:00'
+                        );
+
                         const shiftLignes = shift.lignes_production || [];
                         shiftLignes.forEach((l: any) => {
-                            if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
-                                productionTheorique += (1600 * 6 * heuresProductives) / 1000;
-                            } else if (l.numero_ligne === 5) {
-                                productionTheorique += (900 * 12.5 * heuresProductives) / 1000;
-                            }
+                            const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
+                            const maxDowntimeMinutes = shiftHours * 60;
+                            const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                            const heuresProductives = shiftHours - (effectiveDowntime / 60);
+
+                            const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                            dayTheoriqueTotal += (rate * heuresProductives) / 1000;
                         });
 
-                        if (productionTheorique > 0) {
-                            dayProductivities.push((shiftTonnage / productionTheorique) * 100);
-                        }
+                        dayReelTotal += shiftTonnage;
                     }
                 });
 
-                // Get productivities from lignes on this date
+                // Get data from lignes on this date
                 lignes.forEach(ligne => {
                     if (ligne.production_shifts?.date === date) {
                         const ligneTonnage = Number(ligne.tonnage_ligne) || 0;
                         const shift = ligne.production_shifts;
 
+                        // Use real shift hours from associated shift
+                        const shiftHours = shift ? calculateShiftHours(
+                            shift.heure_debut_reelle || '10:00',
+                            shift.heure_fin_reelle || '19:00'
+                        ) : 9;
+
                         // Temps d'arrêt is now stored directly in lignes_production
                         const ligneTempsArret = Number(ligne.temps_arret_ligne_minutes) || 0;
-                        const heuresProductives = 9 - (ligneTempsArret / 60);
+                        const maxDowntimeMinutes = shiftHours * 60;
+                        const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                        const heuresProductives = shiftHours - (effectiveDowntime / 60);
 
-                        let productionTheorique = 0;
-                        if (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) {
-                            productionTheorique = (1600 * 6 * heuresProductives) / 1000;
-                        } else if (ligne.numero_ligne === 5) {
-                            productionTheorique = (900 * 12.5 * heuresProductives) / 1000;
-                        }
-
-                        if (productionTheorique > 0) {
-                            dayProductivities.push((ligneTonnage / productionTheorique) * 100);
-                        }
+                        const rate = (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                        dayTheoriqueTotal += (rate * heuresProductives) / 1000;
+                        dayReelTotal += ligneTonnage;
                     }
                 });
 
-                // Calculate average productivity for this day
-                const dayPerf = dayProductivities.length > 0
-                    ? dayProductivities.reduce((sum, p) => sum + p, 0) / dayProductivities.length
+                // Calculate GLOBAL RATIO productivity for this day
+                const dayPerf = dayTheoriqueTotal > 0
+                    ? (dayReelTotal / dayTheoriqueTotal) * 100
                     : 0;
 
                 dailyHistory[date].tauxPerformance = dayPerf;
@@ -1136,16 +1159,13 @@ const CentreEmplisseurView = ({
                 return 0;
             };
 
-            // From shifts (Chef de Quart - arrêts affect specified lines)
+            // From shifts (Chef de Quart - temps d'arrêt stocké dans lignes_production)
             shifts.forEach(shift => {
-                const arrets = shift.arrets_production || [];
-                arrets.forEach((arret: any) => {
-                    const duration = getArretDuration(arret);
+                const shiftLines = shift.lignes_production || [];
+                shiftLines.forEach((ligne: any) => {
+                    const duration = Number(ligne.temps_arret_ligne_minutes) || 0;
                     if (duration > 0) {
-                        const lignesConcernees = arret.lignes_concernees || [];
-                        lignesConcernees.forEach((lineNum: number) => {
-                            downtimeByLine[lineNum] = (downtimeByLine[lineNum] || 0) + duration;
-                        });
+                        downtimeByLine[ligne.numero_ligne] = (downtimeByLine[ligne.numero_ligne] || 0) + duration;
                     }
                 });
             });
@@ -1167,8 +1187,28 @@ const CentreEmplisseurView = ({
                 .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
             // NEW: Taux de Présence (Attendance Rate)
-            const totalShiftsWorked = nombreShifts + nombreLignes;
-            const expectedHours = totalShiftsWorked * 9; // 9 hours per shift
+            // Calculate expected hours from real shift hours instead of fixed 9 hours
+            let expectedHours = 0;
+
+            // Sum hours from shifts (Chef de Quart)
+            shifts.forEach(shift => {
+                const shiftHours = calculateShiftHours(
+                    shift.heure_debut_reelle || '10:00',
+                    shift.heure_fin_reelle || '19:00'
+                );
+                expectedHours += shiftHours;
+            });
+
+            // Sum hours from lignes (Chef de Ligne)
+            lignes.forEach(ligne => {
+                const shift = ligne.production_shifts;
+                const shiftHours = shift ? calculateShiftHours(
+                    shift.heure_debut_reelle || '10:00',
+                    shift.heure_fin_reelle || '19:00'
+                ) : 9;
+                expectedHours += shiftHours;
+            });
+
             const downtimeHours = totalTempsArret / 60; // Convert minutes to hours
             const actualHours = expectedHours - downtimeHours;
             const tauxPresence = expectedHours > 0 ? (actualHours / expectedHours) * 100 : 0;
@@ -1306,6 +1346,85 @@ const CentreEmplisseurView = ({
                 }))
                 .sort((a, b) => b.tonnage - a.tonnage); // Sort by tonnage descending
 
+            // Calculer le tonnage attendu (production théorique)
+            let tonnageAttendu = 0;
+
+            // Pour les shifts (Chef de Quart)
+            shifts.forEach(shift => {
+                // Calculate real shift hours
+                const shiftHours = calculateShiftHours(
+                    shift.heure_debut_reelle || '10:00',
+                    shift.heure_fin_reelle || '19:00'
+                );
+
+                const shiftLignes = shift.lignes_production || [];
+                shiftLignes.forEach((l: any) => {
+                    const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
+                    const maxDowntimeMinutes = shiftHours * 60;
+                    const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                    const heuresProductives = shiftHours - (effectiveDowntime / 60);
+
+                    if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
+                        tonnageAttendu += (1600 * 6 * heuresProductives) / 1000; // Tonnes
+                    } else if (l.numero_ligne === 5) {
+                        tonnageAttendu += (900 * 12.5 * heuresProductives) / 1000; // Tonnes
+                    }
+                });
+            });
+
+            // Pour les lignes (Chef de Ligne)
+            lignes.forEach(ligne => {
+                // Get shift hours from the associated shift
+                const shift = ligne.production_shifts;
+                const shiftHours = shift ? calculateShiftHours(
+                    shift.heure_debut_reelle || '10:00',
+                    shift.heure_fin_reelle || '19:00'
+                ) : 9;
+
+                const ligneTempsArret = Number(ligne.temps_arret_ligne_minutes) || 0;
+                const maxDowntimeMinutes = shiftHours * 60;
+                const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
+                const heuresProductives = shiftHours - (effectiveDowntime / 60);
+
+                if (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) {
+                    tonnageAttendu += (1600 * 6 * heuresProductives) / 1000; // Tonnes
+                } else if (ligne.numero_ligne === 5) {
+                    tonnageAttendu += (900 * 12.5 * heuresProductives) / 1000; // Tonnes
+                }
+            });
+
+            // Liste des shifts travaillés avec les lignes
+            const shiftsWithLines: Record<string, Set<number>> = {};
+
+            shifts.forEach(s => {
+                const shiftLabel = s.shift_type === '10h-19h' ? 'Shift 1' : s.shift_type === '20h-5h' ? 'Shift 2' : s.shift_type;
+                if (!shiftsWithLines[shiftLabel]) {
+                    shiftsWithLines[shiftLabel] = new Set<number>();
+                }
+                // Pour chef de quart, on collecte toutes les lignes du shift
+                const shiftLignes = s.lignes_production || [];
+                shiftLignes.forEach((l: any) => {
+                    shiftsWithLines[shiftLabel].add(l.numero_ligne);
+                });
+            });
+
+            lignes.forEach(l => {
+                if (l.production_shifts?.shift_type) {
+                    const shiftLabel = l.production_shifts.shift_type === '10h-19h' ? 'Shift 1' : l.production_shifts.shift_type === '20h-5h' ? 'Shift 2' : l.production_shifts.shift_type;
+                    if (!shiftsWithLines[shiftLabel]) {
+                        shiftsWithLines[shiftLabel] = new Set<number>();
+                    }
+                    shiftsWithLines[shiftLabel].add(l.numero_ligne);
+                }
+            });
+
+            const shiftsList = Object.entries(shiftsWithLines)
+                .map(([shift, lignesSet]) => ({
+                    shift,
+                    lignes: Array.from(lignesSet).sort((a, b) => a - b)
+                }))
+                .sort((a, b) => a.shift.localeCompare(b.shift));
+
             // Return data for modal
             return {
                 tonnage: totalTonnage,
@@ -1333,7 +1452,9 @@ const CentreEmplisseurView = ({
                 bestDay,
                 worstDay,
                 shiftBreakdown,
-                lineBreakdown: lineBreakdownArray
+                lineBreakdown: lineBreakdownArray,
+                tonnageAttendu,
+                shiftsList
             };
 
         } catch (error) {
@@ -2156,11 +2277,69 @@ const CentreEmplisseurView = ({
             {/* Agent Details Modal */}
             <Dialog open={!!selectedAgentForModal} onOpenChange={(open) => !open && setSelectedAgentForModal(null)}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
+                    <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <DialogTitle className="text-2xl flex items-center gap-2">
                             <Users className="h-6 w-6 text-primary" />
                             {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.prenom} {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.nom}
                         </DialogTitle>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    const element = agentModalRef.current;
+                                    if (element) {
+                                        html2canvas(element, {
+                                            scale: 2,
+                                            backgroundColor: '#ffffff',
+                                            logging: false
+                                        }).then(canvas => {
+                                            const link = document.createElement('a');
+                                            const agentName = allAgentsComparison.find(a => a.id === selectedAgentForModal);
+                                            link.download = `agent_${agentName?.prenom}_${agentName?.nom}_${new Date().toISOString().split('T')[0]}.png`;
+                                            link.href = canvas.toDataURL();
+                                            link.click();
+                                        });
+                                    }
+                                }}
+                                className="gap-2"
+                            >
+                                <Camera className="h-4 w-4" />
+                                Image
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    const element = agentModalRef.current;
+                                    if (element) {
+                                        html2canvas(element, {
+                                            scale: 2,
+                                            backgroundColor: '#ffffff',
+                                            logging: false
+                                        }).then(canvas => {
+                                            const imgData = canvas.toDataURL('image/png');
+                                            const pdf = new jsPDF({
+                                                orientation: 'portrait',
+                                                unit: 'mm',
+                                                format: 'a4'
+                                            });
+
+                                            const imgWidth = 210; // A4 width in mm
+                                            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                                            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                                            const agentName = allAgentsComparison.find(a => a.id === selectedAgentForModal);
+                                            pdf.save(`agent_${agentName?.prenom}_${agentName?.nom}_${new Date().toISOString().split('T')[0]}.pdf`);
+                                        });
+                                    }
+                                }}
+                                className="gap-2"
+                            >
+                                <FileText className="h-4 w-4" />
+                                PDF
+                            </Button>
+                        </div>
                     </DialogHeader>
 
                     {agentModalData ? (
@@ -2176,7 +2355,6 @@ const CentreEmplisseurView = ({
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-center p-4 bg-blue-50/50 rounded-lg">
-                                            <p className="text-sm text-muted-foreground mb-1">Tonnage Total</p>
                                             <p className="text-4xl font-extrabold text-blue-600">
                                                 {(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
                                                 <span className="text-2xl ml-1">Kg</span>
@@ -2205,7 +2383,6 @@ const CentreEmplisseurView = ({
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-center p-4 bg-green-50/50 rounded-lg">
-                                            <p className="text-sm text-muted-foreground mb-1">Taux de Performance</p>
                                             <p className={`text-4xl font-extrabold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
                                                 agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
                                                 }`}>
@@ -2226,7 +2403,6 @@ const CentreEmplisseurView = ({
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-center p-4 bg-orange-50/50 rounded-lg">
-                                            <p className="text-sm text-muted-foreground mb-1">Temps d'Arrêt Cumulé</p>
                                             <p className="text-4xl font-extrabold text-orange-600">
                                                 {Math.floor(agentModalData.tempsArretMinutes / 60)}<span className="text-2xl">h</span>
                                                 {Math.round(agentModalData.tempsArretMinutes % 60)}<span className="text-2xl">m</span>
@@ -2262,7 +2438,6 @@ const CentreEmplisseurView = ({
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-center p-4 bg-purple-50/50 rounded-lg">
-                                            <p className="text-sm text-muted-foreground mb-1">Taux de Présence</p>
                                             <p className={`text-4xl font-extrabold ${agentModalData.tauxPresence >= 95 ? 'text-green-600' :
                                                 agentModalData.tauxPresence >= 85 ? 'text-orange-500' : 'text-red-600'
                                                 }`}>
@@ -2270,18 +2445,28 @@ const CentreEmplisseurView = ({
                                                 <span className="text-2xl ml-1">%</span>
                                             </p>
                                         </div>
-                                        <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                                            <div className="text-center p-2 border rounded">
-                                                <p className="text-muted-foreground">Attendues</p>
-                                                <p className="font-bold text-primary">{agentModalData.expectedHours}h</p>
+                                        <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                                            <div className="text-center p-3 border rounded bg-gradient-to-br from-green-50 to-green-100/50">
+                                                <p className="text-muted-foreground font-semibold mb-1">Temps travaillé</p>
+                                                <p className="font-bold text-green-600 text-lg">{agentModalData.actualHours.toFixed(1)}h</p>
+                                                <div className="mt-2 pt-2 border-t border-green-200">
+                                                    <p className="text-muted-foreground text-xs mb-1">Tonnage Attendu</p>
+                                                    <p className="font-bold text-blue-600">{(agentModalData.tonnageAttendu * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</p>
+                                                </div>
                                             </div>
-                                            <div className="text-center p-2 border rounded">
-                                                <p className="text-muted-foreground">Réelles</p>
-                                                <p className="font-bold text-green-600">{agentModalData.actualHours.toFixed(1)}h</p>
-                                            </div>
-                                            <div className="text-center p-2 border rounded">
-                                                <p className="text-muted-foreground">Sessions</p>
-                                                <p className="font-bold text-purple-600">{agentModalData.nombreShifts + agentModalData.nombreLignes}</p>
+                                            <div className="text-center p-3 border rounded bg-gradient-to-br from-purple-50 to-purple-100/50">
+                                                <p className="text-muted-foreground font-semibold mb-1">Shift</p>
+                                                <div className="font-bold text-purple-600">
+                                                    {agentModalData.shiftsList && agentModalData.shiftsList.length > 0 ? (
+                                                        agentModalData.shiftsList.map((item: any, idx: number) => (
+                                                            <div key={idx} className="text-sm">
+                                                                {item.shift} - Lignes: {item.lignes.join(', ')}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-sm">-</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </CardContent>
