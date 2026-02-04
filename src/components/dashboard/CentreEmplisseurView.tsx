@@ -153,6 +153,8 @@ const CentreEmplisseurView = ({
             consignes: number;
             rechargesKg: number;
             consignesKg: number;
+            tempsArret: number;      // en minutes
+            productivite: number;    // en pourcentage
         }[],
         maxLine: { id: 0, tonnage: 0 },
         minLine: { id: 0, tonnage: 0 },
@@ -251,7 +253,7 @@ const CentreEmplisseurView = ({
     const fetchStats = async () => {
         setLoading(true);
         try {
-            let shiftsQuery = supabase.from('production_shifts').select('*');
+            let shiftsQuery = supabase.from('production_shifts').select('*, arrets_production(*)');
             let linesQuery = supabase.from('lignes_production').select('*, production_shifts!inner(date, shift_type)');
 
             // Apply filters
@@ -334,6 +336,27 @@ const CentreEmplisseurView = ({
                         ((l.consignes_petro_b38 || 0) + (l.consignes_vivo_b38 || 0) + (l.consignes_total_b38 || 0)) * 38;
                 }, 0);
 
+                // Calculate temps d'arrêt for this line - now stored directly in lignes_production
+                const tempsArret = lineLines.reduce((sum, l) => sum + (Number(l.temps_arret_ligne_minutes) || 0), 0);
+
+                // Calculate theoretical production
+                let productionTheorique = 0;
+                const cadenceKgH = id <= 4 ? 9600 : 11250;
+
+                lineLines.forEach((l) => {
+                    // Temps d'arrêt for this specific line session
+                    const tempsArretSession = Number(l.temps_arret_ligne_minutes) || 0;
+
+                    // Heures productives for this session
+                    const heuresProductives = Math.max(0, 9 - tempsArretSession / 60);
+
+                    // Add to total theoretical production
+                    productionTheorique += (cadenceKgH * heuresProductives) / 1000; // tonnes
+                });
+
+                // Calculate productivity
+                const productivite = productionTheorique > 0 ? (tonnage / productionTheorique) * 100 : 0;
+
                 return {
                     id,
                     tonnage,
@@ -341,7 +364,9 @@ const CentreEmplisseurView = ({
                     recharges,
                     consignes,
                     rechargesKg,
-                    consignesKg
+                    consignesKg,
+                    tempsArret,
+                    productivite
                 };
             });
 
@@ -516,7 +541,7 @@ const CentreEmplisseurView = ({
                     // Query lignes as chef de ligne (including arrets for productivity calc)
                     let lignesQuery = supabase
                         .from('lignes_production')
-                        .select('tonnage_ligne, numero_ligne, production_shifts!inner(id, date, shift_type, arrets_production(*))')
+                        .select('tonnage_ligne, numero_ligne, temps_arret_ligne_minutes, production_shifts!inner(*)')
                         .eq('chef_ligne_id', agent.id);
 
                     // Apply filters
@@ -568,10 +593,12 @@ const CentreEmplisseurView = ({
                         }
                     }
 
-                    // 3. Productivity - Calculate theoretical production PER LINE
-                    let productionTheoriqueTotal = 0;
+                    // 3. Productivity - Calculate per line, then average for Chef de Quart
+                    const lineProductivities: number[] = []; // For Chef de Quart: average of line productivities
+                    let productionTheoriqueLigne = 0; // For Chef de Ligne: simple ratio
+                    let tonnageReelLigne = 0;
 
-                    // A. Process shifts (Chef de Quart) - Calculate per line
+                    // A. Process shifts (Chef de Quart) - Calculate productivity PER LINE then average
                     (shiftsData as any[]).forEach((s: any) => {
                         const shiftLines = s.lignes_production || [];
                         const shiftArrets = s.arrets_production || [];
@@ -579,7 +606,7 @@ const CentreEmplisseurView = ({
                         shiftLines.forEach((l: any) => {
                             // Find stops affecting THIS specific line
                             const lineArrets = shiftArrets.filter((a: any) =>
-                                a.lignes_concernees && a.lignes_concernees.includes(l.numero_ligne)
+                                a.lignes_concernees && a.lignes_concernees.some((lc: any) => Number(lc) === Number(l.numero_ligne))
                             );
 
                             // Calculate downtime for this line (using duree_minutes or fallback)
@@ -604,47 +631,48 @@ const CentreEmplisseurView = ({
 
                             // Rate: Lines 1-4 = B6 (1600 × 6kg), Line 5 = B12 (900 × 12.5kg)
                             const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                            const contrib = (rate * productiveHours) / 1000; // Convert to Tonnes
+                            const theorique = (rate * productiveHours) / 1000; // Convert to Tonnes
 
-                            productionTheoriqueTotal += contrib;
+                            // Get real tonnage for this line
+                            const reel = Number(l.tonnage_ligne) || 0;
+
+                            // Calculate productivity for THIS line
+                            if (theorique > 0) {
+                                const lineProd = (reel / theorique) * 100;
+                                lineProductivities.push(lineProd);
+                            }
                         });
                     });
 
-                    // B. Process lignes (Chef de Ligne) - Now with arrets from shift
+                    // B. Process lignes (Chef de Ligne) - Simple ratio (one line)
                     (lignesData as any[]).forEach((l: any) => {
-                        const shiftArrets = l.production_shifts?.arrets_production || [];
-
-                        // Find stops affecting THIS specific line
-                        const lineArrets = shiftArrets.filter((a: any) =>
-                            a.lignes_concernees && a.lignes_concernees.includes(l.numero_ligne)
-                        );
-
-                        // Calculate downtime for this line
-                        let ligneTempsArret = 0;
-                        lineArrets.forEach((a: any) => {
-                            if (a.duree_minutes && a.duree_minutes > 0) {
-                                ligneTempsArret += a.duree_minutes;
-                            } else if (a.heure_debut && a.heure_fin) {
-                                const [hD, mD] = a.heure_debut.split(':').map(Number);
-                                const [hF, mF] = a.heure_fin.split(':').map(Number);
-                                let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
-                                if (diffMins < 0) diffMins += 24 * 60;
-                                ligneTempsArret += diffMins;
-                            }
-                        });
+                        // Temps d'arrêt is now stored directly in lignes_production
+                        const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
 
                         // Calculate theoretical for this line
                         const effectiveDowntime = Math.min(ligneTempsArret, 540);
                         const productiveHours = 9 - (effectiveDowntime / 60);
                         const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                        const contrib = (rate * productiveHours) / 1000;
-                        productionTheoriqueTotal += contrib;
+                        const theorique = (rate * productiveHours) / 1000;
+
+                        productionTheoriqueLigne += theorique;
+                        tonnageReelLigne += Number(l.tonnage_ligne) || 0;
                     });
 
-                    // Calculate final productivity
+                    // Calculate final productivity based on role
                     let productivite = 0;
-                    if (productionTheoriqueTotal > 0) {
-                        productivite = (totalTonnage / productionTheoriqueTotal) * 100;
+                    if (displayRole === 'chef_quart' && lineProductivities.length > 0) {
+                        // Chef de Quart: AVERAGE of line productivities
+                        productivite = lineProductivities.reduce((sum, p) => sum + p, 0) / lineProductivities.length;
+                    } else if (displayRole === 'chef_ligne' && productionTheoriqueLigne > 0) {
+                        // Chef de Ligne: Simple ratio
+                        productivite = (tonnageReelLigne / productionTheoriqueLigne) * 100;
+                    } else if (lineProductivities.length > 0) {
+                        // Fallback: use average if we have line data
+                        productivite = lineProductivities.reduce((sum, p) => sum + p, 0) / lineProductivities.length;
+                    } else if (productionTheoriqueLigne > 0) {
+                        // Fallback: use simple ratio
+                        productivite = (tonnageReelLigne / productionTheoriqueLigne) * 100;
                     }
 
                     // 4. Collect Lines (for Chef de Ligne)
@@ -720,7 +748,7 @@ const CentreEmplisseurView = ({
 
                 let lignesQuery = supabase
                     .from('lignes_production')
-                    .select('*, production_shifts!inner(date, shift_type, arrets_production(*))')
+                    .select('*, production_shifts!inner(*)')
                     .eq('chef_ligne_id', agentId)
                     .gte('production_shifts.date', start)
                     .lte('production_shifts.date', end);
@@ -833,16 +861,24 @@ const CentreEmplisseurView = ({
                 totalEffectif += (shift.chariste || 0) + (shift.chariot || 0) +
                     (shift.agent_quai || 0) + (shift.agent_saisie || 0) + (shift.agent_atelier || 0);
 
-                const arrets = shift.arrets_production || [];
-                arrets.forEach((a: any) => {
-                    if (a.heure_debut && a.heure_fin) {
-                        const [hD, mD] = a.heure_debut.split(':').map(Number);
-                        const [hF, mF] = a.heure_fin.split(':').map(Number);
-                        let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
-                        if (diffMins < 0) diffMins += 24 * 60;
-                        totalTempsArret += diffMins;
-                    }
-                });
+                // Use temps_arret_total_minutes from shift if available (more reliable)
+                if (shift.temps_arret_total_minutes && shift.temps_arret_total_minutes > 0) {
+                    totalTempsArret += shift.temps_arret_total_minutes;
+                } else {
+                    // Fallback: calculate from individual arrets
+                    const arrets = shift.arrets_production || [];
+                    arrets.forEach((a: any) => {
+                        if (a.duree_minutes && a.duree_minutes > 0) {
+                            totalTempsArret += a.duree_minutes;
+                        } else if (a.heure_debut && a.heure_fin) {
+                            const [hD, mD] = a.heure_debut.split(':').map(Number);
+                            const [hF, mF] = a.heure_fin.split(':').map(Number);
+                            let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
+                            if (diffMins < 0) diffMins += 24 * 60;
+                            totalTempsArret += diffMins;
+                        }
+                    });
+                }
             });
 
             // Stats from chef de ligne role
@@ -866,23 +902,12 @@ const CentreEmplisseurView = ({
                     (l.cumul_consignes_b28 || 0) + (l.cumul_consignes_b38 || 0);
                 totalEffectif += l.nombre_agents || 0;
 
-                // Calculate downtime for Chef de Ligne (from shift's arrets_production)
-                const shiftArrets = l.production_shifts?.arrets_production || [];
-                const lineArrets = shiftArrets.filter((a: any) =>
-                    a.lignes_concernees && a.lignes_concernees.includes(l.numero_ligne)
-                );
-                lineArrets.forEach((a: any) => {
-                    if (a.duree_minutes && a.duree_minutes > 0) {
-                        totalTempsArret += a.duree_minutes;
-                    } else if (a.heure_debut && a.heure_fin) {
-                        const [hD, mD] = a.heure_debut.split(':').map(Number);
-                        const [hF, mF] = a.heure_fin.split(':').map(Number);
-                        let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
-                        if (diffMins < 0) diffMins += 24 * 60;
-                        totalTempsArret += diffMins;
-                    }
-                });
+                // Temps d'arrêt is now stored directly in lignes_production
+                const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
+                totalTempsArret += ligneTempsArret;
             });
+
+            console.log('=== TOTAL TEMPS ARRET (shifts + lignes) ===', totalTempsArret);
 
             totalBouteilles = totalRecharges + totalConsignes;
 
@@ -924,19 +949,8 @@ const CentreEmplisseurView = ({
                 const ligneTonnage = Number(ligne.tonnage_ligne) || 0;
                 const shift = ligne.production_shifts;
 
-                // Get downtime for this specific line from the shift's arrêts
-                let ligneTempsArret = 0;
-                const arrets = shift?.arrets_production || [];
-                arrets.forEach((arret: any) => {
-                    if (arret.lignes_concernees?.includes(ligne.numero_ligne) && arret.heure_debut && arret.heure_fin) {
-                        const [hD, mD] = arret.heure_debut.split(':').map(Number);
-                        const [hF, mF] = arret.heure_fin.split(':').map(Number);
-                        let diffMins = (hF * 60 + mF) - (hD * 60 + mD);
-                        if (diffMins < 0) diffMins += 24 * 60;
-                        ligneTempsArret += diffMins; // minutes
-                    }
-                });
-
+                // Temps d'arrêt is now stored directly in lignes_production
+                const ligneTempsArret = Number(ligne.temps_arret_ligne_minutes) || 0;
                 const heuresProductives = 9 - (ligneTempsArret / 60);
 
                 // Production théorique for this specific line
@@ -991,17 +1005,8 @@ const CentreEmplisseurView = ({
                         const ligneTonnage = Number(ligne.tonnage_ligne) || 0;
                         const shift = ligne.production_shifts;
 
-                        let ligneTempsArret = 0;
-                        const arrets = shift?.arrets_production || [];
-                        arrets.forEach((arret: any) => {
-                            if (arret.lignes_concernees?.includes(ligne.numero_ligne) && arret.heure_debut && arret.heure_fin) {
-                                const debut = new Date(`2000-01-01T${arret.heure_debut}`);
-                                const fin = new Date(`2000-01-01T${arret.heure_fin}`);
-                                const diffMs = fin.getTime() - debut.getTime();
-                                ligneTempsArret += diffMs / 60000;
-                            }
-                        });
-
+                        // Temps d'arrêt is now stored directly in lignes_production
+                        const ligneTempsArret = Number(ligne.temps_arret_ligne_minutes) || 0;
                         const heuresProductives = 9 - (ligneTempsArret / 60);
 
                         let productionTheorique = 0;
@@ -1145,18 +1150,12 @@ const CentreEmplisseurView = ({
                 });
             });
 
-            // From lignes (Chef de Ligne - get arrêts from parent shift affecting this line)
+            // From lignes (Chef de Ligne - temps d'arrêt is stored directly)
             lignes.forEach(ligne => {
-                const shift = ligne.production_shifts;
-                const arrets = shift?.arrets_production || [];
-                arrets.forEach((arret: any) => {
-                    if (arret.lignes_concernees?.includes(ligne.numero_ligne)) {
-                        const duration = getArretDuration(arret);
-                        if (duration > 0) {
-                            downtimeByLine[ligne.numero_ligne] = (downtimeByLine[ligne.numero_ligne] || 0) + duration;
-                        }
-                    }
-                });
+                const duration = Number(ligne.temps_arret_ligne_minutes) || 0;
+                if (duration > 0) {
+                    downtimeByLine[ligne.numero_ligne] = (downtimeByLine[ligne.numero_ligne] || 0) + duration;
+                }
             });
 
             // NEW: Daily Productivity Array (sorted by date)
@@ -1822,67 +1821,98 @@ const CentreEmplisseurView = ({
                             </div>
                         </div>
                         {isLinesExpanded && (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                {[...stats.lines]
-                                    .sort((a, b) => b.tonnage - a.tonnage)
-                                    .map((line, index) => {
-                                        const rank = index + 1;
-                                        let statusColor = "red";
-                                        if (rank === 1) statusColor = "green";
-                                        else if (rank >= 2 && rank <= 4) statusColor = "orange";
-                                        else statusColor = "red";
+                            <div className="grid grid-cols-5 gap-3">
+                                {stats.lines.map((line) => {
+                                    // Determine color based on productivity
+                                    const prodColor = line.productivite >= 90 ? 'green' :
+                                        line.productivite >= 70 ? 'orange' : 'red';
 
-                                        const borderClass = statusColor === 'green' ? 'border-l-green-500' :
-                                            statusColor === 'orange' ? 'border-l-orange-500' : 'border-l-red-500';
+                                    const borderClass = prodColor === 'green' ? 'border-t-green-500' :
+                                        prodColor === 'orange' ? 'border-t-orange-500' : 'border-t-red-500';
 
-                                        const bgClass = statusColor === 'green' ? 'bg-green-50/50' :
-                                            statusColor === 'orange' ? 'bg-orange-50/50' : 'bg-red-50/50';
+                                    const bgClass = prodColor === 'green' ? 'bg-green-50/50' :
+                                        prodColor === 'orange' ? 'bg-orange-50/50' : 'bg-red-50/50';
 
-                                        const badgeClass = statusColor === 'green' ? 'bg-green-600 text-white' :
-                                            statusColor === 'orange' ? 'bg-orange-600 text-white' : 'bg-red-600 text-white';
+                                    const textClass = prodColor === 'green' ? 'text-green-600' :
+                                        prodColor === 'orange' ? 'text-orange-600' : 'text-red-600';
 
-                                        const textClass = statusColor === 'green' ? 'text-green-600' :
-                                            statusColor === 'orange' ? 'text-orange-600' : 'text-red-600';
+                                    const formatTime = (minutes: number) => {
+                                        const h = Math.floor(minutes / 60);
+                                        const m = Math.round(minutes % 60);
+                                        return `${h}h${m.toString().padStart(2, '0')}`;
+                                    };
 
-                                        return (
-                                            <div key={line.id} className={`p-4 bg-card border rounded-lg shadow-sm hover:shadow-md transition-all border-l-4 ${borderClass} ${bgClass}`}>
-                                                <div className="flex justify-between items-center mb-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`font-bold px-3 py-1 rounded-md text-sm shadow-sm ${badgeClass}`}>
-                                                            {rank === 1 ? '1er' : `${rank}e`}
-                                                        </div>
+                                    return (
+                                        <div key={line.id} className={`p-4 bg-card border rounded-lg shadow-sm border-t-4 ${borderClass} ${bgClass}`}>
+                                            {/* Header */}
+                                            <div className="text-center mb-3 pb-2 border-b">
+                                                <span className="font-bold text-lg text-foreground">Ligne {line.id}</span>
+                                                <span className="text-xs text-muted-foreground ml-2">
+                                                    ({line.id <= 4 ? 'B6' : 'B12'})
+                                                </span>
+                                            </div>
 
-                                                        <span className="font-bold text-muted-foreground text-sm uppercase tracking-wider mx-1">
-                                                            Ligne {line.id}
-                                                        </span>
+                                            {/* Tonnage */}
+                                            <div className="text-center mb-3">
+                                                <p className="text-xs text-muted-foreground uppercase font-semibold">Tonnage</p>
+                                                <p className="text-2xl font-extrabold text-primary">
+                                                    {(line.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                                                    <span className="text-sm font-normal text-muted-foreground ml-1">Kg</span>
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {line.percentage.toFixed(1)}% du total
+                                                </p>
+                                            </div>
 
-                                                        <span className={`font-extrabold text-2xl tracking-tight ${textClass}`}>
-                                                            {(line.tonnage * 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                                            <span className="text-lg opacity-70 ml-1">Kg</span>
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-sm font-extrabold text-primary bg-primary/5 px-3 py-1.5 rounded-md border border-primary/10">
-                                                        {stats.totalTonnage > 0 ? ((line.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%
+                                            {/* Productivité */}
+                                            <div className="text-center mb-3 p-2 rounded-md bg-white/50">
+                                                <p className="text-xs text-muted-foreground uppercase font-semibold">Productivité</p>
+                                                <p className={`text-xl font-extrabold ${textClass}`}>
+                                                    {line.productivite.toFixed(1)}%
+                                                </p>
+                                            </div>
+
+                                            {/* Temps d'arrêt */}
+                                            <div className="text-center mb-3">
+                                                <p className="text-xs text-muted-foreground uppercase font-semibold">Temps d'arrêt</p>
+                                                <p className="text-lg font-bold text-orange-600">
+                                                    {formatTime(line.tempsArret)}
+                                                </p>
+                                            </div>
+
+                                            {/* Bouteilles */}
+                                            <div className="text-center pt-2 border-t">
+                                                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Bouteilles</p>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-blue-600 font-medium">
+                                                        R: {line.recharges.toLocaleString('fr-FR')}
+                                                    </span>
+                                                    <span className="text-green-600 font-medium">
+                                                        C: {line.consignes.toLocaleString('fr-FR')}
                                                     </span>
                                                 </div>
-                                                <div className="flex items-center gap-4 text-sm bg-muted/30 p-3 rounded-md border">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-muted-foreground uppercase font-semibold">Recharges:</span>
-                                                        <span className="font-bold text-foreground text-base">{line.recharges.toLocaleString('fr-FR')}</span>
-                                                        <span className="text-muted-foreground mx-1">•</span>
-                                                        <span className="font-bold text-blue-600">{line.rechargesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
-                                                    </div>
-                                                    <div className="h-4 w-px bg-border"></div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-muted-foreground uppercase font-semibold">Consignes:</span>
-                                                        <span className="font-bold text-foreground text-base">{line.consignes.toLocaleString('fr-FR')}</span>
-                                                        <span className="text-muted-foreground mx-1">•</span>
-                                                        <span className="font-bold text-green-600">{line.consignesKg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Kg</span>
-                                                    </div>
-                                                </div>
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Legend */}
+                        {isLinesExpanded && (
+                            <div className="flex justify-center gap-6 text-xs text-muted-foreground mt-2">
+                                <span className="flex items-center gap-1">
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    Prod ≥ 90%
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                                    70-89%
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                    &lt; 70%
+                                </span>
                             </div>
                         )}
                     </div>
@@ -1925,157 +1955,200 @@ const CentreEmplisseurView = ({
                     </div>
                 </CardHeader>
 
-                <CardContent className="space-y-8 pt-6" ref={section3Ref}>
+                <CardContent className="space-y-6 pt-6" ref={section3Ref}>
                     {isAgentsExpanded && (
-                        <>
-                            {/* Comparison Chart */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Stat des agents</h3>
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                    {allAgentsComparison.map((agent, index) => {
-                                        const isFirst = index === 0;
-                                        const isLast = index === allAgentsComparison.length - 1 && allAgentsComparison.length > 1;
+                        <div className="space-y-4">
+                            {/* Chefs de Quart */}
+                            {allAgentsComparison.filter(a => a.displayRole === 'chef_quart').length > 0 && (
+                                <>
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="h-px bg-border flex-1" />
+                                        <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                            Chefs de Quart
+                                        </span>
+                                        <div className="h-px bg-border flex-1" />
+                                    </div>
 
-                                        // Determine separator for Chef de Ligne
-                                        const needsChefLigneSeparator = index > 0 &&
-                                            agent.displayRole === 'chef_ligne' &&
-                                            allAgentsComparison[index - 1].displayRole === 'chef_quart';
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {allAgentsComparison
+                                            .filter(a => a.displayRole === 'chef_quart')
+                                            .map((agent, index) => {
+                                                const rank = index + 1;
+                                                const contribution = stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0;
 
-                                        // Determine separator for inactive agents (tonnage = 0)
-                                        const needsInactiveSeparator = index > 0 &&
-                                            agent.tonnage === 0 &&
-                                            allAgentsComparison[index - 1].tonnage > 0;
+                                                const badge = agent.productivite >= 90 ? { color: 'green', icon: '🟢' } :
+                                                    agent.productivite >= 70 ? { color: 'orange', icon: '🟠' } :
+                                                        { color: 'red', icon: '🔴' };
 
-                                        // Calculate Contribution Color Status
-                                        const contribution = stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0;
-                                        let statusColor = "red"; // default
-                                        if (agent.displayRole === 'chef_quart') {
-                                            statusColor = contribution > 50 ? "green" : "red";
-                                        } else {
-                                            // Chef de Ligne
-                                            if (contribution > 8) statusColor = "green";
-                                            else if (contribution >= 5) statusColor = "orange";
-                                            else statusColor = "red";
-                                        }
+                                                const borderClass = badge.color === 'green' ? 'border-l-green-500' :
+                                                    badge.color === 'orange' ? 'border-l-orange-500' : 'border-l-red-500';
 
-                                        // Map status to Tailwind classes
-                                        const borderClass = statusColor === 'green' ? 'border-l-green-500' :
-                                            statusColor === 'orange' ? 'border-l-orange-500' : 'border-l-red-500';
+                                                const bgClass = badge.color === 'green' ? 'bg-green-50/50' :
+                                                    badge.color === 'orange' ? 'bg-orange-50/50' : 'bg-red-50/50';
 
-                                        const bgClass = statusColor === 'green' ? 'bg-green-50/50' :
-                                            statusColor === 'orange' ? 'bg-orange-50/50' : 'bg-red-50/50';
+                                                return (
+                                                    <Card
+                                                        key={agent.id}
+                                                        className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${borderClass} ${bgClass}`}
+                                                        onClick={() => setSelectedAgentForModal(agent.id)}
+                                                    >
+                                                        <CardContent className="p-4">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
+                                                                    <span className="text-xl font-extrabold text-primary">#{rank}</span>
+                                                                </div>
 
-                                        const rankClass = statusColor === 'green' ? 'bg-green-100 text-green-700 border-green-400' :
-                                            statusColor === 'orange' ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                                                'bg-red-100 text-red-700 border-red-300';
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="font-bold text-lg truncate">
+                                                                            {agent.prenom} {agent.nom}
+                                                                        </span>
+                                                                        <span className="text-xs">{badge.icon}</span>
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground">Chef de Quart</p>
+                                                                </div>
 
-                                        const barClass = statusColor === 'green' ? 'bg-green-500' :
-                                            statusColor === 'orange' ? 'bg-orange-500' : 'bg-red-500';
-
-                                        return (
-                                            <Fragment key={agent.id}>
-                                                {needsChefLigneSeparator && (
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center gap-4 my-4">
-                                                        <div className="h-px bg-border flex-1" />
-                                                        <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                                            Chefs de Ligne
-                                                        </span>
-                                                        <div className="h-px bg-border flex-1" />
-                                                    </div>
-                                                )}
-
-                                                {needsInactiveSeparator && (
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center gap-4 my-4">
-                                                        <div className="h-[1px] bg-muted-foreground/30 flex-1" />
-                                                        <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">
-                                                            Sans activité sur la période
-                                                        </span>
-                                                        <div className="h-[1px] bg-muted-foreground/30 flex-1" />
-                                                    </div>
-                                                )}
-
-                                                <Card
-                                                    className={cn(
-                                                        "cursor-pointer transition-all hover:shadow-md border-l-4 group",
-                                                        borderClass,
-                                                        // Only apply background tint if it was previously applied logic (first/last) OR we can apply it to all based on status?
-                                                        // User asked for border and rank. Let's keep background subtle or remove specific first/last logic to be consistent with color.
-                                                        // Let's apply the tint based on status for consistency as requested "harmoniser tout ça"
-                                                        bgClass
-                                                    )}
-                                                    onClick={() => {
-                                                        setSelectedAgentForModal(agent.id);
-                                                    }}
-                                                >
-                                                    <CardContent className="p-4">
-                                                        <div className="flex items-center gap-4">
-                                                            {/* 1. RANK */}
-                                                            <div className={cn(
-                                                                "flex-shrink-0 w-14 h-14 flex items-center justify-center rounded-full font-extrabold text-2xl border-4 shadow-sm",
-                                                                rankClass
-                                                            )}>
-                                                                {agent.displayRole === 'chef_quart' ?
-                                                                    `#${allAgentsComparison.filter(a => a.displayRole === 'chef_quart').findIndex(a => a.id === agent.id) + 1}` :
-                                                                    `#${allAgentsComparison.filter(a => a.displayRole === 'chef_ligne').findIndex(a => a.id === agent.id) + 1}`
-                                                                }
-                                                            </div>
-
-                                                            {/* 2. INFO (Name) */}
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex flex-col">
-                                                                    <span className={cn(
-                                                                        "font-bold text-lg truncate group-hover:text-primary transition-colors"
-                                                                    )}>
-                                                                        {agent.prenom} {agent.nom}
-                                                                    </span>
-                                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                                        {agent.displayRole === 'chef_ligne' && agent.lines && agent.lines.length > 0 && (
-                                                                            <span className="text-xs text-muted-foreground truncate">
-                                                                                ({agent.lines.join(', ')})
-                                                                            </span>
-                                                                        )}
+                                                                <div className="text-right flex-shrink-0">
+                                                                    <div className={`text-2xl font-extrabold ${badge.color === 'green' ? 'text-green-600' :
+                                                                        badge.color === 'orange' ? 'text-orange-600' : 'text-red-600'
+                                                                        }`}>
+                                                                        {agent.productivite.toFixed(1)}%
+                                                                    </div>
+                                                                    <div className="text-sm font-bold text-foreground">
+                                                                        {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                                    </div>
+                                                                    <div className="text-xs text-primary font-semibold">
+                                                                        {contribution.toFixed(1)}% contrib.
                                                                     </div>
                                                                 </div>
                                                             </div>
 
-                                                            {/* 3. STATS (Prod & Tonnage) */}
-                                                            <div className="text-right flex-shrink-0">
-                                                                <div className={cn(
-                                                                    "text-xl font-extrabold",
-                                                                    agent.productivite >= 90 ? "text-green-600" :
-                                                                        agent.productivite >= 70 ? "text-orange-600" : "text-red-600"
-                                                                )}>
-                                                                    {(agent.productivite || 0).toFixed(1)}%
-                                                                </div>
-                                                                <div className="text-sm font-bold text-foreground mt-0.5">
-                                                                    {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                            <div className="mt-3">
+                                                                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className={`h-full rounded-full transition-all ${badge.color === 'green' ? 'bg-green-500' :
+                                                                            badge.color === 'orange' ? 'bg-orange-500' : 'bg-red-500'
+                                                                            }`}
+                                                                        style={{ width: `${Math.min(100, contribution)}%` }}
+                                                                    />
                                                                 </div>
                                                             </div>
-                                                        </div>
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })}
+                                    </div>
+                                </>
+                            )}
 
-                                                        {/* 4. PROGRESS BAR */}
-                                                        <div className="mt-4 space-y-1.5">
-                                                            <div className="flex justify-between text-xs uppercase tracking-wider font-bold text-foreground items-end">
-                                                                <span className="text-muted-foreground font-semibold text-[10px] mb-0.5">Contribution</span>
-                                                                <span className="text-primary text-lg font-extrabold leading-none">
-                                                                    {stats.totalTonnage > 0 ? ((agent.tonnage / stats.totalTonnage) * 100).toFixed(1) : 0}%
-                                                                </span>
+                            {/* Chefs de Ligne */}
+                            {allAgentsComparison.filter(a => a.displayRole === 'chef_ligne').length > 0 && (
+                                <>
+                                    <div className="flex items-center gap-4 my-6">
+                                        <div className="h-px bg-border flex-1" />
+                                        <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                            Chefs de Ligne
+                                        </span>
+                                        <div className="h-px bg-border flex-1" />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {allAgentsComparison
+                                            .filter(a => a.displayRole === 'chef_ligne')
+                                            .map((agent, index) => {
+                                                const rank = index + 1;
+                                                const contribution = stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0;
+
+                                                const badge = agent.productivite >= 90 ? { color: 'green', icon: '🟢' } :
+                                                    agent.productivite >= 70 ? { color: 'orange', icon: '🟠' } :
+                                                        { color: 'red', icon: '🔴' };
+
+                                                const borderClass = badge.color === 'green' ? 'border-l-green-500' :
+                                                    badge.color === 'orange' ? 'border-l-orange-500' : 'border-l-red-500';
+
+                                                const bgClass = badge.color === 'green' ? 'bg-green-50/50' :
+                                                    badge.color === 'orange' ? 'bg-orange-50/50' : 'bg-red-50/50';
+
+                                                return (
+                                                    <Card
+                                                        key={agent.id}
+                                                        className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${borderClass} ${bgClass}`}
+                                                        onClick={() => setSelectedAgentForModal(agent.id)}
+                                                    >
+                                                        <CardContent className="p-4">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
+                                                                    <span className="text-xl font-extrabold text-primary">#{rank}</span>
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="font-bold text-lg truncate">
+                                                                            {agent.prenom} {agent.nom}
+                                                                        </span>
+                                                                        <span className="text-xs">{badge.icon}</span>
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        Lignes: {agent.lines && agent.lines.length > 0 ? agent.lines.join(', ') : 'N/A'}
+                                                                    </p>
+                                                                </div>
+
+                                                                <div className="text-right flex-shrink-0">
+                                                                    <div className={`text-2xl font-extrabold ${badge.color === 'green' ? 'text-green-600' :
+                                                                        badge.color === 'orange' ? 'text-orange-600' : 'text-red-600'
+                                                                        }`}>
+                                                                        {agent.productivite.toFixed(1)}%
+                                                                    </div>
+                                                                    <div className="text-sm font-bold text-foreground">
+                                                                        {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                                    </div>
+                                                                    <div className="text-xs text-primary font-semibold">
+                                                                        {contribution.toFixed(1)}% contrib.
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                                                                <div
-                                                                    className={cn("h-full rounded-full transition-all", barClass)}
-                                                                    style={{ width: `${stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0}%` }}
-                                                                />
+
+                                                            <div className="mt-3">
+                                                                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className={`h-full rounded-full transition-all ${badge.color === 'green' ? 'bg-green-500' :
+                                                                            badge.color === 'orange' ? 'bg-orange-500' : 'bg-red-500'
+                                                                            }`}
+                                                                        style={{ width: `${Math.min(100, contribution)}%` }}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            </Fragment>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </>
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })}
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Sans activité */}
+                            {allAgentsComparison.filter(a => a.tonnage === 0).length > 0 && (
+                                <>
+                                    <div className="flex items-center gap-4 my-6">
+                                        <div className="h-[1px] bg-muted-foreground/30 flex-1" />
+                                        <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">
+                                            Sans activité sur la période
+                                        </span>
+                                        <div className="h-[1px] bg-muted-foreground/30 flex-1" />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                        {allAgentsComparison
+                                            .filter(a => a.tonnage === 0)
+                                            .map((agent) => (
+                                                <div key={agent.id} className="p-2 border rounded text-sm text-muted-foreground">
+                                                    {agent.prenom} {agent.nom}
+                                                </div>
+                                            ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     )}
                 </CardContent>
             </Card>
@@ -2084,270 +2157,136 @@ const CentreEmplisseurView = ({
             <Dialog open={!!selectedAgentForModal} onOpenChange={(open) => !open && setSelectedAgentForModal(null)}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <div className="flex items-center justify-between">
-                            <DialogTitle className="text-2xl flex items-center gap-2">
-                                <Users className="h-6 w-6 text-primary" />
-                                {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.prenom} {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.nom}
-                            </DialogTitle>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const agent = allAgentsComparison.find(a => a.id === selectedAgentForModal);
-                                        const filename = `statistiques-${agent?.prenom}-${agent?.nom}`.toLowerCase().replace(/\s+/g, '-');
-                                        exportSectionAsImage(agentModalRef, filename);
-                                    }}
-                                >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Image
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const agent = allAgentsComparison.find(a => a.id === selectedAgentForModal);
-                                        const filename = `statistiques-${agent?.prenom}-${agent?.nom}`.toLowerCase().replace(/\s+/g, '-');
-                                        exportSectionAsPDF(agentModalRef, filename);
-                                    }}
-                                >
-                                    <FileDown className="h-4 w-4 mr-2" />
-                                    PDF
-                                </Button>
-                            </div>
-                        </div>
+                        <DialogTitle className="text-2xl flex items-center gap-2">
+                            <Users className="h-6 w-6 text-primary" />
+                            {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.prenom} {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.nom}
+                        </DialogTitle>
                     </DialogHeader>
 
                     {agentModalData ? (
                         <div className="space-y-6 py-4" ref={agentModalRef}>
-
-                            {/* CARD 1: Volume Produit */}
-                            <Card className="border-l-4 border-l-blue-500">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Package className="h-5 w-5 text-blue-600" />
-                                        Volume Produit
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Main Tonnage */}
-                                    <div className="text-center p-4 bg-blue-50/50 rounded-lg">
-                                        <p className="text-sm text-muted-foreground mb-1">Volume Produit</p>
-                                        <p className="text-4xl font-extrabold text-blue-600">
-                                            {(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} <span className="text-2xl">Kg</span>
-                                        </p>
-                                    </div>
-
-                                    {/* Répartition par Ligne */}
-                                    {agentModalData.lineBreakdown && agentModalData.lineBreakdown.length > 0 && (filterType === 'month' || filterType === 'period' || filterType === 'year') && (
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Ligne</h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                                                {agentModalData.lineBreakdown.map((line: any, i: number) => (
-                                                    <div key={i} className="p-3 border rounded-lg text-center bg-white hover:shadow-md transition-shadow">
-                                                        <p className="text-xs font-semibold text-muted-foreground mb-1">{line.ligne}</p>
-                                                        <p className="text-lg font-bold text-blue-600">
-                                                            {(line.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">Kg</p>
-                                                        <p className="text-xs font-medium text-blue-600 mt-0.5">
-                                                            {agentModalData.tonnage > 0 ? ((line.tonnage / agentModalData.tonnage) * 100).toFixed(1) : 0}%
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground mt-1">{line.sessions} shift{line.sessions > 1 ? 's' : ''}</p>
-                                                    </div>
-                                                ))}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Card 1: Volume Produit */}
+                                <Card className="border-l-4 border-l-blue-500">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Package className="h-5 w-5 text-blue-600" />
+                                            Volume Produit
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-center p-4 bg-blue-50/50 rounded-lg">
+                                            <p className="text-sm text-muted-foreground mb-1">Tonnage Total</p>
+                                            <p className="text-4xl font-extrabold text-blue-600">
+                                                {(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                                                <span className="text-2xl ml-1">Kg</span>
+                                            </p>
+                                        </div>
+                                        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                                            <div className="text-center p-2 border rounded">
+                                                <p className="text-xs text-muted-foreground">Recharges</p>
+                                                <p className="font-bold text-foreground">{agentModalData.recharges.toLocaleString('fr-FR')}</p>
+                                            </div>
+                                            <div className="text-center p-2 border rounded">
+                                                <p className="text-xs text-muted-foreground">Consignes</p>
+                                                <p className="font-bold text-foreground">{agentModalData.consignes.toLocaleString('fr-FR')}</p>
                                             </div>
                                         </div>
-                                    )}
+                                    </CardContent>
+                                </Card>
 
-                                    {/* Répartition par Client */}
-                                    <div>
-                                        <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Client</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            <div className="p-3 border rounded-lg bg-orange-50/50">
-                                                <p className="text-xs font-semibold text-orange-700 uppercase mb-2">Petro Ivoire</p>
-                                                <div className="space-y-1 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Recharges:</span>
-                                                        <span className="font-bold">{agentModalData.clientBreakdown.petro.recharges.toLocaleString('fr-FR')}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Consignes:</span>
-                                                        <span className="font-bold">{agentModalData.clientBreakdown.petro.consignes.toLocaleString('fr-FR')}</span>
-                                                    </div>
-                                                    <div className="flex justify-between pt-1 border-t">
-                                                        <span className="font-semibold">Cumul:</span>
-                                                        <span className="font-extrabold text-orange-700">{agentModalData.clientBreakdown.petro.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="p-3 border rounded-lg bg-green-50/50">
-                                                <p className="text-xs font-semibold text-green-700 uppercase mb-2">Vivo Energies</p>
-                                                <div className="space-y-1 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Recharges:</span>
-                                                        <span className="font-bold">{agentModalData.clientBreakdown.vivo.recharges.toLocaleString('fr-FR')}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Consignes:</span>
-                                                        <span className="font-bold">{agentModalData.clientBreakdown.vivo.consignes.toLocaleString('fr-FR')}</span>
-                                                    </div>
-                                                    <div className="flex justify-between pt-1 border-t">
-                                                        <span className="font-semibold">Cumul:</span>
-                                                        <span className="font-extrabold text-green-700">{agentModalData.clientBreakdown.vivo.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="p-3 border rounded-lg bg-purple-50/50">
-                                                <p className="text-xs font-semibold text-purple-700 uppercase mb-2">Total Energies</p>
-                                                <div className="space-y-1 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Recharges:</span>
-                                                        <span className="font-bold">{agentModalData.clientBreakdown.total.recharges.toLocaleString('fr-FR')}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Consignes:</span>
-                                                        <span className="font-bold">{agentModalData.clientBreakdown.total.consignes.toLocaleString('fr-FR')}</span>
-                                                    </div>
-                                                    <div className="flex justify-between pt-1 border-t">
-                                                        <span className="font-semibold">Cumul:</span>
-                                                        <span className="font-extrabold text-purple-700">{agentModalData.clientBreakdown.total.tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                {/* Card 2: Productivité */}
+                                <Card className="border-l-4 border-l-green-500">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <ArrowUp className="h-5 w-5 text-green-600" />
+                                            Productivité
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-center p-4 bg-green-50/50 rounded-lg">
+                                            <p className="text-sm text-muted-foreground mb-1">Taux de Performance</p>
+                                            <p className={`text-4xl font-extrabold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
+                                                agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
+                                                }`}>
+                                                {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                                                <span className="text-2xl ml-1">%</span>
+                                            </p>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
 
-                            {/* CARD 2: Productivité */}
-                            <Card className="border-l-4 border-l-green-500">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <ArrowUp className="h-5 w-5 text-green-600" />
-                                        Productivité
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Main Productivity */}
-                                    <div className="text-center p-4 bg-green-50/50 rounded-lg">
-                                        <p className="text-sm text-muted-foreground mb-1">Taux de Performance</p>
-                                        <p className={`text-4xl font-extrabold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
-                                            agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
-                                            }`}>
-                                            {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} <span className="text-2xl">%</span>
-                                        </p>
-                                    </div>
-
-                                    {/* Daily Evolution Curve */}
-                                    {agentModalData.dailyProductivity && agentModalData.dailyProductivity.length > 0 && (filterType === 'month' || filterType === 'period' || filterType === 'year') && (
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Évolution sur la Période</h4>
-                                            <ResponsiveContainer width="100%" height={200}>
-                                                <LineChart data={agentModalData.dailyProductivity}>
-                                                    <CartesianGrid strokeDasharray="3 3" />
-                                                    <XAxis
-                                                        dataKey="date"
-                                                        tickFormatter={(date) => new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                                                    />
-                                                    <YAxis />
-                                                    <Tooltip
-                                                        labelFormatter={(date) => new Date(date).toLocaleDateString('fr-FR')}
-                                                        formatter={(value: number) => [`${value.toFixed(1)}%`, 'Productivité']}
-                                                    />
-                                                    <Line type="monotone" dataKey="productivite" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981' }} />
-                                                </LineChart>
-                                            </ResponsiveContainer>
+                                {/* Card 3: Temps d'Arrêt */}
+                                <Card className="border-l-4 border-l-orange-500">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <ArrowDown className="h-5 w-5 text-orange-600" />
+                                            Temps d'Arrêt
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-center p-4 bg-orange-50/50 rounded-lg">
+                                            <p className="text-sm text-muted-foreground mb-1">Temps d'Arrêt Cumulé</p>
+                                            <p className="text-4xl font-extrabold text-orange-600">
+                                                {Math.floor(agentModalData.tempsArretMinutes / 60)}<span className="text-2xl">h</span>
+                                                {Math.round(agentModalData.tempsArretMinutes % 60)}<span className="text-2xl">m</span>
+                                            </p>
                                         </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            {/* CARD 3: Temps d'Arrêt */}
-                            <Card className="border-l-4 border-l-orange-500">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <ArrowDown className="h-5 w-5 text-orange-600" />
-                                        Temps d'Arrêt
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Main Downtime */}
-                                    <div className="text-center p-4 bg-orange-50/50 rounded-lg">
-                                        <p className="text-sm text-muted-foreground mb-1">Temps d'Arrêt Cumulé</p>
-                                        <p className="text-4xl font-extrabold text-orange-600">
-                                            {Math.floor(agentModalData.tempsArretMinutes / 60)}<span className="text-2xl">h</span>
-                                            {Math.round(agentModalData.tempsArretMinutes % 60)}<span className="text-2xl">m</span>
-                                        </p>
-                                    </div>
-
-                                    {/* Downtime per Line */}
-                                    {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (filterType === 'month' || filterType === 'period' || filterType === 'year') && (
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Répartition par Ligne</h4>
-                                            <div className="space-y-2">
-                                                {Object.entries(agentModalData.downtimeByLine)
-                                                    .sort((a, b) => (b[1] as number) - (a[1] as number))
-                                                    .map(([line, minutes]) => (
-                                                        <div key={line} className="flex items-center gap-3">
-                                                            <span className="text-sm font-semibold text-muted-foreground w-16">Ligne {line}</span>
-                                                            <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
-                                                                <div
-                                                                    className="bg-orange-500 h-6 rounded-full flex items-center justify-end pr-2"
-                                                                    style={{
-                                                                        width: `${Math.min(100, ((minutes as number) / agentModalData.tempsArretMinutes) * 100)}%`
-                                                                    }}
-                                                                >
-                                                                    <span className="text-xs font-bold text-white">
-                                                                        {Math.floor((minutes as number) / 60)}h{Math.round((minutes as number) % 60)}m
-                                                                    </span>
-                                                                </div>
+                                        {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (
+                                            <div className="mt-4">
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Par Ligne</p>
+                                                <div className="space-y-1">
+                                                    {Object.entries(agentModalData.downtimeByLine)
+                                                        .sort((a, b) => (b[1] as number) - (a[1] as number))
+                                                        .map(([line, minutes]) => (
+                                                            <div key={line} className="flex items-center justify-between text-xs">
+                                                                <span className="text-muted-foreground">Ligne {line}</span>
+                                                                <span className="font-bold text-orange-600">
+                                                                    {Math.floor((minutes as number) / 60)}h{Math.round((minutes as number) % 60)}m
+                                                                </span>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                {/* Card 4: Taux de Présence */}
+                                <Card className="border-l-4 border-l-purple-500">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Users className="h-5 w-5 text-purple-600" />
+                                            Taux de Présence
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-center p-4 bg-purple-50/50 rounded-lg">
+                                            <p className="text-sm text-muted-foreground mb-1">Taux de Présence</p>
+                                            <p className={`text-4xl font-extrabold ${agentModalData.tauxPresence >= 95 ? 'text-green-600' :
+                                                agentModalData.tauxPresence >= 85 ? 'text-orange-500' : 'text-red-600'
+                                                }`}>
+                                                {agentModalData.tauxPresence.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                                                <span className="text-2xl ml-1">%</span>
+                                            </p>
+                                        </div>
+                                        <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                                            <div className="text-center p-2 border rounded">
+                                                <p className="text-muted-foreground">Attendues</p>
+                                                <p className="font-bold text-primary">{agentModalData.expectedHours}h</p>
+                                            </div>
+                                            <div className="text-center p-2 border rounded">
+                                                <p className="text-muted-foreground">Réelles</p>
+                                                <p className="font-bold text-green-600">{agentModalData.actualHours.toFixed(1)}h</p>
+                                            </div>
+                                            <div className="text-center p-2 border rounded">
+                                                <p className="text-muted-foreground">Sessions</p>
+                                                <p className="font-bold text-purple-600">{agentModalData.nombreShifts + agentModalData.nombreLignes}</p>
                                             </div>
                                         </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            {/* CARD 4: Taux de Présence */}
-                            <Card className="border-l-4 border-l-purple-500">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Users className="h-5 w-5 text-purple-600" />
-                                        Taux de Présence
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Main Attendance Rate */}
-                                    <div className="text-center p-4 bg-purple-50/50 rounded-lg">
-                                        <p className="text-sm text-muted-foreground mb-1">Taux de Présence</p>
-                                        <p className={`text-4xl font-extrabold ${agentModalData.tauxPresence >= 95 ? 'text-green-600' :
-                                            agentModalData.tauxPresence >= 85 ? 'text-orange-500' : 'text-red-600'
-                                            }`}>
-                                            {agentModalData.tauxPresence.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} <span className="text-2xl">%</span>
-                                        </p>
-                                    </div>
-
-                                    {/* Breakdown */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                        <div className="p-3 border rounded-lg text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Heures Attendues</p>
-                                            <p className="text-2xl font-bold text-primary">{agentModalData.expectedHours}h</p>
-                                        </div>
-                                        <div className="p-3 border rounded-lg text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Heures Réelles</p>
-                                            <p className="text-2xl font-bold text-green-600">{agentModalData.actualHours.toFixed(1)}h</p>
-                                        </div>
-                                        <div className="p-3 border rounded-lg text-center">
-                                            <p className="text-xs text-muted-foreground mb-1">Shifts Travaillés</p>
-                                            <p className="text-2xl font-bold text-purple-600">{agentModalData.nombreShifts + agentModalData.nombreLignes}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
+                                    </CardContent>
+                                </Card>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-64">

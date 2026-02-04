@@ -481,29 +481,37 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
       // Enregistrer les lignes de production avec tous les champs
       if (lignes.length > 0 && insertedShift) {
-        const lignesData = lignes.map(ligne => ({
-          shift_id: insertedShift.id,
-          numero_ligne: ligne.numero_ligne,
-          chef_ligne_id: ligne.chef_ligne_id || null,
-          nombre_agents: ligne.nombre_agents || 0,
-          recharges_petro_b6: ligne.recharges_petro_b6 || 0,
-          recharges_petro_b12: ligne.recharges_petro_b12 || 0,
-          recharges_total_b6: ligne.recharges_total_b6 || 0,
-          recharges_total_b12: ligne.recharges_total_b12 || 0,
-          recharges_vivo_b6: ligne.recharges_vivo_b6 || 0,
-          recharges_vivo_b12: ligne.recharges_vivo_b12 || 0,
-          consignes_petro_b6: ligne.consignes_petro_b6 || 0,
-          consignes_petro_b12: ligne.consignes_petro_b12 || 0,
-          consignes_total_b6: ligne.consignes_total_b6 || 0,
-          consignes_total_b12: ligne.consignes_total_b12 || 0,
-          consignes_vivo_b6: ligne.consignes_vivo_b6 || 0,
-          consignes_vivo_b12: ligne.consignes_vivo_b12 || 0,
-          cumul_recharges_b6: ligne.cumul_recharges_b6 || 0,
-          cumul_recharges_b12: ligne.cumul_recharges_b12 || 0,
-          cumul_consignes_b6: ligne.cumul_consignes_b6 || 0,
-          cumul_consignes_b12: ligne.cumul_consignes_b12 || 0,
-          tonnage_ligne: ligne.tonnage_ligne || 0
-        }));
+        const lignesData = lignes.map(ligne => {
+          // Calculer le temps d'arrêt total pour cette ligne
+          const tempsArretLigne = (ligne.arrets || []).reduce((sum, arret) =>
+            sum + (arret.duree_minutes || 0), 0
+          );
+
+          return {
+            shift_id: insertedShift.id,
+            numero_ligne: ligne.numero_ligne,
+            chef_ligne_id: ligne.chef_ligne_id || null,
+            nombre_agents: ligne.nombre_agents || 0,
+            recharges_petro_b6: ligne.recharges_petro_b6 || 0,
+            recharges_petro_b12: ligne.recharges_petro_b12 || 0,
+            recharges_total_b6: ligne.recharges_total_b6 || 0,
+            recharges_total_b12: ligne.recharges_total_b12 || 0,
+            recharges_vivo_b6: ligne.recharges_vivo_b6 || 0,
+            recharges_vivo_b12: ligne.recharges_vivo_b12 || 0,
+            consignes_petro_b6: ligne.consignes_petro_b6 || 0,
+            consignes_petro_b12: ligne.consignes_petro_b12 || 0,
+            consignes_total_b6: ligne.consignes_total_b6 || 0,
+            consignes_total_b12: ligne.consignes_total_b12 || 0,
+            consignes_vivo_b6: ligne.consignes_vivo_b6 || 0,
+            consignes_vivo_b12: ligne.consignes_vivo_b12 || 0,
+            cumul_recharges_b6: ligne.cumul_recharges_b6 || 0,
+            cumul_recharges_b12: ligne.cumul_recharges_b12 || 0,
+            cumul_consignes_b6: ligne.cumul_consignes_b6 || 0,
+            cumul_consignes_b12: ligne.cumul_consignes_b12 || 0,
+            tonnage_ligne: ligne.tonnage_ligne || 0,
+            temps_arret_ligne_minutes: tempsArretLigne
+          };
+        });
 
         const { error: lignesError } = await (supabase as any)
           .from('lignes_production')
