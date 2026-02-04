@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LigneProduction, ArretProduction, ARRET_LABELS } from "@/types/production";
+import { LigneProduction, ArretProductionForm, ARRET_LABELS } from "@/types/production";
 
 interface ProductionRecapitulatifProps {
   lignes: LigneProduction[];
-  arrets: ArretProduction[];
+  arrets: ArretProductionForm[];
 }
 
 export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitulatifProps) => {
@@ -49,24 +49,18 @@ export const ProductionRecapitulatif = ({ lignes, arrets }: ProductionRecapitula
     }
   );
 
-  // Calcul du temps d'arrêt total
-  const tempsArretTotal = arrets.reduce((total, arret) => {
-    if (arret.duree_minutes && arret.duree_minutes > 0) {
-      return total + arret.duree_minutes;
+  // Calcul du temps d'arrêt total depuis les lignes
+  // Nouvelle structure : la durée est stockée dans lignes_production.temps_arret_ligne_minutes
+  const tempsArretTotal = lignes.reduce((total, ligne) => {
+    // Calculer depuis les arrêts du formulaire si disponibles
+    if (ligne.arrets && ligne.arrets.length > 0) {
+      const tempsLigne = ligne.arrets.reduce((sum, arret) => {
+        return sum + (arret.duree_minutes || 0);
+      }, 0);
+      return total + tempsLigne;
     }
-
-    if (!arret.heure_debut || !arret.heure_fin) return total;
-
-    const [debutH, debutM] = arret.heure_debut.split(':').map(Number);
-    const [finH, finM] = arret.heure_fin.split(':').map(Number);
-
-    const debutMinutes = debutH * 60 + debutM;
-    const finMinutes = finH * 60 + finM;
-
-    let duree = finMinutes - debutMinutes;
-    if (duree < 0) duree += 24 * 60; // Gestion passage minuit
-
-    return total + duree;
+    // Sinon utiliser temps_arret_ligne_minutes si disponible
+    return total + (ligne.temps_arret_ligne_minutes || 0);
   }, 0);
 
   const heuresArret = Math.floor(tempsArretTotal / 60);

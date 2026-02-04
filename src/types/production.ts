@@ -68,6 +68,7 @@ export interface ProductionShift {
   cumul_recharges_total?: number;
   cumul_consignes_total?: number;
   temps_arret_total_minutes?: number;
+  arret_shift_cumul?: number;
   user_id?: string;
   last_modified_by?: string;
   last_modified_at?: string;
@@ -112,16 +113,28 @@ export interface LigneProduction {
   cumul_consignes_b28?: number;
   cumul_consignes_b38?: number;
   tonnage_ligne?: number;
-  arrets?: ArretProduction[];
+  temps_arret_ligne_minutes?: number;
+  arrets?: ArretProductionForm[];
 }
 
+// Interface pour le formulaire (inclut duree_minutes pour le calcul)
+export interface ArretProductionForm {
+  id?: string;
+  shift_id?: string;
+  numero_ligne: number;
+  duree_minutes: number;
+  type_arret: ArretType;
+  ordre_intervention?: string;
+  etape_ligne?: EtapeLigne;
+  description?: string;
+  action_corrective?: string;
+}
+
+// Interface pour la base de données (sans duree_minutes)
 export interface ArretProduction {
   id?: string;
   shift_id?: string;
-  lignes_concernees?: number[];
-  heure_debut?: string;
-  heure_fin?: string;
-  duree_minutes?: number;
+  numero_ligne: number;
   type_arret: ArretType;
   ordre_intervention?: string;
   etape_ligne?: EtapeLigne;

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Save } from "lucide-react";
+import { Plus, Save, FlaskConical } from "lucide-react";
 import { ArretProductionForm } from "./ArretProductionForm";
 import { LigneProductionForm } from "./LigneProductionForm";
 import { ProductionRecapitulatif } from "./ProductionRecapitulatif";
@@ -28,7 +28,10 @@ import {
   ShiftType,
   ChefLigne,
   ChefQuart,
-  SHIFT_HOURS
+  SHIFT_HOURS,
+  ArretType,
+  EtapeLigne,
+  ArretProductionForm as ArretFormType
 } from "@/types/production";
 
 interface ProductionShiftFormProps {
@@ -45,6 +48,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
   const [chefsLigne, setChefsLigne] = useState<ChefLigne[]>([]);
   const [chefsQuart, setChefsQuart] = useState<ChefQuart[]>([]);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
+  const [showTestButton, setShowTestButton] = useState(false);
   const [shift, setShift] = useState<ProductionShift>({
     date: new Date().toISOString().split('T')[0],
     shift_type: '10h-19h',
@@ -143,6 +147,23 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
     loadChefsQuart();
   }, []);
 
+  // Raccourci clavier pour afficher/cacher le bouton de test (Ctrl+Alt+T)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        setShowTestButton(prev => !prev);
+        toast({
+          title: showTestButton ? "Mode test désactivé" : "Mode test activé",
+          description: showTestButton ? "Le bouton de test est masqué" : "Le bouton de test est maintenant visible",
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTestButton]);
+
   useEffect(() => {
     const hours = SHIFT_HOURS[shift.shift_type];
     setShift(prev => ({
@@ -176,56 +197,96 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       });
 
       if (initialData.lignes_production) {
-        // Distribute arrets to lines
-        const arretsByLine: Record<number, ArretProduction[]> = {};
+        // Nouvelle structure : les arrêts sont par ligne avec numero_ligne
+        // La durée est stockée uniquement dans lignes_production.temps_arret_ligne_minutes
+        const arretsByLine: Record<number, any[]> = {};
 
-        if (initialData.arrets_production) {
-          initialData.arrets_production.forEach((arret: ArretProduction) => {
-            // Calc duration if missing
-            let arretToUse = { ...arret };
-            if (!arretToUse.duree_minutes && arretToUse.heure_debut && arretToUse.heure_fin) {
-              const [hD, mD] = arretToUse.heure_debut.split(':').map(Number);
-              const [hF, mF] = arretToUse.heure_fin.split(':').map(Number);
-              let diff = (hF * 60 + mF) - (hD * 60 + mD);
-              if (diff < 0) diff += 24 * 60;
-              arretToUse.duree_minutes = diff;
+
+        if (initialData.arrets_production && initialData.arrets_production.length > 0) {
+          initialData.arrets_production.forEach((arret: any) => {
+            // Nouvelle structure : numero_ligne
+            if (arret.numero_ligne !== undefined) {
+              const lineNum = Number(arret.numero_ligne);
+              if (!arretsByLine[lineNum]) arretsByLine[lineNum] = [];
+              arretsByLine[lineNum].push(arret);
             }
-
-            let targetLines = arret.lignes_concernees;
-
-            // Robust parsing if string (legacy data)
-            if (typeof targetLines === 'string') {
-              try {
-                // Handle case where specific format might be used
-                let parseStr = targetLines as string;
-                if (parseStr.startsWith('{')) {
-                  // Postgres array format {1,2,3}
-                  parseStr = parseStr.replace('{', '[').replace('}', ']');
+            // Ancienne structure (compatibilité) : lignes_concernees
+            else if (arret.lignes_concernees) {
+              let targetLines = arret.lignes_concernees;
+              if (typeof targetLines === 'string') {
+                try {
+                  let parseStr = targetLines as string;
+                  if (parseStr.startsWith('{')) {
+                    parseStr = parseStr.replace('{', '[').replace('}', ']');
+                  }
+                  targetLines = JSON.parse(parseStr) as number[];
+                } catch (e) {
+                  targetLines = [];
                 }
-                targetLines = JSON.parse(parseStr) as number[];
-              } catch (e) {
-                console.warn('Failed to parse lignes_concernees for arret:', arret);
-                targetLines = [];
               }
-            }
-
-            if (Array.isArray(targetLines)) {
-              targetLines.forEach((lineNum: any) => {
-                const num = Number(lineNum);
-                if (!arretsByLine[num]) arretsByLine[num] = [];
-                // Clone to avoid reference sharing issues between lines
-                arretsByLine[num].push({ ...arretToUse });
-              });
-            } else {
-              console.warn("Arret without target lines:", arret);
+              if (Array.isArray(targetLines)) {
+                targetLines.forEach((lineNum: any) => {
+                  const num = Number(lineNum);
+                  if (!arretsByLine[num]) arretsByLine[num] = [];
+                  arretsByLine[num].push(arret);
+                });
+              }
             }
           });
         }
 
-        const safeLignes = initialData.lignes_production.map((ligne: any) => ({
-          ...ligne,
-          arrets: arretsByLine[ligne.numero_ligne] || []
-        }));
+        const safeLignes = initialData.lignes_production.map((ligne: any) => {
+          const lineArrets = arretsByLine[ligne.numero_ligne] || [];
+          const tempsArretTotal = ligne.temps_arret_ligne_minutes || 0;
+
+          // Créer les arrêts pour le formulaire avec la durée
+          let formArrets;
+          if (lineArrets.length > 0) {
+            // Si on a des arrêts détaillés
+            if (tempsArretTotal > 0) {
+              // Répartir la durée totale équitablement
+              const dureePourChaque = tempsArretTotal / lineArrets.length;
+              formArrets = lineArrets.map((arret: any) => ({
+                numero_ligne: ligne.numero_ligne,
+                duree_minutes: Math.round(dureePourChaque),
+                type_arret: arret.type_arret || 'maintenance_corrective',
+                ordre_intervention: arret.ordre_intervention || '',
+                etape_ligne: arret.etape_ligne || undefined,
+                description: arret.description || '',
+                action_corrective: arret.action_corrective || ''
+              }));
+            } else {
+              // Pas de durée stockée, afficher les arrêts avec durée 0 pour que l'utilisateur puisse les modifier
+              formArrets = lineArrets.map((arret: any) => ({
+                numero_ligne: ligne.numero_ligne,
+                duree_minutes: 0,
+                type_arret: arret.type_arret || 'maintenance_corrective',
+                ordre_intervention: arret.ordre_intervention || '',
+                etape_ligne: arret.etape_ligne || undefined,
+                description: arret.description || '',
+                action_corrective: arret.action_corrective || ''
+              }));
+            }
+          } else if (tempsArretTotal > 0) {
+            // Si pas d'arrêts détaillés mais temps_arret_ligne_minutes existe, créer un arrêt générique
+            formArrets = [{
+              numero_ligne: ligne.numero_ligne,
+              duree_minutes: tempsArretTotal,
+              type_arret: 'maintenance_corrective',
+              ordre_intervention: '',
+              etape_ligne: undefined,
+              description: 'Arrêt importé depuis anciennes données',
+              action_corrective: ''
+            }];
+          } else {
+            formArrets = [];
+          }
+
+          return {
+            ...ligne,
+            arrets: formArrets
+          };
+        });
         setLignes(safeLignes);
       }
     }
@@ -280,6 +341,123 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
     });
   };
 
+  // Fonction pour générer un nombre aléatoire entre min et max (inclus)
+  const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  // Fonction pour remplir le formulaire avec des données aléatoires
+  const fillRandomData = () => {
+    // Types d'arrêts et étapes disponibles
+    const arretTypes: ArretType[] = ['maintenance_corrective', 'manque_personnel', 'probleme_approvisionnement', 'panne_ligne', 'autre'];
+    const etapes: EtapeLigne[] = ['BASCULES', 'PURGE', 'CONTROLE', 'ETANCHEITE', 'CAPSULAGE', 'VIDANGE', 'PALETTISEUR', 'TRI', 'AUTRE'];
+
+    // Remplir le shift (uniquement les champs essentiels)
+    const randomShiftType: ShiftType = Math.random() > 0.5 ? '10h-19h' : '20h-5h';
+    const randomChefQuart = chefsQuart.length > 0 ? chefsQuart[randomInt(0, chefsQuart.length - 1)].id : (chefsLigne.length > 0 ? chefsLigne[randomInt(0, chefsLigne.length - 1)].id : '');
+
+    setShift({
+      date: new Date().toISOString().split('T')[0],
+      shift_type: randomShiftType,
+      chef_quart_id: randomChefQuart,
+      heure_debut_theorique: SHIFT_HOURS[randomShiftType].debut,
+      heure_fin_theorique: SHIFT_HOURS[randomShiftType].fin,
+      heure_debut_reelle: SHIFT_HOURS[randomShiftType].debut,
+      heure_fin_reelle: SHIFT_HOURS[randomShiftType].fin,
+      bouteilles_produites: 0,
+      chariste: 0,
+      chariot: 0,
+      agent_quai: 0,
+      agent_saisie: 0,
+      agent_atelier: 0
+    });
+
+    // Remplir les lignes
+    const newLignes: LigneProduction[] = [];
+
+    for (let i = 0; i < 5; i++) {
+      const randomChefLigne = chefsLigne.length > 0 ? chefsLigne[randomInt(0, chefsLigne.length - 1)].id : '';
+
+      // Lignes 1-4 (B6)
+      if (i < 4) {
+        const ligne: LigneProduction = {
+          numero_ligne: i + 1,
+          chef_ligne_id: randomChefLigne,
+          nombre_agents: 0,
+          recharges_petro_b6: randomInt(0, 999),
+          recharges_total_b6: randomInt(0, 999),
+          recharges_vivo_b6: randomInt(0, 999),
+          consignes_petro_b6: randomInt(0, 999),
+          consignes_total_b6: randomInt(0, 999),
+          consignes_vivo_b6: randomInt(0, 999),
+          arrets: []
+        };
+
+        // Ajouter 1 arrêt par ligne avec durée 10-90 min
+        const typeArret = arretTypes[randomInt(0, arretTypes.length - 1)];
+        const arret: ArretFormType = {
+          numero_ligne: i + 1,
+          duree_minutes: randomInt(10, 90),
+          type_arret: typeArret,
+          ordre_intervention: undefined,
+          etape_ligne: typeArret === 'panne_ligne' ? etapes[randomInt(0, etapes.length - 1)] : undefined,
+          description: undefined,
+          action_corrective: undefined
+        };
+        ligne.arrets!.push(arret);
+
+        newLignes.push(ligne);
+      }
+      // Ligne 5 (B12, B28, B38)
+      else {
+        const ligne: LigneProduction = {
+          numero_ligne: 5,
+          chef_ligne_id: randomChefLigne,
+          nombre_agents: 0,
+          recharges_petro_b12: randomInt(0, 999),
+          recharges_petro_b28: randomInt(0, 999),
+          recharges_petro_b38: randomInt(0, 999),
+          recharges_total_b12: randomInt(0, 999),
+          recharges_total_b28: randomInt(0, 999),
+          recharges_total_b38: randomInt(0, 999),
+          recharges_vivo_b12: randomInt(0, 999),
+          recharges_vivo_b28: randomInt(0, 999),
+          recharges_vivo_b38: randomInt(0, 999),
+          consignes_petro_b12: randomInt(0, 999),
+          consignes_petro_b28: randomInt(0, 999),
+          consignes_petro_b38: randomInt(0, 999),
+          consignes_total_b12: randomInt(0, 999),
+          consignes_total_b28: randomInt(0, 999),
+          consignes_total_b38: randomInt(0, 999),
+          consignes_vivo_b12: randomInt(0, 999),
+          consignes_vivo_b28: randomInt(0, 999),
+          consignes_vivo_b38: randomInt(0, 999),
+          arrets: []
+        };
+
+        // Ajouter 1 arrêt par ligne avec durée 10-90 min
+        const typeArret = arretTypes[randomInt(0, arretTypes.length - 1)];
+        const arret: ArretFormType = {
+          numero_ligne: 5,
+          duree_minutes: randomInt(10, 90),
+          type_arret: typeArret,
+          ordre_intervention: undefined,
+          etape_ligne: typeArret === 'panne_ligne' ? etapes[randomInt(0, etapes.length - 1)] : undefined,
+          description: undefined,
+          action_corrective: undefined
+        };
+        ligne.arrets!.push(arret);
+
+        newLignes.push(ligne);
+      }
+    }
+
+    setLignes(newLignes);
+
+    toast({
+      title: "Données de test générées",
+      description: "Le formulaire a été rempli avec des données aléatoires",
+      className: "bg-blue-500 text-white border-blue-600"
+    });
+  };
 
 
 
@@ -395,28 +573,28 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
           (ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0);
       });
 
-      // Calculer le temps d'arrêt total en minutes depuis toutes les lignes
-      // Calculer le temps d'arrêt total en minutes (Somme des durées)
-      // Calculer le temps d'arrêt total en minutes (Somme des durées)
-      // Calculer le temps d'arrêt total en minutes depuis toutes les lignes
-      // Calculer le temps d'arrêt total en minutes (Somme des durées)
-      let tempsArretTotalMinutes = 0;
+      // Calculer arret_shift_cumul (somme de tous les temps_arret_ligne_minutes)
+      let arretShiftCumul = 0;
       const allArrets: ArretProduction[] = [];
 
       lignes.forEach(ligne => {
+        // Calculer le temps d'arrêt pour cette ligne
+        const tempsArretLigne = (ligne.arrets || []).reduce((sum, arret) =>
+          sum + (arret.duree_minutes || 0), 0
+        );
+        arretShiftCumul += tempsArretLigne;
+
+        // Ajouter les arrêts à la liste (sans les durées, uniquement les infos descriptives)
         if (ligne.arrets && ligne.arrets.length > 0) {
           ligne.arrets.forEach(arret => {
-            if (arret.duree_minutes && arret.duree_minutes > 0) {
-              tempsArretTotalMinutes += arret.duree_minutes;
-              allArrets.push({
-                ...arret,
-                // Ensure legacy fields are null/empty if not used
-                heure_debut: arret.heure_debut || '',
-                heure_fin: arret.heure_fin || '',
-                // Force line association to current line
-                lignes_concernees: [ligne.numero_ligne]
-              });
-            }
+            allArrets.push({
+              type_arret: arret.type_arret,
+              numero_ligne: ligne.numero_ligne,
+              ordre_intervention: arret.ordre_intervention || undefined,
+              etape_ligne: arret.etape_ligne || undefined,
+              description: arret.description || undefined,
+              action_corrective: arret.action_corrective || undefined
+            });
           });
         }
       });
@@ -428,7 +606,8 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
         tonnage_total: parseFloat(tonnageTotal.toFixed(3)),
         cumul_recharges_total: cumulRechargesTotal,
         cumul_consignes_total: cumulConsignesTotal,
-        temps_arret_total_minutes: tempsArretTotalMinutes
+        temps_arret_total_minutes: arretShiftCumul,
+        arret_shift_cumul: arretShiftCumul
       };
 
       let insertedShift: any;
@@ -700,6 +879,18 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
         <main className={`flex-1 p-4 md:p-6 ${editMode ? '' : 'lg:ml-80'}`}>
           <div className={`${editMode ? '' : 'sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 px-4 -mt-4 pt-4 md:-mx-6 md:px-6 md:-mt-6 md:pt-6 mb-6 border-b pb-4'} flex items-center justify-between`}>
             {!editMode && <h1 className="text-2xl font-bold tracking-tight">Saisie Production</h1>}
+            {!editMode && showTestButton && (
+              <Button
+                type="button"
+                onClick={fillRandomData}
+                variant="outline"
+                size="sm"
+                className="gap-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+              >
+                <FlaskConical className="h-4 w-4" />
+                Remplir avec données de test
+              </Button>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6 max-w-[1600px] mx-auto">

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Plus, Minus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { LigneProduction, ChefLigne, ArretProduction } from "@/types/production";
+import { LigneProduction, ChefLigne, ArretProductionForm as ArretFormType } from "@/types/production";
 import { ArretProductionForm } from "./ArretProductionForm";
 
 interface LigneProductionFormProps {
@@ -72,12 +72,10 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
   ]);
 
   const handleAddArret = () => {
-    const newArret: ArretProduction = {
-      heure_debut: '',
-      heure_fin: '',
+    const newArret: ArretFormType = {
+      numero_ligne: ligne.numero_ligne,
       duree_minutes: 0,
       type_arret: 'maintenance_corrective',
-      lignes_concernees: [ligne.numero_ligne],
       ordre_intervention: '',
       etape_ligne: undefined,
       description: '',
@@ -87,7 +85,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
     onUpdate(index, 'arrets', updatedArrets);
   };
 
-  const handleUpdateArret = (arretIndex: number, field: keyof ArretProduction, value: any) => {
+  const handleUpdateArret = (arretIndex: number, field: keyof ArretFormType, value: any) => {
     const updatedArrets = [...(ligne.arrets || [])];
     updatedArrets[arretIndex] = { ...updatedArrets[arretIndex], [field]: value };
     onUpdate(index, 'arrets', updatedArrets);
@@ -606,7 +604,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
                       index={arretIndex}
                       onUpdate={handleUpdateArret}
                       onRemove={handleRemoveArret}
-                      allowedLigne={ligne.numero_ligne}
+                      numeroLigne={ligne.numero_ligne}
                     />
                   ))}
                 </div>

@@ -590,34 +590,58 @@ const DashboardHistorique = () => {
 
       if (error) throw error;
 
-      // Fetch chef_quart data separately since FK relationship doesn't exist
-      // Also check chefs_ligne table since the form allows selecting chefs de ligne as chef de quart
+      // Fetch chef_quart and chef_ligne data separately
       let shiftsWithChefs = data || [];
       if (shiftsWithChefs.length > 0) {
-        const chefIds = [...new Set(shiftsWithChefs.map((s: any) => s.chef_quart_id).filter(Boolean))];
-        if (chefIds.length > 0) {
-          // Fetch from both tables
-          const [chefsQuartResult, chefsLigneResult] = await Promise.all([
-            supabase.from('chefs_quart').select('id, nom, prenom').in('id', chefIds),
-            supabase.from('chefs_ligne').select('id, nom, prenom').in('id', chefIds)
-          ]);
+        // Collect all chef_quart_id
+        const chefQuartIds = [...new Set(shiftsWithChefs.map((s: any) => s.chef_quart_id).filter(Boolean))];
 
-          const chefsMap: Map<string, any> = new Map();
-          // Add chefs from chefs_quart table
-          (chefsQuartResult.data || []).forEach((c: any) => {
-            chefsMap.set(c.id, c);
-          });
-          // Add chefs from chefs_ligne table (won't overwrite if already in chefs_quart)
-          (chefsLigneResult.data || []).forEach((c: any) => {
-            if (!chefsMap.has(c.id)) {
-              chefsMap.set(c.id, c);
-            }
-          });
-          shiftsWithChefs = shiftsWithChefs.map((shift: any) => ({
-            ...shift,
-            chef_quart: shift.chef_quart_id ? chefsMap.get(shift.chef_quart_id) : null
-          }));
-        }
+        // Collect all chef_ligne_id from lignes_production
+        const chefLigneIds = new Set<string>();
+        shiftsWithChefs.forEach((shift: any) => {
+          if (shift.lignes_production) {
+            shift.lignes_production.forEach((ligne: any) => {
+              if (ligne.chef_ligne_id) {
+                chefLigneIds.add(ligne.chef_ligne_id);
+              }
+            });
+          }
+        });
+
+        // Fetch chefs
+        const [chefsQuartResult, chefsLigneResult1, chefsLigneResult2] = await Promise.all([
+          chefQuartIds.length > 0 ? supabase.from('chefs_quart').select('id, nom, prenom').in('id', chefQuartIds) : Promise.resolve({ data: [] }),
+          chefQuartIds.length > 0 ? supabase.from('chefs_ligne').select('id, nom, prenom').in('id', chefQuartIds) : Promise.resolve({ data: [] }),
+          chefLigneIds.size > 0 ? supabase.from('chefs_ligne').select('id, nom, prenom').in('id', Array.from(chefLigneIds)) : Promise.resolve({ data: [] })
+        ]);
+
+        const chefsQuartMap: Map<string, any> = new Map();
+        const chefsLigneMap: Map<string, any> = new Map();
+
+        // Map chefs de quart
+        (chefsQuartResult.data || []).forEach((c: any) => {
+          chefsQuartMap.set(c.id, c);
+        });
+        (chefsLigneResult1.data || []).forEach((c: any) => {
+          if (!chefsQuartMap.has(c.id)) {
+            chefsQuartMap.set(c.id, c);
+          }
+        });
+
+        // Map chefs de ligne
+        (chefsLigneResult2.data || []).forEach((c: any) => {
+          chefsLigneMap.set(c.id, c);
+        });
+
+        // Attach chefs to shifts
+        shiftsWithChefs = shiftsWithChefs.map((shift: any) => ({
+          ...shift,
+          chef_quart: shift.chef_quart_id ? chefsQuartMap.get(shift.chef_quart_id) : null,
+          lignes_production: shift.lignes_production?.map((ligne: any) => ({
+            ...ligne,
+            chef_ligne: ligne.chef_ligne_id ? chefsLigneMap.get(ligne.chef_ligne_id) : null
+          }))
+        }));
       }
 
       // Filter by ligne if needed (post-query since it's in related table)
@@ -674,15 +698,10 @@ const DashboardHistorique = () => {
       const { data, error } = await supabase
         .from('production_shifts')
         .select(`
-                    *,
-                    lignes_production(
-                      *,
-                      production_shifts(
-                        arrets_production(*)
-                      )
-                    ),
-                    arrets_production(*)
-                `)
+          *,
+          lignes_production(*),
+          arrets_production(*)
+        `)
         .eq('id', shiftId)
         .single();
 

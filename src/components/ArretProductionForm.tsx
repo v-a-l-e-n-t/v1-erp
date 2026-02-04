@@ -4,23 +4,22 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2 } from "lucide-react";
-import { ArretProduction, ArretType, EtapeLigne, ARRET_LABELS, ETAPE_LABELS } from "@/types/production";
+import { ArretProductionForm as ArretFormType, ArretType, EtapeLigne, ARRET_LABELS, ETAPE_LABELS } from "@/types/production";
 
 interface ArretProductionFormProps {
-  arret: ArretProduction;
+  arret: ArretFormType;
   index: number;
-  onUpdate: (index: number, field: keyof ArretProduction, value: any) => void;
+  onUpdate: (index: number, field: keyof ArretFormType, value: any) => void;
   onRemove: (index: number) => void;
-  allowedLigne?: number;
+  numeroLigne: number;
 }
 
-export const ArretProductionForm = ({ arret, index, onUpdate, onRemove, allowedLigne }: ArretProductionFormProps) => {
+export const ArretProductionForm = ({ arret, index, onUpdate, onRemove, numeroLigne }: ArretProductionFormProps) => {
   return (
     <Card className="p-4 bg-muted/30">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="font-medium">Arrêt #{index + 1}</h4>
+        <h4 className="font-medium">Arrêt #{index + 1} - Ligne {numeroLigne}</h4>
         <Button
           type="button"
           variant="ghost"
@@ -63,32 +62,6 @@ export const ArretProductionForm = ({ arret, index, onUpdate, onRemove, allowedL
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        <div>
-          <Label>Ligne concernée *</Label>
-          <div className="flex gap-4 mt-2">
-            {[1, 2, 3, 4, 5].map((ligne) => (
-              <div key={ligne} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`arret-ligne-${index}-${ligne}`}
-                  checked={arret.lignes_concernees?.includes(ligne) || false}
-                  disabled={allowedLigne !== undefined && ligne !== allowedLigne}
-                  onCheckedChange={(checked) => {
-                    if (allowedLigne !== undefined && ligne === allowedLigne) {
-                      onUpdate(index, 'lignes_concernees', checked ? [ligne] : []);
-                    }
-                  }}
-                />
-                <Label
-                  htmlFor={`arret-ligne-${index}-${ligne}`}
-                  className={`text-sm font-normal ${allowedLigne !== undefined && ligne !== allowedLigne ? 'text-muted-foreground cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  L{ligne}
-                </Label>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div>

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon, Pencil, Trash2, History, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Pencil, Trash2, History, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -65,6 +65,9 @@ const ProductionHistory = ({
 }: ProductionHistoryProps) => {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [shiftToDelete, setShiftToDelete] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(15);
+    const [expandedShift, setExpandedShift] = useState<string | null>(null);
 
     // Années disponibles
     const availableYears = useMemo(() => {
@@ -94,6 +97,20 @@ const ProductionHistory = ({
             }
         }
     }, [selectedYear, filterType]);
+
+    // Réinitialiser la page quand les filtres changent
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterType, selectedYear, selectedMonth, selectedDate, dateRange, shiftFilter, ligneFilter, chefFilter]);
+
+    // Calcul de la pagination
+    const paginatedData = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return history.slice(startIndex, endIndex);
+    }, [history, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(history.length / itemsPerPage);
 
     const handleDeleteClick = (shiftId: string) => {
         setShiftToDelete(shiftId);
@@ -317,7 +334,7 @@ const ProductionHistory = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {history.map((shift: any) => {
+                                {paginatedData.map((shift: any) => {
                                     // Helper to format downtime
                                     const formatDowntime = (minutes: number) => {
                                         if (!minutes) return '-';
@@ -327,57 +344,181 @@ const ProductionHistory = ({
                                         return `${h}h ${m.toString().padStart(2, '0')}`;
                                     };
 
+                                    const isExpanded = expandedShift === shift.id;
+
                                     return (
-                                        <tr key={shift.id} className="border-b hover:bg-muted/50">
-                                            <td className="p-2">{format(new Date(shift.date), 'dd/MM/yyyy')}</td>
-                                            <td className="p-2">
-                                                <span className={cn(
-                                                    "px-2 py-1 rounded-full text-xs font-medium",
-                                                    shift.shift_type === '10h-19h' ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                                                )}>
-                                                    {shift.shift_type}
-                                                </span>
-                                            </td>
-                                            <td className="p-2 font-medium">
-                                                {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
-                                            </td>
-                                            <td className="p-2 text-center text-red-600 font-medium">
-                                                {formatDowntime(shift.temps_arret_total_minutes)}
-                                            </td>
-                                            <td className="p-2 text-right font-bold">
-                                                {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR')}
-                                            </td>
-                                            <td className="p-2 text-right">
-                                                {shift.cumul_recharges_total?.toLocaleString('fr-FR')}
-                                            </td>
-                                            <td className="p-2 text-right">
-                                                {shift.cumul_consignes_total?.toLocaleString('fr-FR')}
-                                            </td>
-                                            <td className="p-2 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => onEdit(shift.id)}
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDeleteClick(shift.id)}
-                                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                        <>
+                                            <tr key={shift.id} className="border-b hover:bg-muted/50">
+                                                <td className="p-2">{format(new Date(shift.date), 'dd/MM/yyyy')}</td>
+                                                <td className="p-2">
+                                                    <span className={cn(
+                                                        "px-2 py-1 rounded-full text-xs font-medium",
+                                                        shift.shift_type === '10h-19h' ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                                                    )}>
+                                                        {shift.shift_type}
+                                                    </span>
+                                                </td>
+                                                <td className="p-2 font-medium">
+                                                    {shift.chef_quart ? `${shift.chef_quart.prenom} ${shift.chef_quart.nom}` : '-'}
+                                                </td>
+                                                <td className="p-2 text-center text-red-600 font-medium">
+                                                    {formatDowntime(shift.temps_arret_total_minutes)}
+                                                </td>
+                                                <td className="p-2 text-right font-bold">
+                                                    {((shift.tonnage_total || 0) * 1000).toLocaleString('fr-FR')}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                    {shift.cumul_recharges_total?.toLocaleString('fr-FR')}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                    {shift.cumul_consignes_total?.toLocaleString('fr-FR')}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => setExpandedShift(isExpanded ? null : shift.id)}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => onEdit(shift.id)}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDeleteClick(shift.id)}
+                                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {isExpanded && shift.lignes_production && shift.lignes_production.length > 0 && (
+                                                <tr key={`${shift.id}-details`} className="bg-muted/30">
+                                                    <td colSpan={8} className="p-0">
+                                                        <div className="px-8 py-4">
+                                                            <h4 className="font-semibold text-sm mb-3">Détails par ligne de production</h4>
+                                                            <table className="w-full text-sm">
+                                                                <thead>
+                                                                    <tr className="border-b">
+                                                                        <th className="text-left p-2 font-medium">Ligne</th>
+                                                                        <th className="text-left p-2 font-medium">Chef de Ligne</th>
+                                                                        <th className="text-center p-2 font-medium">Temps d'arrêt</th>
+                                                                        <th className="text-right p-2 font-medium">Tonnage (Kg)</th>
+                                                                        <th className="text-right p-2 font-medium">Recharges</th>
+                                                                        <th className="text-right p-2 font-medium">Consignes</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {shift.lignes_production.map((ligne: any) => (
+                                                                        <tr key={ligne.id} className="border-b last:border-0">
+                                                                            <td className="p-2">
+                                                                                <span className="font-medium">Ligne {ligne.numero_ligne}</span>
+                                                                            </td>
+                                                                            <td className="p-2">
+                                                                                {ligne.chef_ligne ? `${ligne.chef_ligne.prenom} ${ligne.chef_ligne.nom}` : '-'}
+                                                                            </td>
+                                                                            <td className="p-2 text-center text-red-600">
+                                                                                {formatDowntime(ligne.temps_arret_ligne_minutes)}
+                                                                            </td>
+                                                                            <td className="p-2 text-right font-medium">
+                                                                                {((ligne.tonnage_ligne || 0) * 1000).toLocaleString('fr-FR')}
+                                                                            </td>
+                                                                            <td className="p-2 text-right">
+                                                                                {((ligne.cumul_recharges_b6 || 0) + (ligne.cumul_recharges_b12 || 0)).toLocaleString('fr-FR')}
+                                                                            </td>
+                                                                            <td className="p-2 text-right">
+                                                                                {((ligne.cumul_consignes_b6 || 0) + (ligne.cumul_consignes_b12 || 0)).toLocaleString('fr-FR')}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </>
                                     );
                                 })}
                             </tbody>
                         </table>
+
+                        {/* Pagination Controls */}
+                        {history.length > 0 && (
+                            <div className="flex items-center justify-between p-4 border-t">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">Afficher</span>
+                                    <Select
+                                        value={itemsPerPage.toString()}
+                                        onValueChange={(value) => {
+                                            setItemsPerPage(Number(value));
+                                            setCurrentPage(1);
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-20">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="15">15</SelectItem>
+                                            <SelectItem value="30">30</SelectItem>
+                                            <SelectItem value="50">50</SelectItem>
+                                            <SelectItem value="100">100</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <span className="text-sm text-muted-foreground">
+                                        sur {history.length} entrée{history.length > 1 ? 's' : ''}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Premier
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Précédent
+                                    </Button>
+                                    <span className="text-sm px-4">
+                                        Page {currentPage} / {totalPages}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Suivant
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Dernier
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div >
                 )}
             </CardContent >
