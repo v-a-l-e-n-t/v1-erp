@@ -605,19 +605,20 @@ const CentreEmplisseurView = ({
                     if (countQuart > 0 && countLigne === 0) displayRole = 'chef_quart';
                     else if (countQuart === 0 && countLigne > 0) displayRole = 'chef_ligne';
                     else if (countQuart > 0 && countLigne > 0) {
-                        // Mixed roles
-                        if (filterType === 'day') {
-                            displayRole = 'both';
-                        } else {
-                            // For interval/month: "si il a occupé les 2 postes... n'affiche rien"
-                            displayRole = null;
-                        }
+                        // Mixed roles - Always show for all period types
+                        displayRole = 'both';
                     }
 
                     // 3. Productivity - Calculate per line, then average for Chef de Quart
                     // Use global ratio for ALL cases: Sum of real tonnages / Sum of theoretical tonnages
                     let productionTheoriqueTotal = 0;
                     let tonnageReelTotal = 0;
+
+                    // For dual-role agents, calculate separate productivities
+                    let productionTheoriqueQuart = 0;
+                    let tonnageReelQuart = 0;
+                    let productionTheoriqueLigne = 0;
+                    let tonnageReelLigne = 0;
 
                     // A. Process shifts (Chef de Quart) - Accumulate totals for global ratio
                     (shiftsData as any[]).forEach((s: any) => {
@@ -649,6 +650,10 @@ const CentreEmplisseurView = ({
                             // Accumulate totals for global ratio
                             productionTheoriqueTotal += theorique;
                             tonnageReelTotal += reel;
+
+                            // Accumulate for Chef de Quart role
+                            productionTheoriqueQuart += theorique;
+                            tonnageReelQuart += reel;
                         });
                     });
 
@@ -673,6 +678,10 @@ const CentreEmplisseurView = ({
 
                         productionTheoriqueTotal += theorique;
                         tonnageReelTotal += Number(l.tonnage_ligne) || 0;
+
+                        // Accumulate for Chef de Ligne role
+                        productionTheoriqueLigne += theorique;
+                        tonnageReelLigne += Number(l.tonnage_ligne) || 0;
                     });
 
                     // Calculate final productivity using GLOBAL RATIO for all cases
@@ -680,6 +689,18 @@ const CentreEmplisseurView = ({
                     if (productionTheoriqueTotal > 0) {
                         // Unified formula: (Sum of real tonnages / Sum of theoretical tonnages) × 100
                         productivite = (tonnageReelTotal / productionTheoriqueTotal) * 100;
+                    }
+
+                    // Calculate separate productivities for dual-role agents
+                    let productiviteQuart = 0;
+                    let productiviteLigne = 0;
+                    if (displayRole === 'both') {
+                        productiviteQuart = productionTheoriqueQuart > 0
+                            ? (tonnageReelQuart / productionTheoriqueQuart) * 100
+                            : 0;
+                        productiviteLigne = productionTheoriqueLigne > 0
+                            ? (tonnageReelLigne / productionTheoriqueLigne) * 100
+                            : 0;
                     }
 
                     // 4. Collect Lines (for Chef de Ligne)
@@ -702,7 +723,14 @@ const CentreEmplisseurView = ({
                         tonnage: totalTonnage,
                         displayRole,
                         productivite,
-                        lines
+                        lines,
+                        // Dual-role specific properties
+                        productiviteQuart: displayRole === 'both' ? productiviteQuart : undefined,
+                        productiviteLigne: displayRole === 'both' ? productiviteLigne : undefined,
+                        tonnageQuart: displayRole === 'both' ? tonnageReelQuart : undefined,
+                        tonnageLigne: displayRole === 'both' ? tonnageReelLigne : undefined,
+                        nombreShifts: shiftsData.length,
+                        nombreLignes: lignesData.length
                     };
                 })
             );
@@ -713,11 +741,12 @@ const CentreEmplisseurView = ({
                 const bActive = b.tonnage > 0 ? 0 : 1;
                 if (aActive !== bActive) return aActive - bActive;
 
-                // 1. Secondary Sort: Role Group (Chef de Quart > Chef de Ligne > Others)
+                // 1. Secondary Sort: Role Group (Chef de Quart > Rôles Doubles > Chef de Ligne > Others)
                 const getRoleWeight = (role: string | null) => {
                     if (role === 'chef_quart') return 1;
-                    if (role === 'chef_ligne') return 2;
-                    return 3;
+                    if (role === 'both') return 2;
+                    if (role === 'chef_ligne') return 3;
+                    return 4;
                 };
 
                 const weightA = getRoleWeight(a.displayRole);
@@ -930,6 +959,12 @@ const CentreEmplisseurView = ({
             let productionTheoriqueTotal = 0;
             let tonnageReelTotal = 0;
 
+            // For dual-role agents: separate calculations
+            let productionTheoriqueQuart = 0;
+            let tonnageReelQuart = 0;
+            let productionTheoriqueLigne = 0;
+            let tonnageReelLigne = 0;
+
             // Calculate productivity for each Chef de Quart shift
             shifts.forEach(shift => {
                 const shiftTonnage = Number(shift.tonnage_total) || 0;
@@ -953,10 +988,12 @@ const CentreEmplisseurView = ({
 
                     // Accumulate totals for global ratio
                     productionTheoriqueTotal += theorique;
+                    productionTheoriqueQuart += theorique;
                 });
 
                 // Accumulate real tonnage
                 tonnageReelTotal += shiftTonnage;
+                tonnageReelQuart += shiftTonnage;
             });
 
             // Calculate productivity for each Chef de Ligne session
@@ -983,12 +1020,25 @@ const CentreEmplisseurView = ({
                 // Accumulate totals for global ratio
                 productionTheoriqueTotal += theorique;
                 tonnageReelTotal += ligneTonnage;
+                productionTheoriqueLigne += theorique;
+                tonnageReelLigne += ligneTonnage;
             });
 
             // Calculate GLOBAL RATIO productivity (same formula as main list)
             const tauxPerformance = productionTheoriqueTotal > 0
                 ? (tonnageReelTotal / productionTheoriqueTotal) * 100
                 : 0;
+
+            // Calculate separated productivities for dual-role agents
+            const productiviteQuart = productionTheoriqueQuart > 0
+                ? (tonnageReelQuart / productionTheoriqueQuart) * 100
+                : 0;
+            const productiviteLigne = productionTheoriqueLigne > 0
+                ? (tonnageReelLigne / productionTheoriqueLigne) * 100
+                : 0;
+
+            // Determine if agent has dual role
+            const isDualRole = nombreShifts > 0 && nombreLignes > 0;
 
             // Calculate ACTUAL performance for each day in daily history using GLOBAL RATIO
             Object.keys(dailyHistory).forEach(date => {
@@ -1454,7 +1504,13 @@ const CentreEmplisseurView = ({
                 shiftBreakdown,
                 lineBreakdown: lineBreakdownArray,
                 tonnageAttendu,
-                shiftsList
+                shiftsList,
+                // Dual-role specific data
+                isDualRole,
+                productiviteQuart,
+                productiviteLigne,
+                tonnageQuart: tonnageReelQuart,
+                tonnageLigne: tonnageReelLigne
             };
 
         } catch (error) {
@@ -2124,7 +2180,6 @@ const CentreEmplisseurView = ({
                                                                         <span className="font-bold text-lg truncate">
                                                                             {agent.prenom} {agent.nom}
                                                                         </span>
-                                                                        <span className="text-xs">{badge.icon}</span>
                                                                     </div>
                                                                     <p className="text-xs text-muted-foreground">Chef de Quart</p>
                                                                 </div>
@@ -2152,6 +2207,120 @@ const CentreEmplisseurView = ({
                                                                             }`}
                                                                         style={{ width: `${Math.min(100, contribution)}%` }}
                                                                     />
+                                                                </div>
+                                                            </div>
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })}
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Rôles Doubles */}
+                            {allAgentsComparison.filter(a => a.displayRole === 'both').length > 0 && (
+                                <>
+                                    <div className="flex items-center gap-4 my-6">
+                                        <div className="h-px bg-border flex-1" />
+                                        <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                            Rôles Doubles
+                                        </span>
+                                        <div className="h-px bg-border flex-1" />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {allAgentsComparison
+                                            .filter(a => a.displayRole === 'both')
+                                            .map((agent) => {
+                                                const contribution = stats.totalTonnage > 0 ? (agent.tonnage / stats.totalTonnage) * 100 : 0;
+
+                                                // Badge for Chef de Quart productivity
+                                                const badgeQuart = agent.productiviteQuart! >= 90 ? { color: 'green', icon: '🟢' } :
+                                                    agent.productiviteQuart! >= 70 ? { color: 'orange', icon: '🟠' } :
+                                                        { color: 'red', icon: '🔴' };
+
+                                                // Badge for Chef de Ligne productivity
+                                                const badgeLigne = agent.productiviteLigne! >= 90 ? { color: 'green', icon: '🟢' } :
+                                                    agent.productiviteLigne! >= 70 ? { color: 'orange', icon: '🟠' } :
+                                                        { color: 'red', icon: '🔴' };
+
+                                                return (
+                                                    <Card
+                                                        key={agent.id}
+                                                        className="cursor-pointer transition-all hover:shadow-md border-l-4 border-l-purple-500 bg-purple-50/30"
+                                                        onClick={() => setSelectedAgentForModal(agent.id)}
+                                                    >
+                                                        <CardContent className="p-4">
+                                                            {/* Header with name and total */}
+                                                            <div className="flex items-center gap-4 mb-4">
+                                                                <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 border-2 border-purple-500">
+                                                                    <span className="text-lg">🔄</span>
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="font-bold text-lg truncate">
+                                                                            {agent.prenom} {agent.nom}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        Chef de Quart + Chef de Ligne
+                                                                    </p>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <div className="text-xl font-bold text-purple-600">
+                                                                        {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                                    </div>
+                                                                    <div className="text-xs text-purple-500 font-semibold">
+                                                                        {contribution.toFixed(1)}% contrib.
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Separator */}
+                                                            <div className="h-px bg-border my-3" />
+
+                                                            {/* Two productivity rows */}
+                                                            <div className="space-y-3">
+                                                                {/* Chef de Quart row */}
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-sm font-medium text-muted-foreground">📊 Chef de Quart</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`text-xl font-extrabold ${badgeQuart.color === 'green' ? 'text-green-600' :
+                                                                            badgeQuart.color === 'orange' ? 'text-orange-600' : 'text-red-600'
+                                                                            }`}>
+                                                                            {agent.productiviteQuart!.toFixed(1)}%
+                                                                        </div>
+                                                                        <div className="text-sm font-bold text-foreground w-24 text-right">
+                                                                            {(agent.tonnageQuart! * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                                        </div>
+                                                                        <div className="text-xs text-muted-foreground w-16 text-right">
+                                                                            {agent.nombreShifts} shift{agent.nombreShifts > 1 ? 's' : ''}
+                                                                        </div>
+                                                                        <span className="text-sm">{badgeQuart.icon}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Chef de Ligne row */}
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-sm font-medium text-muted-foreground">📊 Chef de Ligne</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`text-xl font-extrabold ${badgeLigne.color === 'green' ? 'text-green-600' :
+                                                                            badgeLigne.color === 'orange' ? 'text-orange-600' : 'text-red-600'
+                                                                            }`}>
+                                                                            {agent.productiviteLigne!.toFixed(1)}%
+                                                                        </div>
+                                                                        <div className="text-sm font-bold text-foreground w-24 text-right">
+                                                                            {(agent.tonnageLigne! * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                                        </div>
+                                                                        <div className="text-xs text-muted-foreground w-16 text-right">
+                                                                            {agent.nombreLignes} ligne{agent.nombreLignes > 1 ? 's' : ''}
+                                                                        </div>
+                                                                        <span className="text-sm">{badgeLigne.icon}</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </CardContent>
@@ -2207,7 +2376,6 @@ const CentreEmplisseurView = ({
                                                                         <span className="font-bold text-lg truncate">
                                                                             {agent.prenom} {agent.nom}
                                                                         </span>
-                                                                        <span className="text-xs">{badge.icon}</span>
                                                                     </div>
                                                                     <p className="text-xs text-muted-foreground">
                                                                         Lignes: {agent.lines && agent.lines.length > 0 ? agent.lines.join(', ') : 'N/A'}
@@ -2282,7 +2450,7 @@ const CentreEmplisseurView = ({
                             <Users className="h-6 w-6 text-primary" />
                             {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.prenom} {allAgentsComparison.find(a => a.id === selectedAgentForModal)?.nom}
                         </DialogTitle>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 mr-12">
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -2360,6 +2528,18 @@ const CentreEmplisseurView = ({
                                                 <span className="text-2xl ml-1">Kg</span>
                                             </p>
                                         </div>
+                                        {agentModalData.isDualRole ? (
+                                            <div className="mt-4 space-y-2 text-sm">
+                                                <div className="flex items-center justify-between p-2 border rounded bg-purple-50/50">
+                                                    <span className="text-xs text-muted-foreground font-semibold">📊 Chef de Quart</span>
+                                                    <span className="font-bold text-purple-600">{(agentModalData.tonnageQuart * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
+                                                </div>
+                                                <div className="flex items-center justify-between p-2 border rounded bg-purple-50/50">
+                                                    <span className="text-xs text-muted-foreground font-semibold">📊 Chef de Ligne</span>
+                                                    <span className="font-bold text-purple-600">{(agentModalData.tonnageLigne * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
+                                                </div>
+                                            </div>
+                                        ) : null}
                                         <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                                             <div className="text-center p-2 border rounded">
                                                 <p className="text-xs text-muted-foreground">Recharges</p>
@@ -2382,14 +2562,56 @@ const CentreEmplisseurView = ({
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="text-center p-4 bg-green-50/50 rounded-lg">
-                                            <p className={`text-4xl font-extrabold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
-                                                agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
-                                                }`}>
-                                                {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
-                                                <span className="text-2xl ml-1">%</span>
-                                            </p>
-                                        </div>
+                                        {agentModalData.isDualRole ? (
+                                            <div className="space-y-3">
+                                                {/* Chef de Quart Productivity */}
+                                                <div className="p-3 bg-purple-50/50 rounded-lg border-l-4 border-l-purple-500">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-sm font-semibold text-muted-foreground">📊 Chef de Quart</span>
+                                                        <span className="text-xs text-muted-foreground">{agentModalData.nombreShifts} shift{agentModalData.nombreShifts > 1 ? 's' : ''}</span>
+                                                    </div>
+                                                    <p className={`text-3xl font-extrabold text-center ${agentModalData.productiviteQuart >= 90 ? 'text-green-600' :
+                                                        agentModalData.productiviteQuart >= 70 ? 'text-orange-500' : 'text-red-600'
+                                                        }`}>
+                                                        {agentModalData.productiviteQuart.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                                                        <span className="text-xl ml-1">%</span>
+                                                    </p>
+                                                </div>
+
+                                                {/* Chef de Ligne Productivity */}
+                                                <div className="p-3 bg-purple-50/50 rounded-lg border-l-4 border-l-purple-500">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-sm font-semibold text-muted-foreground">📊 Chef de Ligne</span>
+                                                        <span className="text-xs text-muted-foreground">{agentModalData.nombreLignes} ligne{agentModalData.nombreLignes > 1 ? 's' : ''}</span>
+                                                    </div>
+                                                    <p className={`text-3xl font-extrabold text-center ${agentModalData.productiviteLigne >= 90 ? 'text-green-600' :
+                                                        agentModalData.productiviteLigne >= 70 ? 'text-orange-500' : 'text-red-600'
+                                                        }`}>
+                                                        {agentModalData.productiviteLigne.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                                                        <span className="text-xl ml-1">%</span>
+                                                    </p>
+                                                </div>
+
+                                                {/* Global Productivity */}
+                                                <div className="pt-2 border-t">
+                                                    <p className="text-xs text-muted-foreground text-center mb-1">Productivité Globale</p>
+                                                    <p className={`text-2xl font-extrabold text-center ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
+                                                        agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
+                                                        }`}>
+                                                        {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}%
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center p-4 bg-green-50/50 rounded-lg">
+                                                <p className={`text-4xl font-extrabold ${agentModalData.tauxPerformance >= 90 ? 'text-green-600' :
+                                                    agentModalData.tauxPerformance >= 70 ? 'text-orange-500' : 'text-red-600'
+                                                    }`}>
+                                                    {agentModalData.tauxPerformance.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                                                    <span className="text-2xl ml-1">%</span>
+                                                </p>
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
 
