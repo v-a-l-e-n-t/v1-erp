@@ -12,6 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx-js-style';
@@ -213,6 +214,7 @@ const CentreEmplisseurView = ({
     const [agentModalData, setAgentModalData] = useState<any>(null);
     const [selectedLineForModal, setSelectedLineForModal] = useState<number | null>(null);
     const [lineModalData, setLineModalData] = useState<any>(null);
+    const [lineModalTab, setLineModalTab] = useState<'shift1' | 'shift2' | 'cumul'>('cumul');
 
 
     // Agent Filter States (default to current month)
@@ -788,10 +790,6 @@ const CentreEmplisseurView = ({
 
     const fetchLineDetailedStats = async (lineNumber: number) => {
         try {
-            console.log('=== FETCH LINE DETAILS ===');
-            console.log('Line Number:', lineNumber);
-            console.log('Filter Type:', filterType);
-
             // Determine period dates based on filter type
             let startDate, endDate;
             if (filterType === 'year') {
@@ -808,13 +806,10 @@ const CentreEmplisseurView = ({
                 startDate = format(dateRange.from, 'yyyy-MM-dd');
                 endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : startDate;
             } else {
-                console.log('No valid filter type, returning null');
                 return null;
             }
 
-            console.log('Date Range:', startDate, 'to', endDate);
-
-            // Fetch all lignes_production for this line and period - simplified query
+            // Fetch all lignes_production for this line and period
             const { data: lignesData, error: lignesError } = await supabase
                 .from('lignes_production')
                 .select('*, production_shifts!inner(*)')
@@ -827,175 +822,132 @@ const CentreEmplisseurView = ({
                 throw lignesError;
             }
 
-            console.log('Lignes data:', lignesData);
-
             const lignes = lignesData || [];
 
-            // Calculate aggregated stats
-            let totalTonnage = 0;
-            let totalTempsArret = 0;
-            let totalRecharges = 0;
-            let totalConsignes = 0;
-            let totalHeuresShift = 0;
+            // Helper function to calculate stats for a group of lignes
+            const calculateShiftStats = (lignesList: any[]) => {
+                if (lignesList.length === 0) return null;
 
-            // For format breakdown
-            const formatBreakdown: any = {};
+                let totalTonnage = 0;
+                let totalTempsArret = 0;
+                let totalRecharges = 0;
+                let totalConsignes = 0;
+                let totalHeuresShift = 0;
+                const formatBreakdown: any = {};
 
-            // Chef de quart names (unique)
-            const chefsQuart = new Set<string>();
-            // Chef de ligne names (unique)
-            const chefsLigne = new Set<string>();
-            let totalAgents = 0;
+                lignesList.forEach((ligne: any) => {
+                    // Tonnage
+                    totalTonnage += Number(ligne.tonnage_ligne) || 0;
 
-            lignes.forEach((ligne: any) => {
-                // Tonnage
-                totalTonnage += Number(ligne.tonnage_ligne) || 0;
+                    // Temps d'arrêt
+                    totalTempsArret += Number(ligne.temps_arret_ligne_minutes) || 0;
 
-                // Temps d'arrêt
-                totalTempsArret += Number(ligne.temps_arret_ligne_minutes) || 0;
-
-                // Recharges and Consignes by format
-                if (lineNumber >= 1 && lineNumber <= 4) {
-                    // B6 line
-                    if (!formatBreakdown['B6']) {
-                        formatBreakdown['B6'] = {
-                            petro: { recharges: 0, consignes: 0 },
-                            total: { recharges: 0, consignes: 0 },
-                            vivo: { recharges: 0, consignes: 0 }
-                        };
-                    }
-                    formatBreakdown['B6'].petro.recharges += (ligne.recharges_petro_b6 || 0);
-                    formatBreakdown['B6'].petro.consignes += (ligne.consignes_petro_b6 || 0);
-                    formatBreakdown['B6'].total.recharges += (ligne.recharges_total_b6 || 0);
-                    formatBreakdown['B6'].total.consignes += (ligne.consignes_total_b6 || 0);
-                    formatBreakdown['B6'].vivo.recharges += (ligne.recharges_vivo_b6 || 0);
-                    formatBreakdown['B6'].vivo.consignes += (ligne.consignes_vivo_b6 || 0);
-
-                    totalRecharges += (ligne.cumul_recharges_b6 || 0);
-                    totalConsignes += (ligne.cumul_consignes_b6 || 0);
-                } else if (lineNumber === 5) {
-                    // B12, B28, B38 line
-                    ['B12', 'B28', 'B38'].forEach(format => {
-                        if (!formatBreakdown[format]) {
-                            formatBreakdown[format] = {
+                    // Recharges and Consignes by format
+                    if (lineNumber >= 1 && lineNumber <= 4) {
+                        // B6 line
+                        if (!formatBreakdown['B6']) {
+                            formatBreakdown['B6'] = {
                                 petro: { recharges: 0, consignes: 0 },
                                 total: { recharges: 0, consignes: 0 },
                                 vivo: { recharges: 0, consignes: 0 }
                             };
                         }
-                    });
+                        formatBreakdown['B6'].petro.recharges += (ligne.recharges_petro_b6 || 0);
+                        formatBreakdown['B6'].petro.consignes += (ligne.consignes_petro_b6 || 0);
+                        formatBreakdown['B6'].total.recharges += (ligne.recharges_total_b6 || 0);
+                        formatBreakdown['B6'].total.consignes += (ligne.consignes_total_b6 || 0);
+                        formatBreakdown['B6'].vivo.recharges += (ligne.recharges_vivo_b6 || 0);
+                        formatBreakdown['B6'].vivo.consignes += (ligne.consignes_vivo_b6 || 0);
 
-                    // B12
-                    formatBreakdown['B12'].petro.recharges += (ligne.recharges_petro_b12 || 0);
-                    formatBreakdown['B12'].petro.consignes += (ligne.consignes_petro_b12 || 0);
-                    formatBreakdown['B12'].total.recharges += (ligne.recharges_total_b12 || 0);
-                    formatBreakdown['B12'].total.consignes += (ligne.consignes_total_b12 || 0);
-                    formatBreakdown['B12'].vivo.recharges += (ligne.recharges_vivo_b12 || 0);
-                    formatBreakdown['B12'].vivo.consignes += (ligne.consignes_vivo_b12 || 0);
+                        totalRecharges += (ligne.cumul_recharges_b6 || 0);
+                        totalConsignes += (ligne.cumul_consignes_b6 || 0);
+                    } else if (lineNumber === 5) {
+                        // B12, B28, B38 line
+                        ['B12', 'B28', 'B38'].forEach(fmt => {
+                            if (!formatBreakdown[fmt]) {
+                                formatBreakdown[fmt] = {
+                                    petro: { recharges: 0, consignes: 0 },
+                                    total: { recharges: 0, consignes: 0 },
+                                    vivo: { recharges: 0, consignes: 0 }
+                                };
+                            }
+                        });
 
-                    // B28
-                    formatBreakdown['B28'].petro.recharges += (ligne.recharges_petro_b28 || 0);
-                    formatBreakdown['B28'].petro.consignes += (ligne.consignes_petro_b28 || 0);
-                    formatBreakdown['B28'].total.recharges += (ligne.recharges_total_b28 || 0);
-                    formatBreakdown['B28'].total.consignes += (ligne.consignes_total_b28 || 0);
-                    formatBreakdown['B28'].vivo.recharges += (ligne.recharges_vivo_b28 || 0);
-                    formatBreakdown['B28'].vivo.consignes += (ligne.consignes_vivo_b28 || 0);
+                        // B12
+                        formatBreakdown['B12'].petro.recharges += (ligne.recharges_petro_b12 || 0);
+                        formatBreakdown['B12'].petro.consignes += (ligne.consignes_petro_b12 || 0);
+                        formatBreakdown['B12'].total.recharges += (ligne.recharges_total_b12 || 0);
+                        formatBreakdown['B12'].total.consignes += (ligne.consignes_total_b12 || 0);
+                        formatBreakdown['B12'].vivo.recharges += (ligne.recharges_vivo_b12 || 0);
+                        formatBreakdown['B12'].vivo.consignes += (ligne.consignes_vivo_b12 || 0);
 
-                    // B38
-                    formatBreakdown['B38'].petro.recharges += (ligne.recharges_petro_b38 || 0);
-                    formatBreakdown['B38'].petro.consignes += (ligne.consignes_petro_b38 || 0);
-                    formatBreakdown['B38'].total.recharges += (ligne.recharges_total_b38 || 0);
-                    formatBreakdown['B38'].total.consignes += (ligne.consignes_total_b38 || 0);
-                    formatBreakdown['B38'].vivo.recharges += (ligne.recharges_vivo_b38 || 0);
-                    formatBreakdown['B38'].vivo.consignes += (ligne.consignes_vivo_b38 || 0);
+                        // B28
+                        formatBreakdown['B28'].petro.recharges += (ligne.recharges_petro_b28 || 0);
+                        formatBreakdown['B28'].petro.consignes += (ligne.consignes_petro_b28 || 0);
+                        formatBreakdown['B28'].total.recharges += (ligne.recharges_total_b28 || 0);
+                        formatBreakdown['B28'].total.consignes += (ligne.consignes_total_b28 || 0);
+                        formatBreakdown['B28'].vivo.recharges += (ligne.recharges_vivo_b28 || 0);
+                        formatBreakdown['B28'].vivo.consignes += (ligne.consignes_vivo_b28 || 0);
 
-                    totalRecharges += (ligne.cumul_recharges_b12 || 0) + (ligne.cumul_recharges_b28 || 0) + (ligne.cumul_recharges_b38 || 0);
-                    totalConsignes += (ligne.cumul_consignes_b12 || 0) + (ligne.cumul_consignes_b28 || 0) + (ligne.cumul_consignes_b38 || 0);
+                        // B38
+                        formatBreakdown['B38'].petro.recharges += (ligne.recharges_petro_b38 || 0);
+                        formatBreakdown['B38'].petro.consignes += (ligne.consignes_petro_b38 || 0);
+                        formatBreakdown['B38'].total.recharges += (ligne.recharges_total_b38 || 0);
+                        formatBreakdown['B38'].total.consignes += (ligne.consignes_total_b38 || 0);
+                        formatBreakdown['B38'].vivo.recharges += (ligne.recharges_vivo_b38 || 0);
+                        formatBreakdown['B38'].vivo.consignes += (ligne.consignes_vivo_b38 || 0);
+
+                        totalRecharges += (ligne.cumul_recharges_b12 || 0) + (ligne.cumul_recharges_b28 || 0) + (ligne.cumul_recharges_b38 || 0);
+                        totalConsignes += (ligne.cumul_consignes_b12 || 0) + (ligne.cumul_consignes_b28 || 0) + (ligne.cumul_consignes_b38 || 0);
+                    }
+
+                    // Shift info
+                    const shift = ligne.production_shifts;
+                    if (shift) {
+                        const shiftHours = calculateShiftHours(
+                            shift.heure_debut_reelle || '10:00',
+                            shift.heure_fin_reelle || '19:00'
+                        );
+                        totalHeuresShift += shiftHours;
+                    }
+                });
+
+                // Calculate theoretical production and productivity
+                const maxDowntimeMinutes = totalHeuresShift * 60;
+                const effectiveDowntime = Math.min(totalTempsArret, maxDowntimeMinutes);
+                const heuresProductives = Math.max(0, totalHeuresShift - (effectiveDowntime / 60));
+
+                let productionTheorique = 0;
+                if (lineNumber >= 1 && lineNumber <= 4) {
+                    productionTheorique = (1600 * 6 * heuresProductives) / 1000;
+                } else if (lineNumber === 5) {
+                    productionTheorique = (900 * 12.5 * heuresProductives) / 1000;
                 }
 
-                // Shift info
-                const shift = ligne.production_shifts;
-                if (shift) {
-                    // Calculate shift hours
-                    const shiftHours = calculateShiftHours(
-                        shift.heure_debut_reelle || '10:00',
-                        shift.heure_fin_reelle || '19:00'
-                    );
-                    totalHeuresShift += shiftHours;
+                const productivite = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
 
-                    // Agents: nombre d'agents de la ligne + tous les agents du shift
-                    const shiftAgents = (shift.chariste || 0) + (shift.chariot || 0) +
-                                       (shift.agent_quai || 0) + (shift.agent_saisie || 0) +
-                                       (shift.agent_atelier || 0);
-                    totalAgents += (ligne.nombre_agents || 0) + shiftAgents;
-                }
-            });
+                return {
+                    totalTonnage,
+                    productionTheorique,
+                    productivite,
+                    totalHeuresShift,
+                    heuresProductives,
+                    totalTempsArret,
+                    totalBouteilles: totalRecharges + totalConsignes,
+                    totalRecharges,
+                    totalConsignes,
+                    formatBreakdown
+                };
+            };
 
-            // Fetch chef de quart info
-            const chefQuartIds = lignes.map((l: any) => l.production_shifts?.chef_quart_id).filter(Boolean);
-            console.log('Chef Quart IDs:', chefQuartIds);
-            if (chefQuartIds.length > 0) {
-                const uniqueChefQuartIds = Array.from(new Set(chefQuartIds));
-                console.log('Unique Chef Quart IDs:', uniqueChefQuartIds);
-                const { data: chefsQuartData, error: chefsQuartError } = await supabase
-                    .from('agents')
-                    .select('id, prenom, nom')
-                    .in('id', uniqueChefQuartIds);
+            // Split lignes by shift type
+            const shift1Lignes = lignes.filter((l: any) => l.production_shifts?.shift_type === '10h-19h');
+            const shift2Lignes = lignes.filter((l: any) => l.production_shifts?.shift_type === '20h-5h');
 
-                if (chefsQuartError) {
-                    console.error('Error fetching chefs de quart:', chefsQuartError);
-                }
-                console.log('Chefs Quart Data:', chefsQuartData);
-
-                if (chefsQuartData) {
-                    chefsQuartData.forEach(chef => {
-                        chefsQuart.add(`${chef.prenom} ${chef.nom}`);
-                    });
-                }
-            }
-
-            // Fetch chef de ligne info
-            const chefLigneIds = lignes.map((l: any) => l.chef_ligne_id).filter(Boolean);
-            console.log('Chef Ligne IDs:', chefLigneIds);
-            if (chefLigneIds.length > 0) {
-                const uniqueChefLigneIds = Array.from(new Set(chefLigneIds));
-                console.log('Unique Chef Ligne IDs:', uniqueChefLigneIds);
-                const { data: chefsLigneData, error: chefsLigneError } = await supabase
-                    .from('agents')
-                    .select('id, prenom, nom')
-                    .in('id', uniqueChefLigneIds);
-
-                if (chefsLigneError) {
-                    console.error('Error fetching chefs de ligne:', chefsLigneError);
-                }
-                console.log('Chefs Ligne Data:', chefsLigneData);
-
-                if (chefsLigneData) {
-                    chefsLigneData.forEach(chef => {
-                        chefsLigne.add(`${chef.prenom} ${chef.nom}`);
-                    });
-                }
-            }
-
-            console.log('Final chefsQuart:', Array.from(chefsQuart));
-            console.log('Final chefsLigne:', Array.from(chefsLigne));
-
-            // Calculate theoretical production and productivity
-            const ligneTempsArret = totalTempsArret;
-            const maxDowntimeMinutes = totalHeuresShift * 60;
-            const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
-            const heuresProductives = Math.max(0, totalHeuresShift - (effectiveDowntime / 60));
-
-            let productionTheorique = 0;
-            if (lineNumber >= 1 && lineNumber <= 4) {
-                // B6 line: 1600 btl/h * 6kg
-                productionTheorique = (1600 * 6 * heuresProductives) / 1000; // Tonnes
-            } else if (lineNumber === 5) {
-                // B12 line: 900 btl/h * 12.5kg
-                productionTheorique = (900 * 12.5 * heuresProductives) / 1000; // Tonnes
-            }
-
-            const productivite = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
+            // Calculate stats for each group
+            const shift1Stats = calculateShiftStats(shift1Lignes);
+            const shift2Stats = calculateShiftStats(shift2Lignes);
+            const cumulStats = calculateShiftStats(lignes);
 
             // Format period display
             let periodeDisplay = '';
@@ -1011,26 +963,13 @@ const CentreEmplisseurView = ({
                 periodeDisplay = `${from} - ${to}`;
             }
 
-            const result = {
+            return {
                 lineNumber,
                 periodeDisplay,
-                totalTonnage,
-                productionTheorique,
-                productivite,
-                totalHeuresShift,
-                heuresProductives,
-                totalTempsArret,
-                totalBouteilles: totalRecharges + totalConsignes,
-                totalRecharges,
-                totalConsignes,
-                formatBreakdown,
-                chefsQuart: Array.from(chefsQuart),
-                chefsLigne: Array.from(chefsLigne),
-                nombreAgents: Math.round(totalAgents / (lignes.length || 1))
+                shift1: shift1Stats,
+                shift2: shift2Stats,
+                cumul: cumulStats
             };
-
-            console.log('=== RETURNING LINE DATA ===', result);
-            return result;
         } catch (error) {
             console.error('=== ERROR FETCHING LINE DETAILS ===', error);
             return null;
@@ -2982,7 +2921,12 @@ const CentreEmplisseurView = ({
             </Dialog>
 
             {/* Line Details Modal */}
-            <Dialog open={!!selectedLineForModal} onOpenChange={(open) => !open && setSelectedLineForModal(null)}>
+            <Dialog open={!!selectedLineForModal} onOpenChange={(open) => {
+                if (!open) {
+                    setSelectedLineForModal(null);
+                    setLineModalTab('cumul');
+                }
+            }}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <DialogTitle className="text-2xl flex items-center gap-2">
@@ -3002,7 +2946,7 @@ const CentreEmplisseurView = ({
                                             logging: false
                                         }).then(canvas => {
                                             const link = document.createElement('a');
-                                            link.download = `ligne_${selectedLineForModal}_${new Date().toISOString().split('T')[0]}.png`;
+                                            link.download = `ligne_${selectedLineForModal}_${lineModalTab}_${new Date().toISOString().split('T')[0]}.png`;
                                             link.href = canvas.toDataURL();
                                             link.click();
                                         });
@@ -3035,7 +2979,7 @@ const CentreEmplisseurView = ({
                                             const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
                                             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                                            pdf.save(`ligne_${selectedLineForModal}_${new Date().toISOString().split('T')[0]}.pdf`);
+                                            pdf.save(`ligne_${selectedLineForModal}_${lineModalTab}_${new Date().toISOString().split('T')[0]}.pdf`);
                                         });
                                     }
                                 }}
@@ -3049,194 +2993,146 @@ const CentreEmplisseurView = ({
 
                     {lineModalData ? (
                         <div className="space-y-6 py-4" id="line-modal-content">
-                            {/* Section 1: En-tête */}
-                            <div className="text-center space-y-2 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
-                                <div className="flex items-center justify-center gap-4">
-                                    <div>
-                                        <p className={`text-5xl font-extrabold ${lineModalData.productivite >= 90 ? 'text-green-600' :
-                                            lineModalData.productivite >= 70 ? 'text-orange-500' : 'text-red-600'
-                                            }`}>
-                                            {lineModalData.productivite.toFixed(1)}%
-                                        </p>
-                                        <p className="text-sm text-muted-foreground mt-1">Productivité</p>
-                                    </div>
-                                </div>
+                            {/* Tabs selector */}
+                            <div className="flex gap-2 p-1 bg-muted rounded-lg">
+                                <button
+                                    onClick={() => setLineModalTab('shift1')}
+                                    disabled={!lineModalData.shift1}
+                                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${lineModalTab === 'shift1' ? 'bg-background shadow-sm' : 'hover:bg-background/50'} ${!lineModalData.shift1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Shift 1 (10h-19h)
+                                </button>
+                                <button
+                                    onClick={() => setLineModalTab('shift2')}
+                                    disabled={!lineModalData.shift2}
+                                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${lineModalTab === 'shift2' ? 'bg-background shadow-sm' : 'hover:bg-background/50'} ${!lineModalData.shift2 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Shift 2 (20h-5h)
+                                </button>
+                                <button
+                                    onClick={() => setLineModalTab('cumul')}
+                                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${lineModalTab === 'cumul' ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
+                                >
+                                    Cumul
+                                </button>
                             </div>
 
-                            {/* Section 2: Statistiques Clés */}
-                            <Card className="border-l-4 border-l-blue-500">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Package className="h-5 w-5 text-blue-600" />
-                                        Statistiques Clés
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                        {/* Tonnage produit */}
-                                        <div className="text-center p-3 border rounded-lg bg-blue-50/50">
-                                            <p className="text-xs text-muted-foreground font-semibold mb-1">Tonnage Produit</p>
-                                            <p className="text-2xl font-bold text-blue-600">
-                                                {(lineModalData.totalTonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                            </p>
-                                        </div>
+                            {(() => {
+                                const tabData = lineModalData[lineModalTab];
+                                if (!tabData) return <p className="text-center text-muted-foreground py-8">Aucune donnée pour ce shift</p>;
 
-                                        {/* Tonnage attendu */}
-                                        <div className="text-center p-3 border rounded-lg bg-purple-50/50">
-                                            <p className="text-xs text-muted-foreground font-semibold mb-1">Tonnage Attendu</p>
-                                            <p className="text-2xl font-bold text-purple-600">
-                                                {(lineModalData.productionTheorique * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                            </p>
-                                        </div>
-
-                                        {/* Productivité */}
-                                        <div className={`text-center p-3 border rounded-lg ${lineModalData.productivite >= 90 ? 'bg-green-50/50' :
-                                            lineModalData.productivite >= 70 ? 'bg-orange-50/50' : 'bg-red-50/50'
-                                            }`}>
-                                            <p className="text-xs text-muted-foreground font-semibold mb-1">Productivité</p>
-                                            <p className={`text-2xl font-bold ${lineModalData.productivite >= 90 ? 'text-green-600' :
-                                                lineModalData.productivite >= 70 ? 'text-orange-600' : 'text-red-600'
-                                                }`}>
-                                                {lineModalData.productivite.toFixed(1)}%
-                                            </p>
-                                        </div>
-
-                                        {/* Temps productif */}
-                                        <div className="text-center p-3 border rounded-lg bg-green-50/50">
-                                            <p className="text-xs text-muted-foreground font-semibold mb-1">Temps Productif</p>
-                                            <p className="text-2xl font-bold text-green-600">
-                                                {lineModalData.heuresProductives.toFixed(2)} h
-                                            </p>
-                                        </div>
-
-                                        {/* Temps d'arrêt */}
-                                        <div className="text-center p-3 border rounded-lg bg-orange-50/50">
-                                            <p className="text-xs text-muted-foreground font-semibold mb-1">Temps d'Arrêt</p>
-                                            <p className="text-2xl font-bold text-orange-600">
-                                                {Math.floor(lineModalData.totalTempsArret / 60)}h{Math.round(lineModalData.totalTempsArret % 60).toString().padStart(2, '0')}
-                                            </p>
-                                        </div>
-
-                                        {/* Bouteilles produites */}
-                                        <div className="text-center p-3 border rounded-lg bg-indigo-50/50">
-                                            <p className="text-xs text-muted-foreground font-semibold mb-1">Bouteilles Produites</p>
-                                            <p className="text-2xl font-bold text-indigo-600">
-                                                {lineModalData.totalBouteilles.toLocaleString('fr-FR')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Section 3: Détail par Format */}
-                            <Card className="border-l-4 border-l-green-500">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Package className="h-5 w-5 text-green-600" />
-                                        Détail par Format
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4">
-                                        {Object.entries(lineModalData.formatBreakdown).map(([format, data]: [string, any]) => (
-                                            <div key={format} className="p-4 border rounded-lg bg-gray-50/50">
-                                                <h4 className="font-bold text-lg mb-3 text-primary">Format {format}</h4>
-                                                <div className="grid grid-cols-3 gap-3">
-                                                    {/* Petro */}
-                                                    <div className="text-center p-2 border rounded bg-white">
-                                                        <div className="flex justify-center mb-2">
-                                                            <img src="/images/logo-petro.png" alt="Petro" className="h-8 object-contain" />
-                                                        </div>
-                                                        <p className="text-sm font-medium text-blue-600">
-                                                            {data.petro.recharges.toLocaleString('fr-FR')} recharges
-                                                        </p>
-                                                        <p className="text-sm font-medium text-green-600">
-                                                            {data.petro.consignes.toLocaleString('fr-FR')} consignes
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Total */}
-                                                    <div className="text-center p-2 border rounded bg-white">
-                                                        <div className="flex justify-center mb-2">
-                                                            <img src="/images/logo-total.png" alt="Total" className="h-8 object-contain" />
-                                                        </div>
-                                                        <p className="text-sm font-medium text-blue-600">
-                                                            {data.total.recharges.toLocaleString('fr-FR')} recharges
-                                                        </p>
-                                                        <p className="text-sm font-medium text-green-600">
-                                                            {data.total.consignes.toLocaleString('fr-FR')} consignes
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Vivo */}
-                                                    <div className="text-center p-2 border rounded bg-white">
-                                                        <div className="flex justify-center mb-2">
-                                                            <img src="/images/logo-vivo.png" alt="Vivo" className="h-8 object-contain" />
-                                                        </div>
-                                                        <p className="text-sm font-medium text-blue-600">
-                                                            {data.vivo.recharges.toLocaleString('fr-FR')} recharges
-                                                        </p>
-                                                        <p className="text-sm font-medium text-green-600">
-                                                            {data.vivo.consignes.toLocaleString('fr-FR')} consignes
-                                                        </p>
-                                                    </div>
+                                return (
+                                    <>
+                                        {/* Section 1: En-tête */}
+                                        <div className="text-center space-y-2 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
+                                            <div className="flex items-center justify-center gap-4">
+                                                <div>
+                                                    <p className={`text-5xl font-extrabold ${tabData.productivite >= 90 ? 'text-green-600' : tabData.productivite >= 70 ? 'text-orange-500' : 'text-red-600'}`}>
+                                                        {tabData.productivite?.toFixed(1) || '0'}%
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground mt-1">Productivité</p>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                        </div>
 
-                            {/* Section 4: Agents */}
-                            <Card className="border-l-4 border-l-purple-500">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <Users className="h-5 w-5 text-purple-600" />
-                                        Agents
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-3">
-                                        {/* Chefs de Quart */}
-                                        <div className="p-3 border rounded-lg bg-purple-50/50">
-                                            <p className="text-sm font-semibold text-muted-foreground mb-2">Chef(s) de Quart</p>
-                                            {lineModalData.chefsQuart.length > 0 ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {lineModalData.chefsQuart.map((chef: string, idx: number) => (
-                                                        <span key={idx} className="px-3 py-1 bg-white border rounded-full text-sm font-medium">
-                                                            {chef}
-                                                        </span>
-                                                    ))}
+                                        {/* Section 2: Statistiques Clés */}
+                                        <Card className="border-l-4 border-l-blue-500">
+                                            <CardHeader>
+                                                <CardTitle className="text-lg flex items-center gap-2">
+                                                    <Package className="h-5 w-5 text-blue-600" />
+                                                    Statistiques Clés
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                    <div className="text-center p-3 border rounded-lg bg-blue-50/50">
+                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Tonnage Produit</p>
+                                                        <p className="text-2xl font-bold text-blue-600">
+                                                            {((tabData.totalTonnage || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center p-3 border rounded-lg bg-purple-50/50">
+                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Tonnage Attendu</p>
+                                                        <p className="text-2xl font-bold text-purple-600">
+                                                            {((tabData.productionTheorique || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                        </p>
+                                                    </div>
+                                                    <div className={`text-center p-3 border rounded-lg ${tabData.productivite >= 90 ? 'bg-green-50/50' : tabData.productivite >= 70 ? 'bg-orange-50/50' : 'bg-red-50/50'}`}>
+                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Productivité</p>
+                                                        <p className={`text-2xl font-bold ${tabData.productivite >= 90 ? 'text-green-600' : tabData.productivite >= 70 ? 'text-orange-600' : 'text-red-600'}`}>
+                                                            {tabData.productivite?.toFixed(1) || '0'}%
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center p-3 border rounded-lg bg-green-50/50">
+                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Temps Productif</p>
+                                                        <p className="text-2xl font-bold text-green-600">
+                                                            {tabData.heuresProductives?.toFixed(2) || '0'} h
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center p-3 border rounded-lg bg-orange-50/50">
+                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Temps d'Arrêt</p>
+                                                        <p className="text-2xl font-bold text-orange-600">
+                                                            {Math.floor((tabData.totalTempsArret || 0) / 60)}h{Math.round((tabData.totalTempsArret || 0) % 60).toString().padStart(2, '0')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center p-3 border rounded-lg bg-indigo-50/50">
+                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Bouteilles Produites</p>
+                                                        <p className="text-2xl font-bold text-indigo-600">
+                                                            {(tabData.totalBouteilles || 0).toLocaleString('fr-FR')}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground">Aucun chef de quart</p>
-                                            )}
-                                        </div>
+                                            </CardContent>
+                                        </Card>
 
-                                        {/* Chefs de Ligne */}
-                                        <div className="p-3 border rounded-lg bg-blue-50/50">
-                                            <p className="text-sm font-semibold text-muted-foreground mb-2">Chef(s) de Ligne</p>
-                                            {lineModalData.chefsLigne.length > 0 ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {lineModalData.chefsLigne.map((chef: string, idx: number) => (
-                                                        <span key={idx} className="px-3 py-1 bg-white border rounded-full text-sm font-medium">
-                                                            {chef}
-                                                        </span>
+                                        {/* Section 3: Détail par Format */}
+                                        <Card className="border-l-4 border-l-green-500">
+                                            <CardHeader>
+                                                <CardTitle className="text-lg flex items-center gap-2">
+                                                    <Package className="h-5 w-5 text-green-600" />
+                                                    Détail par Format
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-4">
+                                                    {tabData.formatBreakdown && Object.entries(tabData.formatBreakdown).map(([fmt, data]: [string, any]) => (
+                                                        <div key={fmt} className="p-4 border rounded-lg bg-gray-50/50">
+                                                            <h4 className="font-bold text-lg mb-3 text-primary">Format {fmt}</h4>
+                                                            <div className="grid grid-cols-3 gap-3">
+                                                                <div className="text-center p-2 border rounded bg-white">
+                                                                    <div className="flex justify-center mb-2">
+                                                                        <img src="/images/logo-petro.png" alt="Petro" className="h-8 object-contain" />
+                                                                    </div>
+                                                                    <p className="text-sm font-medium text-blue-600">{(data.petro?.recharges || 0).toLocaleString('fr-FR')} recharges</p>
+                                                                    <p className="text-sm font-medium text-green-600">{(data.petro?.consignes || 0).toLocaleString('fr-FR')} consignes</p>
+                                                                </div>
+                                                                <div className="text-center p-2 border rounded bg-white">
+                                                                    <div className="flex justify-center mb-2">
+                                                                        <img src="/images/logo-total.png" alt="Total" className="h-8 object-contain" />
+                                                                    </div>
+                                                                    <p className="text-sm font-medium text-blue-600">{(data.total?.recharges || 0).toLocaleString('fr-FR')} recharges</p>
+                                                                    <p className="text-sm font-medium text-green-600">{(data.total?.consignes || 0).toLocaleString('fr-FR')} consignes</p>
+                                                                </div>
+                                                                <div className="text-center p-2 border rounded bg-white">
+                                                                    <div className="flex justify-center mb-2">
+                                                                        <img src="/images/logo-vivo.png" alt="Vivo" className="h-8 object-contain" />
+                                                                    </div>
+                                                                    <p className="text-sm font-medium text-blue-600">{(data.vivo?.recharges || 0).toLocaleString('fr-FR')} recharges</p>
+                                                                    <p className="text-sm font-medium text-green-600">{(data.vivo?.consignes || 0).toLocaleString('fr-FR')} consignes</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     ))}
+                                                    {(!tabData.formatBreakdown || Object.keys(tabData.formatBreakdown).length === 0) && (
+                                                        <p className="text-muted-foreground text-center py-4">Aucune donnée de format disponible</p>
+                                                    )}
                                                 </div>
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground">Aucun chef de ligne</p>
-                                            )}
-                                        </div>
+                                            </CardContent>
+                                        </Card>
 
-                                        {/* Nombre d'agents */}
-                                        <div className="p-3 border rounded-lg bg-green-50/50">
-                                            <p className="text-sm font-semibold text-muted-foreground mb-1">Nombre d'agents moyen sur la ligne</p>
-                                            <p className="text-2xl font-bold text-green-600">{lineModalData.nombreAgents}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </>
+                                );
+                            })()}
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-64">
