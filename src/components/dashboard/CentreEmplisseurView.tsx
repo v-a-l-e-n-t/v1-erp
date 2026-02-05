@@ -2647,7 +2647,7 @@ const CentreEmplisseurView = ({
                                         {allAgentsComparison
                                             .filter(a => a.tonnage === 0)
                                             .map((agent) => (
-                                                <div key={agent.id} className="p-2 border rounded text-sm text-muted-foreground">
+                                                <div key={agent.id} className="p-2 border border-red-200 rounded text-sm text-red-700 bg-red-50">
                                                     {agent.prenom} {agent.nom}
                                                 </div>
                                             ))}
