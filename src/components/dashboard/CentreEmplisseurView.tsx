@@ -1134,6 +1134,7 @@ const CentreEmplisseurView = ({
             let totalConsignes = 0;
             let totalEffectif = 0;
             let totalTempsArret = 0;
+            let tempsArretLigneRole = 0; // Arrêts uniquement pour le rôle Chef de Ligne (à déduire du temps travaillé)
 
             // Daily history for heatmap
             const dailyHistory: Record<string, { tonnage: number; tauxPerformance: number }> = {};
@@ -1207,9 +1208,11 @@ const CentreEmplisseurView = ({
                 // Temps d'arrêt is now stored directly in lignes_production
                 const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
                 totalTempsArret += ligneTempsArret;
+                tempsArretLigneRole += ligneTempsArret; // Chef de Ligne: arrêt de SA ligne (à déduire)
             });
 
             console.log('=== TOTAL TEMPS ARRET (shifts + lignes) ===', totalTempsArret);
+            console.log('=== TEMPS ARRET LIGNE ROLE (à déduire) ===', tempsArretLigneRole);
 
             totalBouteilles = totalRecharges + totalConsignes;
 
@@ -1525,8 +1528,13 @@ const CentreEmplisseurView = ({
                 expectedHours += shiftHours;
             });
 
-            const downtimeHours = totalTempsArret / 60; // Convert minutes to hours
-            const actualHours = expectedHours - downtimeHours;
+            const downtimeHours = totalTempsArret / 60; // Convert minutes to hours (pour affichage)
+            const downtimeHoursLigneRole = tempsArretLigneRole / 60; // Arrêts à déduire (Chef de Ligne seulement)
+
+            // Temps travaillé:
+            // - Chef de Quart: pas de déduction (il travaille sur autres lignes pendant les arrêts)
+            // - Chef de Ligne: déduire l'arrêt de SA ligne (il arrête quand sa ligne arrête)
+            const actualHours = expectedHours - downtimeHoursLigneRole;
             const tauxPresence = expectedHours > 0 ? (actualHours / expectedHours) * 100 : 0;
 
             // Calculate Trend
