@@ -2183,9 +2183,9 @@ const CentreEmplisseurView = ({
 
                     {/* Lines Breakdown */}
                     <div className="space-y-3" ref={section2Ref}>
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                             <div
-                                className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1"
+                                className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1 min-w-0"
                                 onClick={() => setIsLinesExpanded(!isLinesExpanded)}
                             >
                                 {isLinesExpanded ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
@@ -2196,6 +2196,7 @@ const CentreEmplisseurView = ({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => exportSectionAsImage(section2Ref, 'detail-par-ligne')}
+                                    className="hidden sm:flex"
                                 >
                                     <Download className="h-4 w-4 mr-2" />
                                     Image
@@ -2204,14 +2205,31 @@ const CentreEmplisseurView = ({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => exportSectionAsPDF(section2Ref, 'detail-par-ligne')}
+                                    className="hidden sm:flex"
                                 >
                                     <FileDown className="h-4 w-4 mr-2" />
                                     PDF
                                 </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => exportSectionAsImage(section2Ref, 'detail-par-ligne')}
+                                    className="sm:hidden"
+                                >
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => exportSectionAsPDF(section2Ref, 'detail-par-ligne')}
+                                    className="sm:hidden"
+                                >
+                                    <FileDown className="h-4 w-4" />
+                                </Button>
                             </div>
                         </div>
                         {isLinesExpanded && (
-                            <div className="grid grid-cols-5 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                                 {stats.lines.map((line) => {
                                     // Determine color based on productivity
                                     const prodColor = line.productivite >= 90 ? 'green' :
@@ -2317,15 +2335,16 @@ const CentreEmplisseurView = ({
             {/* 2. PRODUCTIVITÉ PAR AGENT */}
             <Card className="border-l-4 border-l-primary">
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                         <div
-                            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1"
+                            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1 min-w-0"
                             onClick={() => setIsAgentsExpanded(!isAgentsExpanded)}
                         >
                             {isAgentsExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                             <CardTitle className="text-xl flex items-center gap-2">
                                 <Users className="h-5 w-5" />
-                                PRODUCTIVITÉ PAR AGENT
+                                <span className="hidden sm:inline">PRODUCTIVITÉ PAR AGENT</span>
+                                <span className="sm:hidden">PRODUCTIVITÉ</span>
                             </CardTitle>
                         </div>
                         <div className="flex gap-2">
@@ -2333,6 +2352,7 @@ const CentreEmplisseurView = ({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => exportSectionAsImage(section3Ref, 'productivite-par-agent')}
+                                className="hidden sm:flex"
                             >
                                 <Download className="h-4 w-4 mr-2" />
                                 Image
@@ -2341,9 +2361,26 @@ const CentreEmplisseurView = ({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => exportSectionAsPDF(section3Ref, 'productivite-par-agent')}
+                                className="hidden sm:flex"
                             >
                                 <FileDown className="h-4 w-4 mr-2" />
                                 PDF
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsImage(section3Ref, 'productivite-par-agent')}
+                                className="sm:hidden"
+                            >
+                                <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsPDF(section3Ref, 'productivite-par-agent')}
+                                className="sm:hidden"
+                            >
+                                <FileDown className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
@@ -2386,15 +2423,15 @@ const CentreEmplisseurView = ({
                                                         className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${borderClass} ${bgClass}`}
                                                         onClick={() => setSelectedAgentForModal(agent.id)}
                                                     >
-                                                        <CardContent className="p-4">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
-                                                                    <span className="text-xl font-extrabold text-primary">#{rank}</span>
+                                                        <CardContent className="p-3 sm:p-4">
+                                                            <div className="flex items-center gap-3 sm:gap-4">
+                                                                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
+                                                                    <span className="text-lg sm:text-xl font-extrabold text-primary">#{rank}</span>
                                                                 </div>
 
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="font-bold text-lg truncate">
+                                                                        <span className="font-bold text-base sm:text-lg truncate">
                                                                             {agent.prenom} {agent.nom}
                                                                         </span>
                                                                     </div>
@@ -2402,16 +2439,16 @@ const CentreEmplisseurView = ({
                                                                 </div>
 
                                                                 <div className="text-right flex-shrink-0">
-                                                                    <div className={`text-2xl font-extrabold ${badge.color === 'green' ? 'text-green-600' :
+                                                                    <div className={`text-xl sm:text-2xl font-extrabold ${badge.color === 'green' ? 'text-green-600' :
                                                                         badge.color === 'orange' ? 'text-orange-600' : 'text-red-600'
                                                                         }`}>
                                                                         {agent.productivite.toFixed(1)}%
                                                                     </div>
-                                                                    <div className="text-sm font-bold text-foreground">
+                                                                    <div className="text-xs sm:text-sm font-bold text-foreground">
                                                                         {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                                     </div>
                                                                     <div className="text-xs text-primary font-semibold">
-                                                                        {contribution.toFixed(1)}% contrib.
+                                                                        {contribution.toFixed(1)}%
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -2467,24 +2504,26 @@ const CentreEmplisseurView = ({
                                                         className="cursor-pointer transition-all hover:shadow-md border-l-4 border-l-purple-500 bg-purple-50/30"
                                                         onClick={() => setSelectedAgentForModal(agent.id)}
                                                     >
-                                                        <CardContent className="p-4">
+                                                        <CardContent className="p-3 sm:p-4">
                                                             {/* Header with name and total */}
-                                                            <div className="flex items-center gap-4 mb-4">
-                                                                <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 border-2 border-purple-500">
-                                                                    <span className="text-lg">🔄</span>
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="font-bold text-lg truncate">
-                                                                            {agent.prenom} {agent.nom}
-                                                                        </span>
+                                                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4">
+                                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                                    <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 border-2 border-purple-500">
+                                                                        <span className="text-lg">🔄</span>
                                                                     </div>
-                                                                    <p className="text-xs text-muted-foreground">
-                                                                        Chef de Quart + Chef de Ligne
-                                                                    </p>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <span className="font-bold text-base sm:text-lg truncate">
+                                                                                {agent.prenom} {agent.nom}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            Chef de Quart + Chef de Ligne
+                                                                        </p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-right">
-                                                                    <div className="text-xl font-bold text-purple-600">
+                                                                <div className="text-left sm:text-right flex-shrink-0">
+                                                                    <div className="text-lg sm:text-xl font-bold text-purple-600">
                                                                         {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                                     </div>
                                                                     <div className="text-xs text-purple-500 font-semibold">
@@ -2499,20 +2538,20 @@ const CentreEmplisseurView = ({
                                                             {/* Two productivity rows */}
                                                             <div className="space-y-3">
                                                                 {/* Chef de Quart row */}
-                                                                <div className="flex items-center justify-between">
+                                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-sm font-medium text-muted-foreground">📊 Chef de Quart</span>
                                                                     </div>
-                                                                    <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                                                                         <div className={`text-xl font-extrabold ${badgeQuart.color === 'green' ? 'text-green-600' :
                                                                             badgeQuart.color === 'orange' ? 'text-orange-600' : 'text-red-600'
                                                                             }`}>
                                                                             {agent.productiviteQuart!.toFixed(1)}%
                                                                         </div>
-                                                                        <div className="text-sm font-bold text-foreground w-24 text-right">
+                                                                        <div className="text-sm font-bold text-foreground sm:w-24 text-right">
                                                                             {(agent.tonnageQuart! * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                                         </div>
-                                                                        <div className="text-xs text-muted-foreground w-16 text-right">
+                                                                        <div className="text-xs text-muted-foreground sm:w-16 text-right">
                                                                             {agent.nombreShifts} shift{agent.nombreShifts > 1 ? 's' : ''}
                                                                         </div>
                                                                         <span className="text-sm">{badgeQuart.icon}</span>
@@ -2520,20 +2559,20 @@ const CentreEmplisseurView = ({
                                                                 </div>
 
                                                                 {/* Chef de Ligne row */}
-                                                                <div className="flex items-center justify-between">
+                                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-sm font-medium text-muted-foreground">📊 Chef de Ligne</span>
                                                                     </div>
-                                                                    <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                                                                         <div className={`text-xl font-extrabold ${badgeLigne.color === 'green' ? 'text-green-600' :
                                                                             badgeLigne.color === 'orange' ? 'text-orange-600' : 'text-red-600'
                                                                             }`}>
                                                                             {agent.productiviteLigne!.toFixed(1)}%
                                                                         </div>
-                                                                        <div className="text-sm font-bold text-foreground w-24 text-right">
+                                                                        <div className="text-sm font-bold text-foreground sm:w-24 text-right">
                                                                             {(agent.tonnageLigne! * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                                         </div>
-                                                                        <div className="text-xs text-muted-foreground w-16 text-right">
+                                                                        <div className="text-xs text-muted-foreground sm:w-16 text-right">
                                                                             {agent.nombreLignes} ligne{agent.nombreLignes > 1 ? 's' : ''}
                                                                         </div>
                                                                         <span className="text-sm">{badgeLigne.icon}</span>
@@ -2582,34 +2621,34 @@ const CentreEmplisseurView = ({
                                                         className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${borderClass} ${bgClass}`}
                                                         onClick={() => setSelectedAgentForModal(agent.id)}
                                                     >
-                                                        <CardContent className="p-4">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
-                                                                    <span className="text-xl font-extrabold text-primary">#{rank}</span>
+                                                        <CardContent className="p-3 sm:p-4">
+                                                            <div className="flex items-center gap-3 sm:gap-4">
+                                                                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
+                                                                    <span className="text-lg sm:text-xl font-extrabold text-primary">#{rank}</span>
                                                                 </div>
 
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="font-bold text-lg truncate">
+                                                                        <span className="font-bold text-base sm:text-lg truncate">
                                                                             {agent.prenom} {agent.nom}
                                                                         </span>
                                                                     </div>
-                                                                    <p className="text-xs text-muted-foreground">
+                                                                    <p className="text-xs text-muted-foreground truncate">
                                                                         Lignes: {agent.lines && agent.lines.length > 0 ? agent.lines.join(', ') : 'N/A'}
                                                                     </p>
                                                                 </div>
 
                                                                 <div className="text-right flex-shrink-0">
-                                                                    <div className={`text-2xl font-extrabold ${badge.color === 'green' ? 'text-green-600' :
+                                                                    <div className={`text-xl sm:text-2xl font-extrabold ${badge.color === 'green' ? 'text-green-600' :
                                                                         badge.color === 'orange' ? 'text-orange-600' : 'text-red-600'
                                                                         }`}>
                                                                         {agent.productivite.toFixed(1)}%
                                                                     </div>
-                                                                    <div className="text-sm font-bold text-foreground">
+                                                                    <div className="text-xs sm:text-sm font-bold text-foreground">
                                                                         {(agent.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
                                                                     </div>
                                                                     <div className="text-xs text-primary font-semibold">
-                                                                        {contribution.toFixed(1)}% contrib.
+                                                                        {contribution.toFixed(1)}%
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -2643,11 +2682,11 @@ const CentreEmplisseurView = ({
                                         <div className="h-[1px] bg-muted-foreground/30 flex-1" />
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                                         {allAgentsComparison
                                             .filter(a => a.tonnage === 0)
                                             .map((agent) => (
-                                                <div key={agent.id} className="p-2 border border-red-200 rounded text-sm text-red-700 bg-red-50">
+                                                <div key={agent.id} className="p-2 border border-red-200 rounded text-xs sm:text-sm text-red-700 bg-red-50 truncate">
                                                     {agent.prenom} {agent.nom}
                                                 </div>
                                             ))}
