@@ -647,6 +647,9 @@ const CentreEmplisseurView = ({
                             s.heure_fin_reelle || '19:00'
                         );
 
+                        // Get shift total tonnage (same as modal)
+                        const shiftTonnage = Number(s.tonnage_total) || 0;
+
                         shiftLines.forEach((l: any) => {
                             // Nouvelle structure: temps d'arrêt stocké directement dans lignes_production
                             const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
@@ -661,17 +664,14 @@ const CentreEmplisseurView = ({
                             const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
                             const theorique = (rate * productiveHours) / 1000; // Convert to Tonnes
 
-                            // Get real tonnage for this line
-                            const reel = Number(l.tonnage_ligne) || 0;
-
-                            // Accumulate totals for global ratio
+                            // Accumulate theoretical production
                             productionTheoriqueTotal += theorique;
-                            tonnageReelTotal += reel;
-
-                            // Accumulate for Chef de Quart role
                             productionTheoriqueQuart += theorique;
-                            tonnageReelQuart += reel;
                         });
+
+                        // Accumulate real tonnage using shift total (same as modal)
+                        tonnageReelTotal += shiftTonnage;
+                        tonnageReelQuart += shiftTonnage;
                     });
 
                     // B. Process lignes (Chef de Ligne) - Accumulate totals for global ratio
