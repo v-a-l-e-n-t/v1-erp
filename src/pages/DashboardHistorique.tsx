@@ -1970,7 +1970,7 @@ const DashboardHistorique = () => {
                         Répartition bouteille par client
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {(Object.keys(ATELIER_CLIENT_LABELS) as AtelierClientKey[]).map((client) => {
+                        {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY', 'SIMAM'] as AtelierClientKey[]).map((client) => {
                           const logoMap: Record<AtelierClientKey, string> = {
                             SIMAM: '/images/logo-simam.png',
                             PETRO_IVOIRE: '/images/logo-petro.png',
@@ -1980,31 +1980,39 @@ const DashboardHistorique = () => {
 
                           // Calculer les totaux par catégorie pour ce client
                           const clientData = {
-                            reeprouvees: 0,
-                            vidangees: 0,
-                            hs: 0,
-                            clapet: 0,
+                            reeprouvees: { B6: 0, B12: 0 },
+                            vidangees: { B6: 0, B12: 0 },
+                            hs: { B6: 0, B12: 0 },
+                            clapet: { B6: 0, B12: 0 },
                             total: 0
                           };
 
                           atelierEntries.forEach(entry => {
                             const data = (entry.data as any)?.[client];
                             if (!data) return;
-                            
-                            (['B6', 'B12', 'B28', 'B38'] as AtelierFormat[]).forEach(formatKey => {
-                              const br = data?.bouteilles_reeprouvees?.[formatKey] || 0;
-                              const bv = data?.bouteilles_vidangees?.[formatKey] || 0;
-                              const bhs = data?.bouteilles_hs?.[formatKey] || 0;
-                              const cpt = data?.clapet_monte?.[formatKey] || 0;
-                              
-                              clientData.reeprouvees += br;
-                              clientData.vidangees += bv;
-                              clientData.hs += bhs;
-                              clientData.clapet += cpt;
-                            });
+
+                            const br6 = data?.bouteilles_reeprouvees?.B6 || 0;
+                            const br12 = data?.bouteilles_reeprouvees?.B12 || 0;
+                            const bv6 = data?.bouteilles_vidangees?.B6 || 0;
+                            const bv12 = data?.bouteilles_vidangees?.B12 || 0;
+                            const bhs6 = data?.bouteilles_hs?.B6 || 0;
+                            const bhs12 = data?.bouteilles_hs?.B12 || 0;
+                            const cpt6 = data?.clapet_monte?.B6 || 0;
+                            const cpt12 = data?.clapet_monte?.B12 || 0;
+
+                            clientData.reeprouvees.B6 += br6;
+                            clientData.reeprouvees.B12 += br12;
+                            clientData.vidangees.B6 += bv6;
+                            clientData.vidangees.B12 += bv12;
+                            clientData.hs.B6 += bhs6;
+                            clientData.hs.B12 += bhs12;
+                            clientData.clapet.B6 += cpt6;
+                            clientData.clapet.B12 += cpt12;
+
+                            clientData.total += br6 + br12 + bv6 + bv12 + bhs6 + bhs12 + cpt6 + cpt12;
                           });
 
-                          clientData.total = clientData.reeprouvees + clientData.vidangees + clientData.hs + clientData.clapet;
+                          // clientData.total est déjà calculé dans la boucle ci-dessus
                           const clientPct = atelierStats.totalBouteilles > 0 
                             ? (clientData.total / atelierStats.totalBouteilles) * 100 
                             : 0;
@@ -2024,23 +2032,42 @@ const DashboardHistorique = () => {
                                   <p className="text-sm font-extrabold text-primary">{clientData.total.toLocaleString('fr-FR')}</p>
                                 </div>
                               </div>
-                              <div className="space-y-1">
-                                <div className="flex justify-between items-center bg-primary/5 p-1.5 rounded">
-                                  <span className="text-[10px] text-muted-foreground">Rééprouvées</span>
-                                  <span className="text-xs font-bold">{clientData.reeprouvees.toLocaleString('fr-FR')}</span>
-                                </div>
-                                <div className="flex justify-between items-center bg-primary/5 p-1.5 rounded">
-                                  <span className="text-[10px] text-muted-foreground">Vidangées</span>
-                                  <span className="text-xs font-bold">{clientData.vidangees.toLocaleString('fr-FR')}</span>
-                                </div>
-                                <div className="flex justify-between items-center bg-primary/5 p-1.5 rounded">
-                                  <span className="text-[10px] text-muted-foreground">HS</span>
-                                  <span className="text-xs font-bold">{clientData.hs.toLocaleString('fr-FR')}</span>
-                                </div>
-                                <div className="flex justify-between items-center bg-primary/5 p-1.5 rounded">
-                                  <span className="text-[10px] text-muted-foreground">Clapet</span>
-                                  <span className="text-xs font-bold">{clientData.clapet.toLocaleString('fr-FR')}</span>
-                                </div>
+                              <div className="grid grid-cols-[auto_auto_auto_auto] gap-y-1 gap-x-2 items-center">
+                                <span className="text-[10px] text-muted-foreground bg-primary/5 p-1.5 rounded whitespace-nowrap">Rééprouvées</span>
+                                <span className="text-xs font-bold text-right font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B6 : <span className="text-orange-600">{clientData.reeprouvees.B6.toLocaleString('fr-FR')}</span>
+                                </span>
+                                <span className="text-xs bg-primary/5 p-1.5 rounded text-center whitespace-nowrap">|</span>
+                                <span className="text-xs font-bold font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B12 : <span className="text-orange-600">{clientData.reeprouvees.B12.toLocaleString('fr-FR')}</span>
+                                </span>
+
+                                <span className="text-[10px] text-muted-foreground bg-primary/5 p-1.5 rounded whitespace-nowrap">Vidangées</span>
+                                <span className="text-xs font-bold text-right font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B6 : <span className="text-orange-600">{clientData.vidangees.B6.toLocaleString('fr-FR')}</span>
+                                </span>
+                                <span className="text-xs bg-primary/5 p-1.5 rounded text-center whitespace-nowrap">|</span>
+                                <span className="text-xs font-bold font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B12 : <span className="text-orange-600">{clientData.vidangees.B12.toLocaleString('fr-FR')}</span>
+                                </span>
+
+                                <span className="text-[10px] text-muted-foreground bg-primary/5 p-1.5 rounded whitespace-nowrap">HS</span>
+                                <span className="text-xs font-bold text-right font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B6 : <span className="text-orange-600">{clientData.hs.B6.toLocaleString('fr-FR')}</span>
+                                </span>
+                                <span className="text-xs bg-primary/5 p-1.5 rounded text-center whitespace-nowrap">|</span>
+                                <span className="text-xs font-bold font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B12 : <span className="text-orange-600">{clientData.hs.B12.toLocaleString('fr-FR')}</span>
+                                </span>
+
+                                <span className="text-[10px] text-muted-foreground bg-primary/5 p-1.5 rounded whitespace-nowrap">Clapet</span>
+                                <span className="text-xs font-bold text-right font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B6 : <span className="text-orange-600">{clientData.clapet.B6.toLocaleString('fr-FR')}</span>
+                                </span>
+                                <span className="text-xs bg-primary/5 p-1.5 rounded text-center whitespace-nowrap">|</span>
+                                <span className="text-xs font-bold font-mono bg-primary/5 p-1.5 rounded whitespace-nowrap">
+                                  B12 : <span className="text-orange-600">{clientData.clapet.B12.toLocaleString('fr-FR')}</span>
+                                </span>
                               </div>
                             </div>
                           );
