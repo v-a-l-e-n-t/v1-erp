@@ -292,7 +292,7 @@ const CentreEmplisseurView = ({
         setLoading(true);
         try {
             let shiftsQuery = supabase.from('production_shifts').select('*, arrets_production(*)');
-            let linesQuery = supabase.from('lignes_production').select('*, production_shifts!inner(date, shift_type)');
+            let linesQuery = supabase.from('lignes_production').select('*, production_shifts!inner(date, shift_type, heure_debut_reelle, heure_fin_reelle)');
 
             // Apply filters
             if (filterType === 'year') {
@@ -377,19 +377,30 @@ const CentreEmplisseurView = ({
                 // Calculate temps d'arrêt for this line - now stored directly in lignes_production
                 const tempsArret = lineLines.reduce((sum, l) => sum + (Number(l.temps_arret_ligne_minutes) || 0), 0);
 
-                // Calculate theoretical production
+                // Calculate theoretical production using real shift hours
                 let productionTheorique = 0;
-                const cadenceKgH = id <= 4 ? 9600 : 11250;
 
                 lineLines.forEach((l) => {
                     // Temps d'arrêt for this specific line session
                     const tempsArretSession = Number(l.temps_arret_ligne_minutes) || 0;
 
-                    // Heures productives for this session
-                    const heuresProductives = Math.max(0, 9 - tempsArretSession / 60);
+                    // Get shift hours from the associated shift (use real hours instead of fixed 9)
+                    const shift = l.production_shifts;
+                    const shiftHours = shift ? calculateShiftHours(
+                        shift.heure_debut_reelle || '10:00',
+                        shift.heure_fin_reelle || '19:00'
+                    ) : 9;
+
+                    // Calculate effective downtime (capped at shift duration)
+                    const maxDowntimeMinutes = shiftHours * 60;
+                    const effectiveDowntime = Math.min(tempsArretSession, maxDowntimeMinutes);
+                    const heuresProductives = Math.max(0, shiftHours - (effectiveDowntime / 60));
+
+                    // Production rate based on line type
+                    const rate = (id >= 1 && id <= 4) ? (1600 * 6) : (900 * 12.5);
 
                     // Add to total theoretical production
-                    productionTheorique += (cadenceKgH * heuresProductives) / 1000; // tonnes
+                    productionTheorique += (rate * heuresProductives) / 1000; // tonnes
                 });
 
                 // Calculate productivity
