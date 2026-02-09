@@ -573,7 +573,7 @@ const CentreEmplisseurView = ({
                     // Query shifts as chef de quart
                     let shiftsQuery = supabase
                         .from('production_shifts')
-                        .select('tonnage_total, temps_arret_total_minutes, arrets_production(*), lignes_production(*)')
+                        .select('tonnage_total, temps_arret_total_minutes, heure_debut_reelle, heure_fin_reelle, arrets_production(*), lignes_production(*)')
                         .eq('chef_quart_id', agent.id);
 
                     // Query lignes as chef de ligne (including arrets for productivity calc)
