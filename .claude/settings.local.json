@@ -6,7 +6,8 @@
       "Bash(npm run build:*)",
       "Bash(xargs:*)",
       "Bash(npx supabase:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(wc:*)"
     ]
   }
 }

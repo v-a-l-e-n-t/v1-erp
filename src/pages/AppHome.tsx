@@ -12,7 +12,9 @@ import {
   Settings,
   LayoutDashboard,
   Shield,
-  UserCircle
+  UserCircle,
+  ClipboardCheck,
+  TrendingUp,
 } from 'lucide-react';
 
 export default function Home() {
@@ -104,6 +106,33 @@ export default function Home() {
           icon: Shield,
           path: '/vrac-admin',
           color: 'text-slate-600',
+        },
+      ]
+    },
+    {
+      title: "Inspection",
+      description: "Ronde hebdomadaire d'état des installations",
+      items: [
+        {
+          title: 'Tableau de Bord',
+          description: 'État de la ronde en cours et KPIs',
+          icon: ClipboardCheck,
+          path: '/inspection',
+          color: 'text-teal-500',
+        },
+        {
+          title: 'Historique',
+          description: 'Historique et tendances des inspections',
+          icon: TrendingUp,
+          path: '/inspection/historique',
+          color: 'text-teal-400',
+        },
+        {
+          title: 'Configuration',
+          description: 'Gérer les zones, équipements et destinataires',
+          icon: Settings,
+          path: '/inspection/configuration',
+          color: 'text-slate-500',
         },
       ]
     }

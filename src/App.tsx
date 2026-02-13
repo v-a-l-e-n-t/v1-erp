@@ -22,6 +22,11 @@ import FormAtelier from "./pages/FormAtelier";
 import Stock from "./pages/Stock";
 import BilanBke from "./pages/BilanBke";
 import DashboardBke from "./pages/DashboardBke";
+import InspectionDashboard from "./pages/InspectionDashboard";
+import InspectionRonde from "./pages/InspectionRonde";
+import InspectionValidation from "./pages/InspectionValidation";
+import InspectionHistorique from "./pages/InspectionHistorique";
+import InspectionConfiguration from "./pages/InspectionConfiguration";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +65,13 @@ const App = () => (
             <Route path="/vrac-admin" element={<VracAdminPanel />} />
             <Route path="/vrac-chargements" element={<VracChargementDashboard />} />
           </Route>
+
+          {/* Inspection Module Routes */}
+          <Route path="/inspection" element={<InspectionDashboard />} />
+          <Route path="/inspection/ronde/:id" element={<InspectionRonde />} />
+          <Route path="/inspection/ronde/:id/validation" element={<InspectionValidation />} />
+          <Route path="/inspection/historique" element={<InspectionHistorique />} />
+          <Route path="/inspection/configuration" element={<InspectionConfiguration />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
