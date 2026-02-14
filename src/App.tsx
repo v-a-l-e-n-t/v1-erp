@@ -22,6 +22,7 @@ import FormAtelier from "./pages/FormAtelier";
 import Stock from "./pages/Stock";
 import BilanBke from "./pages/BilanBke";
 import DashboardBke from "./pages/DashboardBke";
+import InspectionLayout from "./components/inspection/InspectionLayout";
 import InspectionDashboard from "./pages/InspectionDashboard";
 import InspectionRonde from "./pages/InspectionRonde";
 import InspectionValidation from "./pages/InspectionValidation";
@@ -67,11 +68,13 @@ const App = () => (
           </Route>
 
           {/* Inspection Module Routes */}
-          <Route path="/inspection" element={<InspectionDashboard />} />
-          <Route path="/inspection/ronde/:id" element={<InspectionRonde />} />
-          <Route path="/inspection/ronde/:id/validation" element={<InspectionValidation />} />
-          <Route path="/inspection/historique" element={<InspectionHistorique />} />
-          <Route path="/inspection/configuration" element={<InspectionConfiguration />} />
+          <Route path="/inspection" element={<InspectionLayout />}>
+            <Route index element={<InspectionDashboard />} />
+            <Route path="ronde/:id" element={<InspectionRonde />} />
+            <Route path="ronde/:id/validation" element={<InspectionValidation />} />
+            <Route path="historique" element={<InspectionHistorique />} />
+            <Route path="configuration" element={<InspectionConfiguration />} />
+          </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

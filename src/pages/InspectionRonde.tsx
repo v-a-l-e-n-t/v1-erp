@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useInspectionReferentiel, useRondeById, useAutoSaveLigne } from '@/hooks/useInspection';
 import { formatSemaineISO, calculateGlobalKPI } from '@/utils/inspection';
@@ -25,13 +25,8 @@ export default function InspectionRonde() {
   const { zones, sousZones, equipements, loading: refLoading } = useInspectionReferentiel();
   const { ronde, lignes, loading: rondeLoading, refresh, setLignes } = useRondeById(id);
   const { saveLigne, saving, lastSaved } = useAutoSaveLigne(id);
-  const [openZones, setOpenZones] = useState<Set<string>>(new Set(zones.map(z => z.id)));
+  const [openZones, setOpenZones] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
-
-  // Ensure all zones are open once loaded
-  if (zones.length > 0 && openZones.size === 0) {
-    setOpenZones(new Set(zones.map(z => z.id)));
-  }
 
   const toggleZone = (zoneId: string) => {
     setOpenZones(prev => {
@@ -97,7 +92,7 @@ export default function InspectionRonde() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
@@ -105,7 +100,7 @@ export default function InspectionRonde() {
 
   if (!ronde) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center gap-4">
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
         <p className="text-muted-foreground">Ronde introuvable</p>
         <Button onClick={() => navigate('/inspection')}>Retour</Button>
       </div>
@@ -116,29 +111,18 @@ export default function InspectionRonde() {
   const badge = STATUT_BADGE[ronde.statut] || STATUT_BADGE.EN_COURS;
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="container mx-auto px-3 sm:px-4 py-3">
-          <div className="flex items-center gap-3 mb-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/inspection')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-slate-800">
-                  Ronde {formatSemaineISO(ronde.semaine_iso)}
-                </h1>
-                <Badge variant={badge.variant}>{badge.label}</Badge>
-              </div>
-            </div>
-          </div>
-          <RondeProgressBar filled={filledCount} total={totalCount} />
+    <div>
+      {/* Progress bar */}
+      <div className="container mx-auto px-3 sm:px-4 pt-4 pb-2">
+        <div className="flex items-center gap-2 mb-2">
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+          <span className="text-sm text-muted-foreground">{formatSemaineISO(ronde.semaine_iso)}</span>
         </div>
-      </header>
+        <RondeProgressBar filled={filledCount} total={totalCount} />
+      </div>
 
       {/* Body */}
-      <main className="container mx-auto px-3 sm:px-4 py-4 space-y-3 pb-24">
+      <div className="container mx-auto px-3 sm:px-4 py-4 space-y-3 pb-24">
         {activeZones.map(zone => (
           <RondeZoneSection
             key={zone.id}
@@ -152,11 +136,11 @@ export default function InspectionRonde() {
             onChange={handleChange}
           />
         ))}
-      </main>
+      </div>
 
       {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 border-t bg-white py-3 px-4 z-10">
-        <div className="container mx-auto flex items-center justify-between">
+      <div className="sticky bottom-0 border-t bg-white py-3 px-4 z-10">
+        <div className="flex items-center justify-between">
           <RondeAutoSaveIndicator saving={saving} lastSaved={lastSaved} />
 
           {isEditable && (

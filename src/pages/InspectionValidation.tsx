@@ -8,13 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, RotateCcw, CheckCircle, FileText, AlertTriangle } from 'lucide-react';
+import { RotateCcw, CheckCircle, FileText, AlertTriangle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useInspectionReferentiel, useRondeById } from '@/hooks/useInspection';
+import { useInspectionReferentiel, useRondeById, syncAnomalies } from '@/hooks/useInspection';
 import { formatSemaineISO, calculateGlobalKPI, getKPIColor } from '@/utils/inspection';
 import InspectionKPICards from '@/components/inspection/InspectionKPICards';
 import { generateInspectionPDF } from '@/utils/inspectionReport';
-import type { GlobalKPI, StatutEquipement } from '@/types/inspection';
+import type { GlobalKPI, StatutEquipement, InspectionAnomalie } from '@/types/inspection';
 
 const STATUT_LABELS: Record<StatutEquipement, { label: string; color: string }> = {
   OPERATIONNEL: { label: 'Opérationnel', color: 'bg-green-100 text-green-800' },
@@ -92,6 +92,12 @@ export default function InspectionValidation() {
       return;
     }
 
+    // Synchroniser les anomalies
+    const result = await syncAnomalies(ronde.id, ronde.semaine_iso, lignes, equipements);
+    if (result.opened > 0 || result.closed > 0) {
+      toast.info(`Anomalies : ${result.opened} ouverte(s), ${result.closed} resolue(s)`);
+    }
+
     toast.success('Ronde validée avec succès');
     await refresh();
   };
@@ -100,7 +106,15 @@ export default function InspectionValidation() {
     if (!ronde || !kpi) return;
     setGenerating(true);
     try {
-      await generateInspectionPDF(ronde, lignes, zones, sousZones, equipements, kpi);
+      // Charger les anomalies ouvertes pour le PDF
+      const { data: openAnoms } = await supabase
+        .from('inspection_anomalies')
+        .select('*')
+        .eq('statut', 'OUVERTE')
+        .order('urgent', { ascending: false })
+        .order('date_ouverture', { ascending: true });
+
+      await generateInspectionPDF(ronde, lignes, zones, sousZones, equipements, kpi, (openAnoms as InspectionAnomalie[]) ?? []);
       toast.success('Rapport PDF généré');
     } catch (err) {
       toast.error('Erreur lors de la génération du rapport');
@@ -128,6 +142,12 @@ export default function InspectionValidation() {
       return;
     }
 
+    // Synchroniser les anomalies
+    const result = await syncAnomalies(ronde.id, ronde.semaine_iso, lignes, equipements);
+    if (result.opened > 0 || result.closed > 0) {
+      toast.info(`Anomalies : ${result.opened} ouverte(s), ${result.closed} resolue(s)`);
+    }
+
     toast.success('Ronde validée');
     await refresh();
     await handleGenerateReport();
@@ -137,7 +157,7 @@ export default function InspectionValidation() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
@@ -145,7 +165,7 @@ export default function InspectionValidation() {
 
   if (!ronde || !kpi) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center gap-4">
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
         <p className="text-muted-foreground">Ronde introuvable</p>
         <Button onClick={() => navigate('/inspection')}>Retour</Button>
       </div>
@@ -174,25 +194,7 @@ export default function InspectionValidation() {
     });
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/inspection')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-lg font-bold text-slate-800">
-              Validation — {formatSemaineISO(ronde.semaine_iso)}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Soumis par {ronde.soumis_par || '—'}
-              {ronde.valide_par && ` | Validé par ${ronde.valide_par}`}
-            </p>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-3 sm:px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 sm:px-4 py-6 space-y-6">
         {/* KPI Cards */}
         <InspectionKPICards kpi={kpi} />
 
@@ -402,7 +404,6 @@ export default function InspectionValidation() {
             </Button>
           )}
         </div>
-      </main>
     </div>
   );
 }

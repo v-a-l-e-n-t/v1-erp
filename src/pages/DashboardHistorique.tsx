@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory, Download, FileDown } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory, Download, FileDown, HardHat } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
@@ -1576,102 +1576,108 @@ const DashboardHistorique = () => {
           </Button>
         </div>
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-start sm:justify-center gap-1 sm:gap-1.5 md:gap-2 mb-4 sm:mb-6 md:mb-8 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <div className="flex items-center justify-center gap-1 sm:gap-1.5 mb-4 sm:mb-6 md:mb-8 flex-wrap">
           <Button
             variant={activeView === 'overview' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'overview' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'overview' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('overview')}
           >
-            <BarChart3 className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <BarChart3 className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
             <span className="hidden sm:inline">Vue d'ensemble</span>
             <span className="sm:hidden">Vue</span>
           </Button>
 
           <Button
             variant={activeView === 'receptions' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'receptions' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'receptions' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('receptions')}
           >
-            <PackageIcon className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <PackageIcon className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
             <span className="hidden sm:inline">Réceptions</span>
             <span className="sm:hidden">Récep.</span>
           </Button>
 
           <Button
             variant={activeView === 'emplisseur' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'emplisseur' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'emplisseur' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('emplisseur')}
           >
-            <Calculator className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <Calculator className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
             <span className="hidden sm:inline">PRODUCTION</span>
             <span className="sm:hidden">PROD</span>
           </Button>
 
           <Button
             variant={activeView === 'sorties' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'sorties' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'sorties' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('sorties')}
           >
-            <ArrowUpRight className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+            <ArrowUpRight className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
             VENTES
           </Button>
 
           <Button
             variant={activeView === 'distribution' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'distribution' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'distribution' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('distribution')}
           >
-            <FileText className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden md:inline">DISTRIBUTION</span>
-            <span className="md:hidden">DISTRIB</span>
+            <FileText className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            DISTRIB
           </Button>
 
           <Button
             variant={activeView === 'atelier' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'atelier' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'atelier' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('atelier')}
           >
-            <Wrench className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden md:inline">ATELIER</span>
-            <span className="md:hidden">ATELIER</span>
+            <Wrench className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            ATELIER
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide hover:bg-primary/5 hover:text-primary"
+            onClick={() => navigate('/inspection')}
+          >
+            <HardHat className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            MAINT.
           </Button>
 
           <Button
             variant={activeView === 'carte' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'carte' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'carte' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('carte')}
           >
-            <MapIcon className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden md:inline">CARTE</span>
-            <span className="md:hidden">CARTE</span>
+            <MapIcon className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            CARTE
           </Button>
 
           <Button
             variant={activeView === 'graphes' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'graphes' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'graphes' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('graphes')}
           >
-            <BarChart3 className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span className="hidden md:inline">GRAPHES</span>
-            <span className="md:hidden">GRAPHES</span>
+            <BarChart3 className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            GRAPHES
           </Button>
 
           <Button
             variant={activeView === 'vrac' ? 'default' : 'outline'}
-            size="lg"
-            className={`h-9 sm:h-10 md:h-11 px-1.5 sm:px-2 md:px-3 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-wide flex-shrink-0 whitespace-nowrap ${activeView === 'vrac' ? 'shadow-md scale-[1.02]' : 'hover:bg-primary/5 hover:text-primary'}`}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'vrac' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
             onClick={() => setActiveView('vrac')}
           >
-            <FileText className="mr-0.5 sm:mr-1 md:mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-            <span>Historiques</span>
+            <FileText className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            Historiques
           </Button>
         </div>
 

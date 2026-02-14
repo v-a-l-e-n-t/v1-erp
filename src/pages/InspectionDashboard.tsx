@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Plus, Settings, History, ClipboardCheck, ArrowRight, FileText } from 'lucide-react';
-import { useInspectionReferentiel, useCurrentRonde, useRondeHistory } from '@/hooks/useInspection';
+import { Plus, History, ClipboardCheck, ArrowRight, FileText, AlertTriangle, Clock } from 'lucide-react';
+import { useInspectionReferentiel, useCurrentRonde, useRondeHistory, useOpenAnomalies } from '@/hooks/useInspection';
 import { getCurrentISOWeek, formatSemaineISO, calculateGlobalKPI, getKPIColor } from '@/utils/inspection';
 import InspectionKPICards from '@/components/inspection/InspectionKPICards';
-import type { GlobalKPI, InspectionLigneRonde } from '@/types/inspection';
+import type { GlobalKPI, InspectionLigneRonde, InspectionAnomalie } from '@/types/inspection';
 
 const STATUT_BADGE_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   EN_COURS: { label: 'En cours', variant: 'default' },
@@ -22,6 +22,7 @@ export default function InspectionDashboard() {
   const { zones, sousZones, equipements, loading: refLoading } = useInspectionReferentiel();
   const { ronde: currentRonde, lignes: currentLignes, loading: currentLoading, createRonde } = useCurrentRonde();
   const { rondes: history, loading: histLoading } = useRondeHistory(5);
+  const { anomalies: openAnomalies, loading: anomLoading } = useOpenAnomalies();
   const [creating, setCreating] = useState(false);
 
   // Last validated ronde KPI
@@ -85,25 +86,7 @@ export default function InspectionDashboard() {
   const totalCount = currentLignes.length;
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold text-slate-800">Inspection Hebdomadaire</h1>
-              <p className="text-xs text-muted-foreground">Ronde d'état des installations du dépôt GPL</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => navigate('/inspection/configuration')}>
-            <Settings className="h-4 w-4 mr-1" /> Config
-          </Button>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-3 sm:px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 sm:px-4 py-6 space-y-6">
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -120,23 +103,29 @@ export default function InspectionDashboard() {
               </CardHeader>
               <CardContent>
                 {currentRonde ? (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={STATUT_BADGE_CONFIG[currentRonde.statut]?.variant || 'default'}>
-                          {STATUT_BADGE_CONFIG[currentRonde.statut]?.label || currentRonde.statut}
-                        </Badge>
-                        {currentRonde.statut === 'EN_COURS' && (
-                          <span className="text-sm text-muted-foreground">
-                            {filledCount}/{totalCount} points renseignés
-                          </span>
-                        )}
-                      </div>
-                      {currentRonde.disponibilite_globale != null && (
-                        <p className="text-sm">
-                          Disponibilité : <span className="font-semibold">{Number(currentRonde.disponibilite_globale).toFixed(1)}%</span>
-                        </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <Badge
+                        variant={STATUT_BADGE_CONFIG[currentRonde.statut]?.variant || 'default'}
+                        className="text-base px-4 py-1.5"
+                      >
+                        {STATUT_BADGE_CONFIG[currentRonde.statut]?.label || currentRonde.statut}
+                      </Badge>
+                      {currentRonde.statut === 'EN_COURS' && (
+                        <span className="text-sm text-muted-foreground">
+                          {filledCount}/{totalCount} points renseignés
+                        </span>
                       )}
+                      {currentRonde.disponibilite_globale != null && (() => {
+                        const disp = Number(currentRonde.disponibilite_globale);
+                        const color = getKPIColor(disp);
+                        const colorClass = color === 'green' ? 'text-green-700' : color === 'orange' ? 'text-orange-600' : 'text-red-600';
+                        return (
+                          <span className="text-lg font-bold">
+                            Disponibilité : <span className={colorClass}>{disp.toFixed(1)}%</span>
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="flex gap-2">
                       {currentRonde.statut === 'EN_COURS' && (
@@ -174,6 +163,67 @@ export default function InspectionDashboard() {
                 <h2 className="text-sm font-semibold text-muted-foreground">Dernière ronde validée</h2>
                 <InspectionKPICards kpi={lastKPI} />
               </div>
+            )}
+
+            {/* Open anomalies */}
+            {!anomLoading && openAnomalies.length > 0 && (
+              <Card className="border-orange-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    Anomalies ouvertes ({openAnomalies.length})
+                  </CardTitle>
+                  <CardDescription>Équipements en attente de réparation</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Équipement</TableHead>
+                        <TableHead>Zone</TableHead>
+                        <TableHead>Statut initial</TableHead>
+                        <TableHead>Ouverte depuis</TableHead>
+                        <TableHead className="w-16">Priorité</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {openAnomalies.map(a => {
+                        const eq = equipements.find(e => e.id === a.equipement_id);
+                        const zone = zones.find(z => z.id === a.zone_id);
+                        const sz = a.sous_zone_id ? sousZones.find(s => s.id === a.sous_zone_id) : null;
+                        const joursOuverts = Math.max(1, Math.ceil((Date.now() - new Date(a.date_ouverture).getTime()) / (1000 * 60 * 60 * 24)));
+                        return (
+                          <TableRow key={a.id} className={a.urgent ? 'bg-red-50' : ''}>
+                            <TableCell className="text-sm font-medium">{eq?.nom || '—'}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {zone?.libelle || '—'}{sz ? ` / ${sz.libelle}` : ''}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={a.statut_equipement_initial === 'HORS_SERVICE' ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}>
+                                {a.statut_equipement_initial === 'HORS_SERVICE' ? 'Hors Service' : 'Dégradé'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className={joursOuverts > 14 ? 'text-red-600 font-medium' : joursOuverts > 7 ? 'text-orange-600' : ''}>
+                                  {joursOuverts} jour{joursOuverts > 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {a.urgent
+                                ? <Badge className="bg-red-600 text-white">URGENT</Badge>
+                                : <span className="text-xs text-muted-foreground">Normal</span>
+                              }
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             )}
 
             {/* Recent history */}
@@ -230,7 +280,6 @@ export default function InspectionDashboard() {
             </Card>
           </>
         )}
-      </main>
     </div>
   );
 }

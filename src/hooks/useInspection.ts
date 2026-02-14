@@ -8,6 +8,7 @@ import type {
   InspectionRonde,
   InspectionLigneRonde,
   InspectionDestinataireMail,
+  InspectionAnomalie,
   LigneRondeUpdate,
 } from '@/types/inspection';
 
@@ -222,6 +223,127 @@ export function useRondeHistory(limit: number = 52) {
   useEffect(() => { refresh(); }, [refresh]);
 
   return { rondes, loading, refresh };
+}
+
+// ============== ANOMALIES ==============
+
+export function useAnomalies() {
+  const [anomalies, setAnomalies] = useState<InspectionAnomalie[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('inspection_anomalies')
+      .select('*')
+      .order('date_ouverture', { ascending: false });
+    setAnomalies((data as InspectionAnomalie[]) ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { anomalies, loading, refresh };
+}
+
+export function useOpenAnomalies() {
+  const [anomalies, setAnomalies] = useState<InspectionAnomalie[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('inspection_anomalies')
+      .select('*')
+      .eq('statut', 'OUVERTE')
+      .order('urgent', { ascending: false })
+      .order('date_ouverture', { ascending: true });
+    setAnomalies((data as InspectionAnomalie[]) ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { anomalies, loading, refresh };
+}
+
+/**
+ * Synchronise les anomalies lors de la validation d'une ronde :
+ * - Ouvre une anomalie pour chaque equipement DEGRADE/HORS_SERVICE qui n'en a pas deja une ouverte
+ * - Ferme les anomalies ouvertes pour les equipements redevenus OPERATIONNEL
+ */
+export async function syncAnomalies(
+  rondeId: string,
+  semaineIso: string,
+  lignes: InspectionLigneRonde[],
+  equipements: InspectionEquipement[],
+) {
+  // Charger les anomalies ouvertes
+  const { data: openAnomalies } = await supabase
+    .from('inspection_anomalies')
+    .select('*')
+    .eq('statut', 'OUVERTE');
+
+  const open = (openAnomalies as InspectionAnomalie[]) ?? [];
+  const openByEquip = new Map(open.map(a => [a.equipement_id, a]));
+
+  const toInsert: any[] = [];
+  const toClose: { id: string; duree: number }[] = [];
+
+  for (const ligne of lignes) {
+    if (!ligne.statut) continue;
+    const eq = equipements.find(e => e.id === ligne.equipement_id);
+    if (!eq) continue;
+
+    const existingAnomalie = openByEquip.get(ligne.equipement_id);
+
+    if (ligne.statut === 'DEGRADE' || ligne.statut === 'HORS_SERVICE') {
+      // Ouvrir une anomalie si aucune n'est ouverte pour cet equipement
+      if (!existingAnomalie) {
+        toInsert.push({
+          equipement_id: ligne.equipement_id,
+          zone_id: eq.zone_id,
+          sous_zone_id: eq.sous_zone_id,
+          ronde_ouverture_id: rondeId,
+          semaine_ouverture: semaineIso,
+          statut_equipement_initial: ligne.statut,
+          commentaire_initial: ligne.commentaire,
+          urgent: ligne.urgent,
+          statut: 'OUVERTE',
+        });
+      }
+    } else if (ligne.statut === 'OPERATIONNEL') {
+      // Cloturer l'anomalie ouverte si elle existe
+      if (existingAnomalie) {
+        const dateOuverture = new Date(existingAnomalie.date_ouverture);
+        const maintenant = new Date();
+        const dureeMs = maintenant.getTime() - dateOuverture.getTime();
+        const dureeJours = Math.max(1, Math.ceil(dureeMs / (1000 * 60 * 60 * 24)));
+        toClose.push({ id: existingAnomalie.id, duree: dureeJours });
+      }
+    }
+  }
+
+  // Insert nouvelles anomalies
+  if (toInsert.length > 0) {
+    await supabase.from('inspection_anomalies').insert(toInsert);
+  }
+
+  // Cloturer les anomalies resolues
+  for (const item of toClose) {
+    await supabase
+      .from('inspection_anomalies')
+      .update({
+        statut: 'RESOLUE',
+        ronde_cloture_id: rondeId,
+        semaine_cloture: semaineIso,
+        date_cloture: new Date().toISOString(),
+        duree_jours: item.duree,
+      })
+      .eq('id', item.id);
+  }
+
+  return { opened: toInsert.length, closed: toClose.length };
 }
 
 // ============== DESTINATAIRES ==============

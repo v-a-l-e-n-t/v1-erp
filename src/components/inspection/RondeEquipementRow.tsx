@@ -70,7 +70,7 @@ export default function RondeEquipementRow({ equipement, ligne, disabled, onChan
         </div>
 
         {/* Status buttons */}
-        <div className="flex gap-1.5 flex-shrink-0">
+        <div className="flex gap-2 flex-shrink-0">
           {STATUS_CONFIG.map(cfg => (
             <button
               key={cfg.value}
@@ -78,12 +78,12 @@ export default function RondeEquipementRow({ equipement, ligne, disabled, onChan
               disabled={disabled}
               onClick={() => handleStatutChange(cfg.value)}
               className={`
-                px-3 py-1.5 rounded-md text-xs font-medium transition-all
+                px-4 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[52px]
                 ${statut === cfg.value
-                  ? `${cfg.bg} ${cfg.color} ring-2 ${cfg.ring} ring-offset-1 shadow-sm`
+                  ? `${cfg.bg} ${cfg.color} ring-2 ${cfg.ring} ring-offset-2 shadow-md`
                   : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }
-                ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}
               `}
               title={cfg.label}
             >

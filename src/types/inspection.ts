@@ -77,6 +77,28 @@ export interface InspectionDestinataireMail {
   created_at: string;
 }
 
+export type StatutAnomalie = 'OUVERTE' | 'RESOLUE';
+
+export interface InspectionAnomalie {
+  id: string;
+  equipement_id: string;
+  zone_id: string;
+  sous_zone_id: string | null;
+  ronde_ouverture_id: string;
+  semaine_ouverture: string;
+  date_ouverture: string;
+  statut_equipement_initial: StatutEquipement;
+  commentaire_initial: string | null;
+  urgent: boolean;
+  ronde_cloture_id: string | null;
+  semaine_cloture: string | null;
+  date_cloture: string | null;
+  statut: StatutAnomalie;
+  duree_jours: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ============== DERIVED / VIEW TYPES ==============
 
 export interface SousZoneKPI {

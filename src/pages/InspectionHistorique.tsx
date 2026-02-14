@@ -1,17 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, FileText, Download } from 'lucide-react';
+import { ArrowRight, Download } from 'lucide-react';
 import { useInspectionReferentiel, useRondeHistory } from '@/hooks/useInspection';
-import { calculateGlobalKPI, getKPIColor, formatSemaineISO, calculateDisponibilite } from '@/utils/inspection';
+import { calculateGlobalKPI, getKPIColor } from '@/utils/inspection';
 import { generateInspectionPDF } from '@/utils/inspectionReport';
-import InspectionTrendChart from '@/components/inspection/InspectionTrendChart';
-import type { InspectionLigneRonde, WeeklyTrendPoint, GlobalKPI } from '@/types/inspection';
+import type { InspectionLigneRonde, InspectionAnomalie } from '@/types/inspection';
 import { toast } from 'sonner';
 
 const STATUT_BADGE_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -25,43 +24,7 @@ export default function InspectionHistorique() {
   const { zones, sousZones, equipements, loading: refLoading } = useInspectionReferentiel();
   const { rondes, loading: histLoading } = useRondeHistory(52);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [trendData, setTrendData] = useState<WeeklyTrendPoint[]>([]);
-  const [trendLoading, setTrendLoading] = useState(true);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
-
-  // Build trend data from validated rondes
-  useEffect(() => {
-    if (refLoading || histLoading) return;
-    (async () => {
-      setTrendLoading(true);
-      const validatedRondes = rondes.filter(r => r.statut === 'VALIDEE').slice(0, 12).reverse();
-
-      const points: WeeklyTrendPoint[] = [];
-      for (const r of validatedRondes) {
-        const { data: rondeLignes } = await supabase
-          .from('inspection_lignes_ronde')
-          .select('*')
-          .eq('ronde_id', r.id);
-
-        if (!rondeLignes) continue;
-        const typedLignes = rondeLignes as InspectionLigneRonde[];
-
-        const kpi = calculateGlobalKPI(typedLignes, equipements, zones, sousZones);
-
-        const zoneMap: Record<string, number> = {};
-        kpi.zones.forEach(z => { zoneMap[z.zone_nom] = z.disponibilite_pct; });
-
-        points.push({
-          semaine: r.semaine_iso,
-          disponibilite_globale: kpi.disponibilite_globale,
-          zones: zoneMap,
-        });
-      }
-
-      setTrendData(points);
-      setTrendLoading(false);
-    })();
-  }, [refLoading, histLoading, rondes, zones, sousZones, equipements]);
 
   const filteredRondes = useMemo(() => {
     if (statusFilter === 'all') return rondes;
@@ -83,7 +46,15 @@ export default function InspectionHistorique() {
       const typedLignes = rondeLignes as InspectionLigneRonde[];
       const kpi = calculateGlobalKPI(typedLignes, equipements, zones, sousZones);
 
-      await generateInspectionPDF(ronde, typedLignes, zones, sousZones, equipements, kpi);
+      // Charger les anomalies ouvertes pour le PDF
+      const { data: openAnoms } = await supabase
+        .from('inspection_anomalies')
+        .select('*')
+        .eq('statut', 'OUVERTE')
+        .order('urgent', { ascending: false })
+        .order('date_ouverture', { ascending: true });
+
+      await generateInspectionPDF(ronde, typedLignes, zones, sousZones, equipements, kpi, (openAnoms as InspectionAnomalie[]) ?? []);
       toast.success('Rapport PDF téléchargé');
     } catch (err) {
       toast.error('Erreur lors de la génération');
@@ -95,42 +66,13 @@ export default function InspectionHistorique() {
   const loading = refLoading || histLoading;
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/inspection')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-lg sm:text-xl font-bold text-slate-800">Historique des Inspections</h1>
-            <p className="text-xs text-muted-foreground">Tendances et rondes passées</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-3 sm:px-4 py-6 space-y-6">
+    <div className="container mx-auto px-3 sm:px-4 py-6 space-y-6">
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
           </div>
         ) : (
           <>
-            {/* Trend chart */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Tendance — 12 dernières semaines</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {trendLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
-                  </div>
-                ) : (
-                  <InspectionTrendChart data={trendData} height={300} />
-                )}
-              </CardContent>
-            </Card>
-
             {/* Filters */}
             <div className="flex items-center gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -218,7 +160,6 @@ export default function InspectionHistorique() {
             </Card>
           </>
         )}
-      </main>
     </div>
   );
 }
