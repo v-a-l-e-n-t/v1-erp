@@ -37,49 +37,49 @@ WHERE z.nom = 'STOCKAGE';
 -- ============================================
 -- EQUIPEMENTS STOCKAGE : 7 points x 3 spheres = 21
 -- ============================================
-INSERT INTO inspection_equipements (zone_id, sous_zone_id, nom, description, ordre)
-SELECT z.id, sz.id, e.nom, e.description, e.ordre
+INSERT INTO inspection_equipements (zone_id, sous_zone_id, nom, ordre)
+SELECT z.id, sz.id, e.nom, e.ordre
 FROM inspection_zones z
 JOIN inspection_sous_zones sz ON sz.zone_id = z.id
 CROSS JOIN (VALUES
-  ('État de rouille', 'Corps sphérique, soudures, supports', 1),
-  ('Chemin de câble', 'Intégrité physique, fixations, pénétrations étanchées', 2),
-  ('Vannes Automatiques', 'État mécanique, position repos, test de commande', 3),
-  ('Vannes Manuelles', 'État, manœuvrabilité, étanchéité, signalisation', 4),
-  ('Détecteur Flamme', 'Fixation, signal actif, date du dernier test', 5),
-  ('Détecteur Gaz', 'Fixation, signal actif, date étalonnage, test alarme', 6),
-  ('Fin de course', 'État physique, calage, réponse à la commande', 7)
-) AS e(nom, description, ordre)
+  ('État de rouille', 1),
+  ('Chemin de câble', 2),
+  ('Vannes Automatiques', 3),
+  ('Vannes Manuelles', 4),
+  ('Détecteur Flamme', 5),
+  ('Détecteur Gaz', 6),
+  ('Fin de course', 7)
+) AS e(nom, ordre)
 WHERE z.nom = 'STOCKAGE';
 
 -- ============================================
 -- EQUIPEMENTS PONT BASCULE : 5 points
 -- ============================================
-INSERT INTO inspection_equipements (zone_id, sous_zone_id, nom, description, ordre)
-SELECT z.id, NULL, e.nom, e.description, e.ordre
+INSERT INTO inspection_equipements (zone_id, sous_zone_id, nom, ordre)
+SELECT z.id, NULL, e.nom, e.ordre
 FROM inspection_zones z
 CROSS JOIN (VALUES
-  ('Prise à la terre', 'Câble, picot, mesure de résistance (objectif < 10 Ω)', 1),
-  ('Afficheur de poids', 'Lisibilité, remise à zéro, étalonnage, rétroéclairage', 2),
-  ('Logiciel PIC (pesée)', 'Démarrage, connexion balance, impression ticket', 3),
-  ('Connectique', 'Câbles USB/série, boîtier de raccordement, connexions', 4),
-  ('Climatisation', 'Fonctionnement, filtres, température cabine', 5)
-) AS e(nom, description, ordre)
+  ('Prise à la terre', 1),
+  ('Afficheur de poids', 2),
+  ('Logiciel PIC (pesée)', 3),
+  ('Connectique', 4),
+  ('Climatisation', 5)
+) AS e(nom, ordre)
 WHERE z.nom = 'PONT_BASCULE';
 
 -- ============================================
 -- EQUIPEMENTS PCC : 5 points
 -- ============================================
-INSERT INTO inspection_equipements (zone_id, sous_zone_id, nom, description, ordre)
-SELECT z.id, NULL, e.nom, e.description, e.ordre
+INSERT INTO inspection_equipements (zone_id, sous_zone_id, nom, ordre)
+SELECT z.id, NULL, e.nom, e.ordre
 FROM inspection_zones z
 CROSS JOIN (VALUES
-  ('Intégrité Flexible', 'Absence de fissure, craquelure, déformation, trace de fuite', 1),
-  ('Prise de terre', 'Câble, pince, résistance de contact', 2),
-  ('Détecteur Gaz / Flamme', 'Fixation, signal actif, date étalonnage', 3),
-  ('Manomètre', 'Lisibilité cadran, valeur cohérente, absence de fuite', 4),
-  ('Éclairage', 'Fonctionnement lampes, intégrité protection ATEX', 5)
-) AS e(nom, description, ordre)
+  ('Intégrité Flexible', 1),
+  ('Prise de terre', 2),
+  ('Détecteur Gaz / Flamme', 3),
+  ('Manomètre', 4),
+  ('Éclairage', 5)
+) AS e(nom, ordre)
 WHERE z.nom = 'PCC';
 
 -- ============================================
