@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CalendarIcon, Plus, Trash2, Save, List, FilePlus, Edit, AlertTriangle, X, FileDown, ImageIcon, RotateCcw } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Save, List, FilePlus, Edit, AlertTriangle, X, FileDown, ImageIcon, RotateCcw, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -111,8 +111,12 @@ const FormChariot = () => {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('new');
 
-  // Export ref
+  // Export refs
   const exportRef = useRef<HTMLDivElement>(null);
+  const popupExportRef = useRef<HTMLDivElement>(null);
+
+  // Print choice dialog (from history)
+  const [printDialog, setPrintDialog] = useState<{ open: boolean; rapportId: string | null }>({ open: false, rapportId: null });
 
   // Known chariots for resolving IDs
   const [allChariots, setAllChariots] = useState<{ id: string; nom: string }[]>([]);
@@ -337,7 +341,7 @@ const FormChariot = () => {
         compteur_horaire: l.compteur_horaire,
         horaire_prochaine_vidange: l.horaire_prochaine_vidange,
         ecart: l.ecart,
-        anomalies: (anomalies || []).map(a => ({ id: a.id, description: a.description })),
+        anomalies: (anomalies || []).map(a => ({ id: a.id, description: a.description, numero_di: a.numero_di || '' })),
         numero_di: l.numero_di || '',
         gasoil: l.gasoil,
         temps_arret: l.temps_arret,
@@ -386,7 +390,7 @@ const FormChariot = () => {
     setEditPopup(prev => ({
       ...prev,
       lignes: prev.lignes.map((l, i) =>
-        i === ligneIndex ? { ...l, anomalies: [...l.anomalies, { description: '' }] } : l
+        i === ligneIndex ? { ...l, anomalies: [...l.anomalies, { description: '', numero_di: '' }] } : l
       ),
     }));
   };
@@ -458,7 +462,7 @@ const FormChariot = () => {
 
         const anomaliesToInsert = ligne.anomalies
           .filter(a => a.description.trim() !== '')
-          .map((a, idx) => ({ ligne_id: ligneData.id, description: a.description.trim(), ordre: idx }));
+          .map((a, idx) => ({ ligne_id: ligneData.id, description: a.description.trim(), numero_di: a.numero_di?.trim() || '', ordre: idx }));
 
         if (anomaliesToInsert.length > 0) {
           const { error: anomError } = await supabase.from('rapport_chariot_anomalies').insert(anomaliesToInsert);
@@ -466,9 +470,16 @@ const FormChariot = () => {
         }
       }
 
+      // Check alert for écart ≤ 72h after save
+      const alertChariots = validLignes
+        .filter(l => l.ecart !== null && l.ecart <= 72)
+        .map(l => l.chariot_nom);
+      if (alertChariots.length > 0) {
+        setTimeout(() => setAlertVidange({ show: true, chariots: alertChariots }), 300);
+      }
+
       toast.success('Rapport mis à jour avec succès');
       setEditPopup(prev => ({ ...prev, open: false }));
-      // Refresh history
       loadHistory();
     } catch (err: unknown) {
       toast.error('Erreur lors de la sauvegarde: ' + (err instanceof Error ? err.message : String(err)));
@@ -496,19 +507,6 @@ const FormChariot = () => {
         return newLigne;
       });
 
-      // Check alert for écart ≤ 72h after modification
-      if (field === 'compteur_horaire' || field === 'horaire_prochaine_vidange') {
-        const alertChariots = updated
-          .filter(l => l.ecart !== null && l.ecart <= 72 && l.chariot_nom.trim())
-          .map(l => l.chariot_nom);
-
-        if (alertChariots.length > 0) {
-          setTimeout(() => {
-            setAlertVidange({ show: true, chariots: alertChariots });
-          }, 100);
-        }
-      }
-
       return updated;
     });
   };
@@ -528,7 +526,7 @@ const FormChariot = () => {
     setLignes(prev =>
       prev.map((l, i) =>
         i === ligneIndex
-          ? { ...l, anomalies: [...l.anomalies, { description: '' }] }
+          ? { ...l, anomalies: [...l.anomalies, { description: '', numero_di: '' }] }
           : l
       )
     );
@@ -647,6 +645,7 @@ const FormChariot = () => {
           .map((a, idx) => ({
             ligne_id: ligneData.id,
             description: a.description.trim(),
+            numero_di: a.numero_di?.trim() || '',
             ordre: idx,
           }));
 
@@ -656,6 +655,14 @@ const FormChariot = () => {
             .insert(anomaliesToInsert);
           if (anomError) throw anomError;
         }
+      }
+
+      // Check alert for écart ≤ 72h after save
+      const alertChariots = validLignes
+        .filter(l => l.ecart !== null && l.ecart <= 72)
+        .map(l => l.chariot_nom);
+      if (alertChariots.length > 0) {
+        setTimeout(() => setAlertVidange({ show: true, chariots: alertChariots }), 300);
       }
 
       toast.success('Rapport sauvegardé avec succès');
@@ -694,14 +701,14 @@ const FormChariot = () => {
     ? Math.round((lignesEnMarche.length / lignesAvecEtat.length) * 100)
     : null;
 
-  // ─── Export functions ─────────────────────────────────────────────
-  const handleExport = async (type: 'pdf' | 'image') => {
-    if (!exportRef.current) return;
+  // ─── Generic export function ─────────────────────────────────────
+  const doExport = async (type: 'pdf' | 'image', ref: React.RefObject<HTMLDivElement | null>, exportDate: Date) => {
+    if (!ref.current) return;
 
     toast.info('Export en cours...');
 
     try {
-      const canvas = await html2canvas(exportRef.current, {
+      const canvas = await html2canvas(ref.current, {
         scale: 2,
         backgroundColor: '#ffffff',
         useCORS: true,
@@ -761,7 +768,7 @@ const FormChariot = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
-      const timestamp = format(date, 'yyyyMMdd_HHmm');
+      const timestamp = format(exportDate, 'yyyyMMdd_HHmm');
 
       if (type === 'image') {
         const link = document.createElement('a');
@@ -776,7 +783,7 @@ const FormChariot = () => {
           format: 'a4',
         });
 
-        const imgWidth = 287; // A4 landscape with margins
+        const imgWidth = 287;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
         const imgData = canvas.toDataURL('image/png');
 
@@ -788,6 +795,42 @@ const FormChariot = () => {
       toast.error("Erreur lors de l'export: " + (error instanceof Error ? error.message : String(error)));
     }
   };
+
+  const handleExport = (type: 'pdf' | 'image') => doExport(type, exportRef, date);
+  const handlePopupExport = (type: 'pdf' | 'image') => doExport(type, popupExportRef, editPopup.date);
+
+  // ─── Print from history ─────────────────────────────────────────
+  const pendingPrint = useRef<{ type: 'pdf' | 'image'; date: Date } | null>(null);
+
+  const handleHistoryPrint = async (type: 'pdf' | 'image') => {
+    const rapportId = printDialog.rapportId;
+    if (!rapportId) return;
+    setPrintDialog({ open: false, rapportId: null });
+
+    // Load rapport data from DB to get the date
+    const { data: rapport } = await supabase
+      .from('rapports_chariots')
+      .select('date_rapport')
+      .eq('id', rapportId)
+      .single();
+
+    const rapportDate = rapport ? new Date(rapport.date_rapport) : new Date();
+    pendingPrint.current = { type, date: rapportDate };
+
+    await openEditPopup(rapportId);
+  };
+
+  // Effect: when popup opens with a pending print, export after render
+  useEffect(() => {
+    if (editPopup.open && pendingPrint.current) {
+      const { type, date: exportDate } = pendingPrint.current;
+      pendingPrint.current = null;
+      const timer = setTimeout(() => {
+        doExport(type, popupExportRef, exportDate);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [editPopup.open]);
 
   // ─── Render ───────────────────────────────────────────────────────
   return (
@@ -1025,13 +1068,19 @@ const FormChariot = () => {
                                 </div>
                               </TableCell>
 
-                              {/* N° DI */}
+                              {/* N° DI — from anomalies */}
                               <TableCell>
-                                <Input
-                                  value={ligne.numero_di}
-                                  onChange={(e) => updateLigne(index, 'numero_di', e.target.value)}
-                                  className="w-24"
-                                />
+                                {ligne.anomalies.length > 0 ? (
+                                  <div className="text-xs space-y-0.5">
+                                    {ligne.anomalies.map((a, aIdx) => (
+                                      <div key={aIdx} className="text-gray-700 leading-tight">
+                                        <span className="font-semibold">{a.numero_di || '—'}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-400">—</span>
+                                )}
                               </TableCell>
 
                               {/* Gasoil */}
@@ -1307,6 +1356,8 @@ const FormChariot = () => {
                           <TableHead>États</TableHead>
                           <TableHead>N° DI</TableHead>
                           <TableHead>N° Permis</TableHead>
+                          <TableHead>Disponibilité</TableHead>
+                          <TableHead>Temps Arrêt</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1356,6 +1407,29 @@ const FormChariot = () => {
                                 ))}
                               </div>
                             </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const withEtat = rapport.lignes.filter(l => l.etat);
+                                const enMarche = withEtat.filter(l => l.etat === 'marche');
+                                const taux = withEtat.length > 0 ? Math.round((enMarche.length / withEtat.length) * 100) : null;
+                                return taux !== null ? (
+                                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                                    taux >= 80 ? 'bg-green-100 text-green-700'
+                                      : taux >= 50 ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    {taux}%
+                                  </span>
+                                ) : <span className="text-xs text-gray-400">—</span>;
+                              })()}
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-0.5">
+                                {rapport.lignes.map((l, i) => (
+                                  <div key={i} className="text-xs">{l.temps_arret != null ? `${l.temps_arret} min` : '—'}</div>
+                                ))}
+                              </div>
+                            </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
                                 <Button
@@ -1365,6 +1439,14 @@ const FormChariot = () => {
                                 >
                                   <Edit className="h-3 w-3 mr-1" />
                                   Modifier
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setPrintDialog({ open: true, rapportId: rapport.id })}
+                                >
+                                  <Printer className="h-3 w-3 mr-1" />
+                                  Imprimer
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -1432,24 +1514,43 @@ const FormChariot = () => {
                 : ''}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto">
             {anomalyDialog.ligneIndex >= 0 && lignes[anomalyDialog.ligneIndex]?.anomalies.map((anomalie, aIdx) => (
-              <div key={aIdx} className="flex gap-2 items-start">
-                <span className="text-xs font-bold text-muted-foreground mt-2 shrink-0 w-5">{aIdx + 1}.</span>
-                <textarea
-                  className="flex-1 min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={anomalie.description}
-                  onChange={(e) => updateAnomalie(anomalyDialog.ligneIndex, aIdx, e.target.value)}
-                  placeholder="Décrire l'anomalie..."
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-red-500 hover:text-red-700 mt-1"
-                  onClick={() => removeAnomalie(anomalyDialog.ligneIndex, aIdx)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div key={aIdx} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-muted-foreground">Anomalie N°{aIdx + 1}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-red-500 hover:text-red-700"
+                    onClick={() => removeAnomalie(anomalyDialog.ligneIndex, aIdx)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">N° DI</Label>
+                  <Input
+                    value={anomalie.numero_di}
+                    onChange={(e) => {
+                      const idx = anomalyDialog.ligneIndex;
+                      setLignes(prev => prev.map((l, i) =>
+                        i === idx ? { ...l, anomalies: l.anomalies.map((a, j) => j === aIdx ? { ...a, numero_di: e.target.value } : a) } : l
+                      ));
+                    }}
+                    placeholder="N° DI..."
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">Description</Label>
+                  <textarea
+                    className="w-full min-h-[50px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={anomalie.description}
+                    onChange={(e) => updateAnomalie(anomalyDialog.ligneIndex, aIdx, e.target.value)}
+                    placeholder="Décrire l'anomalie..."
+                  />
+                </div>
               </div>
             ))}
             {anomalyDialog.ligneIndex >= 0 && lignes[anomalyDialog.ligneIndex]?.anomalies.length === 0 && (
@@ -1478,34 +1579,83 @@ const FormChariot = () => {
       {/* ─── EDIT POPUP ──────────────────────────────────────────── */}
       <Dialog open={editPopup.open} onOpenChange={(open) => { if (!open) setEditPopup(prev => ({ ...prev, open: false })); }}>
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Modifier le rapport</DialogTitle>
-          </DialogHeader>
+          {/* Header with export buttons */}
+          <div className="flex items-center justify-between">
+            <DialogHeader>
+              <DialogTitle>Modifier le rapport</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center gap-2 export-hide">
+              <Button variant="outline" size="sm" onClick={() => handlePopupExport('image')}>
+                <ImageIcon className="h-4 w-4 mr-1" />
+                Image
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handlePopupExport('pdf')}>
+                <FileDown className="h-4 w-4 mr-1" />
+                PDF
+              </Button>
+            </div>
+          </div>
 
-          {/* Date & Time */}
-          <div className="flex items-center gap-3 mb-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(editPopup.date, 'PPP', { locale: fr })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={editPopup.date}
-                  onSelect={(d) => d && setEditPopup(prev => ({ ...prev, date: d }))}
-                  locale={fr}
-                />
-              </PopoverContent>
-            </Popover>
-            <Input
-              type="time"
-              value={editPopup.timeValue}
-              onChange={(e) => setEditPopup(prev => ({ ...prev, timeValue: e.target.value }))}
-              className="w-28"
-            />
+          {/* Export container */}
+          <div ref={popupExportRef} data-export-ref className="bg-white">
+          {/* Date & Time + Title + Dispo */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(editPopup.date, 'PPP', { locale: fr })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={editPopup.date}
+                    onSelect={(d) => d && setEditPopup(prev => ({ ...prev, date: d }))}
+                    locale={fr}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Input
+                type="time"
+                value={editPopup.timeValue}
+                onChange={(e) => setEditPopup(prev => ({ ...prev, timeValue: e.target.value }))}
+                className="w-28"
+              />
+            </div>
+
+            <h2 className="text-lg font-bold text-center uppercase tracking-wide">
+              Rapport sur l'état des chariots
+            </h2>
+
+            {/* Taux de disponibilité popup */}
+            {(() => {
+              const popupAvec = editPopup.lignes.filter(l => l.chariot_nom.trim() && l.etat);
+              const popupMarche = popupAvec.filter(l => l.etat === 'marche');
+              const popupTaux = popupAvec.length > 0 ? Math.round((popupMarche.length / popupAvec.length) * 100) : null;
+              return (
+                <div className="flex items-center gap-2 min-w-[160px] justify-end">
+                  {popupTaux !== null ? (
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-semibold text-sm ${
+                      popupTaux >= 80 ? 'bg-green-50 border-green-300 text-green-700'
+                        : popupTaux >= 50 ? 'bg-amber-50 border-amber-300 text-amber-700'
+                        : 'bg-red-50 border-red-300 text-red-700'
+                    }`}>
+                      <div className={`h-3 w-3 rounded-full ${
+                        popupTaux >= 80 ? 'bg-green-500' : popupTaux >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                      }`} />
+                      Dispo : {popupTaux}%
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-gray-50 border-gray-200 text-gray-400 text-sm">
+                      <div className="h-3 w-3 rounded-full bg-gray-300" />
+                      Dispo : —
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Table */}
@@ -1602,7 +1752,8 @@ const FormChariot = () => {
                             <div className="text-xs space-y-0.5">
                               {ligne.anomalies.map((a, aIdx) => (
                                 <div key={aIdx} className="text-gray-700 leading-tight">
-                                  <span className="font-bold">{aIdx + 1}.</span> {a.description}
+                                  <span className="font-bold">N°{aIdx + 1} DI - {a.numero_di || 'XXXXX'}</span>
+                                  <div className="ml-2 text-gray-500">{a.description}</div>
                                 </div>
                               ))}
                             </div>
@@ -1667,8 +1818,9 @@ const FormChariot = () => {
               </TableBody>
             </Table>
           </div>
+          </div>{/* close popupExportRef */}
 
-          <div className="flex justify-between mt-4">
+          <div className="flex justify-between mt-4 export-hide">
             <Button variant="outline" onClick={addPopupLigne}>
               <Plus className="h-4 w-4 mr-1" />
               Ajouter une ligne
@@ -1701,24 +1853,46 @@ const FormChariot = () => {
                 : ''}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto">
             {editPopup.anomalyDialog.ligneIndex >= 0 && editPopup.lignes[editPopup.anomalyDialog.ligneIndex]?.anomalies.map((anomalie, aIdx) => (
-              <div key={aIdx} className="flex gap-2 items-start">
-                <span className="text-xs font-bold text-muted-foreground mt-2 shrink-0 w-5">{aIdx + 1}.</span>
-                <textarea
-                  className="flex-1 min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={anomalie.description}
-                  onChange={(e) => updatePopupAnomalie(editPopup.anomalyDialog.ligneIndex, aIdx, e.target.value)}
-                  placeholder="Décrire l'anomalie..."
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-red-500 hover:text-red-700 mt-1"
-                  onClick={() => removePopupAnomalie(editPopup.anomalyDialog.ligneIndex, aIdx)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div key={aIdx} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-muted-foreground">Anomalie N°{aIdx + 1}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-red-500 hover:text-red-700"
+                    onClick={() => removePopupAnomalie(editPopup.anomalyDialog.ligneIndex, aIdx)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">N° DI</Label>
+                  <Input
+                    value={anomalie.numero_di}
+                    onChange={(e) => {
+                      const idx = editPopup.anomalyDialog.ligneIndex;
+                      setEditPopup(prev => ({
+                        ...prev,
+                        lignes: prev.lignes.map((l, i) =>
+                          i === idx ? { ...l, anomalies: l.anomalies.map((a, j) => j === aIdx ? { ...a, numero_di: e.target.value } : a) } : l
+                        ),
+                      }));
+                    }}
+                    placeholder="N° DI..."
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs mb-1 block">Description</Label>
+                  <textarea
+                    className="w-full min-h-[50px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={anomalie.description}
+                    onChange={(e) => updatePopupAnomalie(editPopup.anomalyDialog.ligneIndex, aIdx, e.target.value)}
+                    placeholder="Décrire l'anomalie..."
+                  />
+                </div>
               </div>
             ))}
             {editPopup.anomalyDialog.ligneIndex >= 0 && editPopup.lignes[editPopup.anomalyDialog.ligneIndex]?.anomalies.length === 0 && (
@@ -1741,6 +1915,26 @@ const FormChariot = () => {
               Fermer
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── PRINT CHOICE DIALOG ─────────────────────────────────── */}
+      <Dialog open={printDialog.open} onOpenChange={(open) => { if (!open) setPrintDialog({ open: false, rapportId: null }); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Exporter le rapport</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Choisissez le format d'export :</p>
+          <div className="flex gap-3 justify-center mt-2">
+            <Button variant="outline" className="flex-1" onClick={() => handleHistoryPrint('image')}>
+              <ImageIcon className="h-4 w-4 mr-2" />
+              Image
+            </Button>
+            <Button variant="outline" className="flex-1" onClick={() => handleHistoryPrint('pdf')}>
+              <FileDown className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

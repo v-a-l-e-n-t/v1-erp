@@ -15,6 +15,7 @@ export interface RapportChariot {
 export interface AnomalieChariot {
   id?: string;
   description: string;
+  numero_di: string;
 }
 
 export interface RapportChariotLigne {
