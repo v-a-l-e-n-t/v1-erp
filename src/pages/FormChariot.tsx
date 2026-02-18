@@ -124,7 +124,6 @@ const FormChariot = () => {
   // History
   const [rapports, setRapports] = useState<RapportHistorique[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [editingRapportId, setEditingRapportId] = useState<string | null>(null);
   const [filters, setFilters] = useState<HistoryFilters>({ ...emptyFilters });
 
   // Delete confirmation
@@ -135,6 +134,25 @@ const FormChariot = () => {
     open: boolean;
     ligneIndex: number;
   }>({ open: false, ligneIndex: -1 });
+
+  // Edit popup state
+  const [editPopup, setEditPopup] = useState<{
+    open: boolean;
+    rapportId: string | null;
+    date: Date;
+    timeValue: string;
+    lignes: RapportChariotLigne[];
+    saving: boolean;
+    anomalyDialog: { open: boolean; ligneIndex: number };
+  }>({
+    open: false,
+    rapportId: null,
+    date: new Date(),
+    timeValue: '',
+    lignes: [],
+    saving: false,
+    anomalyDialog: { open: false, ligneIndex: -1 },
+  });
 
   // ─── Load existing chariots ───────────────────────────────────────
   useEffect(() => {
@@ -278,8 +296,8 @@ const FormChariot = () => {
     return true;
   });
 
-  // ─── Load rapport for editing ─────────────────────────────────────
-  const loadRapport = async (rapportId: string) => {
+  // ─── Open rapport in edit popup ──────────────────────────────────
+  const openEditPopup = async (rapportId: string) => {
     const { data: rapport } = await supabase
       .from('rapports_chariots')
       .select('*')
@@ -289,9 +307,6 @@ const FormChariot = () => {
     if (!rapport) return;
 
     const rapportDate = new Date(rapport.date_rapport);
-    setDate(rapportDate);
-    setTimeValue(format(rapportDate, 'HH:mm'));
-    setEditingRapportId(rapportId);
 
     const { data: lignesData } = await supabase
       .from('rapport_chariot_lignes')
@@ -327,8 +342,135 @@ const FormChariot = () => {
       });
     }
 
-    setLignes(lignesWithAnomalies);
-    setActiveTab('new');
+    setEditPopup({
+      open: true,
+      rapportId,
+      date: rapportDate,
+      timeValue: format(rapportDate, 'HH:mm'),
+      lignes: lignesWithAnomalies,
+      saving: false,
+      anomalyDialog: { open: false, ligneIndex: -1 },
+    });
+  };
+
+  // ─── Edit popup helpers ─────────────────────────────────────────
+  const updatePopupLigne = (index: number, field: keyof RapportChariotLigne, value: any) => {
+    setEditPopup(prev => {
+      const updatedLignes = prev.lignes.map((l, i) => {
+        if (i !== index) return l;
+        const newLigne = { ...l, [field]: value };
+        if (field === 'compteur_horaire' || field === 'horaire_prochaine_vidange') {
+          const compteur = field === 'compteur_horaire' ? value : l.compteur_horaire;
+          const vidange = field === 'horaire_prochaine_vidange' ? value : l.horaire_prochaine_vidange;
+          newLigne.ecart = compteur !== null && vidange !== null ? vidange - compteur : null;
+        }
+        return newLigne;
+      });
+      return { ...prev, lignes: updatedLignes };
+    });
+  };
+
+  const addPopupLigne = () => {
+    setEditPopup(prev => ({ ...prev, lignes: [...prev.lignes, createEmptyLigne()] }));
+  };
+
+  const removePopupLigne = (index: number) => {
+    setEditPopup(prev => ({ ...prev, lignes: prev.lignes.filter((_, i) => i !== index) }));
+  };
+
+  const addPopupAnomalie = (ligneIndex: number) => {
+    setEditPopup(prev => ({
+      ...prev,
+      lignes: prev.lignes.map((l, i) =>
+        i === ligneIndex ? { ...l, anomalies: [...l.anomalies, { description: '' }] } : l
+      ),
+    }));
+  };
+
+  const updatePopupAnomalie = (ligneIndex: number, anomalieIndex: number, description: string) => {
+    setEditPopup(prev => ({
+      ...prev,
+      lignes: prev.lignes.map((l, i) =>
+        i === ligneIndex
+          ? { ...l, anomalies: l.anomalies.map((a, j) => (j === anomalieIndex ? { ...a, description } : a)) }
+          : l
+      ),
+    }));
+  };
+
+  const removePopupAnomalie = (ligneIndex: number, anomalieIndex: number) => {
+    setEditPopup(prev => ({
+      ...prev,
+      lignes: prev.lignes.map((l, i) =>
+        i === ligneIndex ? { ...l, anomalies: l.anomalies.filter((_, j) => j !== anomalieIndex) } : l
+      ),
+    }));
+  };
+
+  const handleSavePopup = async () => {
+    const validLignes = editPopup.lignes.filter(l => l.chariot_nom.trim() !== '');
+    if (validLignes.length === 0) {
+      toast.error('Saisissez au moins un nom de chariot');
+      return;
+    }
+
+    setEditPopup(prev => ({ ...prev, saving: true }));
+
+    try {
+      const [hours, minutes] = editPopup.timeValue.split(':').map(Number);
+      const dateRapport = new Date(editPopup.date);
+      dateRapport.setHours(hours, minutes, 0, 0);
+
+      const rapportId = editPopup.rapportId!;
+
+      const { error } = await supabase
+        .from('rapports_chariots')
+        .update({ date_rapport: dateRapport.toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', rapportId);
+      if (error) throw error;
+
+      await supabase.from('rapport_chariot_lignes').delete().eq('rapport_id', rapportId);
+
+      for (const ligne of validLignes) {
+        const chariotId = await resolveChariotId(ligne.chariot_nom);
+        if (!chariotId) throw new Error(`Impossible de créer le chariot "${ligne.chariot_nom}"`);
+
+        const { data: ligneData, error: ligneError } = await supabase
+          .from('rapport_chariot_lignes')
+          .insert({
+            rapport_id: rapportId,
+            chariot_id: chariotId,
+            etat: ligne.etat,
+            compteur_horaire: ligne.compteur_horaire,
+            horaire_prochaine_vidange: ligne.horaire_prochaine_vidange,
+            numero_di: ligne.numero_di || null,
+            gasoil: ligne.gasoil,
+            temps_arret: ligne.temps_arret,
+            numero_permis: ligne.numero_permis || null,
+          })
+          .select('id')
+          .single();
+        if (ligneError) throw ligneError;
+
+        const anomaliesToInsert = ligne.anomalies
+          .filter(a => a.description.trim() !== '')
+          .map((a, idx) => ({ ligne_id: ligneData.id, description: a.description.trim(), ordre: idx }));
+
+        if (anomaliesToInsert.length > 0) {
+          const { error: anomError } = await supabase.from('rapport_chariot_anomalies').insert(anomaliesToInsert);
+          if (anomError) throw anomError;
+        }
+      }
+
+      toast.success('Rapport mis à jour avec succès');
+      setEditPopup(prev => ({ ...prev, open: false }));
+      // Refresh history
+      loadHistory();
+    } catch (err: any) {
+      toast.error('Erreur lors de la sauvegarde: ' + err.message);
+    } finally {
+      setEditPopup(prev => ({ ...prev, saving: false }));
+    }
   };
 
   // ─── Update ligne field ──────────────────────────────────────────
@@ -462,25 +604,13 @@ const FormChariot = () => {
       const dateRapport = new Date(date);
       dateRapport.setHours(hours, minutes, 0, 0);
 
-      let rapportId = editingRapportId;
-
-      if (rapportId) {
-        const { error } = await supabase
-          .from('rapports_chariots')
-          .update({ date_rapport: dateRapport.toISOString(), updated_at: new Date().toISOString() })
-          .eq('id', rapportId);
-        if (error) throw error;
-
-        await supabase.from('rapport_chariot_lignes').delete().eq('rapport_id', rapportId);
-      } else {
-        const { data, error } = await supabase
-          .from('rapports_chariots')
-          .insert({ date_rapport: dateRapport.toISOString() })
-          .select('id')
-          .single();
-        if (error) throw error;
-        rapportId = data.id;
-      }
+      const { data, error } = await supabase
+        .from('rapports_chariots')
+        .insert({ date_rapport: dateRapport.toISOString() })
+        .select('id')
+        .single();
+      if (error) throw error;
+      const rapportId = data.id;
 
       for (const ligne of validLignes) {
         // Resolve chariot_id (create if new)
@@ -523,14 +653,10 @@ const FormChariot = () => {
         }
       }
 
-      toast.success(editingRapportId ? 'Rapport mis à jour avec succès' : 'Rapport sauvegardé avec succès');
-
-      if (!editingRapportId) {
-        setLignes(createInitialLignes());
-        setDate(new Date());
-        setTimeValue(format(new Date(), 'HH:mm'));
-      }
-      setEditingRapportId(rapportId);
+      toast.success('Rapport sauvegardé avec succès');
+      setLignes(createInitialLignes());
+      setDate(new Date());
+      setTimeValue(format(new Date(), 'HH:mm'));
     } catch (error: any) {
       toast.error('Erreur lors de la sauvegarde: ' + error.message);
     } finally {
@@ -554,15 +680,6 @@ const FormChariot = () => {
       loadHistory();
     }
     setDeleteRapportId(null);
-  };
-
-  // ─── New rapport ─────────────────────────────────────────────────
-  const handleNewRapport = () => {
-    setLignes(createInitialLignes());
-    setDate(new Date());
-    setTimeValue(format(new Date(), 'HH:mm'));
-    setEditingRapportId(null);
-    setActiveTab('new');
   };
 
   // ─── Export functions ─────────────────────────────────────────────
@@ -667,7 +784,7 @@ const FormChariot = () => {
           <TabsList>
             <TabsTrigger value="new">
               <FilePlus className="h-4 w-4 mr-1" />
-              {editingRapportId ? 'Modifier' : 'Nouveau'}
+              Nouveau
             </TabsTrigger>
             <TabsTrigger value="history">
               <List className="h-4 w-4 mr-1" />
@@ -679,17 +796,7 @@ const FormChariot = () => {
           <TabsContent value="new">
             <Card>
               <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Left: Nouveau button (only when editing) */}
-                  <div>
-                    {editingRapportId && (
-                      <Button variant="outline" onClick={handleNewRapport}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Nouveau
-                      </Button>
-                    )}
-                  </div>
-
+                <div className="flex flex-col md:flex-row md:items-center justify-end gap-4">
                   {/* Right: Image, PDF, Sauvegarder */}
                   <div className="flex items-center gap-2 flex-wrap ml-auto">
                     <Button variant="outline" onClick={() => handleExport('image')}>
@@ -960,9 +1067,9 @@ const FormChariot = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Filters */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4 bg-gray-50 rounded-lg border">
+                <div className="flex flex-wrap items-end gap-3 p-3 bg-gray-50 rounded-lg border">
                   {/* Date period selector */}
-                  <div>
+                  <div className="w-[130px]">
                     <Label className="text-xs mb-1 block">Période</Label>
                     <Select
                       value={filters.datePeriod}
@@ -982,47 +1089,47 @@ const FormChariot = () => {
                   </div>
 
                   {/* Conditional date sub-filters */}
-                  <div>
-                    {filters.datePeriod === 'year' && (
-                      <>
-                        <Label className="text-xs mb-1 block">Année</Label>
-                        <Select
-                          value={String(filters.dateYear)}
-                          onValueChange={(v) => setFilters(f => ({ ...f, dateYear: Number(v) }))}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 5 }, (_, i) => currentYear - i).map(y => (
-                              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </>
-                    )}
+                  {(filters.datePeriod === 'year' || filters.datePeriod === 'month') && (
+                    <div className="w-[100px]">
+                      <Label className="text-xs mb-1 block">Année</Label>
+                      <Select
+                        value={String(filters.dateYear)}
+                        onValueChange={(v) => setFilters(f => ({ ...f, dateYear: Number(v) }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 5 }, (_, i) => currentYear - i).map(y => (
+                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
-                    {filters.datePeriod === 'month' && (
-                      <>
-                        <Label className="text-xs mb-1 block">Année</Label>
-                        <Select
-                          value={String(filters.dateYear)}
-                          onValueChange={(v) => setFilters(f => ({ ...f, dateYear: Number(v) }))}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 5 }, (_, i) => currentYear - i).map(y => (
-                              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </>
-                    )}
+                  {filters.datePeriod === 'month' && (
+                    <div className="w-[120px]">
+                      <Label className="text-xs mb-1 block">Mois</Label>
+                      <Select
+                        value={String(filters.dateMonth)}
+                        onValueChange={(v) => setFilters(f => ({ ...f, dateMonth: Number(v) }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'].map((m, i) => (
+                            <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
-                    {filters.datePeriod === 'period' && (
-                      <>
+                  {filters.datePeriod === 'period' && (
+                    <>
+                      <div className="w-[130px]">
                         <Label className="text-xs mb-1 block">Date début</Label>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1040,55 +1147,8 @@ const FormChariot = () => {
                             />
                           </PopoverContent>
                         </Popover>
-                      </>
-                    )}
-
-                    {filters.datePeriod === 'day' && (
-                      <>
-                        <Label className="text-xs mb-1 block">Jour</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full justify-start text-left text-xs">
-                              <CalendarIcon className="mr-1 h-3 w-3" />
-                              {filters.dateDay ? format(filters.dateDay, 'dd/MM/yyyy') : 'Choisir...'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={filters.dateDay}
-                              onSelect={(d) => setFilters(f => ({ ...f, dateDay: d || undefined }))}
-                              locale={fr}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Month selector (only for 'month' period) OR Date fin (for 'period') */}
-                  <div>
-                    {filters.datePeriod === 'month' && (
-                      <>
-                        <Label className="text-xs mb-1 block">Mois</Label>
-                        <Select
-                          value={String(filters.dateMonth)}
-                          onValueChange={(v) => setFilters(f => ({ ...f, dateMonth: Number(v) }))}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'].map((m, i) => (
-                              <SelectItem key={i} value={String(i)}>{m}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </>
-                    )}
-
-                    {filters.datePeriod === 'period' && (
-                      <>
+                      </div>
+                      <div className="w-[130px]">
                         <Label className="text-xs mb-1 block">Date fin</Label>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1106,11 +1166,35 @@ const FormChariot = () => {
                             />
                           </PopoverContent>
                         </Popover>
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    </>
+                  )}
 
-                  <div>
+                  {filters.datePeriod === 'day' && (
+                    <div className="w-[130px]">
+                      <Label className="text-xs mb-1 block">Jour</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full justify-start text-left text-xs">
+                            <CalendarIcon className="mr-1 h-3 w-3" />
+                            {filters.dateDay ? format(filters.dateDay, 'dd/MM/yyyy') : 'Choisir...'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={filters.dateDay}
+                            onSelect={(d) => setFilters(f => ({ ...f, dateDay: d || undefined }))}
+                            locale={fr}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+
+                  <div className="w-px h-8 bg-gray-300" />
+
+                  <div className="w-[110px]">
                     <Label className="text-xs mb-1 block">Chariot</Label>
                     <Input
                       placeholder="Nom..."
@@ -1120,7 +1204,7 @@ const FormChariot = () => {
                     />
                   </div>
 
-                  <div>
+                  <div className="w-[100px]">
                     <Label className="text-xs mb-1 block">État</Label>
                     <Select
                       value={filters.etat}
@@ -1137,7 +1221,7 @@ const FormChariot = () => {
                     </Select>
                   </div>
 
-                  <div>
+                  <div className="w-[90px]">
                     <Label className="text-xs mb-1 block">N° DI</Label>
                     <Input
                       placeholder="N° DI..."
@@ -1147,26 +1231,25 @@ const FormChariot = () => {
                     />
                   </div>
 
-                  <div>
+                  <div className="w-[100px]">
                     <Label className="text-xs mb-1 block">N° Permis</Label>
-                    <div className="flex gap-1">
-                      <Input
-                        placeholder="N° Permis..."
-                        value={filters.numeroPermis}
-                        onChange={(e) => setFilters(f => ({ ...f, numeroPermis: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        onClick={() => setFilters({ ...emptyFilters })}
-                        title="Réinitialiser les filtres"
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    <Input
+                      placeholder="N° Permis..."
+                      value={filters.numeroPermis}
+                      onChange={(e) => setFilters(f => ({ ...f, numeroPermis: e.target.value }))}
+                      className="h-8 text-xs"
+                    />
                   </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setFilters({ ...emptyFilters })}
+                    title="Réinitialiser les filtres"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </Button>
                 </div>
 
                 {/* History table */}
@@ -1238,7 +1321,7 @@ const FormChariot = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => loadRapport(rapport.id)}
+                                  onClick={() => openEditPopup(rapport.id)}
                                 >
                                   <Edit className="h-3 w-3 mr-1" />
                                   Modifier
@@ -1346,6 +1429,273 @@ const FormChariot = () => {
               Nouvelle anomalie
             </Button>
             <Button onClick={() => setAnomalyDialog({ open: false, ligneIndex: -1 })}>
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── EDIT POPUP ──────────────────────────────────────────── */}
+      <Dialog open={editPopup.open} onOpenChange={(open) => { if (!open) setEditPopup(prev => ({ ...prev, open: false })); }}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le rapport</DialogTitle>
+          </DialogHeader>
+
+          {/* Date & Time */}
+          <div className="flex items-center gap-3 mb-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(editPopup.date, 'PPP', { locale: fr })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={editPopup.date}
+                  onSelect={(d) => d && setEditPopup(prev => ({ ...prev, date: d }))}
+                  locale={fr}
+                />
+              </PopoverContent>
+            </Popover>
+            <Input
+              type="time"
+              value={editPopup.timeValue}
+              onChange={(e) => setEditPopup(prev => ({ ...prev, timeValue: e.target.value }))}
+              className="w-28"
+            />
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[130px]">Chariot</TableHead>
+                  <TableHead className="min-w-[180px] text-center">État</TableHead>
+                  <TableHead className="min-w-[120px]">Compteur horaire (h)</TableHead>
+                  <TableHead className="min-w-[140px]">Horaire proch. vidange (h)</TableHead>
+                  <TableHead className="min-w-[90px]">Écart (h)</TableHead>
+                  <TableHead className="min-w-[200px]">Anomalie</TableHead>
+                  <TableHead className="min-w-[100px]">N° DI</TableHead>
+                  <TableHead className="min-w-[90px]">Gasoil</TableHead>
+                  <TableHead className="min-w-[110px]">Temps d'arrêt (min)</TableHead>
+                  <TableHead className="min-w-[110px]">N° Permis</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {editPopup.lignes.map((ligne, index) => {
+                  const rowStyle =
+                    ligne.etat === 'marche'
+                      ? { backgroundColor: '#dcfce7' }
+                      : ligne.etat === 'arret'
+                      ? { backgroundColor: '#fee2e2' }
+                      : undefined;
+
+                  return (
+                    <TableRow key={index} style={rowStyle}>
+                      <TableCell className="font-medium">
+                        <Input
+                          placeholder="Nom du chariot"
+                          value={ligne.chariot_nom}
+                          onChange={(e) => updatePopupLigne(index, 'chariot_nom', e.target.value)}
+                          className="w-28"
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            type="button"
+                            className={`h-9 px-3 text-sm font-bold ${
+                              ligne.etat === 'marche'
+                                ? 'bg-green-600 hover:bg-green-700 text-white'
+                                : 'bg-white hover:bg-green-50 text-green-700 border border-green-300'
+                            }`}
+                            onClick={() => updatePopupLigne(index, 'etat', 'marche')}
+                          >
+                            MARCHE
+                          </Button>
+                          <Button
+                            type="button"
+                            className={`h-9 px-3 text-sm font-bold ${
+                              ligne.etat === 'arret'
+                                ? 'bg-red-600 hover:bg-red-700 text-white'
+                                : 'bg-white hover:bg-red-50 text-red-700 border border-red-300'
+                            }`}
+                            onClick={() => updatePopupLigne(index, 'etat', 'arret')}
+                          >
+                            ARRÊT
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={ligne.compteur_horaire ?? ''}
+                          onChange={(e) => updatePopupLigne(index, 'compteur_horaire', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={ligne.horaire_prochaine_vidange ?? ''}
+                          onChange={(e) => updatePopupLigne(index, 'horaire_prochaine_vidange', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-28"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <span className={`font-semibold ${ligne.ecart !== null && ligne.ecart <= 72 ? 'text-red-600' : 'text-gray-700'}`}>
+                          {ligne.ecart !== null ? ligne.ecart : '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {ligne.anomalies.length > 0 && (
+                            <div className="text-xs space-y-0.5">
+                              {ligne.anomalies.map((a, aIdx) => (
+                                <div key={aIdx} className="text-gray-700 leading-tight">
+                                  <span className="font-bold">{aIdx + 1}.</span> {a.description}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setEditPopup(prev => ({ ...prev, anomalyDialog: { open: true, ligneIndex: index } }))}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Ajouter
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={ligne.numero_di}
+                          onChange={(e) => updatePopupLigne(index, 'numero_di', e.target.value)}
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={ligne.gasoil ?? ''}
+                          onChange={(e) => updatePopupLigne(index, 'gasoil', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={ligne.temps_arret ?? ''}
+                          onChange={(e) => updatePopupLigne(index, 'temps_arret', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={ligne.numero_permis}
+                          onChange={(e) => updatePopupLigne(index, 'numero_permis', e.target.value)}
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-700"
+                          onClick={() => removePopupLigne(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex justify-between mt-4">
+            <Button variant="outline" onClick={addPopupLigne}>
+              <Plus className="h-4 w-4 mr-1" />
+              Ajouter une ligne
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditPopup(prev => ({ ...prev, open: false }))}>
+                Annuler
+              </Button>
+              <Button onClick={handleSavePopup} disabled={editPopup.saving}>
+                <Save className="h-4 w-4 mr-1" />
+                {editPopup.saving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── EDIT POPUP ANOMALY DIALOG ─────────────────────────────── */}
+      <Dialog
+        open={editPopup.anomalyDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setEditPopup(prev => ({ ...prev, anomalyDialog: { open: false, ligneIndex: -1 } }));
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Anomalies {editPopup.anomalyDialog.ligneIndex >= 0 && editPopup.lignes[editPopup.anomalyDialog.ligneIndex]?.chariot_nom
+                ? `— ${editPopup.lignes[editPopup.anomalyDialog.ligneIndex].chariot_nom}`
+                : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {editPopup.anomalyDialog.ligneIndex >= 0 && editPopup.lignes[editPopup.anomalyDialog.ligneIndex]?.anomalies.map((anomalie, aIdx) => (
+              <div key={aIdx} className="flex gap-2 items-start">
+                <span className="text-xs font-bold text-muted-foreground mt-2 shrink-0 w-5">{aIdx + 1}.</span>
+                <textarea
+                  className="flex-1 min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={anomalie.description}
+                  onChange={(e) => updatePopupAnomalie(editPopup.anomalyDialog.ligneIndex, aIdx, e.target.value)}
+                  placeholder="Décrire l'anomalie..."
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-red-500 hover:text-red-700 mt-1"
+                  onClick={() => removePopupAnomalie(editPopup.anomalyDialog.ligneIndex, aIdx)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            {editPopup.anomalyDialog.ligneIndex >= 0 && editPopup.lignes[editPopup.anomalyDialog.ligneIndex]?.anomalies.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Aucune anomalie enregistrée.</p>
+            )}
+          </div>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (editPopup.anomalyDialog.ligneIndex >= 0) {
+                  addPopupAnomalie(editPopup.anomalyDialog.ligneIndex);
+                }
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Nouvelle anomalie
+            </Button>
+            <Button onClick={() => setEditPopup(prev => ({ ...prev, anomalyDialog: { open: false, ligneIndex: -1 } }))}>
               Fermer
             </Button>
           </DialogFooter>
