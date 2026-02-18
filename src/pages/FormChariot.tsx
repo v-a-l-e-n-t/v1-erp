@@ -50,8 +50,10 @@ const createEmptyLigne = (): RapportChariotLigne => ({
   numero_permis: '',
 });
 
+const DEFAULT_CHARIOTS = Array.from({ length: 10 }, (_, i) => `CHARIOT COMATEC ${i + 1}`);
+
 const createInitialLignes = (): RapportChariotLigne[] =>
-  Array.from({ length: 8 }, () => createEmptyLigne());
+  DEFAULT_CHARIOTS.map(nom => ({ ...createEmptyLigne(), chariot_nom: nom }));
 
 // ─── History filter types ───────────────────────────────────────────
 
@@ -220,18 +222,19 @@ const FormChariot = () => {
           .select('*, chariot_id')
           .eq('rapport_id', r.id);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const lignes = (lignesData || []).map((l: any) => {
           const chariot = allChariots.find(c => c.id === l.chariot_id);
           return {
             chariot_nom: chariot?.nom || 'Inconnu',
-            etat: l.etat,
-            compteur_horaire: l.compteur_horaire,
-            horaire_prochaine_vidange: l.horaire_prochaine_vidange,
-            ecart: l.ecart,
-            numero_di: l.numero_di,
-            gasoil: l.gasoil,
-            temps_arret: l.temps_arret,
-            numero_permis: l.numero_permis,
+            etat: l.etat as string | null,
+            compteur_horaire: l.compteur_horaire as number | null,
+            horaire_prochaine_vidange: l.horaire_prochaine_vidange as number | null,
+            ecart: l.ecart as number | null,
+            numero_di: l.numero_di as string | null,
+            gasoil: l.gasoil as number | null,
+            temps_arret: l.temps_arret as number | null,
+            numero_permis: l.numero_permis as string | null,
           };
         });
 
@@ -354,6 +357,7 @@ const FormChariot = () => {
   };
 
   // ─── Edit popup helpers ─────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updatePopupLigne = (index: number, field: keyof RapportChariotLigne, value: any) => {
     setEditPopup(prev => {
       const updatedLignes = prev.lignes.map((l, i) => {
@@ -466,14 +470,15 @@ const FormChariot = () => {
       setEditPopup(prev => ({ ...prev, open: false }));
       // Refresh history
       loadHistory();
-    } catch (err: any) {
-      toast.error('Erreur lors de la sauvegarde: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Erreur lors de la sauvegarde: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setEditPopup(prev => ({ ...prev, saving: false }));
     }
   };
 
   // ─── Update ligne field ──────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateLigne = (index: number, field: keyof RapportChariotLigne, value: any) => {
     setLignes(prev => {
       const updated = prev.map((l, i) => {
@@ -657,8 +662,8 @@ const FormChariot = () => {
       setLignes(createInitialLignes());
       setDate(new Date());
       setTimeValue(format(new Date(), 'HH:mm'));
-    } catch (error: any) {
-      toast.error('Erreur lors de la sauvegarde: ' + error.message);
+    } catch (error: unknown) {
+      toast.error('Erreur lors de la sauvegarde: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setSaving(false);
     }
@@ -681,6 +686,13 @@ const FormChariot = () => {
     }
     setDeleteRapportId(null);
   };
+
+  // ─── Taux de disponibilité global ────────────────────────────────
+  const lignesAvecEtat = lignes.filter(l => l.chariot_nom.trim() && l.etat);
+  const lignesEnMarche = lignesAvecEtat.filter(l => l.etat === 'marche');
+  const tauxDisponibilite = lignesAvecEtat.length > 0
+    ? Math.round((lignesEnMarche.length / lignesAvecEtat.length) * 100)
+    : null;
 
   // ─── Export functions ─────────────────────────────────────────────
   const handleExport = async (type: 'pdf' | 'image') => {
@@ -746,6 +758,7 @@ const FormChariot = () => {
             htmlBtn.parentNode?.replaceChild(span, htmlBtn);
           });
         },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       const timestamp = format(date, 'yyyyMMdd_HHmm');
@@ -771,8 +784,8 @@ const FormChariot = () => {
         pdf.save(`rapport_chariots_${timestamp}.pdf`);
         toast.success('PDF exporté avec succès');
       }
-    } catch (error: any) {
-      toast.error("Erreur lors de l'export: " + error.message);
+    } catch (error: unknown) {
+      toast.error("Erreur lors de l'export: " + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -851,7 +864,32 @@ const FormChariot = () => {
                       Rapport sur l'état des chariots
                     </h2>
 
-                    <div className="hidden md:block w-48" />
+                    {/* Taux de disponibilité */}
+                    <div className="flex items-center gap-2 min-w-[180px] justify-end">
+                      {tauxDisponibilite !== null ? (
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-semibold text-sm ${
+                          tauxDisponibilite >= 80
+                            ? 'bg-green-50 border-green-300 text-green-700'
+                            : tauxDisponibilite >= 50
+                            ? 'bg-amber-50 border-amber-300 text-amber-700'
+                            : 'bg-red-50 border-red-300 text-red-700'
+                        }`}>
+                          <div className={`h-3 w-3 rounded-full ${
+                            tauxDisponibilite >= 80
+                              ? 'bg-green-500'
+                              : tauxDisponibilite >= 50
+                              ? 'bg-amber-500'
+                              : 'bg-red-500'
+                          }`} />
+                          Dispo : {tauxDisponibilite}%
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-gray-50 border-gray-200 text-gray-400 text-sm">
+                          <div className="h-3 w-3 rounded-full bg-gray-300" />
+                          Dispo : —
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Table */}
@@ -859,6 +897,7 @@ const FormChariot = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10 text-center">N°</TableHead>
                           <TableHead className="min-w-[130px]">Chariot</TableHead>
                           <TableHead className="min-w-[180px] text-center">État</TableHead>
                           <TableHead className="min-w-[120px]">Compteur horaire (h)</TableHead>
@@ -883,13 +922,14 @@ const FormChariot = () => {
 
                           return (
                             <TableRow key={index} style={rowStyle}>
+                              <TableCell className="text-center font-semibold text-muted-foreground text-sm">{index + 1}</TableCell>
                               {/* Chariot name — input direct */}
                               <TableCell className="font-medium">
                                 <Input
                                   placeholder="Nom du chariot"
                                   value={ligne.chariot_nom}
                                   onChange={(e) => updateLigne(index, 'chariot_nom', e.target.value)}
-                                  className="w-28"
+                                  className="w-44 text-xs"
                                 />
                               </TableCell>
 
@@ -943,7 +983,7 @@ const FormChariot = () => {
                                   onChange={(e) =>
                                     updateLigne(index, 'horaire_prochaine_vidange', e.target.value ? parseFloat(e.target.value) : null)
                                   }
-                                  className="w-28"
+                                  className="w-44 text-xs"
                                 />
                               </TableCell>
 
@@ -1473,6 +1513,7 @@ const FormChariot = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10 text-center">N°</TableHead>
                   <TableHead className="min-w-[130px]">Chariot</TableHead>
                   <TableHead className="min-w-[180px] text-center">État</TableHead>
                   <TableHead className="min-w-[120px]">Compteur horaire (h)</TableHead>
@@ -1497,12 +1538,13 @@ const FormChariot = () => {
 
                   return (
                     <TableRow key={index} style={rowStyle}>
+                      <TableCell className="text-center font-semibold text-muted-foreground text-sm">{index + 1}</TableCell>
                       <TableCell className="font-medium">
                         <Input
                           placeholder="Nom du chariot"
                           value={ligne.chariot_nom}
                           onChange={(e) => updatePopupLigne(index, 'chariot_nom', e.target.value)}
-                          className="w-28"
+                          className="w-44 text-xs"
                         />
                       </TableCell>
                       <TableCell className="text-center">
