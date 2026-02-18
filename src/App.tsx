@@ -19,6 +19,7 @@ import VracAdminPanel from "./pages/VracAdminPanel";
 import VracChargementDashboard from "./pages/VracChargementDashboard";
 import NotFound from "./pages/NotFound";
 import FormAtelier from "./pages/FormAtelier";
+import FormChariot from "./pages/FormChariot";
 import Stock from "./pages/Stock";
 import BilanBke from "./pages/BilanBke";
 import DashboardBke from "./pages/DashboardBke";
@@ -58,6 +59,7 @@ const App = () => (
           <Route path="/bilan-bke" element={<BilanBke />} />
           <Route path="/bouake" element={<DashboardBke />} />
           <Route path="/stock" element={<Stock />} />
+          <Route path="/form-chariot" element={<FormChariot />} />
           {/* VRAC Module Routes - Public Access */}
           <Route path="/vrac-login" element={<VracLogin />} />
           <Route path="/vrac" element={<VracClientPortal />} />
