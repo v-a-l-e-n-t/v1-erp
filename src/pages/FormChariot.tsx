@@ -50,7 +50,19 @@ const createEmptyLigne = (): RapportChariotLigne => ({
   numero_permis: '',
 });
 
-const DEFAULT_CHARIOTS = Array.from({ length: 10 }, (_, i) => `CHARIOT COMATEC ${i + 1}`);
+const DEFAULT_CHARIOTS = [
+  'CHARIOT COMATEC 04',
+  'CHARIOT COMATEC 05',
+  'CHARIOT COMATEC 06',
+  'CHARIOT COMATEC 07',
+  'CHARIOT COMATEC BACK UP',
+  'CHARIOT DSA 01',
+  'CHARIOT DSA 02',
+  'CHARIOT DSA 03',
+  'CHARIOT ITB 05',
+  'CHARIOT ITB 03',
+  'CHARIOT ITB 04',
+];
 
 const createInitialLignes = (): RapportChariotLigne[] =>
   DEFAULT_CHARIOTS.map(nom => ({ ...createEmptyLigne(), chariot_nom: nom }));
@@ -66,10 +78,6 @@ interface HistoryFilters {
   dateFrom: Date | undefined;
   dateTo: Date | undefined;
   dateDay: Date | undefined;
-  chariotNom: string;
-  etat: string;
-  numeroDi: string;
-  numeroPermis: string;
 }
 
 const currentYear = new Date().getFullYear();
@@ -81,24 +89,24 @@ const emptyFilters: HistoryFilters = {
   dateFrom: undefined,
   dateTo: undefined,
   dateDay: undefined,
-  chariotNom: '',
-  etat: 'tous',
-  numeroDi: '',
-  numeroPermis: '',
 };
 
+interface RapportHistoriqueLigne {
+  id: string;
+  chariot_nom: string;
+  etat: string | null;
+  compteur_horaire: number | null;
+  horaire_prochaine_vidange: number | null;
+  ecart: number | null;
+  numero_di: string | null;
+  gasoil: number | null;
+  temps_arret: number | null;
+  numero_permis: string | null;
+  anomalies: { description: string; numero_di: string }[];
+}
+
 interface RapportHistorique extends RapportChariot {
-  lignes: {
-    chariot_nom: string;
-    etat: string | null;
-    compteur_horaire: number | null;
-    horaire_prochaine_vidange: number | null;
-    ecart: number | null;
-    numero_di: string | null;
-    gasoil: number | null;
-    temps_arret: number | null;
-    numero_permis: string | null;
-  }[];
+  lignes: RapportHistoriqueLigne[];
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -218,18 +226,53 @@ const FormChariot = () => {
       .select('*')
       .order('date_rapport', { ascending: false });
 
-    if (data) {
-      const rapportsWithLignes: RapportHistorique[] = [];
-      for (const r of data) {
-        const { data: lignesData } = await supabase
-          .from('rapport_chariot_lignes')
-          .select('*, chariot_id')
-          .eq('rapport_id', r.id);
+    if (data && data.length > 0) {
+      // Batch query for ALL lignes
+      const rapportIds = data.map(r => r.id);
+      const { data: allLignesData } = await supabase
+        .from('rapport_chariot_lignes')
+        .select('*, chariot_id')
+        .in('rapport_id', rapportIds);
 
+      const allLignes = allLignesData || [];
+
+      // Batch query for ALL anomalies across all lignes
+      const ligneIds = allLignes.map(l => l.id as string);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let anomaliesByLigne = new Map<string, any[]>();
+      if (ligneIds.length > 0) {
+        const { data: allAnomaliesData } = await supabase
+          .from('rapport_chariot_anomalies')
+          .select('*')
+          .in('ligne_id', ligneIds)
+          .order('ordre');
+        for (const a of (allAnomaliesData || [])) {
+          const lid = a.ligne_id as string;
+          if (!anomaliesByLigne.has(lid)) anomaliesByLigne.set(lid, []);
+          anomaliesByLigne.get(lid)!.push(a);
+        }
+      }
+
+      // Group lignes by rapport_id
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lignesByRapport = new Map<string, any[]>();
+      for (const l of allLignes) {
+        const rid = l.rapport_id as string;
+        if (!lignesByRapport.has(rid)) lignesByRapport.set(rid, []);
+        lignesByRapport.get(rid)!.push(l);
+      }
+
+      const rapportsWithLignes: RapportHistorique[] = data.map(r => {
+        const rawLignes = lignesByRapport.get(r.id) || [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const lignes = (lignesData || []).map((l: any) => {
+        const lignes: RapportHistoriqueLigne[] = rawLignes.map((l: any) => {
           const chariot = allChariots.find(c => c.id === l.chariot_id);
+          const anomalies = (anomaliesByLigne.get(l.id) || []).map((a: { description: string; numero_di?: string }) => ({
+            description: a.description,
+            numero_di: a.numero_di || '',
+          }));
           return {
+            id: l.id as string,
             chariot_nom: chariot?.nom || 'Inconnu',
             etat: l.etat as string | null,
             compteur_horaire: l.compteur_horaire as number | null,
@@ -239,12 +282,14 @@ const FormChariot = () => {
             gasoil: l.gasoil as number | null,
             temps_arret: l.temps_arret as number | null,
             numero_permis: l.numero_permis as string | null,
+            anomalies,
           };
         });
-
-        rapportsWithLignes.push({ ...r, lignes });
-      }
+        return { ...r, lignes };
+      });
       setRapports(rapportsWithLignes);
+    } else {
+      setRapports([]);
     }
     setLoadingHistory(false);
   }, [allChariots]);
@@ -281,25 +326,6 @@ const FormChariot = () => {
       }
     }
 
-    if (filters.chariotNom.trim()) {
-      const search = filters.chariotNom.toLowerCase();
-      if (!r.lignes.some(l => l.chariot_nom.toLowerCase().includes(search))) return false;
-    }
-
-    if (filters.etat !== 'tous') {
-      if (!r.lignes.some(l => l.etat === filters.etat)) return false;
-    }
-
-    if (filters.numeroDi.trim()) {
-      const search = filters.numeroDi.toLowerCase();
-      if (!r.lignes.some(l => l.numero_di?.toLowerCase().includes(search))) return false;
-    }
-
-    if (filters.numeroPermis.trim()) {
-      const search = filters.numeroPermis.toLowerCase();
-      if (!r.lignes.some(l => l.numero_permis?.toLowerCase().includes(search))) return false;
-    }
-
     return true;
   });
 
@@ -320,19 +346,28 @@ const FormChariot = () => {
       .select('*')
       .eq('rapport_id', rapportId);
 
-    if (!lignesData) return;
+    if (!lignesData || lignesData.length === 0) return;
 
-    const lignesWithAnomalies: RapportChariotLigne[] = [];
-    for (const l of lignesData) {
-      const { data: anomalies } = await supabase
-        .from('rapport_chariot_anomalies')
-        .select('*')
-        .eq('ligne_id', l.id)
-        .order('ordre');
+    // Batch load all anomalies for all lignes at once (instead of N+1 queries)
+    const ligneIds = lignesData.map(l => l.id as string);
+    const { data: allAnomaliesData } = await supabase
+      .from('rapport_chariot_anomalies')
+      .select('*')
+      .in('ligne_id', ligneIds)
+      .order('ordre');
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anomaliesByLigne = new Map<string, any[]>();
+    for (const a of (allAnomaliesData || [])) {
+      const lid = a.ligne_id as string;
+      if (!anomaliesByLigne.has(lid)) anomaliesByLigne.set(lid, []);
+      anomaliesByLigne.get(lid)!.push(a);
+    }
+
+    const lignesWithAnomalies: RapportChariotLigne[] = lignesData.map(l => {
       const chariot = allChariots.find(c => c.id === l.chariot_id);
-
-      lignesWithAnomalies.push({
+      const anomalies = anomaliesByLigne.get(l.id as string) || [];
+      return {
         id: l.id,
         rapport_id: l.rapport_id,
         chariot_id: l.chariot_id,
@@ -341,13 +376,13 @@ const FormChariot = () => {
         compteur_horaire: l.compteur_horaire,
         horaire_prochaine_vidange: l.horaire_prochaine_vidange,
         ecart: l.ecart,
-        anomalies: (anomalies || []).map(a => ({ id: a.id, description: a.description, numero_di: a.numero_di || '' })),
+        anomalies: anomalies.map((a: { id: string; description: string; numero_di?: string }) => ({ id: a.id, description: a.description, numero_di: a.numero_di || '' })),
         numero_di: l.numero_di || '',
         gasoil: l.gasoil,
         temps_arret: l.temps_arret,
         numero_permis: l.numero_permis || '',
-      });
-    }
+      };
+    });
 
     setEditPopup({
       open: true,
@@ -431,43 +466,64 @@ const FormChariot = () => {
 
       const rapportId = editPopup.rapportId!;
 
+      // 1) Resolve ALL chariot IDs BEFORE any deletion
+      const resolvedLignes: { ligne: RapportChariotLigne; chariotId: string }[] = [];
+      for (const ligne of validLignes) {
+        const chariotId = await resolveChariotId(ligne.chariot_nom);
+        if (!chariotId) throw new Error(`Impossible de créer le chariot "${ligne.chariot_nom}"`);
+        resolvedLignes.push({ ligne, chariotId });
+      }
+
+      // 2) Update rapport header
       const { error } = await supabase
         .from('rapports_chariots')
         .update({ date_rapport: dateRapport.toISOString(), updated_at: new Date().toISOString() })
         .eq('id', rapportId);
       if (error) throw error;
 
-      await supabase.from('rapport_chariot_lignes').delete().eq('rapport_id', rapportId);
+      // 3) Delete old lignes (CASCADE deletes anomalies too)
+      const { error: delError } = await supabase.from('rapport_chariot_lignes').delete().eq('rapport_id', rapportId);
+      if (delError) throw delError;
 
-      for (const ligne of validLignes) {
-        const chariotId = await resolveChariotId(ligne.chariot_nom);
-        if (!chariotId) throw new Error(`Impossible de créer le chariot "${ligne.chariot_nom}"`);
+      // 4) Batch insert all lignes at once
+      const lignesInsert = resolvedLignes.map(({ ligne, chariotId }) => ({
+        rapport_id: rapportId,
+        chariot_id: chariotId,
+        etat: ligne.etat,
+        compteur_horaire: ligne.compteur_horaire,
+        horaire_prochaine_vidange: ligne.horaire_prochaine_vidange,
+        numero_di: ligne.numero_di || null,
+        gasoil: ligne.gasoil,
+        temps_arret: ligne.temps_arret,
+        numero_permis: ligne.numero_permis || null,
+      }));
 
-        const { data: ligneData, error: ligneError } = await supabase
-          .from('rapport_chariot_lignes')
-          .insert({
-            rapport_id: rapportId,
-            chariot_id: chariotId,
-            etat: ligne.etat,
-            compteur_horaire: ligne.compteur_horaire,
-            horaire_prochaine_vidange: ligne.horaire_prochaine_vidange,
-            numero_di: ligne.numero_di || null,
-            gasoil: ligne.gasoil,
-            temps_arret: ligne.temps_arret,
-            numero_permis: ligne.numero_permis || null,
-          })
-          .select('id')
-          .single();
-        if (ligneError) throw ligneError;
+      const { data: insertedLignes, error: lignesError } = await supabase
+        .from('rapport_chariot_lignes')
+        .insert(lignesInsert)
+        .select('id');
+      if (lignesError) throw lignesError;
 
-        const anomaliesToInsert = ligne.anomalies
+      // 5) Batch insert all anomalies at once
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allAnomalies: any[] = [];
+      resolvedLignes.forEach(({ ligne }, idx) => {
+        const ligneId = insertedLignes[idx].id;
+        ligne.anomalies
           .filter(a => a.description.trim() !== '')
-          .map((a, idx) => ({ ligne_id: ligneData.id, description: a.description.trim(), numero_di: a.numero_di?.trim() || '', ordre: idx }));
+          .forEach((a, aIdx) => {
+            allAnomalies.push({
+              ligne_id: ligneId,
+              description: a.description.trim(),
+              numero_di: a.numero_di?.trim() || '',
+              ordre: aIdx,
+            });
+          });
+      });
 
-        if (anomaliesToInsert.length > 0) {
-          const { error: anomError } = await supabase.from('rapport_chariot_anomalies').insert(anomaliesToInsert);
-          if (anomError) throw anomError;
-        }
+      if (allAnomalies.length > 0) {
+        const { error: anomError } = await supabase.from('rapport_chariot_anomalies').insert(allAnomalies);
+        if (anomError) throw anomError;
       }
 
       // Check alert for écart ≤ 72h after save
@@ -482,7 +538,9 @@ const FormChariot = () => {
       setEditPopup(prev => ({ ...prev, open: false }));
       loadHistory();
     } catch (err: unknown) {
-      toast.error('Erreur lors de la sauvegarde: ' + (err instanceof Error ? err.message : String(err)));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msg = err instanceof Error ? err.message : (err as any)?.message || JSON.stringify(err);
+      toast.error('Erreur lors de la sauvegarde: ' + msg);
     } finally {
       setEditPopup(prev => ({ ...prev, saving: false }));
     }
@@ -607,6 +665,15 @@ const FormChariot = () => {
       const dateRapport = new Date(date);
       dateRapport.setHours(hours, minutes, 0, 0);
 
+      // 1) Resolve ALL chariot IDs first (before creating the rapport)
+      const resolvedLignes: { ligne: RapportChariotLigne; chariotId: string }[] = [];
+      for (const ligne of validLignes) {
+        const chariotId = await resolveChariotId(ligne.chariot_nom);
+        if (!chariotId) throw new Error(`Impossible de créer le chariot "${ligne.chariot_nom}"`);
+        resolvedLignes.push({ ligne, chariotId });
+      }
+
+      // 2) Create rapport header
       const { data, error } = await supabase
         .from('rapports_chariots')
         .insert({ date_rapport: dateRapport.toISOString() })
@@ -615,46 +682,45 @@ const FormChariot = () => {
       if (error) throw error;
       const rapportId = data.id;
 
-      for (const ligne of validLignes) {
-        // Resolve chariot_id (create if new)
-        const chariotId = await resolveChariotId(ligne.chariot_nom);
-        if (!chariotId) {
-          throw new Error(`Impossible de créer le chariot "${ligne.chariot_nom}"`);
-        }
+      // 3) Batch insert all lignes at once
+      const lignesInsert = resolvedLignes.map(({ ligne, chariotId }) => ({
+        rapport_id: rapportId,
+        chariot_id: chariotId,
+        etat: ligne.etat,
+        compteur_horaire: ligne.compteur_horaire,
+        horaire_prochaine_vidange: ligne.horaire_prochaine_vidange,
+        numero_di: ligne.numero_di || null,
+        gasoil: ligne.gasoil,
+        temps_arret: ligne.temps_arret,
+        numero_permis: ligne.numero_permis || null,
+      }));
 
-        const { data: ligneData, error: ligneError } = await supabase
-          .from('rapport_chariot_lignes')
-          .insert({
-            rapport_id: rapportId,
-            chariot_id: chariotId,
-            etat: ligne.etat,
-            compteur_horaire: ligne.compteur_horaire,
-            horaire_prochaine_vidange: ligne.horaire_prochaine_vidange,
-            numero_di: ligne.numero_di || null,
-            gasoil: ligne.gasoil,
-            temps_arret: ligne.temps_arret,
-            numero_permis: ligne.numero_permis || null,
-          })
-          .select('id')
-          .single();
+      const { data: insertedLignes, error: lignesError } = await supabase
+        .from('rapport_chariot_lignes')
+        .insert(lignesInsert)
+        .select('id');
+      if (lignesError) throw lignesError;
 
-        if (ligneError) throw ligneError;
-
-        const anomaliesToInsert = ligne.anomalies
+      // 4) Batch insert all anomalies at once
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allAnomalies: any[] = [];
+      resolvedLignes.forEach(({ ligne }, idx) => {
+        const ligneId = insertedLignes[idx].id;
+        ligne.anomalies
           .filter(a => a.description.trim() !== '')
-          .map((a, idx) => ({
-            ligne_id: ligneData.id,
-            description: a.description.trim(),
-            numero_di: a.numero_di?.trim() || '',
-            ordre: idx,
-          }));
+          .forEach((a, aIdx) => {
+            allAnomalies.push({
+              ligne_id: ligneId,
+              description: a.description.trim(),
+              numero_di: a.numero_di?.trim() || '',
+              ordre: aIdx,
+            });
+          });
+      });
 
-        if (anomaliesToInsert.length > 0) {
-          const { error: anomError } = await supabase
-            .from('rapport_chariot_anomalies')
-            .insert(anomaliesToInsert);
-          if (anomError) throw anomError;
-        }
+      if (allAnomalies.length > 0) {
+        const { error: anomError } = await supabase.from('rapport_chariot_anomalies').insert(allAnomalies);
+        if (anomError) throw anomError;
       }
 
       // Check alert for écart ≤ 72h after save
@@ -670,7 +736,9 @@ const FormChariot = () => {
       setDate(new Date());
       setTimeValue(format(new Date(), 'HH:mm'));
     } catch (error: unknown) {
-      toast.error('Erreur lors de la sauvegarde: ' + (error instanceof Error ? error.message : String(error)));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msg = error instanceof Error ? error.message : (error as any)?.message || JSON.stringify(error);
+      toast.error('Erreur lors de la sauvegarde: ' + msg);
     } finally {
       setSaving(false);
     }
@@ -1155,6 +1223,268 @@ const FormChariot = () => {
                 <CardTitle>Historique des rapports</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {editPopup.open ? (
+                  /* ─── INLINE EDIT VIEW ─────────────────────────────── */
+                  <div>
+                    {/* Header: Retour + export buttons */}
+                    <div className="flex items-center justify-between mb-4">
+                      <Button variant="outline" onClick={() => setEditPopup(prev => ({ ...prev, open: false }))}>
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Retour
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handlePopupExport('image')}>
+                          <ImageIcon className="h-4 w-4 mr-1" />
+                          Image
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handlePopupExport('pdf')}>
+                          <FileDown className="h-4 w-4 mr-1" />
+                          PDF
+                        </Button>
+                        <Button onClick={handleSavePopup} disabled={editPopup.saving}>
+                          <Save className="h-4 w-4 mr-1" />
+                          {editPopup.saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Export container */}
+                    <div ref={popupExportRef} data-export-ref className="bg-white p-4">
+                      {/* Date & Time + Title + Dispo */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {format(editPopup.date, 'PPP', { locale: fr })}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={editPopup.date}
+                                onSelect={(d) => d && setEditPopup(prev => ({ ...prev, date: d }))}
+                                locale={fr}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <Input
+                            type="time"
+                            value={editPopup.timeValue}
+                            onChange={(e) => setEditPopup(prev => ({ ...prev, timeValue: e.target.value }))}
+                            className="w-28"
+                          />
+                        </div>
+
+                        <h2 className="text-xl md:text-2xl font-bold text-center uppercase tracking-wide">
+                          Rapport sur l'état des chariots
+                        </h2>
+
+                        {/* Taux de disponibilité */}
+                        {(() => {
+                          const popupAvec = editPopup.lignes.filter(l => l.chariot_nom.trim() && l.etat);
+                          const popupMarche = popupAvec.filter(l => l.etat === 'marche');
+                          const popupTaux = popupAvec.length > 0 ? Math.round((popupMarche.length / popupAvec.length) * 100) : null;
+                          return (
+                            <div className="flex items-center gap-2 min-w-[180px] justify-end">
+                              {popupTaux !== null ? (
+                                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-semibold text-sm ${
+                                  popupTaux >= 80 ? 'bg-green-50 border-green-300 text-green-700'
+                                    : popupTaux >= 50 ? 'bg-amber-50 border-amber-300 text-amber-700'
+                                    : 'bg-red-50 border-red-300 text-red-700'
+                                }`}>
+                                  <div className={`h-3 w-3 rounded-full ${
+                                    popupTaux >= 80 ? 'bg-green-500' : popupTaux >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                                  }`} />
+                                  Dispo : {popupTaux}%
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-gray-50 border-gray-200 text-gray-400 text-sm">
+                                  <div className="h-3 w-3 rounded-full bg-gray-300" />
+                                  Dispo : —
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Table */}
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-10 text-center">N°</TableHead>
+                              <TableHead className="min-w-[130px]">Chariot</TableHead>
+                              <TableHead className="min-w-[180px] text-center">État</TableHead>
+                              <TableHead className="min-w-[120px]">Compteur horaire (h)</TableHead>
+                              <TableHead className="min-w-[140px]">Horaire proch. vidange (h)</TableHead>
+                              <TableHead className="min-w-[90px]">Écart (h)</TableHead>
+                              <TableHead className="min-w-[200px]">Anomalie</TableHead>
+                              <TableHead className="min-w-[100px]">N° DI</TableHead>
+                              <TableHead className="min-w-[90px]">Gasoil</TableHead>
+                              <TableHead className="min-w-[110px]">Temps d'arrêt (min)</TableHead>
+                              <TableHead className="min-w-[110px]">N° Permis</TableHead>
+                              <TableHead className="w-10 export-hide"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {editPopup.lignes.map((ligne, index) => {
+                              const rowStyle =
+                                ligne.etat === 'marche'
+                                  ? { backgroundColor: '#dcfce7' }
+                                  : ligne.etat === 'arret'
+                                  ? { backgroundColor: '#fee2e2' }
+                                  : undefined;
+                              return (
+                                <TableRow key={index} style={rowStyle}>
+                                  <TableCell className="text-center font-semibold text-muted-foreground text-sm">{index + 1}</TableCell>
+                                  <TableCell className="font-medium">
+                                    <Input
+                                      placeholder="Nom du chariot"
+                                      value={ligne.chariot_nom}
+                                      onChange={(e) => updatePopupLigne(index, 'chariot_nom', e.target.value)}
+                                      className="w-44 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <Button
+                                        type="button"
+                                        className={`h-9 px-3 text-sm font-bold ${
+                                          ligne.etat === 'marche'
+                                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                                            : 'bg-white hover:bg-green-50 text-green-700 border border-green-300'
+                                        }`}
+                                        onClick={() => updatePopupLigne(index, 'etat', 'marche')}
+                                      >
+                                        MARCHE
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        className={`h-9 px-3 text-sm font-bold ${
+                                          ligne.etat === 'arret'
+                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                            : 'bg-white hover:bg-red-50 text-red-700 border border-red-300'
+                                        }`}
+                                        onClick={() => updatePopupLigne(index, 'etat', 'arret')}
+                                      >
+                                        ARRÊT
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={ligne.compteur_horaire ?? ''}
+                                      onChange={(e) => updatePopupLigne(index, 'compteur_horaire', e.target.value ? parseFloat(e.target.value) : null)}
+                                      className="w-24"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={ligne.horaire_prochaine_vidange ?? ''}
+                                      onChange={(e) => updatePopupLigne(index, 'horaire_prochaine_vidange', e.target.value ? parseFloat(e.target.value) : null)}
+                                      className="w-28"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className={`font-semibold ${ligne.ecart !== null && ligne.ecart <= 72 ? 'text-red-600' : 'text-gray-700'}`}>
+                                      {ligne.ecart !== null ? ligne.ecart : '—'}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="space-y-1">
+                                      {ligne.anomalies.length > 0 && (
+                                        <div className="text-xs space-y-0.5">
+                                          {ligne.anomalies.map((a, aIdx) => (
+                                            <div key={aIdx} className="text-gray-700 leading-tight">
+                                              <span className="font-bold">{aIdx + 1}.</span> {a.description}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs export-hide"
+                                        onClick={() => setEditPopup(prev => ({ ...prev, anomalyDialog: { open: true, ligneIndex: index } }))}
+                                      >
+                                        <Plus className="h-3 w-3 mr-1" />
+                                        Ajouter
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {ligne.anomalies.length > 0 ? (
+                                      <div className="text-xs space-y-0.5">
+                                        {ligne.anomalies.map((a, aIdx) => (
+                                          <div key={aIdx} className="text-gray-700 leading-tight">
+                                            <span className="font-semibold">{a.numero_di || '—'}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-xs text-gray-400">—</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={ligne.gasoil ?? ''}
+                                      onChange={(e) => updatePopupLigne(index, 'gasoil', e.target.value ? parseFloat(e.target.value) : null)}
+                                      className="w-20"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={ligne.temps_arret ?? ''}
+                                      onChange={(e) => updatePopupLigne(index, 'temps_arret', e.target.value ? parseFloat(e.target.value) : null)}
+                                      className="w-24"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      value={ligne.numero_permis}
+                                      onChange={(e) => updatePopupLigne(index, 'numero_permis', e.target.value)}
+                                      className="w-24"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="export-hide">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-red-500 hover:text-red-700"
+                                      onClick={() => removePopupLigne(index)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>{/* close popupExportRef */}
+
+                    <div className="flex justify-between mt-4">
+                      <Button variant="outline" onClick={addPopupLigne}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Ajouter une ligne
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                <>
                 {/* Filters */}
                 <div className="flex flex-wrap items-end gap-3 p-3 bg-gray-50 rounded-lg border">
                   {/* Date period selector */}
@@ -1281,55 +1611,6 @@ const FormChariot = () => {
                     </div>
                   )}
 
-                  <div className="w-px h-8 bg-gray-300" />
-
-                  <div className="w-[110px]">
-                    <Label className="text-xs mb-1 block">Chariot</Label>
-                    <Input
-                      placeholder="Nom..."
-                      value={filters.chariotNom}
-                      onChange={(e) => setFilters(f => ({ ...f, chariotNom: e.target.value }))}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  <div className="w-[100px]">
-                    <Label className="text-xs mb-1 block">État</Label>
-                    <Select
-                      value={filters.etat}
-                      onValueChange={(v) => setFilters(f => ({ ...f, etat: v }))}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="tous">Tous</SelectItem>
-                        <SelectItem value="marche">Marche</SelectItem>
-                        <SelectItem value="arret">Arrêt</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="w-[90px]">
-                    <Label className="text-xs mb-1 block">N° DI</Label>
-                    <Input
-                      placeholder="N° DI..."
-                      value={filters.numeroDi}
-                      onChange={(e) => setFilters(f => ({ ...f, numeroDi: e.target.value }))}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  <div className="w-[100px]">
-                    <Label className="text-xs mb-1 block">N° Permis</Label>
-                    <Input
-                      placeholder="N° Permis..."
-                      value={filters.numeroPermis}
-                      onChange={(e) => setFilters(f => ({ ...f, numeroPermis: e.target.value }))}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1351,84 +1632,54 @@ const FormChariot = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Date & Heure</TableHead>
+                          <TableHead>Date et Heure</TableHead>
                           <TableHead>Chariots</TableHead>
-                          <TableHead>États</TableHead>
-                          <TableHead>N° DI</TableHead>
-                          <TableHead>N° Permis</TableHead>
+                          <TableHead>État</TableHead>
                           <TableHead>Disponibilité</TableHead>
-                          <TableHead>Temps Arrêt</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredRapports.map((rapport) => (
+                        {filteredRapports.map((rapport) => {
+                          const enMarche = rapport.lignes.filter(l => l.etat === 'marche').length;
+                          const enArret = rapport.lignes.filter(l => l.etat === 'arret').length;
+                          const withEtat = enMarche + enArret;
+                          const taux = withEtat > 0 ? Math.round((enMarche / withEtat) * 100) : null;
+                          return (
                           <TableRow key={rapport.id}>
                             <TableCell className="whitespace-nowrap">
                               {format(new Date(rapport.date_rapport), 'PPP HH:mm', { locale: fr })}
                             </TableCell>
                             <TableCell>
-                              <div className="space-y-0.5">
-                                {rapport.lignes.map((l, i) => (
-                                  <div key={i} className="text-xs">{l.chariot_nom}</div>
-                                ))}
-                              </div>
+                              <span className="text-sm font-medium">{rapport.lignes.length} chariots</span>
                             </TableCell>
                             <TableCell>
-                              <div className="space-y-0.5">
-                                {rapport.lignes.map((l, i) => (
-                                  <div key={i}>
-                                    <span
-                                      className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                        l.etat === 'marche'
-                                          ? 'bg-green-100 text-green-700'
-                                          : l.etat === 'arret'
-                                          ? 'bg-red-100 text-red-700'
-                                          : 'text-gray-400'
-                                      }`}
-                                    >
-                                      {l.etat === 'marche' ? 'Marche' : l.etat === 'arret' ? 'Arrêt' : '—'}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-0.5">
-                                {rapport.lignes.map((l, i) => (
-                                  <div key={i} className="text-xs">{l.numero_di || '—'}</div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-0.5">
-                                {rapport.lignes.map((l, i) => (
-                                  <div key={i} className="text-xs">{l.numero_permis || '—'}</div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {(() => {
-                                const withEtat = rapport.lignes.filter(l => l.etat);
-                                const enMarche = withEtat.filter(l => l.etat === 'marche');
-                                const taux = withEtat.length > 0 ? Math.round((enMarche.length / withEtat.length) * 100) : null;
-                                return taux !== null ? (
-                                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                                    taux >= 80 ? 'bg-green-100 text-green-700'
-                                      : taux >= 50 ? 'bg-amber-100 text-amber-700'
-                                      : 'bg-red-100 text-red-700'
-                                  }`}>
-                                    {taux}%
+                              <div className="flex items-center gap-2">
+                                {enMarche > 0 && (
+                                  <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                                    {enMarche} Marche
                                   </span>
-                                ) : <span className="text-xs text-gray-400">—</span>;
-                              })()}
+                                )}
+                                {enArret > 0 && (
+                                  <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                    {enArret} Arrêt
+                                  </span>
+                                )}
+                                {withEtat === 0 && (
+                                  <span className="text-xs text-gray-400">—</span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
-                              <div className="space-y-0.5">
-                                {rapport.lignes.map((l, i) => (
-                                  <div key={i} className="text-xs">{l.temps_arret != null ? `${l.temps_arret} min` : '—'}</div>
-                                ))}
-                              </div>
+                              {taux !== null ? (
+                                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                                  taux >= 80 ? 'bg-green-100 text-green-700'
+                                    : taux >= 50 ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-red-100 text-red-700'
+                                }`}>
+                                  {taux}%
+                                </span>
+                              ) : <span className="text-xs text-gray-400">—</span>}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
@@ -1438,7 +1689,7 @@ const FormChariot = () => {
                                   onClick={() => openEditPopup(rapport.id)}
                                 >
                                   <Edit className="h-3 w-3 mr-1" />
-                                  Modifier
+                                  Voir
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -1460,10 +1711,13 @@ const FormChariot = () => {
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
+                )}
+                </>
                 )}
               </CardContent>
             </Card>
@@ -1576,269 +1830,7 @@ const FormChariot = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── EDIT POPUP ──────────────────────────────────────────── */}
-      <Dialog open={editPopup.open} onOpenChange={(open) => { if (!open) setEditPopup(prev => ({ ...prev, open: false })); }}>
-        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
-          {/* Header with export buttons */}
-          <div className="flex items-center justify-between">
-            <DialogHeader>
-              <DialogTitle>Modifier le rapport</DialogTitle>
-            </DialogHeader>
-            <div className="flex items-center gap-2 export-hide">
-              <Button variant="outline" size="sm" onClick={() => handlePopupExport('image')}>
-                <ImageIcon className="h-4 w-4 mr-1" />
-                Image
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handlePopupExport('pdf')}>
-                <FileDown className="h-4 w-4 mr-1" />
-                PDF
-              </Button>
-            </div>
-          </div>
-
-          {/* Export container */}
-          <div ref={popupExportRef} data-export-ref className="bg-white">
-          {/* Date & Time + Title + Dispo */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(editPopup.date, 'PPP', { locale: fr })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={editPopup.date}
-                    onSelect={(d) => d && setEditPopup(prev => ({ ...prev, date: d }))}
-                    locale={fr}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Input
-                type="time"
-                value={editPopup.timeValue}
-                onChange={(e) => setEditPopup(prev => ({ ...prev, timeValue: e.target.value }))}
-                className="w-28"
-              />
-            </div>
-
-            <h2 className="text-lg font-bold text-center uppercase tracking-wide">
-              Rapport sur l'état des chariots
-            </h2>
-
-            {/* Taux de disponibilité popup */}
-            {(() => {
-              const popupAvec = editPopup.lignes.filter(l => l.chariot_nom.trim() && l.etat);
-              const popupMarche = popupAvec.filter(l => l.etat === 'marche');
-              const popupTaux = popupAvec.length > 0 ? Math.round((popupMarche.length / popupAvec.length) * 100) : null;
-              return (
-                <div className="flex items-center gap-2 min-w-[160px] justify-end">
-                  {popupTaux !== null ? (
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-semibold text-sm ${
-                      popupTaux >= 80 ? 'bg-green-50 border-green-300 text-green-700'
-                        : popupTaux >= 50 ? 'bg-amber-50 border-amber-300 text-amber-700'
-                        : 'bg-red-50 border-red-300 text-red-700'
-                    }`}>
-                      <div className={`h-3 w-3 rounded-full ${
-                        popupTaux >= 80 ? 'bg-green-500' : popupTaux >= 50 ? 'bg-amber-500' : 'bg-red-500'
-                      }`} />
-                      Dispo : {popupTaux}%
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-gray-50 border-gray-200 text-gray-400 text-sm">
-                      <div className="h-3 w-3 rounded-full bg-gray-300" />
-                      Dispo : —
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10 text-center">N°</TableHead>
-                  <TableHead className="min-w-[130px]">Chariot</TableHead>
-                  <TableHead className="min-w-[180px] text-center">État</TableHead>
-                  <TableHead className="min-w-[120px]">Compteur horaire (h)</TableHead>
-                  <TableHead className="min-w-[140px]">Horaire proch. vidange (h)</TableHead>
-                  <TableHead className="min-w-[90px]">Écart (h)</TableHead>
-                  <TableHead className="min-w-[200px]">Anomalie</TableHead>
-                  <TableHead className="min-w-[100px]">N° DI</TableHead>
-                  <TableHead className="min-w-[90px]">Gasoil</TableHead>
-                  <TableHead className="min-w-[110px]">Temps d'arrêt (min)</TableHead>
-                  <TableHead className="min-w-[110px]">N° Permis</TableHead>
-                  <TableHead className="w-10"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {editPopup.lignes.map((ligne, index) => {
-                  const rowStyle =
-                    ligne.etat === 'marche'
-                      ? { backgroundColor: '#dcfce7' }
-                      : ligne.etat === 'arret'
-                      ? { backgroundColor: '#fee2e2' }
-                      : undefined;
-
-                  return (
-                    <TableRow key={index} style={rowStyle}>
-                      <TableCell className="text-center font-semibold text-muted-foreground text-sm">{index + 1}</TableCell>
-                      <TableCell className="font-medium">
-                        <Input
-                          placeholder="Nom du chariot"
-                          value={ligne.chariot_nom}
-                          onChange={(e) => updatePopupLigne(index, 'chariot_nom', e.target.value)}
-                          className="w-44 text-xs"
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            type="button"
-                            className={`h-9 px-3 text-sm font-bold ${
-                              ligne.etat === 'marche'
-                                ? 'bg-green-600 hover:bg-green-700 text-white'
-                                : 'bg-white hover:bg-green-50 text-green-700 border border-green-300'
-                            }`}
-                            onClick={() => updatePopupLigne(index, 'etat', 'marche')}
-                          >
-                            MARCHE
-                          </Button>
-                          <Button
-                            type="button"
-                            className={`h-9 px-3 text-sm font-bold ${
-                              ligne.etat === 'arret'
-                                ? 'bg-red-600 hover:bg-red-700 text-white'
-                                : 'bg-white hover:bg-red-50 text-red-700 border border-red-300'
-                            }`}
-                            onClick={() => updatePopupLigne(index, 'etat', 'arret')}
-                          >
-                            ARRÊT
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={ligne.compteur_horaire ?? ''}
-                          onChange={(e) => updatePopupLigne(index, 'compteur_horaire', e.target.value ? parseFloat(e.target.value) : null)}
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={ligne.horaire_prochaine_vidange ?? ''}
-                          onChange={(e) => updatePopupLigne(index, 'horaire_prochaine_vidange', e.target.value ? parseFloat(e.target.value) : null)}
-                          className="w-28"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span className={`font-semibold ${ligne.ecart !== null && ligne.ecart <= 72 ? 'text-red-600' : 'text-gray-700'}`}>
-                          {ligne.ecart !== null ? ligne.ecart : '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {ligne.anomalies.length > 0 && (
-                            <div className="text-xs space-y-0.5">
-                              {ligne.anomalies.map((a, aIdx) => (
-                                <div key={aIdx} className="text-gray-700 leading-tight">
-                                  <span className="font-bold">N°{aIdx + 1} DI - {a.numero_di || 'XXXXX'}</span>
-                                  <div className="ml-2 text-gray-500">{a.description}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => setEditPopup(prev => ({ ...prev, anomalyDialog: { open: true, ligneIndex: index } }))}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Ajouter
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={ligne.numero_di}
-                          onChange={(e) => updatePopupLigne(index, 'numero_di', e.target.value)}
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={ligne.gasoil ?? ''}
-                          onChange={(e) => updatePopupLigne(index, 'gasoil', e.target.value ? parseFloat(e.target.value) : null)}
-                          className="w-20"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={ligne.temps_arret ?? ''}
-                          onChange={(e) => updatePopupLigne(index, 'temps_arret', e.target.value ? parseFloat(e.target.value) : null)}
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={ligne.numero_permis}
-                          onChange={(e) => updatePopupLigne(index, 'numero_permis', e.target.value)}
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-700"
-                          onClick={() => removePopupLigne(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-          </div>{/* close popupExportRef */}
-
-          <div className="flex justify-between mt-4 export-hide">
-            <Button variant="outline" onClick={addPopupLigne}>
-              <Plus className="h-4 w-4 mr-1" />
-              Ajouter une ligne
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditPopup(prev => ({ ...prev, open: false }))}>
-                Annuler
-              </Button>
-              <Button onClick={handleSavePopup} disabled={editPopup.saving}>
-                <Save className="h-4 w-4 mr-1" />
-                {editPopup.saving ? 'Sauvegarde...' : 'Sauvegarder'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── EDIT POPUP ANOMALY DIALOG ─────────────────────────────── */}
+      {/* ─── EDIT ANOMALY DIALOG ─────────────────────────────── */}
       <Dialog
         open={editPopup.anomalyDialog.open}
         onOpenChange={(open) => {
