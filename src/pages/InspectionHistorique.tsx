@@ -131,8 +131,8 @@ export default function InspectionHistorique() {
                                   size="icon"
                                   title="Voir"
                                   onClick={() => {
-                                    if (r.statut === 'EN_COURS') navigate(`/inspection/ronde/${r.id}`);
-                                    else navigate(`/inspection/ronde/${r.id}/validation`);
+                                    if (r.statut === 'EN_COURS') navigate(`/form-maintenance/ronde/${r.id}`);
+                                    else navigate(`/form-maintenance/ronde/${r.id}/validation`);
                                   }}
                                 >
                                   <ArrowRight className="h-4 w-4" />

@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory, Download, FileDown, HardHat } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory, Download, FileDown, HardHat, Truck } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
@@ -1644,7 +1644,17 @@ const DashboardHistorique = () => {
             variant="outline"
             size="sm"
             className="h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide hover:bg-primary/5 hover:text-primary"
-            onClick={() => navigate('/inspection')}
+            onClick={() => navigate('/form-chariot')}
+          >
+            <Truck className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            CHARIOT
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide hover:bg-primary/5 hover:text-primary"
+            onClick={() => navigate('/form-maintenance')}
           >
             <HardHat className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
             MAINT.

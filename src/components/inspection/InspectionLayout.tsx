@@ -18,11 +18,11 @@ import {
 function PageTitle() {
   const { pathname } = useLocation();
 
-  if (pathname === '/inspection') return 'Tableau de Bord';
+  if (pathname === '/form-maintenance') return 'Tableau de Bord';
   if (pathname.endsWith('/validation')) return 'Validation';
-  if (pathname.includes('/inspection/ronde/')) return 'Saisie Ronde';
-  if (pathname === '/inspection/historique') return 'Historique';
-  if (pathname === '/inspection/configuration') return 'Configuration';
+  if (pathname.includes('/form-maintenance/ronde/')) return 'Saisie Ronde';
+  if (pathname === '/form-maintenance/historique') return 'Historique';
+  if (pathname === '/form-maintenance/configuration') return 'Configuration';
   return 'Inspection';
 }
 
@@ -33,7 +33,7 @@ export default function InspectionLayout() {
   const { anomalies: openAnomalies } = useOpenAnomalies();
 
   const isActive = (path: string) => pathname === path;
-  const isRondeActive = pathname.includes('/inspection/ronde/');
+  const isRondeActive = pathname.includes('/form-maintenance/ronde/');
 
   const rondeLabel = currentRonde
     ? formatSemaineISO(currentRonde.semaine_iso)
@@ -67,8 +67,8 @@ export default function InspectionLayout() {
               <SidebarMenu>
                 {/* Tableau de Bord */}
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/inspection')}>
-                    <Link to="/inspection">
+                  <SidebarMenuButton asChild isActive={isActive('/form-maintenance')}>
+                    <Link to="/form-maintenance">
                       <LayoutDashboard />
                       <span>Tableau de Bord</span>
                     </Link>
@@ -96,9 +96,9 @@ export default function InspectionLayout() {
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               asChild
-                              isActive={isActive(`/inspection/ronde/${currentRonde.id}`)}
+                              isActive={isActive(`/form-maintenance/ronde/${currentRonde.id}`)}
                             >
-                              <Link to={`/inspection/ronde/${currentRonde.id}`}>
+                              <Link to={`/form-maintenance/ronde/${currentRonde.id}`}>
                                 Saisie
                               </Link>
                             </SidebarMenuSubButton>
@@ -106,9 +106,9 @@ export default function InspectionLayout() {
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               asChild
-                              isActive={isActive(`/inspection/ronde/${currentRonde.id}/validation`)}
+                              isActive={isActive(`/form-maintenance/ronde/${currentRonde.id}/validation`)}
                             >
-                              <Link to={`/inspection/ronde/${currentRonde.id}/validation`}>
+                              <Link to={`/form-maintenance/ronde/${currentRonde.id}/validation`}>
                                 Validation
                               </Link>
                             </SidebarMenuSubButton>
@@ -121,8 +121,8 @@ export default function InspectionLayout() {
 
                 {/* Historique */}
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/inspection/historique')}>
-                    <Link to="/inspection/historique">
+                  <SidebarMenuButton asChild isActive={isActive('/form-maintenance/historique')}>
+                    <Link to="/form-maintenance/historique">
                       <History />
                       <span>Historique</span>
                     </Link>
@@ -131,8 +131,8 @@ export default function InspectionLayout() {
 
                 {/* Configuration */}
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={isActive('/inspection/configuration')}>
-                    <Link to="/inspection/configuration">
+                  <SidebarMenuButton asChild isActive={isActive('/form-maintenance/configuration')}>
+                    <Link to="/form-maintenance/configuration">
                       <Settings />
                       <span>Configuration</span>
                     </Link>

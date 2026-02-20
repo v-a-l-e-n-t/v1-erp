@@ -69,8 +69,8 @@ const App = () => (
             <Route path="/vrac-chargements" element={<VracChargementDashboard />} />
           </Route>
 
-          {/* Inspection Module Routes */}
-          <Route path="/inspection" element={<InspectionLayout />}>
+          {/* Maintenance Module Routes */}
+          <Route path="/form-maintenance" element={<InspectionLayout />}>
             <Route index element={<InspectionDashboard />} />
             <Route path="ronde/:id" element={<InspectionRonde />} />
             <Route path="ronde/:id/validation" element={<InspectionValidation />} />

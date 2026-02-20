@@ -85,7 +85,7 @@ export default function InspectionRonde() {
     }
 
     toast.success('Ronde soumise pour validation');
-    navigate(`/inspection/ronde/${ronde.id}/validation`);
+    navigate(`/form-maintenance/ronde/${ronde.id}/validation`);
   };
 
   const loading = refLoading || rondeLoading;
@@ -102,7 +102,7 @@ export default function InspectionRonde() {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-4">
         <p className="text-muted-foreground">Ronde introuvable</p>
-        <Button onClick={() => navigate('/inspection')}>Retour</Button>
+        <Button onClick={() => navigate('/form-maintenance')}>Retour</Button>
       </div>
     );
   }
@@ -170,7 +170,7 @@ export default function InspectionRonde() {
           )}
 
           {ronde.statut === 'EN_ATTENTE_VALIDATION' && (
-            <Button onClick={() => navigate(`/inspection/ronde/${ronde.id}/validation`)}>
+            <Button onClick={() => navigate(`/form-maintenance/ronde/${ronde.id}/validation`)}>
               Voir la validation
             </Button>
           )}

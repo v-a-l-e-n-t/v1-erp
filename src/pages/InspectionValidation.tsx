@@ -70,7 +70,7 @@ export default function InspectionValidation() {
       date_soumission: null,
     }).eq('id', ronde.id);
     toast.success('Ronde renvoyée en édition');
-    navigate(`/inspection/ronde/${ronde.id}`);
+    navigate(`/form-maintenance/ronde/${ronde.id}`);
   };
 
   const handleValidate = async () => {
@@ -167,7 +167,7 @@ export default function InspectionValidation() {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-4">
         <p className="text-muted-foreground">Ronde introuvable</p>
-        <Button onClick={() => navigate('/inspection')}>Retour</Button>
+        <Button onClick={() => navigate('/form-maintenance')}>Retour</Button>
       </div>
     );
   }
