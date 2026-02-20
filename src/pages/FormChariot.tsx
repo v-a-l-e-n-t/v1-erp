@@ -992,12 +992,12 @@ const FormChariot = () => {
                               ? 'bg-amber-500'
                               : 'bg-red-500'
                           }`} />
-                          Dispo : {tauxDisponibilite}%
+                          Disponibilité : {tauxDisponibilite}%
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-gray-50 border-gray-200 text-gray-400 text-sm">
                           <div className="h-3 w-3 rounded-full bg-gray-300" />
-                          Dispo : —
+                          Disponibilité : —
                         </div>
                       )}
                     </div>
@@ -1017,7 +1017,7 @@ const FormChariot = () => {
                           <TableHead className="min-w-[200px]">Anomalie</TableHead>
                           <TableHead className="min-w-[100px]">N° DI</TableHead>
                           <TableHead className="min-w-[90px]">Gasoil</TableHead>
-                          <TableHead className="min-w-[110px]">Temps d'arrêt (min)</TableHead>
+                          <TableHead className="min-w-[110px]">Temps d'arrêt (h)</TableHead>
                           <TableHead className="min-w-[110px]">N° Permis</TableHead>
                           <TableHead className="w-10"></TableHead>
                         </TableRow>
@@ -1297,12 +1297,12 @@ const FormChariot = () => {
                                   <div className={`h-3 w-3 rounded-full ${
                                     popupTaux >= 80 ? 'bg-green-500' : popupTaux >= 50 ? 'bg-amber-500' : 'bg-red-500'
                                   }`} />
-                                  Dispo : {popupTaux}%
+                                  Disponibilité : {popupTaux}%
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-gray-50 border-gray-200 text-gray-400 text-sm">
                                   <div className="h-3 w-3 rounded-full bg-gray-300" />
-                                  Dispo : —
+                                  Disponibilité : —
                                 </div>
                               )}
                             </div>
@@ -1324,7 +1324,7 @@ const FormChariot = () => {
                               <TableHead className="min-w-[200px]">Anomalie</TableHead>
                               <TableHead className="min-w-[100px]">N° DI</TableHead>
                               <TableHead className="min-w-[90px]">Gasoil</TableHead>
-                              <TableHead className="min-w-[110px]">Temps d'arrêt (min)</TableHead>
+                              <TableHead className="min-w-[110px]">Temps d'arrêt (h)</TableHead>
                               <TableHead className="min-w-[110px]">N° Permis</TableHead>
                               <TableHead className="w-10 export-hide"></TableHead>
                             </TableRow>
