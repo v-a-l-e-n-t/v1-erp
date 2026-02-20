@@ -1228,7 +1228,7 @@ const FormChariot = () => {
                   <div>
                     {/* Header: Retour + export buttons */}
                     <div className="flex items-center justify-between mb-4">
-                      <Button variant="outline" onClick={() => setEditPopup(prev => ({ ...prev, open: false }))}>
+                      <Button variant="outline" className="border-red-400 text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setEditPopup(prev => ({ ...prev, open: false }))}>
                         <RotateCcw className="h-4 w-4 mr-1" />
                         Retour
                       </Button>
