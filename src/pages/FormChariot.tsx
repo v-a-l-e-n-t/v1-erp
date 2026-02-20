@@ -1094,7 +1094,7 @@ const FormChariot = () => {
                                   onChange={(e) =>
                                     updateLigne(index, 'horaire_prochaine_vidange', e.target.value ? parseFloat(e.target.value) : null)
                                   }
-                                  className="w-44 text-xs"
+                                  className="w-28 text-xs"
                                 />
                               </TableCell>
 
@@ -1142,7 +1142,7 @@ const FormChariot = () => {
                                   <div className="text-xs space-y-0.5">
                                     {ligne.anomalies.map((a, aIdx) => (
                                       <div key={aIdx} className="text-gray-700 leading-tight">
-                                        <span className="font-semibold">{a.numero_di || '—'}</span>
+                                        <span className="font-bold">{aIdx + 1}.</span> <span className="font-semibold">{a.numero_di || '—'}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -1425,7 +1425,7 @@ const FormChariot = () => {
                                       <div className="text-xs space-y-0.5">
                                         {ligne.anomalies.map((a, aIdx) => (
                                           <div key={aIdx} className="text-gray-700 leading-tight">
-                                            <span className="font-semibold">{a.numero_di || '—'}</span>
+                                            <span className="font-bold">{aIdx + 1}.</span> <span className="font-semibold">{a.numero_di || '—'}</span>
                                           </div>
                                         ))}
                                       </div>
