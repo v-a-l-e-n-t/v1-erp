@@ -16,7 +16,7 @@ import ImportData from "./pages/ImportData";
 import VracClientPortal from "./pages/VracClientPortal";
 import VracLogin from "./pages/VracLogin";
 import VracAdminPanel from "./pages/VracAdminPanel";
-import VracChargementDashboard from "./pages/VracChargementDashboard";
+
 import NotFound from "./pages/NotFound";
 import FormAtelier from "./pages/FormAtelier";
 import FormChariot from "./pages/FormChariot";
@@ -61,7 +61,6 @@ const App = () => (
 
           <Route element={<ProtectedRoute />}>
             <Route path="/vrac-admin" element={<VracAdminPanel />} />
-            <Route path="/vrac-chargements" element={<VracChargementDashboard />} />
           </Route>
 
           <Route path="/form-maintenance" element={<FormMaintenance />} />

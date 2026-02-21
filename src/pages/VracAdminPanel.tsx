@@ -1,77 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { VracClient, VracUser } from '@/types/vrac';
 import { useToast } from '@/hooks/use-toast';
-
-import VracPasswordGenerator from '@/components/vrac/VracPasswordGenerator';
-
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { ArrowLeft, Users, Building2, Trash2, Key, Shield, UserX } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { fr } from 'date-fns/locale';
-
-interface VracUserWithClient extends VracUser {
-    vrac_clients: VracClient;
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LayoutDashboard, Truck, Settings, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
+import VracAdminHeader from '@/components/vrac/VracAdminHeader';
+import VracAdminDashboardTab from '@/components/vrac/VracAdminDashboardTab';
+import VracAdminChargementsTab from '@/components/vrac/VracAdminChargementsTab';
+import VracAdminGestionTab from '@/components/vrac/VracAdminGestionTab';
+import type { VracClient, DemandeWithClient } from '@/types/vrac';
 
 const VracAdminPanel: React.FC = () => {
-    const navigate = useNavigate();
-    const [clients, setClients] = useState<VracClient[]>([]);
-    const [users, setUsers] = useState<VracUserWithClient[]>([]);
-    const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+    const [clients, setClients] = useState<VracClient[]>([]);
+    const [demandes, setDemandes] = useState<DemandeWithClient[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('dashboard');
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            // Load clients
-            const { data: clientsData, error: clientsError } = await supabase
-                .from('vrac_clients')
-                .select('*')
-                .order('nom_affichage');
+            const [clientsRes, demandesRes] = await Promise.all([
+                supabase.from('vrac_clients').select('*').order('nom_affichage'),
+                supabase
+                    .from('vrac_demandes_chargement')
+                    .select('*, vrac_clients(*)')
+                    .order('created_at', { ascending: false }),
+            ]);
 
-            if (clientsError) throw clientsError;
-            setClients(clientsData || []);
+            if (clientsRes.error) throw clientsRes.error;
+            if (demandesRes.error) throw demandesRes.error;
 
-            // Load users with their clients
-            const { data: usersData, error: usersError } = await supabase
-                .from('vrac_users')
-                .select(`
-          *,
-          vrac_clients (*)
-        `)
-                .order('created_at', { ascending: false });
-
-            if (usersError) throw usersError;
-            setUsers((usersData || []) as VracUserWithClient[]);
-        } catch (error) {
-            console.error('Error loading data:', error);
+            setClients(clientsRes.data || []);
+            setDemandes((demandesRes.data || []) as DemandeWithClient[]);
+        } catch (error: any) {
             toast({
                 title: 'Erreur',
                 description: 'Impossible de charger les données',
@@ -80,276 +42,113 @@ const VracAdminPanel: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
 
-    const handleDeleteUser = async (userId: string) => {
-        try {
-            const { error } = await supabase
-                .from('vrac_users')
-                .delete()
-                .eq('id', userId);
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
-            if (error) throw error;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const demandesToday = demandes.filter(d => d.date_chargement === today);
 
-            toast({
-                title: 'Utilisateur supprimé',
-                description: 'L\'accès a été révoqué',
-            });
+    const handleValidate = async (demandeId: string, tonnage: number, notes?: string): Promise<boolean> => {
+        const { error } = await supabase
+            .from('vrac_demandes_chargement')
+            .update({
+                statut: 'charge',
+                tonnage_charge: tonnage,
+                validated_at: new Date().toISOString(),
+                notes: notes || null,
+            })
+            .eq('id', demandeId);
 
-            await loadData();
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            toast({
-                title: 'Erreur',
-                description: 'Impossible de supprimer l\'utilisateur',
-                variant: 'destructive',
-            });
+        if (error) {
+            toast({ title: 'Erreur', description: 'Impossible de valider', variant: 'destructive' });
+            return false;
         }
+
+        toast({ title: 'Chargement validé', description: `Tonnage: ${Math.round(tonnage * 1000)} kg` });
+        await loadData();
+        return true;
     };
 
-    const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
-        try {
-            const { error } = await supabase
-                .from('vrac_users')
-                .update({ actif: !currentStatus })
-                .eq('id', userId);
+    const handleRefuse = async (demandeId: string, motif: string): Promise<boolean> => {
+        const { error } = await supabase
+            .from('vrac_demandes_chargement')
+            .update({
+                statut: 'refusee',
+                motif_refus: motif,
+                refused_at: new Date().toISOString(),
+            })
+            .eq('id', demandeId);
 
-            if (error) throw error;
-
-            toast({
-                title: currentStatus ? 'Accès désactivé' : 'Accès réactivé',
-                description: currentStatus
-                    ? 'L\'utilisateur ne peut plus se connecter'
-                    : 'L\'utilisateur peut à nouveau se connecter',
-            });
-
-            await loadData();
-        } catch (error) {
-            console.error('Error toggling user status:', error);
-            toast({
-                title: 'Erreur',
-                description: 'Impossible de modifier le statut',
-                variant: 'destructive',
-            });
+        if (error) {
+            toast({ title: 'Erreur', description: 'Impossible de refuser', variant: 'destructive' });
+            return false;
         }
+
+        toast({ title: 'Demande refusée', description: 'Le motif a été enregistré' });
+        await loadData();
+        return true;
     };
 
-    // Group users by client
-    const usersByClient = clients.map(client => ({
-        client,
-        users: users.filter(u => u.client_id === client.id),
-    }));
-
-    const handleInitClients = async () => {
-        setLoading(true);
-        try {
-            const defaultClients = [
-                { nom: 'SIMAM', nom_affichage: 'SIMAM CI', champ_sortie_vrac: 'simam', actif: true },
-                { nom: 'VIVO', nom_affichage: 'VIVO ENERGY', champ_sortie_vrac: 'vivo', actif: true },
-                { nom: 'TOTAL', nom_affichage: 'TOTAL ENERGIES', champ_sortie_vrac: 'total', actif: true },
-                { nom: 'PETRO IVOIRE', nom_affichage: 'PETRO IVOIRE', champ_sortie_vrac: 'petro_ivoire', actif: true },
-            ];
-
-            const { error } = await supabase
-                .from('vrac_clients')
-                .insert(defaultClients);
-
-            if (error) throw error;
-
-            toast({
-                title: 'Clients initialisés',
-                description: 'Les clients par défaut ont été créés avec succès',
-            });
-
-            await loadData();
-        } catch (error) {
-            console.error('Error initializing clients:', error);
-            toast({
-                title: 'Erreur',
-                description: "Impossible d'initialiser les clients",
-                variant: 'destructive',
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+    if (loading && demandes.length === 0) {
+        return (
+            <div className="min-h-screen bg-background">
+                <VracAdminHeader />
+                <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate('/dashboard')}
-                            className="text-muted-foreground hover:text-foreground"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-purple-600" />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold text-foreground">Administration VRAC</h1>
-                            <p className="text-sm text-muted-foreground">Gestion des accès clients</p>
-                        </div>
-                    </div>
-                    <Button
-                        variant="outline"
-                        onClick={() => navigate('/vrac-chargements')}
-                    >
-                        Voir les chargements
-                    </Button>
-                </div>
-            </header>
+            <VracAdminHeader onRefresh={loadData} loading={loading} />
 
-            <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Password Generator */}
-                    <div className="lg:col-span-1">
-                        <VracPasswordGenerator />
-                    </div>
+            <main className="container mx-auto px-4 py-6 max-w-7xl">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-3 mb-6">
+                        <TabsTrigger value="dashboard" className="gap-2">
+                            <LayoutDashboard className="w-4 h-4" />
+                            <span className="hidden sm:inline">Tableau de bord</span>
+                            <span className="sm:hidden">Dashboard</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="chargements" className="gap-2">
+                            <Truck className="w-4 h-4" />
+                            Chargements
+                        </TabsTrigger>
+                        <TabsTrigger value="gestion" className="gap-2">
+                            <Settings className="w-4 h-4" />
+                            Gestion
+                        </TabsTrigger>
+                    </TabsList>
 
-                    {/* Users by Client */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {loading ? (
-                            <Card>
-                                <CardContent className="p-8 text-center text-muted-foreground">
-                                    Chargement...
-                                </CardContent>
-                            </Card>
-                        ) : usersByClient.length === 0 ? (
-                            <Card className="border-dashed">
-                                <CardContent className="p-8 text-center space-y-4">
-                                    <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                                        <Building2 className="w-6 h-6 text-amber-600" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h3 className="font-semibold text-lg">Aucun client configuré</h3>
-                                        <p className="text-muted-foreground max-w-sm mx-auto">
-                                            La base de données des clients VRAC semble vide. Initialisez les clients par défaut pour commencer.
-                                        </p>
-                                    </div>
-                                    <Button onClick={handleInitClients}>
-                                        Initialiser les clients par défaut
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            usersByClient.map(({ client, users: clientUsers }) => (
-                                <Card key={client.id}>
-                                    <CardHeader className="pb-3">
-                                        <CardTitle className="text-lg font-semibold flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <Building2 className="w-5 h-5 text-primary" />
-                                                {client.nom_affichage}
-                                            </div>
-                                            <Badge variant="secondary">
-                                                <Users className="w-3 h-3 mr-1" />
-                                                {clientUsers.length} utilisateur{clientUsers.length > 1 ? 's' : ''}
-                                            </Badge>
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        {clientUsers.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground text-center py-4">
-                                                Aucun utilisateur pour ce client
-                                            </p>
-                                        ) : (
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Nom</TableHead>
-                                                        <TableHead>Créé le</TableHead>
-                                                        <TableHead>Dernière connexion</TableHead>
-                                                        <TableHead>Statut</TableHead>
-                                                        <TableHead className="text-right">Actions</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {clientUsers.map(user => (
-                                                        <TableRow key={user.id}>
-                                                            <TableCell>
-                                                                {user.nom || <span className="text-muted-foreground italic">Non défini</span>}
-                                                            </TableCell>
-                                                            <TableCell className="text-muted-foreground">
-                                                                {format(parseISO(user.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
-                                                            </TableCell>
-                                                            <TableCell className="text-muted-foreground">
-                                                                {user.last_login
-                                                                    ? format(parseISO(user.last_login), 'dd/MM/yyyy HH:mm', { locale: fr })
-                                                                    : <span className="text-muted-foreground">Jamais</span>
-                                                                }
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {user.actif ? (
-                                                                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200">
-                                                                        Actif
-                                                                    </Badge>
-                                                                ) : (
-                                                                    <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 hover:bg-red-200">
-                                                                        Inactif
-                                                                    </Badge>
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <div className="flex justify-end gap-2">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleToggleUserStatus(user.id, user.actif)}
-                                                                        className="h-8 w-8 text-muted-foreground hover:text-amber-600 hover:bg-amber-100"
-                                                                        title={user.actif ? 'Désactiver' : 'Réactiver'}
-                                                                    >
-                                                                        <UserX className="w-4 h-4" />
-                                                                    </Button>
-                                                                    <AlertDialog>
-                                                                        <AlertDialogTrigger asChild>
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                                                            >
-                                                                                <Trash2 className="w-4 h-4" />
-                                                                            </Button>
-                                                                        </AlertDialogTrigger>
-                                                                        <AlertDialogContent>
-                                                                            <AlertDialogHeader>
-                                                                                <AlertDialogTitle>
-                                                                                    Supprimer cet accès ?
-                                                                                </AlertDialogTitle>
-                                                                                <AlertDialogDescription>
-                                                                                    Cette action est irréversible. L'utilisateur ne pourra plus se connecter.
-                                                                                </AlertDialogDescription>
-                                                                            </AlertDialogHeader>
-                                                                            <AlertDialogFooter>
-                                                                                <AlertDialogCancel>
-                                                                                    Annuler
-                                                                                </AlertDialogCancel>
-                                                                                <AlertDialogAction
-                                                                                    onClick={() => handleDeleteUser(user.id)}
-                                                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                                                                >
-                                                                                    Supprimer
-                                                                                </AlertDialogAction>
-                                                                            </AlertDialogFooter>
-                                                                        </AlertDialogContent>
-                                                                    </AlertDialog>
-                                                                </div>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            ))
-                        )}
-                    </div>
-                </div>
+                    <TabsContent value="dashboard">
+                        <VracAdminDashboardTab
+                            demandesToday={demandesToday}
+                            demandesAll={demandes}
+                            onSwitchToChargements={() => setActiveTab('chargements')}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="chargements">
+                        <VracAdminChargementsTab
+                            demandes={demandes}
+                            clients={clients}
+                            onValidate={handleValidate}
+                            onRefuse={handleRefuse}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="gestion">
+                        <VracAdminGestionTab
+                            clients={clients}
+                            onDataChange={loadData}
+                        />
+                    </TabsContent>
+                </Tabs>
             </main>
         </div>
     );
