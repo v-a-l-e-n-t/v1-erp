@@ -23,12 +23,7 @@ import FormChariot from "./pages/FormChariot";
 import Stock from "./pages/Stock";
 import BilanBke from "./pages/BilanBke";
 import DashboardBke from "./pages/DashboardBke";
-import InspectionLayout from "./components/inspection/InspectionLayout";
-import InspectionDashboard from "./pages/InspectionDashboard";
-import InspectionRonde from "./pages/InspectionRonde";
-import InspectionValidation from "./pages/InspectionValidation";
-import InspectionHistorique from "./pages/InspectionHistorique";
-import InspectionConfiguration from "./pages/InspectionConfiguration";
+import FormMaintenance from "./pages/FormMaintenance";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,14 +64,7 @@ const App = () => (
             <Route path="/vrac-chargements" element={<VracChargementDashboard />} />
           </Route>
 
-          {/* Maintenance Module Routes */}
-          <Route path="/form-maintenance" element={<InspectionLayout />}>
-            <Route index element={<InspectionDashboard />} />
-            <Route path="ronde/:id" element={<InspectionRonde />} />
-            <Route path="ronde/:id/validation" element={<InspectionValidation />} />
-            <Route path="historique" element={<InspectionHistorique />} />
-            <Route path="configuration" element={<InspectionConfiguration />} />
-          </Route>
+          <Route path="/form-maintenance" element={<FormMaintenance />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

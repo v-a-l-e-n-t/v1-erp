@@ -110,29 +110,15 @@ export default function Home() {
       ]
     },
     {
-      title: "Inspection",
-      description: "Ronde hebdomadaire d'état des installations",
+      title: "Maintenance",
+      description: "Check des installations — Service Mouvement",
       items: [
         {
-          title: 'Tableau de Bord',
-          description: 'État de la ronde en cours et KPIs',
+          title: 'Fiche de Check',
+          description: 'Saisie et suivi des installations',
           icon: ClipboardCheck,
           path: '/form-maintenance',
           color: 'text-teal-500',
-        },
-        {
-          title: 'Historique',
-          description: 'Historique et tendances des inspections',
-          icon: TrendingUp,
-          path: '/form-maintenance/historique',
-          color: 'text-teal-400',
-        },
-        {
-          title: 'Configuration',
-          description: 'Gérer les zones, équipements et destinataires',
-          icon: Settings,
-          path: '/form-maintenance/configuration',
-          color: 'text-slate-500',
         },
       ]
     }
