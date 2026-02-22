@@ -29,8 +29,8 @@ const VracAdminKpiCards: React.FC<VracAdminKpiCardsProps> = ({ demandesToday, de
 
     const globalCards = [
         { label: 'Total général', value: demandesAll.length, icon: TrendingUp, color: 'text-violet-600', bg: 'bg-violet-50' },
-        { label: 'Tonnage cumulé (T)', value: globalTonnage.toLocaleString('fr-FR', { maximumFractionDigits: 3 }), icon: Weight, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-        { label: 'Moy. / camion (T)', value: avgTonnage.toLocaleString('fr-FR', { maximumFractionDigits: 3 }), icon: Weight, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+        { label: 'Tonnage cumulé (kg)', value: Math.round(globalTonnage * 1000).toLocaleString('fr-FR'), icon: Weight, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+        { label: 'Moy. / camion (kg)', value: Math.round(avgTonnage * 1000).toLocaleString('fr-FR'), icon: Weight, color: 'text-cyan-600', bg: 'bg-cyan-50' },
     ];
 
     return (

@@ -69,7 +69,7 @@ const VracClientDistributionChart: React.FC<VracClientDistributionChartProps> = 
                             ))}
                         </Pie>
                         <Tooltip
-                            formatter={(value: number) => [`${value.toLocaleString()} kg`, 'Tonnage']}
+                            formatter={(value: number) => [`${Math.round(value * 1000).toLocaleString('fr-FR')} kg`, 'Tonnage']}
                             contentStyle={{ borderRadius: 8, fontSize: 12 }}
                         />
                         <Legend

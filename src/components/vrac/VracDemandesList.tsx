@@ -193,7 +193,7 @@ const VracDemandesList: React.FC<VracDemandesListProps> = ({
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
                                             {demande.tonnage_charge
-                                                ? `${(demande.tonnage_charge * 1000).toLocaleString('fr-FR')} kg`
+                                                ? `${Math.round(demande.tonnage_charge * 1000).toLocaleString('fr-FR')} kg`
                                                 : '-'
                                             }
                                         </TableCell>

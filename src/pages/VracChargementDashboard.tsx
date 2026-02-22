@@ -376,7 +376,7 @@ const VracChargementDashboard: React.FC = () => {
                                             <Weight className="w-5 h-5 text-purple-600" />
                                         </div>
                                         <div>
-                                            <p className="text-2xl font-bold text-foreground">{(stats.tonnageTotal * 1000).toLocaleString('fr-FR')} kg</p>
+                                            <p className="text-2xl font-bold text-foreground">{Math.round(stats.tonnageTotal * 1000).toLocaleString('fr-FR')} kg</p>
                                             <p className="text-xs text-muted-foreground">Quantité chargée</p>
                                         </div>
                                     </div>
@@ -430,7 +430,7 @@ const VracChargementDashboard: React.FC = () => {
                                                             {clientDemandes.length} camion{clientDemandes.length > 1 ? 's' : ''} ce jour
                                                         </p>
                                                         <p className="text-xs font-bold text-emerald-600 mt-1">
-                                                            Quantité chargée : {(clientTonnage * 1000).toLocaleString('fr-FR')} kg
+                                                            Quantité chargée : {Math.round(clientTonnage * 1000).toLocaleString('fr-FR')} kg
                                                         </p>
                                                     </div>
                                                 </div>
@@ -494,7 +494,7 @@ const VracChargementDashboard: React.FC = () => {
                                                                     <div className="flex items-center">
                                                                         {/* CHANGED: Display Kg */}
                                                                         <span className="font-bold text-emerald-600 mr-2">
-                                                                            {d.tonnage_charge ? (d.tonnage_charge * 1000).toLocaleString('fr-FR') : '-'} kg
+                                                                            {d.tonnage_charge ? Math.round(d.tonnage_charge * 1000).toLocaleString('fr-FR') : '-'} kg
                                                                         </span>
                                                                         <Badge variant="outline" className="text-[10px] h-5 px-1 bg-emerald-50 text-emerald-700 border-emerald-200">OK</Badge>
                                                                     </div>

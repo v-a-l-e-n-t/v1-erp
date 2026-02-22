@@ -59,7 +59,8 @@ const VracTonnageChart: React.FC<VracTonnageChartProps> = ({ demandes }) => {
                         <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip
-                            formatter={(value: number) => [`${value.toLocaleString()} kg`, 'Tonnage']}
+                            labelFormatter={(label) => `Le ${label}`}
+                            formatter={(value: number) => [`${Math.round(value).toLocaleString('fr-FR')} kg`, 'Tonnage']}
                             labelStyle={{ fontWeight: 600 }}
                             contentStyle={{ borderRadius: 8, fontSize: 12 }}
                         />

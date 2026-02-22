@@ -197,7 +197,7 @@ const VracClientHistory: React.FC<VracClientHistoryProps> = ({ demandes }) => {
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
                                             {d.tonnage_charge
-                                                ? `${Math.round(d.tonnage_charge).toLocaleString('fr-FR')} T`
+                                                ? `${Math.round(d.tonnage_charge * 1000).toLocaleString('fr-FR')} kg`
                                                 : '-'}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">

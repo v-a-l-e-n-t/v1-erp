@@ -13,15 +13,15 @@ interface VracClientStatsCardsProps {
 const VracClientStatsCards: React.FC<VracClientStatsCardsProps> = ({
     total, enAttente, charges, refuses, tonnage,
 }) => {
-    // Afficher 3 décimales maximum pour garder la précision du tonnage (ex: 29.865)
-    const formattedTonnage = tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 3 });
+    // Convertir de Tonnes vers Kg et formater avec des espaces pour les milliers (ex: 29 865)
+    const formattedTonnage = Math.round(tonnage * 1000).toLocaleString('fr-FR');
 
     const cards = [
         { label: 'Nb Camions', value: total, icon: Truck, color: 'text-blue-600', bg: 'bg-blue-50' },
         { label: 'En attente', value: enAttente, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
         { label: 'Chargés', value: charges, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         { label: 'Refusés', value: refuses, icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
-        { label: 'Tonnage (T)', value: formattedTonnage, icon: Weight, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+        { label: 'Tonnage (kg)', value: formattedTonnage, icon: Weight, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     ];
 
     return (

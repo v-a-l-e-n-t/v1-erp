@@ -277,7 +277,7 @@ const VracAdminChargementsTab: React.FC<VracAdminChargementsTabProps> = ({
                                             </TableCell>
                                             <TableCell className="text-right font-medium">
                                                 {d.tonnage_charge
-                                                    ? `${Math.round(d.tonnage_charge * 1000).toLocaleString()} kg`
+                                                    ? `${Math.round(d.tonnage_charge * 1000).toLocaleString('fr-FR')} kg`
                                                     : '-'}
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
