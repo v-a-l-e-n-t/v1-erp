@@ -20,7 +20,7 @@ const VracAdminHeader: React.FC<VracAdminHeaderProps> = ({ onRefresh, loading })
                     </Button>
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
                         <Fuel className="w-5 h-5 text-primary" />
-                        <span className="font-bold text-primary text-sm">GPL VRAC</span>
+                        <span className="font-bold text-primary text-sm">CHARGEMENT VRAC</span>
                     </div>
                     <div>
                         <h1 className="text-lg font-semibold">Administration VRAC</h1>

@@ -6,8 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { History, Search, CalendarIcon, Filter } from 'lucide-react';
-import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { History, Search, CalendarIcon, Filter, X } from 'lucide-react';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import VracStatusBadge from './VracStatusBadge';
 import type { VracDemandeChargement, DemandeStatut } from '@/types/vrac';
@@ -21,11 +21,13 @@ const VracClientHistory: React.FC<VracClientHistoryProps> = ({ demandes }) => {
     const [statusFilter, setStatusFilter] = useState<'all' | DemandeStatut>('all');
     const [dateFrom, setDateFrom] = useState<Date | undefined>();
     const [dateTo, setDateTo] = useState<Date | undefined>();
+    const [tonnageOp, setTonnageOp] = useState<'none' | 'lt' | 'gt' | 'eq'>('none');
+    const [tonnageValue, setTonnageValue] = useState('');
 
     const filtered = useMemo(() => {
         return demandes
             .filter(d => {
-                // Search
+                // Recherche immatriculation / chauffeur / bon
                 if (search) {
                     const q = search.toLowerCase();
                     if (
@@ -35,25 +37,37 @@ const VracClientHistory: React.FC<VracClientHistoryProps> = ({ demandes }) => {
                         !(d.numero_bon || '').toLowerCase().includes(q)
                     ) return false;
                 }
-                // Status
+                // Statut
                 if (statusFilter !== 'all' && d.statut !== statusFilter) return false;
-                // Date range
+                // Plage de dates
                 const date = parseISO(d.date_chargement);
                 if (dateFrom && date < startOfDay(dateFrom)) return false;
                 if (dateTo && date > endOfDay(dateTo)) return false;
+                // Tonnage
+                if (tonnageOp !== 'none' && tonnageValue) {
+                    const target = parseFloat(tonnageValue);
+                    if (!isNaN(target)) {
+                        const t = d.tonnage_charge || 0;
+                        if (tonnageOp === 'lt' && t >= target) return false;
+                        if (tonnageOp === 'gt' && t <= target) return false;
+                        if (tonnageOp === 'eq' && Math.round(t) !== Math.round(target)) return false;
+                    }
+                }
                 return true;
             })
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [demandes, search, statusFilter, dateFrom, dateTo]);
+    }, [demandes, search, statusFilter, dateFrom, dateTo, tonnageOp, tonnageValue]);
 
     const clearFilters = () => {
         setSearch('');
         setStatusFilter('all');
         setDateFrom(undefined);
         setDateTo(undefined);
+        setTonnageOp('none');
+        setTonnageValue('');
     };
 
-    const hasFilters = search || statusFilter !== 'all' || dateFrom || dateTo;
+    const hasFilters = search || statusFilter !== 'all' || dateFrom || dateTo || (tonnageOp !== 'none' && tonnageValue);
 
     return (
         <Card>
@@ -64,41 +78,30 @@ const VracClientHistory: React.FC<VracClientHistoryProps> = ({ demandes }) => {
                         Historique
                     </CardTitle>
                     {hasFilters && (
-                        <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs">
+                        <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs gap-1">
+                            <X className="w-3 h-3" />
                             Effacer les filtres
                         </Button>
                     )}
                 </div>
             </CardHeader>
             <CardContent className="space-y-3">
-                {/* Filters */}
-                <div className="flex flex-wrap gap-2">
-                    <div className="relative flex-1 min-w-[180px]">
+                {/* Filtres — une seule ligne */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[160px]">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Rechercher immatriculation..."
+                            placeholder="Immatriculation, chauffeur..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="pl-9 h-9"
                         />
                     </div>
-                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                        <SelectTrigger className="w-[140px] h-9">
-                            <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tous</SelectItem>
-                            <SelectItem value="en_attente">En attente</SelectItem>
-                            <SelectItem value="charge">Chargé</SelectItem>
-                            <SelectItem value="refusee">Refusée</SelectItem>
-                        </SelectContent>
-                    </Select>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="h-9 gap-1.5">
                                 <CalendarIcon className="w-3.5 h-3.5" />
-                                {dateFrom ? format(dateFrom, 'dd/MM', { locale: fr }) : 'Du'}
+                                {dateFrom ? format(dateFrom, 'dd/MM/yy', { locale: fr }) : 'Du'}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -109,13 +112,48 @@ const VracClientHistory: React.FC<VracClientHistoryProps> = ({ demandes }) => {
                         <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="h-9 gap-1.5">
                                 <CalendarIcon className="w-3.5 h-3.5" />
-                                {dateTo ? format(dateTo, 'dd/MM', { locale: fr }) : 'Au'}
+                                {dateTo ? format(dateTo, 'dd/MM/yy', { locale: fr }) : 'Au'}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                             <Calendar mode="single" selected={dateTo} onSelect={setDateTo} locale={fr} />
                         </PopoverContent>
                     </Popover>
+                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                        <SelectTrigger className="w-[130px] h-9">
+                            <Filter className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tous</SelectItem>
+                            <SelectItem value="en_attente">En attente</SelectItem>
+                            <SelectItem value="charge">Chargé</SelectItem>
+                            <SelectItem value="refusee">Refusée</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">Tonnage</span>
+                        <Select value={tonnageOp} onValueChange={(v) => setTonnageOp(v as any)}>
+                            <SelectTrigger className="w-[60px] h-9">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">--</SelectItem>
+                                <SelectItem value="lt">&lt;</SelectItem>
+                                <SelectItem value="gt">&gt;</SelectItem>
+                                <SelectItem value="eq">=</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {tonnageOp !== 'none' && (
+                            <Input
+                                type="number"
+                                placeholder="T"
+                                value={tonnageValue}
+                                onChange={(e) => setTonnageValue(e.target.value)}
+                                className="w-[70px] h-9"
+                            />
+                        )}
+                    </div>
                 </div>
 
                 {/* Table */}
@@ -159,7 +197,7 @@ const VracClientHistory: React.FC<VracClientHistoryProps> = ({ demandes }) => {
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
                                             {d.tonnage_charge
-                                                ? `${Math.round(d.tonnage_charge * 1000).toLocaleString()} kg`
+                                                ? `${Math.round(d.tonnage_charge).toLocaleString('fr-FR')} T`
                                                 : '-'}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">

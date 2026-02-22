@@ -14,7 +14,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Send, Loader2, Truck, Minus, User, ChevronsUpDown } from 'lucide-react';
-import { getClientFleet, normalizeImmat, type ClientFleet } from '@/data/fleetData';
+import { getClientFleet, mergeFleetWithHistory, normalizeImmat, type ClientFleet } from '@/data/fleetData';
+import { supabase } from '@/integrations/supabase/client';
 
 // --- Autocomplete inline ---
 interface FleetAutocompleteProps {
@@ -172,10 +173,32 @@ interface VracBatchSubmitFormProps {
     onSubmit: (trucks: Array<{ tracteur: string; citerne: string; chauffeur: string }>) => Promise<boolean>;
     loading?: boolean;
     clientNom: string;
+    clientId: string;
 }
 
-const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loading, clientNom }) => {
-    const fleet = useMemo(() => getClientFleet(clientNom), [clientNom]);
+const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loading, clientNom, clientId }) => {
+    const baseFleet = useMemo(() => getClientFleet(clientNom), [clientNom]);
+    const [history, setHistory] = useState<Array<{ citerne: string; tracteur: string; chauffeur: string }>>([]);
+
+    useEffect(() => {
+        if (!clientId) return;
+        supabase
+            .from('vrac_demandes_chargement')
+            .select('immatriculation_citerne, immatriculation_tracteur, nom_chauffeur')
+            .eq('client_id', clientId)
+            .not('immatriculation_citerne', 'is', null)
+            .then(({ data }) => {
+                if (data) {
+                    setHistory(data.map(d => ({
+                        citerne: d.immatriculation_citerne || '',
+                        tracteur: d.immatriculation_tracteur || '',
+                        chauffeur: d.nom_chauffeur || '',
+                    })));
+                }
+            });
+    }, [clientId]);
+
+    const fleet = useMemo(() => mergeFleetWithHistory(baseFleet, history), [baseFleet, history]);
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState<'count' | 'fill'>('count');
     const [count, setCount] = useState(1);
