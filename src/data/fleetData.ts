@@ -198,9 +198,20 @@ const FLEET_REGISTRY: Record<string, ClientFleet> = {
   'PETRO IVOIRE': buildClientFleet(PETRO_IVOIRE_RECORDS),
 };
 
-/** Récupère la flotte d'un client par son nom. Retourne une flotte vide si inconnu. */
+// Aliases pour gérer les anciens noms en base (migration initiale)
+const CLIENT_ALIASES: Record<string, string> = {
+  'VIVO_ENERGIES': 'VIVO',
+  'VIVO ENERGIES': 'VIVO',
+  'TOTAL_ENERGIES': 'TOTAL',
+  'TOTAL ENERGIES': 'TOTAL',
+  'PETRO_IVOIRE': 'PETRO IVOIRE',
+  'PETROIVOIRE': 'PETRO IVOIRE',
+};
+
+/** Récupère la flotte d'un client par son nom. Gère les alias et normalisation. */
 export function getClientFleet(clientNom: string): ClientFleet {
-  return FLEET_REGISTRY[clientNom] || EMPTY_FLEET;
+  const normalized = clientNom.trim().toUpperCase();
+  return FLEET_REGISTRY[normalized] || FLEET_REGISTRY[CLIENT_ALIASES[normalized] || ''] || EMPTY_FLEET;
 }
 
 /** Fusionne la flotte hardcodée avec l'historique des soumissions passées.

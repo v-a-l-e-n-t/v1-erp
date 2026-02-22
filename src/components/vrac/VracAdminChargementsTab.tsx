@@ -264,7 +264,7 @@ const VracAdminChargementsTab: React.FC<VracAdminChargementsTabProps> = ({
                                     filteredHistory.map((d) => (
                                         <TableRow key={d.id}>
                                             <TableCell className="text-sm">
-                                                {format(new Date(d.date_chargement), 'dd/MM/yy')}
+                                                {format(parseISO(d.date_chargement), 'dd/MM/yy')}
                                             </TableCell>
                                             <TableCell className="text-sm font-medium">
                                                 {d.vrac_clients?.nom_affichage || '-'}

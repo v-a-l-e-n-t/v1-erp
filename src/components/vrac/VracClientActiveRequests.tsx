@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { fr } from 'date-fns/locale';
 import VracStatusBadge from './VracStatusBadge';
 import type { VracDemandeChargement } from '@/types/vrac';
@@ -51,7 +51,7 @@ const VracClientActiveRequests: React.FC<VracClientActiveRequestsProps> = ({ dem
                                 <TableCell className="font-mono">{d.immatriculation_citerne}</TableCell>
                                 <TableCell className="text-sm text-muted-foreground truncate max-w-[120px]">{d.nom_chauffeur || '-'}</TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
-                                    {format(new Date(d.created_at), 'dd/MM HH:mm', { locale: fr })}
+                                    {formatInTimeZone(new Date(d.created_at), 'Africa/Abidjan', 'dd/MM HH:mm', { locale: fr })}
                                 </TableCell>
                                 <TableCell>
                                     <VracStatusBadge status={d.statut} />

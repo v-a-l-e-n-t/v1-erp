@@ -8,6 +8,7 @@ import {
     format, parseISO, startOfMonth, endOfMonth, startOfYear, endOfYear,
     startOfDay, endOfDay, isSameDay, isWithinInterval,
 } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { fr } from 'date-fns/locale';
 import { useVracAuth } from '@/hooks/useVracAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -48,7 +49,7 @@ const VracClientPortal: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     // Filtre période Accueil
-    const [periodType, setPeriodType] = useState<PeriodType>('month');
+    const [periodType, setPeriodType] = useState<PeriodType>('day');
     const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
     const [monthYear, setMonthYear] = useState(() => String(new Date().getFullYear()));
     const [monthNum, setMonthNum] = useState(() => String(new Date().getMonth() + 1));
@@ -91,22 +92,38 @@ const VracClientPortal: React.FC = () => {
         if (!session) return false;
 
         try {
-            const today = format(new Date(), 'yyyy-MM-dd');
+            // Utiliser l'heure locale comme date temporaire (pour forcer l'insertion Not Null)
+            const fallbackToday = formatInTimeZone(new Date(), 'Africa/Abidjan', 'yyyy-MM-dd');
+
             const payload = trucks.map(truck => ({
                 user_id: session.user_id,
                 client_id: session.client_id,
                 immatriculation_tracteur: truck.tracteur,
                 immatriculation_citerne: truck.citerne,
                 nom_chauffeur: truck.chauffeur,
-                date_chargement: today,
+                date_chargement: fallbackToday,
                 statut: 'en_attente',
             }));
 
-            const { error } = await supabase
+            // 1. On insère avec notre date temporaire et on récupère les vraies données du serveur (created_at infaillible)
+            const { error: insertError, data: insertedData } = await supabase
                 .from('vrac_demandes_chargement')
-                .insert(payload);
+                .insert(payload)
+                .select();
 
-            if (error) throw error;
+            if (insertError) throw insertError;
+
+            // 2. Auto-correction immédiate de "date_chargement" basée sur le vrai "created_at" côté serveur
+            if (insertedData) {
+                for (const row of insertedData) {
+                    const realDate = formatInTimeZone(new Date(row.created_at), 'Africa/Abidjan', 'yyyy-MM-dd');
+                    if (row.date_chargement !== realDate) {
+                        await supabase.from('vrac_demandes_chargement')
+                            .update({ date_chargement: realDate })
+                            .eq('id', row.id);
+                    }
+                }
+            }
 
             toast({
                 title: 'Demande envoyée',
@@ -163,11 +180,7 @@ const VracClientPortal: React.FC = () => {
         });
     }, [demandes, periodType, selectedYear, monthYear, monthNum, rangeFrom, rangeTo, selectedDay]);
 
-    // Demandes du jour (pour l'onglet Accueil)
-    const todayDemandes = useMemo(() => {
-        const today = new Date();
-        return demandes.filter(d => isSameDay(parseISO(d.date_chargement), today));
-    }, [demandes]);
+
 
     // Stats calculées sur la période sélectionnée
     const stats = useMemo(() => ({
@@ -332,7 +345,7 @@ const VracClientPortal: React.FC = () => {
                                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                             </div>
                         ) : (
-                            <VracClientActiveRequests demandes={todayDemandes} />
+                            <VracClientActiveRequests demandes={demandes} />
                         )}
                     </TabsContent>
 

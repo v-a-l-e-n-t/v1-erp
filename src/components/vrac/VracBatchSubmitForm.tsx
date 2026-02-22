@@ -17,6 +17,8 @@ import { Plus, Send, Loader2, Truck, Minus, User, ChevronsUpDown } from 'lucide-
 import { getClientFleet, mergeFleetWithHistory, normalizeImmat, type ClientFleet } from '@/data/fleetData';
 import { supabase } from '@/integrations/supabase/client';
 
+import ReactDOM from 'react-dom';
+
 // --- Autocomplete inline ---
 interface FleetAutocompleteProps {
     value: string;
@@ -34,8 +36,10 @@ const FleetAutocomplete: React.FC<FleetAutocompleteProps> = ({
     const [open, setOpen] = useState(false);
     const [inputValue, setInputValue] = useState(value);
     const listRef = useRef<HTMLDivElement>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
     const [highlightIndex, setHighlightIndex] = useState(-1);
     const interacted = useRef(false);
+    const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
     useEffect(() => {
         setInputValue(value);
@@ -47,6 +51,24 @@ const FleetAutocomplete: React.FC<FleetAutocompleteProps> = ({
         const q = inputValue.toUpperCase();
         return options.filter(o => o.toUpperCase().includes(q)).slice(0, 15);
     }, [inputValue, options]);
+
+    // Recalculer la position du dropdown
+    const updateDropdownPosition = useCallback(() => {
+        if (wrapperRef.current) {
+            const rect = wrapperRef.current.getBoundingClientRect();
+            setDropdownStyle({
+                position: 'fixed',
+                top: rect.bottom + 4,
+                left: rect.left,
+                width: rect.width,
+                zIndex: 9999,
+            });
+        }
+    }, []);
+
+    useEffect(() => {
+        if (open) updateDropdownPosition();
+    }, [open, filtered, updateDropdownPosition]);
 
     const handleSelect = useCallback((val: string) => {
         onChange(val);
@@ -66,7 +88,6 @@ const FleetAutocomplete: React.FC<FleetAutocompleteProps> = ({
     };
 
     const handleFocus = () => {
-        // N'ouvrir que si l'utilisateur a déjà interagi (pas au focus automatique du Dialog)
         if (interacted.current) {
             setOpen(true);
         }
@@ -112,8 +133,34 @@ const FleetAutocomplete: React.FC<FleetAutocompleteProps> = ({
         }
     }, [highlightIndex]);
 
+    const dropdownElement = open && filtered.length > 0 ? (
+        <div
+            ref={listRef}
+            style={dropdownStyle}
+            className="max-h-[180px] overflow-y-auto rounded-md border bg-popover shadow-lg z-[99999] pointer-events-auto"
+        >
+            {filtered.map((option, i) => (
+                <div
+                    key={option}
+                    data-option
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSelect(option);
+                    }}
+                    className={`px-3 py-1.5 ${mono ? 'text-sm font-mono' : 'text-xs'} cursor-pointer transition-colors ${i === highlightIndex
+                        ? 'bg-accent text-accent-foreground'
+                        : 'hover:bg-muted'
+                        } ${option === value ? 'font-semibold' : ''}`}
+                >
+                    {option}
+                </div>
+            ))}
+        </div>
+    ) : null;
+
     return (
-        <div className="relative">
+        <div ref={wrapperRef} className="relative">
             <div className="relative">
                 {icon && (
                     <div className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -134,30 +181,7 @@ const FleetAutocomplete: React.FC<FleetAutocompleteProps> = ({
                 />
                 <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             </div>
-            {open && filtered.length > 0 && (
-                <div
-                    ref={listRef}
-                    className="absolute z-[100] mt-1 w-full max-h-[180px] overflow-y-auto rounded-md border bg-popover shadow-md"
-                >
-                    {filtered.map((option, i) => (
-                        <div
-                            key={option}
-                            data-option
-                            onMouseDown={(e) => {
-                                e.preventDefault();
-                                handleSelect(option);
-                            }}
-                            className={`px-3 py-1.5 ${mono ? 'text-sm font-mono' : 'text-xs'} cursor-pointer transition-colors ${
-                                i === highlightIndex
-                                    ? 'bg-accent text-accent-foreground'
-                                    : 'hover:bg-muted'
-                            } ${option === value ? 'font-semibold' : ''}`}
-                        >
-                            {option}
-                        </div>
-                    ))}
-                </div>
-            )}
+            {ReactDOM.createPortal(dropdownElement, document.body)}
         </div>
     );
 };
@@ -294,7 +318,7 @@ const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loa
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
                 {step === 'count' ? (
                     <>
                         <DialogHeader>
@@ -307,7 +331,7 @@ const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loa
                             </DialogDescription>
                         </DialogHeader>
 
-                        <div className="flex items-center justify-center gap-4 py-6">
+                        <div className="flex items-center justify-center gap-4 py-6 flex-1">
                             <Button
                                 variant="outline"
                                 size="icon"
@@ -352,7 +376,7 @@ const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loa
                         </DialogFooter>
                     </>
                 ) : (
-                    <>
+                    <div className="flex flex-col flex-1 min-h-0">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                                 <Truck className="w-5 h-5 text-primary" />
@@ -363,7 +387,7 @@ const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loa
                             </DialogDescription>
                         </DialogHeader>
 
-                        <ScrollArea className={rows.length > 3 ? 'h-[420px] pr-3' : ''}>
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 -mt-4 mb-4">
                             <div className="space-y-4 py-1">
                                 {rows.map((row, index) => (
                                     <div key={index}>
@@ -375,7 +399,7 @@ const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loa
                                                 Camion N°{index + 1}
                                             </span>
                                         </div>
-                                        <div className="space-y-2 pl-9">
+                                        <div className="space-y-2 pl-9 pr-2">
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1">
                                                     <Label className="text-xs text-muted-foreground">Citerne</Label>
@@ -415,9 +439,9 @@ const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loa
                                     </div>
                                 ))}
                             </div>
-                        </ScrollArea>
+                        </div>
 
-                        <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <DialogFooter className="mt-auto flex-col sm:flex-row gap-2 pt-4 border-t">
                             <Button
                                 variant="outline"
                                 onClick={() => setStep('count')}
@@ -439,7 +463,7 @@ const VracBatchSubmitForm: React.FC<VracBatchSubmitFormProps> = ({ onSubmit, loa
                                 Envoyer {rows.length} camion{rows.length > 1 ? 's' : ''}
                             </Button>
                         </DialogFooter>
-                    </>
+                    </div>
                 )}
             </DialogContent>
         </Dialog>

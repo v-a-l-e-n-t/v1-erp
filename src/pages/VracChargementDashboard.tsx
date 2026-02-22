@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { VracDemandeChargement, VracClient } from '@/types/vrac';
@@ -129,7 +130,7 @@ const VracChargementDashboard: React.FC = () => {
                     statut: 'charge',
                     tonnage_charge: tonnage,
                     notes: notes,
-                    validated_at: new Date().toISOString(),
+                    validated_at: formatInTimeZone(new Date(), 'Africa/Abidjan', "yyyy-MM-dd'T'HH:mm:ssXXX"),
                 })
                 .eq('id', demandeId);
 

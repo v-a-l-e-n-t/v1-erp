@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LayoutDashboard, Truck, Settings, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import VracAdminHeader from '@/components/vrac/VracAdminHeader';
 import VracAdminDashboardTab from '@/components/vrac/VracAdminDashboardTab';
 import VracAdminChargementsTab from '@/components/vrac/VracAdminChargementsTab';
@@ -48,7 +49,7 @@ const VracAdminPanel: React.FC = () => {
         loadData();
     }, [loadData]);
 
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = formatInTimeZone(new Date(), 'Africa/Abidjan', 'yyyy-MM-dd');
     const demandesToday = demandes.filter(d => d.date_chargement === today);
 
     const handleValidate = async (demandeId: string, tonnage: number, notes?: string): Promise<boolean> => {
@@ -57,7 +58,7 @@ const VracAdminPanel: React.FC = () => {
             .update({
                 statut: 'charge',
                 tonnage_charge: tonnage,
-                validated_at: new Date().toISOString(),
+                validated_at: formatInTimeZone(new Date(), 'Africa/Abidjan', "yyyy-MM-dd'T'HH:mm:ssXXX"),
                 notes: notes || null,
             })
             .eq('id', demandeId);
@@ -78,7 +79,7 @@ const VracAdminPanel: React.FC = () => {
             .update({
                 statut: 'refusee',
                 motif_refus: motif,
-                refused_at: new Date().toISOString(),
+                refused_at: formatInTimeZone(new Date(), 'Africa/Abidjan', "yyyy-MM-dd'T'HH:mm:ssXXX"),
             })
             .eq('id', demandeId);
 

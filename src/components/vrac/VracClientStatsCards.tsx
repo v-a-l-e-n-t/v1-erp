@@ -13,7 +13,8 @@ interface VracClientStatsCardsProps {
 const VracClientStatsCards: React.FC<VracClientStatsCardsProps> = ({
     total, enAttente, charges, refuses, tonnage,
 }) => {
-    const formattedTonnage = Math.round(tonnage).toLocaleString('fr-FR');
+    // Afficher 3 décimales maximum pour garder la précision du tonnage (ex: 29.865)
+    const formattedTonnage = tonnage.toLocaleString('fr-FR', { maximumFractionDigits: 3 });
 
     const cards = [
         { label: 'Nb Camions', value: total, icon: Truck, color: 'text-blue-600', bg: 'bg-blue-50' },
