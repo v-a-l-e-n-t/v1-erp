@@ -16,6 +16,8 @@ export interface AnomalieChariot {
   id?: string;
   description: string;
   numero_di: string;
+  date_debut_arret?: string | null; // Entered in daily rapport when anomaly is noted
+  date_fin_arret?: string | null;   // Set later via Suivi Anomalies when resolved
 }
 
 export interface RapportChariotLigne {

@@ -109,6 +109,29 @@ interface RapportHistorique extends RapportChariot {
   lignes: RapportHistoriqueLigne[];
 }
 
+interface SuiviAnomalie {
+  id: string;
+  description: string;
+  numero_di: string;
+  date_debut_arret: string;
+  date_fin_arret: string | null;
+  duree_heures: number | null;
+  chariot_nom: string;
+  date_rapport: string;
+}
+
+// ─── Helpers dates d'arrêt ───────────────────────────────────────────
+
+function buildDatetime(date: Date | null, time: string): string | null {
+  if (!date || !time) return null;
+  return `${format(date, 'yyyy-MM-dd')}T${time}:00`;
+}
+
+function durationHours(debut: string | null, fin: string | null): number {
+  if (!debut || !fin) return 0;
+  return Math.max(0, (new Date(fin).getTime() - new Date(debut).getTime()) / 3600000);
+}
+
 // ─── Component ──────────────────────────────────────────────────────
 
 const FormChariot = () => {
@@ -148,6 +171,27 @@ const FormChariot = () => {
     open: boolean;
     ligneIndex: number;
   }>({ open: false, ligneIndex: -1 });
+
+  // Suivi Anomalies state (from rapport_chariot_anomalies with date_debut_arret)
+  const [suiviAnomalies, setSuiviAnomalies] = useState<SuiviAnomalie[]>([]);
+  const [loadingArrets, setLoadingArrets] = useState(false);
+  const [suiviFilter, setSuiviFilter] = useState({
+    search: '',
+    chariotId: 'all',
+    statut: 'all' as 'all' | 'en_cours' | 'resolu',
+    periodeType: 'all' as 'all' | 'year' | 'month' | 'period' | 'day',
+    periodeYear: new Date().getFullYear(),
+    periodeMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+    periodeDay: '',
+    periodeRange: undefined as { from: Date | undefined; to?: Date | undefined } | undefined,
+  });
+  const [suiviCalendarOpen, setSuiviCalendarOpen] = useState(false);
+
+  const emptyResolveDialog = {
+    open: false, anomalieId: '',
+    date_fin: null as Date | null, time_fin: '',
+  };
+  const [resolveDialog, setResolveDialog] = useState<typeof emptyResolveDialog>(emptyResolveDialog);
 
   // Edit popup state
   const [editPopup, setEditPopup] = useState<{
@@ -267,9 +311,11 @@ const FormChariot = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const lignes: RapportHistoriqueLigne[] = rawLignes.map((l: any) => {
           const chariot = allChariots.find(c => c.id === l.chariot_id);
-          const anomalies = (anomaliesByLigne.get(l.id) || []).map((a: { description: string; numero_di?: string }) => ({
+          const anomalies = (anomaliesByLigne.get(l.id) || []).map((a: { description: string; numero_di?: string; date_debut_arret?: string | null; date_fin_arret?: string | null }) => ({
             description: a.description,
             numero_di: a.numero_di || '',
+            date_debut_arret: a.date_debut_arret ?? null,
+            date_fin_arret: a.date_fin_arret ?? null,
           }));
           return {
             id: l.id as string,
@@ -376,7 +422,7 @@ const FormChariot = () => {
         compteur_horaire: l.compteur_horaire,
         horaire_prochaine_vidange: l.horaire_prochaine_vidange,
         ecart: l.ecart,
-        anomalies: anomalies.map((a: { id: string; description: string; numero_di?: string }) => ({ id: a.id, description: a.description, numero_di: a.numero_di || '' })),
+        anomalies: anomalies.map((a: { id: string; description: string; numero_di?: string; date_debut_arret?: string | null; date_fin_arret?: string | null }) => ({ id: a.id, description: a.description, numero_di: a.numero_di || '', date_debut_arret: a.date_debut_arret ?? null, date_fin_arret: a.date_fin_arret ?? null })),
         numero_di: l.numero_di || '',
         gasoil: l.gasoil,
         temps_arret: l.temps_arret,
@@ -425,8 +471,19 @@ const FormChariot = () => {
     setEditPopup(prev => ({
       ...prev,
       lignes: prev.lignes.map((l, i) =>
-        i === ligneIndex ? { ...l, anomalies: [...l.anomalies, { description: '', numero_di: '' }] } : l
+        i === ligneIndex ? { ...l, anomalies: [...l.anomalies, { description: '', numero_di: '', date_debut_arret: null, date_fin_arret: null }] } : l
       ),
+    }));
+  };
+
+  const updatePopupAnomalieField = (ligneIndex: number, anomalieIndex: number, field: keyof AnomalieChariot, value: string | null) => {
+    setEditPopup(prev => ({
+      ...prev,
+      lignes: prev.lignes.map((l, i) => {
+        if (i !== ligneIndex) return l;
+        const newAnomalies = l.anomalies.map((a, j) => j === anomalieIndex ? { ...a, [field]: value } : a);
+        return { ...l, anomalies: newAnomalies };
+      }),
     }));
   };
 
@@ -444,9 +501,11 @@ const FormChariot = () => {
   const removePopupAnomalie = (ligneIndex: number, anomalieIndex: number) => {
     setEditPopup(prev => ({
       ...prev,
-      lignes: prev.lignes.map((l, i) =>
-        i === ligneIndex ? { ...l, anomalies: l.anomalies.filter((_, j) => j !== anomalieIndex) } : l
-      ),
+      lignes: prev.lignes.map((l, i) => {
+        if (i !== ligneIndex) return l;
+        const newAnomalies = l.anomalies.filter((_, j) => j !== anomalieIndex);
+        return { ...l, anomalies: newAnomalies };
+      }),
     }));
   };
 
@@ -516,6 +575,7 @@ const FormChariot = () => {
               ligne_id: ligneId,
               description: a.description.trim(),
               numero_di: a.numero_di?.trim() || '',
+              date_debut_arret: a.date_debut_arret ?? null,
               ordre: aIdx,
             });
           });
@@ -584,9 +644,19 @@ const FormChariot = () => {
     setLignes(prev =>
       prev.map((l, i) =>
         i === ligneIndex
-          ? { ...l, anomalies: [...l.anomalies, { description: '', numero_di: '' }] }
+          ? { ...l, anomalies: [...l.anomalies, { description: '', numero_di: '', date_debut_arret: null, date_fin_arret: null }] }
           : l
       )
+    );
+  };
+
+  const updateAnomalieField = (ligneIndex: number, anomalieIndex: number, field: keyof AnomalieChariot, value: string | null) => {
+    setLignes(prev =>
+      prev.map((l, i) => {
+        if (i !== ligneIndex) return l;
+        const newAnomalies = l.anomalies.map((a, j) => j === anomalieIndex ? { ...a, [field]: value } : a);
+        return { ...l, anomalies: newAnomalies };
+      })
     );
   };
 
@@ -607,11 +677,11 @@ const FormChariot = () => {
 
   const removeAnomalie = (ligneIndex: number, anomalieIndex: number) => {
     setLignes(prev =>
-      prev.map((l, i) =>
-        i === ligneIndex
-          ? { ...l, anomalies: l.anomalies.filter((_, j) => j !== anomalieIndex) }
-          : l
-      )
+      prev.map((l, i) => {
+        if (i !== ligneIndex) return l;
+        const newAnomalies = l.anomalies.filter((_, j) => j !== anomalieIndex);
+        return { ...l, anomalies: newAnomalies };
+      })
     );
   };
 
@@ -713,6 +783,7 @@ const FormChariot = () => {
               ligne_id: ligneId,
               description: a.description.trim(),
               numero_di: a.numero_di?.trim() || '',
+              date_debut_arret: a.date_debut_arret ?? null,
               ordre: aIdx,
             });
           });
@@ -760,6 +831,49 @@ const FormChariot = () => {
       loadHistory();
     }
     setDeleteRapportId(null);
+  };
+
+  // ─── Suivi Anomalies (from rapport_chariot_anomalies) ───────────
+  const loadSuiviAnomalies = useCallback(async () => {
+    setLoadingArrets(true);
+    // Fetch all anomalies that have a date_debut_arret, with chariot/rapport info via joins
+    const { data } = await (supabase as any)
+      .from('rapport_chariot_anomalies')
+      .select('id, description, numero_di, date_debut_arret, date_fin_arret, rapport_chariot_lignes(chariot_id, rapport_id, chariots(nom), rapports_chariots(date_rapport))')
+      .not('date_debut_arret', 'is', null)
+      .order('date_debut_arret', { ascending: false });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setSuiviAnomalies((data || []).map((a: any) => ({
+      id: a.id,
+      description: a.description,
+      numero_di: a.numero_di,
+      date_debut_arret: a.date_debut_arret,
+      date_fin_arret: a.date_fin_arret ?? null,
+      duree_heures: a.date_fin_arret
+        ? parseFloat(durationHours(a.date_debut_arret, a.date_fin_arret).toFixed(2))
+        : null,
+      chariot_nom: a.rapport_chariot_lignes?.chariots?.nom ?? 'Inconnu',
+      date_rapport: a.rapport_chariot_lignes?.rapports_chariots?.date_rapport ?? '',
+    })));
+    setLoadingArrets(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'arrets') loadSuiviAnomalies();
+  }, [activeTab, loadSuiviAnomalies]);
+
+  const handleResolveAnomalie = async () => {
+    const { anomalieId, date_fin, time_fin } = resolveDialog;
+    if (!date_fin || !time_fin) { toast.error('Date et heure de fin obligatoires'); return; }
+    const { error } = await (supabase as any)
+      .from('rapport_chariot_anomalies')
+      .update({ date_fin_arret: buildDatetime(date_fin, time_fin) })
+      .eq('id', anomalieId);
+    if (error) { toast.error('Erreur: ' + error.message); return; }
+    toast.success('Anomalie résolue');
+    setResolveDialog(emptyResolveDialog);
+    loadSuiviAnomalies();
   };
 
   // ─── Taux de disponibilité global ────────────────────────────────
@@ -914,6 +1028,10 @@ const FormChariot = () => {
               <List className="h-4 w-4 mr-1" />
               Historique
             </TabsTrigger>
+            <TabsTrigger value="arrets">
+              <AlertTriangle className="h-4 w-4 mr-1" />
+              Suivi Anomalies
+            </TabsTrigger>
           </TabsList>
 
           {/* ─── NEW / EDIT TAB ─────────────────────────────────── */}
@@ -1017,7 +1135,6 @@ const FormChariot = () => {
                           <TableHead className="min-w-[200px]">Anomalie</TableHead>
                           <TableHead className="min-w-[100px]">N° DI</TableHead>
                           <TableHead className="min-w-[90px]">Gasoil</TableHead>
-                          <TableHead className="min-w-[110px]">Temps d'arrêt (h)</TableHead>
                           <TableHead className="min-w-[110px]">N° Permis</TableHead>
                           <TableHead className="w-10"></TableHead>
                         </TableRow>
@@ -1161,19 +1278,6 @@ const FormChariot = () => {
                                     updateLigne(index, 'gasoil', e.target.value ? parseFloat(e.target.value) : null)
                                   }
                                   className="w-20"
-                                />
-                              </TableCell>
-
-                              {/* Temps d'arrêt */}
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={ligne.temps_arret ?? ''}
-                                  onChange={(e) =>
-                                    updateLigne(index, 'temps_arret', e.target.value ? parseFloat(e.target.value) : null)
-                                  }
-                                  className="w-24"
                                 />
                               </TableCell>
 
@@ -1324,7 +1428,6 @@ const FormChariot = () => {
                               <TableHead className="min-w-[200px]">Anomalie</TableHead>
                               <TableHead className="min-w-[100px]">N° DI</TableHead>
                               <TableHead className="min-w-[90px]">Gasoil</TableHead>
-                              <TableHead className="min-w-[110px]">Temps d'arrêt (h)</TableHead>
                               <TableHead className="min-w-[110px]">N° Permis</TableHead>
                               <TableHead className="w-10 export-hide"></TableHead>
                             </TableRow>
@@ -1440,15 +1543,6 @@ const FormChariot = () => {
                                       value={ligne.gasoil ?? ''}
                                       onChange={(e) => updatePopupLigne(index, 'gasoil', e.target.value ? parseFloat(e.target.value) : null)}
                                       className="w-20"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      value={ligne.temps_arret ?? ''}
-                                      onChange={(e) => updatePopupLigne(index, 'temps_arret', e.target.value ? parseFloat(e.target.value) : null)}
-                                      className="w-24"
                                     />
                                   </TableCell>
                                   <TableCell>
@@ -1722,6 +1816,302 @@ const FormChariot = () => {
               </CardContent>
             </Card>
           </TabsContent>
+          {/* ─── SUIVI ANOMALIES TAB ───────────────────────────────── */}
+          <TabsContent value="arrets">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Suivi des anomalies / arrêts chariots</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Les anomalies apparaissent ici dès qu'une date de début est saisie dans le rapport journalier.
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* ── Filter bar ── */}
+                {(() => {
+                  const availableYears = [...new Set(
+                    suiviAnomalies.map(a => a.date_debut_arret.substring(0, 4))
+                  )].sort().reverse();
+                  const availableMonths = [...new Set(
+                    suiviAnomalies
+                      .filter(a => a.date_debut_arret.startsWith(String(suiviFilter.periodeYear)))
+                      .map(a => a.date_debut_arret.substring(0, 7))
+                  )].sort().reverse();
+                  const isFiltered = !!(suiviFilter.search || suiviFilter.chariotId !== 'all' || suiviFilter.statut !== 'all' || suiviFilter.periodeType !== 'all');
+                  const resetFilter = () => setSuiviFilter({
+                    search: '', chariotId: 'all', statut: 'all',
+                    periodeType: 'all',
+                    periodeYear: new Date().getFullYear(),
+                    periodeMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+                    periodeDay: '', periodeRange: undefined,
+                  });
+                  return (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {/* Search */}
+                      <Input
+                        placeholder="Rechercher description, N° DI, chariot..."
+                        value={suiviFilter.search}
+                        onChange={e => setSuiviFilter(f => ({ ...f, search: e.target.value }))}
+                        className="h-8 text-xs w-60"
+                      />
+                      {/* Chariot */}
+                      <Select value={suiviFilter.chariotId} onValueChange={v => setSuiviFilter(f => ({ ...f, chariotId: v }))}>
+                        <SelectTrigger className="h-8 text-xs w-44">
+                          <SelectValue placeholder="Tous les chariots" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous les chariots</SelectItem>
+                          {allChariots.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* Statut */}
+                      <Select value={suiviFilter.statut} onValueChange={v => setSuiviFilter(f => ({ ...f, statut: v as typeof suiviFilter.statut }))}>
+                        <SelectTrigger className="h-8 text-xs w-36">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous statuts</SelectItem>
+                          <SelectItem value="en_cours">En cours</SelectItem>
+                          <SelectItem value="resolu">Résolu</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {/* Period type */}
+                      <Select value={suiviFilter.periodeType} onValueChange={v => setSuiviFilter(f => ({ ...f, periodeType: v as typeof f.periodeType, periodeRange: undefined, periodeDay: '' }))}>
+                        <SelectTrigger className="h-8 text-xs w-36">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Toutes périodes</SelectItem>
+                          <SelectItem value="year">Année</SelectItem>
+                          <SelectItem value="month">Mois</SelectItem>
+                          <SelectItem value="period">Période</SelectItem>
+                          <SelectItem value="day">Jour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {/* Year selector */}
+                      {(suiviFilter.periodeType === 'year' || suiviFilter.periodeType === 'month') && (
+                        <Select value={String(suiviFilter.periodeYear)} onValueChange={v => setSuiviFilter(f => ({ ...f, periodeYear: Number(v) }))}>
+                          <SelectTrigger className="h-8 text-xs w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(availableYears.length ? availableYears : [String(new Date().getFullYear())]).map(y => (
+                              <SelectItem key={y} value={y}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {/* Month selector */}
+                      {suiviFilter.periodeType === 'month' && (
+                        <Select value={suiviFilter.periodeMonth} onValueChange={v => setSuiviFilter(f => ({ ...f, periodeMonth: v }))}>
+                          <SelectTrigger className="h-8 text-xs w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(availableMonths.length ? availableMonths : [suiviFilter.periodeMonth]).map(m => (
+                              <SelectItem key={m} value={m}>
+                                {format(new Date(m + '-01'), 'MMMM yyyy', { locale: fr })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {/* Date range picker */}
+                      {suiviFilter.periodeType === 'period' && (
+                        <Popover open={suiviCalendarOpen} onOpenChange={setSuiviCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={`h-8 text-xs${!suiviFilter.periodeRange?.from ? ' text-muted-foreground' : ''}`}
+                            >
+                              <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                              {suiviFilter.periodeRange?.from
+                                ? suiviFilter.periodeRange.to
+                                  ? `${format(suiviFilter.periodeRange.from, 'dd/MM/yy')} → ${format(suiviFilter.periodeRange.to, 'dd/MM/yy')}`
+                                  : format(suiviFilter.periodeRange.from, 'dd/MM/yy')
+                                : 'Choisir dates'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="range"
+                              selected={suiviFilter.periodeRange}
+                              onSelect={(range) => {
+                                setSuiviFilter(f => ({ ...f, periodeRange: range }));
+                                if (range?.from && range?.to) setSuiviCalendarOpen(false);
+                              }}
+                              locale={fr}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {/* Day picker */}
+                      {suiviFilter.periodeType === 'day' && (
+                        <Popover open={suiviCalendarOpen} onOpenChange={setSuiviCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={`h-8 text-xs${!suiviFilter.periodeDay ? ' text-muted-foreground' : ''}`}
+                            >
+                              <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                              {suiviFilter.periodeDay
+                                ? format(new Date(suiviFilter.periodeDay), 'dd/MM/yyyy')
+                                : 'Choisir un jour'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={suiviFilter.periodeDay ? new Date(suiviFilter.periodeDay) : undefined}
+                              onSelect={(d) => {
+                                setSuiviFilter(f => ({ ...f, periodeDay: d ? format(d, 'yyyy-MM-dd') : '' }));
+                                if (d) setSuiviCalendarOpen(false);
+                              }}
+                              locale={fr}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {/* Reset */}
+                      {isFiltered && (
+                        <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground" onClick={resetFilter}>
+                          Réinitialiser
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* ── Filtered list ── */}
+                {(() => {
+                  const filtered = suiviAnomalies.filter(a => {
+                    if (suiviFilter.chariotId !== 'all') {
+                      const c = allChariots.find(c => c.id === suiviFilter.chariotId);
+                      if (!c || a.chariot_nom !== c.nom) return false;
+                    }
+                    if (suiviFilter.statut === 'en_cours' && a.date_fin_arret) return false;
+                    if (suiviFilter.statut === 'resolu' && !a.date_fin_arret) return false;
+                    if (suiviFilter.search) {
+                      const q = suiviFilter.search.toLowerCase();
+                      if (
+                        !a.description.toLowerCase().includes(q) &&
+                        !a.numero_di.toLowerCase().includes(q) &&
+                        !a.chariot_nom.toLowerCase().includes(q)
+                      ) return false;
+                    }
+                    const dateStr = a.date_debut_arret.substring(0, 10);
+                    if (suiviFilter.periodeType === 'year') {
+                      if (!dateStr.startsWith(String(suiviFilter.periodeYear))) return false;
+                    } else if (suiviFilter.periodeType === 'month') {
+                      if (!dateStr.startsWith(suiviFilter.periodeMonth)) return false;
+                    } else if (suiviFilter.periodeType === 'day') {
+                      if (dateStr !== suiviFilter.periodeDay) return false;
+                    } else if (suiviFilter.periodeType === 'period' && suiviFilter.periodeRange?.from) {
+                      const fromStr = format(suiviFilter.periodeRange.from, 'yyyy-MM-dd');
+                      const toStr = suiviFilter.periodeRange.to ? format(suiviFilter.periodeRange.to, 'yyyy-MM-dd') : fromStr;
+                      if (dateStr < fromStr || dateStr > toStr) return false;
+                    }
+                    return true;
+                  });
+
+                  if (loadingArrets) return (
+                    <p className="text-center text-muted-foreground py-8">Chargement...</p>
+                  );
+                  if (suiviAnomalies.length === 0) return (
+                    <p className="text-center text-muted-foreground py-8">
+                      Aucune anomalie avec date de début enregistrée.<br />
+                      <span className="text-xs">Saisir la date de début d'arrêt lors de l'ajout d'une anomalie dans le rapport journalier.</span>
+                    </p>
+                  );
+
+                  const nbEnCours = filtered.filter(a => !a.date_fin_arret).length;
+                  const nbResolu = filtered.filter(a => !!a.date_fin_arret).length;
+
+                  return (
+                    <>
+                      <div className="flex gap-4 mb-3 text-xs text-muted-foreground">
+                        <span><span className="font-semibold text-orange-600">{nbEnCours}</span> en cours</span>
+                        <span><span className="font-semibold text-green-600">{nbResolu}</span> résolu{nbResolu > 1 ? 's' : ''}</span>
+                        <span className="ml-auto">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Chariot</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>N° DI</TableHead>
+                              <TableHead>Début arrêt</TableHead>
+                              <TableHead>Fin arrêt</TableHead>
+                              <TableHead>Durée (h)</TableHead>
+                              <TableHead>Statut</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filtered.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
+                                  Aucun résultat pour ces filtres
+                                </TableCell>
+                              </TableRow>
+                            ) : filtered.map((a) => (
+                              <TableRow key={a.id}>
+                                <TableCell className="font-medium">{a.chariot_nom}</TableCell>
+                                <TableCell className="max-w-[200px]">
+                                  <span className="text-sm">{a.description || '—'}</span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm font-semibold">{a.numero_di || '—'}</span>
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap text-sm">
+                                  {format(new Date(a.date_debut_arret), 'dd/MM/yyyy HH:mm', { locale: fr })}
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap text-sm">
+                                  {a.date_fin_arret
+                                    ? format(new Date(a.date_fin_arret), 'dd/MM/yyyy HH:mm', { locale: fr })
+                                    : <span className="text-gray-400">—</span>}
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  {a.duree_heures != null ? `${a.duree_heures.toFixed(2)} h` : '—'}
+                                </TableCell>
+                                <TableCell>
+                                  {a.date_fin_arret ? (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-green-100 text-green-700">Résolu</span>
+                                  ) : (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-700">En cours</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {!a.date_fin_arret && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-green-600 border-green-300 hover:bg-green-50"
+                                      onClick={() => setResolveDialog({ open: true, anomalieId: a.id, date_fin: null, time_fin: '' })}
+                                    >
+                                      Résolu
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -1772,7 +2162,7 @@ const FormChariot = () => {
             {anomalyDialog.ligneIndex >= 0 && lignes[anomalyDialog.ligneIndex]?.anomalies.map((anomalie, aIdx) => (
               <div key={aIdx} className="border rounded-lg p-3 space-y-2 bg-gray-50">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-muted-foreground">Anomalie N°{aIdx + 1}</span>
+                  <span className="text-sm font-bold text-red-600">Anomalie N°{aIdx + 1}</span>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1786,12 +2176,7 @@ const FormChariot = () => {
                   <Label className="text-xs mb-1 block">N° DI</Label>
                   <Input
                     value={anomalie.numero_di}
-                    onChange={(e) => {
-                      const idx = anomalyDialog.ligneIndex;
-                      setLignes(prev => prev.map((l, i) =>
-                        i === idx ? { ...l, anomalies: l.anomalies.map((a, j) => j === aIdx ? { ...a, numero_di: e.target.value } : a) } : l
-                      ));
-                    }}
+                    onChange={(e) => updateAnomalieField(anomalyDialog.ligneIndex, aIdx, 'numero_di', e.target.value)}
                     placeholder="N° DI..."
                     className="h-8 text-sm"
                   />
@@ -1801,9 +2186,47 @@ const FormChariot = () => {
                   <textarea
                     className="w-full min-h-[50px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={anomalie.description}
-                    onChange={(e) => updateAnomalie(anomalyDialog.ligneIndex, aIdx, e.target.value)}
+                    onChange={(e) => updateAnomalieField(anomalyDialog.ligneIndex, aIdx, 'description', e.target.value)}
                     placeholder="Décrire l'anomalie..."
                   />
+                </div>
+                {/* Date + heure début arrêt */}
+                <div>
+                  <Label className="text-xs mb-1 block">Début arrêt</Label>
+                  <div className="flex gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1 justify-start text-left text-xs h-8">
+                          <CalendarIcon className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+                          {anomalie.date_debut_arret
+                            ? format(new Date(anomalie.date_debut_arret), 'dd/MM/yyyy')
+                            : 'Date début'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          locale={fr}
+                          selected={anomalie.date_debut_arret ? new Date(anomalie.date_debut_arret) : undefined}
+                          onSelect={(d) => {
+                            const time = anomalie.date_debut_arret
+                              ? format(new Date(anomalie.date_debut_arret), 'HH:mm')
+                              : '00:00';
+                            updateAnomalieField(anomalyDialog.ligneIndex, aIdx, 'date_debut_arret', buildDatetime(d ?? null, time));
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      type="time"
+                      className="w-24 h-8 text-xs"
+                      value={anomalie.date_debut_arret ? format(new Date(anomalie.date_debut_arret), 'HH:mm') : ''}
+                      onChange={(e) => {
+                        const date = anomalie.date_debut_arret ? new Date(anomalie.date_debut_arret) : new Date();
+                        updateAnomalieField(anomalyDialog.ligneIndex, aIdx, 'date_debut_arret', buildDatetime(date, e.target.value));
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -1849,7 +2272,7 @@ const FormChariot = () => {
             {editPopup.anomalyDialog.ligneIndex >= 0 && editPopup.lignes[editPopup.anomalyDialog.ligneIndex]?.anomalies.map((anomalie, aIdx) => (
               <div key={aIdx} className="border rounded-lg p-3 space-y-2 bg-gray-50">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-muted-foreground">Anomalie N°{aIdx + 1}</span>
+                  <span className="text-sm font-bold text-red-600">Anomalie N°{aIdx + 1}</span>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1863,15 +2286,7 @@ const FormChariot = () => {
                   <Label className="text-xs mb-1 block">N° DI</Label>
                   <Input
                     value={anomalie.numero_di}
-                    onChange={(e) => {
-                      const idx = editPopup.anomalyDialog.ligneIndex;
-                      setEditPopup(prev => ({
-                        ...prev,
-                        lignes: prev.lignes.map((l, i) =>
-                          i === idx ? { ...l, anomalies: l.anomalies.map((a, j) => j === aIdx ? { ...a, numero_di: e.target.value } : a) } : l
-                        ),
-                      }));
-                    }}
+                    onChange={(e) => updatePopupAnomalieField(editPopup.anomalyDialog.ligneIndex, aIdx, 'numero_di', e.target.value)}
                     placeholder="N° DI..."
                     className="h-8 text-sm"
                   />
@@ -1881,9 +2296,47 @@ const FormChariot = () => {
                   <textarea
                     className="w-full min-h-[50px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={anomalie.description}
-                    onChange={(e) => updatePopupAnomalie(editPopup.anomalyDialog.ligneIndex, aIdx, e.target.value)}
+                    onChange={(e) => updatePopupAnomalieField(editPopup.anomalyDialog.ligneIndex, aIdx, 'description', e.target.value)}
                     placeholder="Décrire l'anomalie..."
                   />
+                </div>
+                {/* Date + heure début arrêt */}
+                <div>
+                  <Label className="text-xs mb-1 block">Début arrêt</Label>
+                  <div className="flex gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1 justify-start text-left text-xs h-8">
+                          <CalendarIcon className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+                          {anomalie.date_debut_arret
+                            ? format(new Date(anomalie.date_debut_arret), 'dd/MM/yyyy')
+                            : 'Date début'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          locale={fr}
+                          selected={anomalie.date_debut_arret ? new Date(anomalie.date_debut_arret) : undefined}
+                          onSelect={(d) => {
+                            const time = anomalie.date_debut_arret
+                              ? format(new Date(anomalie.date_debut_arret), 'HH:mm')
+                              : '00:00';
+                            updatePopupAnomalieField(editPopup.anomalyDialog.ligneIndex, aIdx, 'date_debut_arret', buildDatetime(d ?? null, time));
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      type="time"
+                      className="w-24 h-8 text-xs"
+                      value={anomalie.date_debut_arret ? format(new Date(anomalie.date_debut_arret), 'HH:mm') : ''}
+                      onChange={(e) => {
+                        const date = anomalie.date_debut_arret ? new Date(anomalie.date_debut_arret) : new Date();
+                        updatePopupAnomalieField(editPopup.anomalyDialog.ligneIndex, aIdx, 'date_debut_arret', buildDatetime(date, e.target.value));
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -1947,6 +2400,51 @@ const FormChariot = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ─── RÉSOUDRE ANOMALIE DIALOG ────────────────────────────── */}
+      <Dialog open={resolveDialog.open} onOpenChange={(open) => { if (!open) setResolveDialog(emptyResolveDialog); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Clôturer l'anomalie</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Renseignez la date et l'heure de fin de l'arrêt :</p>
+            <div>
+              <Label className="text-xs mb-1 block">Date et heure de fin *</Label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex-1 justify-start text-left text-xs h-8">
+                      <CalendarIcon className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+                      {resolveDialog.date_fin ? format(resolveDialog.date_fin, 'dd/MM/yyyy') : 'Date fin'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      locale={fr}
+                      selected={resolveDialog.date_fin ?? undefined}
+                      onSelect={(d) => setResolveDialog(p => ({ ...p, date_fin: d ?? null }))}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  type="time"
+                  className="w-24 h-8 text-xs"
+                  value={resolveDialog.time_fin}
+                  onChange={(e) => setResolveDialog(p => ({ ...p, time_fin: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResolveDialog(emptyResolveDialog)}>Annuler</Button>
+            <Button className="bg-green-600 hover:bg-green-700" onClick={handleResolveAnomalie}>
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

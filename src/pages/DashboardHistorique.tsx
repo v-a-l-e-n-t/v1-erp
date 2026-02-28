@@ -28,6 +28,7 @@ import VentesView from '@/components/dashboard/VentesView';
 import DistributionView from '@/components/dashboard/DistributionView';
 import CarteView from '@/components/dashboard/CarteView';
 import GraphesView from '@/components/dashboard/GraphesView';
+import ChariotDashboard from '@/components/dashboard/ChariotDashboard';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -64,7 +65,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes' | 'chariot'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -1641,10 +1642,10 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
-            variant="outline"
+            variant={activeView === 'chariot' ? 'default' : 'outline'}
             size="sm"
-            className="h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide hover:bg-primary/5 hover:text-primary"
-            onClick={() => navigate('/form-chariot')}
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'chariot' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('chariot')}
           >
             <Truck className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
             CHARIOT
@@ -2114,6 +2115,10 @@ const DashboardHistorique = () => {
 
           {activeView === 'graphes' && (
             <GraphesView />
+          )}
+
+          {activeView === 'chariot' && (
+            <ChariotDashboard onNavigateToForm={() => navigate('/form-chariot')} />
           )}
 
           {activeView === 'vrac' && (
