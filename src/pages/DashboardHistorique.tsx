@@ -65,7 +65,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes' | 'chariot'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes' | 'chariot' | 'maintenance'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -1652,10 +1652,10 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
-            variant="outline"
+            variant={activeView === 'maintenance' ? 'default' : 'outline'}
             size="sm"
-            className="h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide hover:bg-primary/5 hover:text-primary"
-            onClick={() => navigate('/form-maintenance')}
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'maintenance' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('maintenance')}
           >
             <HardHat className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
             MAINT.
@@ -2119,6 +2119,13 @@ const DashboardHistorique = () => {
 
           {activeView === 'chariot' && (
             <ChariotDashboard onNavigateToForm={() => navigate('/form-chariot')} />
+          )}
+
+          {activeView === 'maintenance' && (
+            <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
+              <HardHat className="h-12 w-12 opacity-30" />
+              <p className="text-lg font-medium">Dashboard maintenance en développement</p>
+            </div>
           )}
 
           {activeView === 'vrac' && (

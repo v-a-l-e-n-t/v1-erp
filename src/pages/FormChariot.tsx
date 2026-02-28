@@ -866,11 +866,38 @@ const FormChariot = () => {
   const handleResolveAnomalie = async () => {
     const { anomalieId, date_fin, time_fin } = resolveDialog;
     if (!date_fin || !time_fin) { toast.error('Date et heure de fin obligatoires'); return; }
-    const { error } = await (supabase as any)
+
+    // 1. Mettre à jour date_fin_arret et récupérer le ligne_id
+    const { data: updatedRow, error } = await (supabase as any)
       .from('rapport_chariot_anomalies')
       .update({ date_fin_arret: buildDatetime(date_fin, time_fin) })
-      .eq('id', anomalieId);
+      .eq('id', anomalieId)
+      .select('ligne_id, date_debut_arret')
+      .single();
     if (error) { toast.error('Erreur: ' + error.message); return; }
+
+    // 2. Recalculer temps_arret = somme des durées de toutes les anomalies résolues de cette ligne
+    if (updatedRow?.ligne_id) {
+      const { data: allAnom } = await (supabase as any)
+        .from('rapport_chariot_anomalies')
+        .select('date_debut_arret, date_fin_arret')
+        .eq('ligne_id', updatedRow.ligne_id)
+        .not('date_fin_arret', 'is', null)
+        .not('date_debut_arret', 'is', null);
+
+      const totalH = (allAnom || []).reduce((sum: number, a: any) => {
+        const duree = Math.max(0,
+          (new Date(a.date_fin_arret).getTime() - new Date(a.date_debut_arret).getTime()) / (1000 * 3600)
+        );
+        return sum + duree;
+      }, 0);
+
+      await (supabase as any)
+        .from('rapport_chariot_lignes')
+        .update({ temps_arret: parseFloat(totalH.toFixed(2)) })
+        .eq('id', updatedRow.ligne_id);
+    }
+
     toast.success('Anomalie résolue');
     setResolveDialog(emptyResolveDialog);
     loadSuiviAnomalies();
@@ -1729,6 +1756,7 @@ const FormChariot = () => {
                           <TableHead>Date et Heure</TableHead>
                           <TableHead>Chariots</TableHead>
                           <TableHead>État</TableHead>
+                          <TableHead>Nb Anomalies</TableHead>
                           <TableHead>Disponibilité</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -1739,6 +1767,7 @@ const FormChariot = () => {
                           const enArret = rapport.lignes.filter(l => l.etat === 'arret').length;
                           const withEtat = enMarche + enArret;
                           const taux = withEtat > 0 ? Math.round((enMarche / withEtat) * 100) : null;
+                          const nbAnomalies = rapport.lignes.reduce((sum, l) => sum + (l.anomalies?.length ?? 0), 0);
                           return (
                           <TableRow key={rapport.id}>
                             <TableCell className="whitespace-nowrap">
@@ -1763,6 +1792,15 @@ const FormChariot = () => {
                                   <span className="text-xs text-gray-400">—</span>
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              {nbAnomalies > 0 ? (
+                                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
+                                  {nbAnomalies}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               {taux !== null ? (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -11,7 +11,9 @@ import { Calendar } from '@/components/ui/calendar';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { CalendarIcon, FilePlus } from 'lucide-react';
+import { CalendarIcon, FilePlus, FileDown, ImageIcon } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { cn } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -27,14 +29,6 @@ interface LigneRaw {
   numero_di: string | null;
   etat: string | null;
   date_rapport: string;
-}
-
-interface AnomalieRaw {
-  ligne_id: string;
-  chariot_nom: string;
-  date_debut_arret: string;
-  date_fin_arret: string;
-  duree_heures: number;
 }
 
 interface ChariotStats {
@@ -73,8 +67,8 @@ function fmt(n: number) {
 
 export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardProps) {
   const [lignes, setLignes] = useState<LigneRaw[]>([]);
-  const [anomalies, setAnomalies] = useState<AnomalieRaw[]>([]);
   const [loading, setLoading] = useState(true);
+  const dashboardRef = useRef<HTMLDivElement>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear();
@@ -141,7 +135,6 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
         console.error('[ChariotDashboard] Erreur rapports_chariots:', rapportsError);
         setFetchError(`Erreur: ${rapportsError.message}`);
         setLignes([]);
-        setAnomalies([]);
         setLoading(false);
         return;
       }
@@ -150,7 +143,6 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
 
       if (!rapportsData?.length) {
         setLignes([]);
-        setAnomalies([]);
         setLoading(false);
         return;
       }
@@ -182,36 +174,7 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
         date_rapport: dateByRapportId.get(l.rapport_id) || '',
       }));
 
-      // Step 3: fetch resolved anomalies for these lignes → compute stop durations
-      const ligneIds = enriched.map(l => l.id);
-      const chariotNomByLigneId = new Map<string, string>(enriched.map(l => [l.id, l.chariot_nom]));
-
-      let enrichedAnomalies: AnomalieRaw[] = [];
-      if (ligneIds.length) {
-        const { data: anomData } = await sb
-          .from('rapport_chariot_anomalies')
-          .select('ligne_id, date_debut_arret, date_fin_arret')
-          .in('ligne_id', ligneIds)
-          .not('date_fin_arret', 'is', null)
-          .not('date_debut_arret', 'is', null);
-
-        enrichedAnomalies = (anomData || []).map((a: any) => {
-          const duree_heures = Math.max(
-            0,
-            (new Date(a.date_fin_arret).getTime() - new Date(a.date_debut_arret).getTime()) / (1000 * 3600)
-          );
-          return {
-            ligne_id: a.ligne_id,
-            chariot_nom: chariotNomByLigneId.get(a.ligne_id) ?? 'Inconnu',
-            date_debut_arret: a.date_debut_arret,
-            date_fin_arret: a.date_fin_arret,
-            duree_heures,
-          };
-        });
-      }
-
       setLignes(enriched);
-      setAnomalies(enrichedAnomalies);
       setLoading(false);
     };
 
@@ -231,16 +194,22 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
     const maxCompteurParChariot = new Map<string, number>();
 
     let totalGasoil = 0;
+    let totalArret = 0;
     const allDI = new Set<string>();
+    const arretParPrestataire: Record<string, number> = { COMATEC: 0, DSA: 0, ITB: 0, AUTRE: 0 };
+    const arretParChariot = new Map<string, number>();
 
     lignes.forEach(l => {
       const p = getPrestataire(l.chariot_nom);
       const g = l.gasoil ?? 0;
+      const t = l.temps_arret ?? 0;
       const c = l.compteur_horaire ?? 0;
       const nom = l.chariot_nom;
 
       totalGasoil += g;
+      totalArret += t;
       gasoilParPrestataire[p] += g;
+      arretParPrestataire[p] += t;
 
       if (l.numero_di && l.numero_di.trim() !== '') {
         allDI.add(l.numero_di.trim());
@@ -248,21 +217,10 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
       }
 
       gasoilParChariot.set(nom, (gasoilParChariot.get(nom) ?? 0) + g);
+      arretParChariot.set(nom, (arretParChariot.get(nom) ?? 0) + t);
       if (c > (maxCompteurParChariot.get(nom) ?? 0)) {
         maxCompteurParChariot.set(nom, c);
       }
-    });
-
-    // Stop time aggregation from resolved anomalies (date_debut/fin calculated)
-    let totalArret = 0;
-    const arretParPrestataire: Record<string, number> = { COMATEC: 0, DSA: 0, ITB: 0, AUTRE: 0 };
-    const arretParChariot = new Map<string, number>();
-
-    anomalies.forEach(a => {
-      const p = getPrestataire(a.chariot_nom);
-      arretParPrestataire[p] += a.duree_heures;
-      arretParChariot.set(a.chariot_nom, (arretParChariot.get(a.chariot_nom) ?? 0) + a.duree_heures);
-      totalArret += a.duree_heures;
     });
 
     // Per-chariot table rows
@@ -310,7 +268,7 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
       chariotRows,
       topPerformers,
     };
-  }, [lignes, anomalies]);
+  }, [lignes]);
 
   // ── Period label ────────────────────────────────────────────────────────────
 
@@ -329,10 +287,41 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
     return '';
   }, [filterType, selectedYear, selectedMonth, dateRange]);
 
+  // ── Export ──────────────────────────────────────────────────────────────────
+
+  const captureCanvas = () => {
+    const el = dashboardRef.current;
+    if (!el) return Promise.reject('no ref');
+    return html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      height: el.scrollHeight + 40,
+      windowHeight: el.scrollHeight + 40,
+      y: 0,
+      scrollY: 0,
+    });
+  };
+
+  const exportImage = async () => {
+    const canvas = await captureCanvas();
+    const link = document.createElement('a');
+    link.download = `dashboard-chariots-${format(new Date(), 'yyyy-MM-dd')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  const exportPDF = async () => {
+    const canvas = await captureCanvas();
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width / 2, canvas.height / 2] });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+    pdf.save(`dashboard-chariots-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6" ref={dashboardRef}>
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -422,6 +411,16 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
               </PopoverContent>
             </Popover>
           )}
+
+          {/* Export buttons */}
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={exportImage}>
+            <ImageIcon className="h-3.5 w-3.5 mr-1" />
+            PNG
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={exportPDF}>
+            <FileDown className="h-3.5 w-3.5 mr-1" />
+            PDF
+          </Button>
 
           {/* Link to form */}
           <Button
@@ -621,15 +620,12 @@ export default function ChariotDashboard({ onNavigateToForm }: ChariotDashboardP
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Top Performers chariot
                 </CardTitle>
-                <p className="text-[10px] text-muted-foreground">
-                  Moins de temps d'arrêt · moins conso/heure
-                </p>
               </CardHeader>
               <CardContent className="space-y-2">
                 {PRESTATAIRES.map(p => (
                   <div key={p}>
                     <p className="text-[11px] font-semibold text-muted-foreground uppercase">{p}</p>
-                    <p className="text-sm font-bold text-green-700 truncate">
+                    <p className="text-sm font-bold text-green-700 leading-relaxed">
                       {stats.topPerformers[p]}
                     </p>
                   </div>
