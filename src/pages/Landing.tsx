@@ -77,7 +77,10 @@ const Landing = () => {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
-          <span className="text-lg sm:text-xl font-bold text-primary">GazPILOT</span>
+          <div className="flex items-center gap-2">
+            <img src="/images/Logo_GazPilote.png" alt="GazPILOT" className="h-10 sm:h-12 w-auto" />
+            <span className="text-lg sm:text-xl font-bold text-primary">GazPILOT</span>
+          </div>
           <Button variant="ghost" onClick={() => setLoginDialogOpen(true)} className="text-sm sm:text-base">
             Connexion
           </Button>

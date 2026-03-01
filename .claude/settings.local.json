@@ -14,7 +14,8 @@
       "Bash(python3:*)",
       "Bash(python:*)",
       "Bash(/c/Python314/python:*)",
-      "Bash(gh run list --limit 1)"
+      "Bash(gh run list --limit 1)",
+      "Bash(npm install)"
     ]
   }
 }

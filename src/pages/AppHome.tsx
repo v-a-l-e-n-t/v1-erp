@@ -120,13 +120,16 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50/50">
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <div className="flex items-center gap-3">
+            <img src="/images/Logo_GazPilote.png" alt="GazPILOT" className="h-11 sm:h-14 w-auto" />
+            <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-primary">
               GazPILOT
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
               Centre de contrôle unifié
             </p>
+            </div>
           </div>
         </div>
       </header>
