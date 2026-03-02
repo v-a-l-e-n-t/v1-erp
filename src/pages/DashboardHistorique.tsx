@@ -1990,7 +1990,7 @@ const DashboardHistorique = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                         {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY', 'SIMAM'] as AtelierClientKey[]).map((client) => {
                           const logoMap: Record<AtelierClientKey, string> = {
-                            SIMAM: '/images/logo-simam.png',
+                            SIMAM: '/images/go-logo.png',
                             PETRO_IVOIRE: '/images/logo-petro.png',
                             VIVO_ENERGY: '/images/logo-vivo.png',
                             TOTAL_ENERGIES: '/images/logo-total.png',
