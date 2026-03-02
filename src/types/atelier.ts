@@ -31,7 +31,7 @@ export interface AtelierEntry {
 }
 
 export const ATELIER_CLIENT_LABELS: Record<AtelierClientKey, string> = {
-  SIMAM: 'SIMAM CI',
+  SIMAM: 'GAZ AND OIL',
   PETRO_IVOIRE: 'PETRO IVOIRE',
   VIVO_ENERGY: 'VIVO ENERGY',
   TOTAL_ENERGIES: 'TOTAL ENERGIES',
