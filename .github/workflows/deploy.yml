@@ -39,9 +39,12 @@ jobs:
           git config user.email "github-actions@github.com"
           git fetch origin
 
+          # Supprimer le dossier dist local pour éviter le conflit avec la branche dist
+          rm -rf dist
+
           # Checkout la branche dist (ou la créer en orphan si elle n'existe pas)
           if git show-ref --verify --quiet refs/remotes/origin/dist; then
-            git checkout dist
+            git checkout --track origin/dist
           else
             git checkout --orphan dist
             git rm -rf . --quiet 2>/dev/null || true
