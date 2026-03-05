@@ -126,7 +126,7 @@ const DemoRequestDialog = ({ open, onOpenChange }: DemoRequestDialogProps) => {
             <DialogTitle>Demande envoyée !</DialogTitle>
             <DialogDescription className="text-base">
               Merci pour votre intérêt ! Notre équipe vous recontactera dans les plus brefs délais 
-              pour organiser une démonstration personnalisée de GazPILOT.
+              pour organiser une démonstration personnalisée de GazPILOTE.
             </DialogDescription>
             <Button onClick={handleClose} className="mt-4">
               Fermer

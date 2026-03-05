@@ -215,8 +215,8 @@ const DashboardBke = () => {
             {/* Top Bar */}
             <div className="flex items-center justify-between gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-4">
-                <img src="/images/gp-logo.jpeg" alt="GazPILOT" className="h-10 sm:h-12 w-auto" />
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">GazPILOT</h1>
+                <img src="/images/gp-logo.jpeg" alt="GazPILOTE" className="h-10 sm:h-12 w-auto" />
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">GazPILOTE</h1>
                 <Badge variant="outline" className="text-orange-600 border-orange-600">
                   Bouaké
                 </Badge>
@@ -627,7 +627,7 @@ const DashboardBke = () => {
       {/* Footer */}
       <footer className="border-t mt-8">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} GazPILOT - Site de Bouaké</p>
+          <p>&copy; {new Date().getFullYear()} GazPILOTE - Site de Bouaké</p>
         </div>
       </footer>
     </div>

@@ -46,7 +46,7 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Lock className="h-5 w-5 text-primary" />
-                        Connexion GazPILOT
+                        Connexion GazPILOTE
                     </DialogTitle>
                     <DialogDescription>
                         Veuillez entrer votre code d'accès personnel pour accéder au tableau de bord.

@@ -78,8 +78,8 @@ const Landing = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/images/gp-logo.jpeg" alt="GazPILOT" className="h-10 sm:h-12 w-auto" />
-            <span className="text-lg sm:text-xl font-bold text-primary">GazPILOT</span>
+            <img src="/images/gp-logo.jpeg" alt="GazPILOTE" className="h-10 sm:h-12 w-auto" />
+            <span className="text-lg sm:text-xl font-bold text-primary">GazPILOTE</span>
           </div>
           <Button variant="ghost" onClick={() => setLoginDialogOpen(true)} className="text-sm sm:text-base">
             Connexion
@@ -103,7 +103,7 @@ const Landing = () => {
           </h1>
 
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
-            GazPILOT centralise la gestion de votre production GPL, le suivi des ventes,
+            GazPILOTE centralise la gestion de votre production GPL, le suivi des ventes,
             et l'analyse de vos performances en temps réel.
           </p>
 
@@ -168,7 +168,7 @@ const Landing = () => {
                 Optimisez chaque aspect de votre activité
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8">
-                GazPILOT vous offre une visibilité complète sur vos opérations,
+                GazPILOTE vous offre une visibilité complète sur vos opérations,
                 de la production à la livraison finale.
               </p>
 
@@ -223,7 +223,7 @@ const Landing = () => {
               Prêt à transformer votre gestion GPL ?
             </h2>
             <p className="text-base sm:text-lg md:text-xl text-primary-foreground/80 mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
-              Rejoignez les centres emplisseurs qui font confiance à GazPILOT pour optimiser leurs opérations.
+              Rejoignez les centres emplisseurs qui font confiance à GazPILOTE pour optimiser leurs opérations.
             </p>
             <Button
               size="lg"
@@ -242,7 +242,7 @@ const Landing = () => {
       <footer className="py-8 sm:py-10 md:py-12 px-4 border-t bg-card">
         <div className="container mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-            <span className="font-bold text-primary text-base sm:text-lg">GazPILOT</span>
+            <span className="font-bold text-primary text-base sm:text-lg">GazPILOTE</span>
             <p className="text-muted-foreground text-xs sm:text-sm text-center sm:text-left">
               © {new Date().getFullYear()} GAZPILOT - Tous droits réservés
             </p>

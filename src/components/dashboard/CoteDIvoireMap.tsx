@@ -1105,7 +1105,7 @@ const CoteDIvoireMap = ({ startDate, endDate }: CoteDIvoireMapProps) => {
           
           
             <div className="absolute bottom-1 right-1 bg-orange-500 px-2 py-0.5 rounded text-xs text-white font-medium">
-              GazPILOT - Tous droits réservés
+              GazPILOTE - Tous droits réservés
             </div>
           </div>
         </div>

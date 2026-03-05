@@ -178,7 +178,7 @@ const DataChatbot: React.FC = () => {
         <div className="flex items-center justify-between p-4 bg-orange-500 text-white">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
-            <span className="font-semibold">Assistant Data GazPILOT</span>
+            <span className="font-semibold">Assistant Data GazPILOTE</span>
           </div>
           <button
             onClick={() => setIsOpen(false)}

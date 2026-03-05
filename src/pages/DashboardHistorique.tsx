@@ -1322,8 +1322,8 @@ const DashboardHistorique = () => {
             {/* Top Bar: Logo + Toggle + User Profile */}
             <div className="flex items-center justify-between gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-4">
-                <img src="/images/gp-logo.jpeg" alt="GazPILOT" className="h-10 sm:h-12 w-auto" />
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">GazPILOT</h1>
+                <img src="/images/gp-logo.jpeg" alt="GazPILOTE" className="h-10 sm:h-12 w-auto" />
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">GazPILOTE</h1>
               </div>
 
               <div className="flex items-center gap-2 sm:gap-4">
@@ -2417,7 +2417,7 @@ const DashboardHistorique = () => {
 
       <footer className="border-t mt-16">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>&copy; GazPILOT - {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</p>
+          <p>&copy; GazPILOTE - {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</p>
         </div>
       </footer>
 

@@ -39,7 +39,7 @@ const PasswordGate = ({ onAuthenticated }: PasswordGateProps) => {
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
             <Lock className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">GazPILOT Dashboard</CardTitle>
+          <CardTitle className="text-2xl font-bold">GazPILOTE Dashboard</CardTitle>
           <CardDescription>
             Veuillez entrer le mot de passe pour accéder au tableau de bord
           </CardDescription>

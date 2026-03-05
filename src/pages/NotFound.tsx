@@ -21,7 +21,7 @@ const NotFound = () => {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-6 h-16 flex items-center">
-          <span className="text-xl font-bold text-primary">GazPILOT</span>
+          <span className="text-xl font-bold text-primary">GazPILOTE</span>
         </div>
       </header>
 
@@ -76,7 +76,7 @@ const NotFound = () => {
 
       {/* Footer */}
       <footer className="py-6 text-center">
-        <span className="text-xs text-muted-foreground/50">GazPILOT ERP</span>
+        <span className="text-xs text-muted-foreground/50">GazPILOTE ERP</span>
       </footer>
     </div>
   );

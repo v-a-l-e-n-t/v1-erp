@@ -83,7 +83,7 @@ const VracLogin = () => {
                 </CardContent>
                 <CardFooter className="flex justify-center">
                     <p className="text-xs text-slate-400 text-center">
-                        En cas de problème, contactez le service commercial GazPILOT
+                        En cas de problème, contactez le service commercial GazPILOTE
                     </p>
                 </CardFooter>
             </Card>
