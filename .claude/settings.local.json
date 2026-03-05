@@ -15,7 +15,11 @@
       "Bash(python:*)",
       "Bash(/c/Python314/python:*)",
       "Bash(gh run list --limit 1)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(for f in *.sql)",
+      "Bash(do echo \"=== $f ===\")",
+      "Read(//c/Users/VAL/Desktop/v1-erp/**)",
+      "Bash(done)"
     ]
   }
 }
