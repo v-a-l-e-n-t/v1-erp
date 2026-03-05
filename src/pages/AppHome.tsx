@@ -121,7 +121,7 @@ export default function Home() {
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center gap-3">
-            <img src="/images/Logo_GazPilote.png" alt="GazPILOT" className="h-11 sm:h-14 w-auto" />
+            <img src="/images/gp-logo.jpeg" alt="GazPILOT" className="h-11 sm:h-14 w-auto" />
             <div>
             <h1 className="text-xl sm:text-2xl font-bold text-primary">
               GazPILOT

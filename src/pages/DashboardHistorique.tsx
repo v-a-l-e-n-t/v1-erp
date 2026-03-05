@@ -1322,7 +1322,7 @@ const DashboardHistorique = () => {
             {/* Top Bar: Logo + Toggle + User Profile */}
             <div className="flex items-center justify-between gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-4">
-                <img src="/images/Logo_GazPilote.png" alt="GazPILOT" className="h-10 sm:h-12 w-auto" />
+                <img src="/images/gp-logo.jpeg" alt="GazPILOT" className="h-10 sm:h-12 w-auto" />
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">GazPILOT</h1>
               </div>
 
