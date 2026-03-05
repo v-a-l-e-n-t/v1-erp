@@ -55,12 +55,9 @@ export type Database = {
           action_corrective: string | null
           created_at: string
           description: string | null
-          duree_minutes: number | null
           etape_ligne: Database["public"]["Enums"]["etape_ligne"] | null
-          heure_debut: string | null
-          heure_fin: string | null
           id: string
-          lignes_concernees: number[] | null
+          numero_ligne: number | null
           ordre_intervention: string | null
           shift_id: string
           type_arret: Database["public"]["Enums"]["arret_type"]
@@ -70,12 +67,9 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
-          duree_minutes?: number | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
-          heure_debut?: string | null
-          heure_fin?: string | null
           id?: string
-          lignes_concernees?: number[] | null
+          numero_ligne?: number | null
           ordre_intervention?: string | null
           shift_id: string
           type_arret: Database["public"]["Enums"]["arret_type"]
@@ -85,12 +79,9 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
-          duree_minutes?: number | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
-          heure_debut?: string | null
-          heure_fin?: string | null
           id?: string
-          lignes_concernees?: number[] | null
+          numero_ligne?: number | null
           ordre_intervention?: string | null
           shift_id?: string
           type_arret?: Database["public"]["Enums"]["arret_type"]
@@ -399,6 +390,68 @@ export type Database = {
         }
         Relationships: []
       }
+      chariot_arrets: {
+        Row: {
+          chariot_id: string
+          created_at: string | null
+          date_debut_arret: string
+          date_fin_arret: string | null
+          description: string
+          id: string
+          numero_di: string
+          updated_at: string | null
+        }
+        Insert: {
+          chariot_id: string
+          created_at?: string | null
+          date_debut_arret: string
+          date_fin_arret?: string | null
+          description?: string
+          id?: string
+          numero_di?: string
+          updated_at?: string | null
+        }
+        Update: {
+          chariot_id?: string
+          created_at?: string | null
+          date_debut_arret?: string
+          date_fin_arret?: string | null
+          description?: string
+          id?: string
+          numero_di?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chariot_arrets_chariot_id_fkey"
+            columns: ["chariot_id"]
+            isOneToOne: false
+            referencedRelation: "chariots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chariots: {
+        Row: {
+          actif: boolean | null
+          created_at: string | null
+          id: string
+          nom: string
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string | null
+          id?: string
+          nom: string
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string | null
+          id?: string
+          nom?: string
+        }
+        Relationships: []
+      }
       chefs_ligne: {
         Row: {
           created_at: string
@@ -501,6 +554,356 @@ export type Database = {
         }
         Relationships: []
       }
+      inspection_anomalies: {
+        Row: {
+          commentaire_initial: string | null
+          created_at: string | null
+          date_cloture: string | null
+          date_ouverture: string
+          duree_jours: number | null
+          equipement_id: string
+          id: string
+          ronde_cloture_id: string | null
+          ronde_ouverture_id: string
+          semaine_cloture: string | null
+          semaine_ouverture: string
+          sous_zone_id: string | null
+          statut: Database["public"]["Enums"]["statut_anomalie"]
+          statut_equipement_initial: Database["public"]["Enums"]["statut_equipement"]
+          updated_at: string | null
+          urgent: boolean | null
+          zone_id: string
+        }
+        Insert: {
+          commentaire_initial?: string | null
+          created_at?: string | null
+          date_cloture?: string | null
+          date_ouverture?: string
+          duree_jours?: number | null
+          equipement_id: string
+          id?: string
+          ronde_cloture_id?: string | null
+          ronde_ouverture_id: string
+          semaine_cloture?: string | null
+          semaine_ouverture: string
+          sous_zone_id?: string | null
+          statut?: Database["public"]["Enums"]["statut_anomalie"]
+          statut_equipement_initial: Database["public"]["Enums"]["statut_equipement"]
+          updated_at?: string | null
+          urgent?: boolean | null
+          zone_id: string
+        }
+        Update: {
+          commentaire_initial?: string | null
+          created_at?: string | null
+          date_cloture?: string | null
+          date_ouverture?: string
+          duree_jours?: number | null
+          equipement_id?: string
+          id?: string
+          ronde_cloture_id?: string | null
+          ronde_ouverture_id?: string
+          semaine_cloture?: string | null
+          semaine_ouverture?: string
+          sous_zone_id?: string | null
+          statut?: Database["public"]["Enums"]["statut_anomalie"]
+          statut_equipement_initial?: Database["public"]["Enums"]["statut_equipement"]
+          updated_at?: string | null
+          urgent?: boolean | null
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_anomalies_equipement_id_fkey"
+            columns: ["equipement_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_equipements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_anomalies_ronde_cloture_id_fkey"
+            columns: ["ronde_cloture_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_rondes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_anomalies_ronde_ouverture_id_fkey"
+            columns: ["ronde_ouverture_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_rondes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_anomalies_sous_zone_id_fkey"
+            columns: ["sous_zone_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_sous_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_anomalies_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_destinataires_mail: {
+        Row: {
+          actif: boolean | null
+          created_at: string | null
+          email: string
+          id: string
+          nom: string
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string | null
+          email: string
+          id?: string
+          nom: string
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          nom?: string
+        }
+        Relationships: []
+      }
+      inspection_equipements: {
+        Row: {
+          actif: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          nom: string
+          ordre: number
+          sous_zone_id: string | null
+          updated_at: string | null
+          zone_id: string
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          nom: string
+          ordre?: number
+          sous_zone_id?: string | null
+          updated_at?: string | null
+          zone_id: string
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          nom?: string
+          ordre?: number
+          sous_zone_id?: string | null
+          updated_at?: string | null
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_equipements_sous_zone_id_fkey"
+            columns: ["sous_zone_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_sous_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_equipements_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_lignes_ronde: {
+        Row: {
+          commentaire: string | null
+          created_at: string | null
+          equipement_id: string
+          id: string
+          rempli_at: string | null
+          rempli_par: string | null
+          ronde_id: string
+          statut: Database["public"]["Enums"]["statut_equipement"] | null
+          updated_at: string | null
+          urgent: boolean | null
+        }
+        Insert: {
+          commentaire?: string | null
+          created_at?: string | null
+          equipement_id: string
+          id?: string
+          rempli_at?: string | null
+          rempli_par?: string | null
+          ronde_id: string
+          statut?: Database["public"]["Enums"]["statut_equipement"] | null
+          updated_at?: string | null
+          urgent?: boolean | null
+        }
+        Update: {
+          commentaire?: string | null
+          created_at?: string | null
+          equipement_id?: string
+          id?: string
+          rempli_at?: string | null
+          rempli_par?: string | null
+          ronde_id?: string
+          statut?: Database["public"]["Enums"]["statut_equipement"] | null
+          updated_at?: string | null
+          urgent?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_lignes_ronde_equipement_id_fkey"
+            columns: ["equipement_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_equipements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_lignes_ronde_ronde_id_fkey"
+            columns: ["ronde_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_rondes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_rondes: {
+        Row: {
+          commentaire_global: string | null
+          created_at: string | null
+          date_debut: string | null
+          date_soumission: string | null
+          date_validation: string | null
+          disponibilite_globale: number | null
+          id: string
+          nb_points_remplis: number | null
+          nb_points_total: number | null
+          semaine_iso: string
+          soumis_par: string | null
+          statut: Database["public"]["Enums"]["statut_ronde"]
+          updated_at: string | null
+          valide_par: string | null
+        }
+        Insert: {
+          commentaire_global?: string | null
+          created_at?: string | null
+          date_debut?: string | null
+          date_soumission?: string | null
+          date_validation?: string | null
+          disponibilite_globale?: number | null
+          id?: string
+          nb_points_remplis?: number | null
+          nb_points_total?: number | null
+          semaine_iso: string
+          soumis_par?: string | null
+          statut?: Database["public"]["Enums"]["statut_ronde"]
+          updated_at?: string | null
+          valide_par?: string | null
+        }
+        Update: {
+          commentaire_global?: string | null
+          created_at?: string | null
+          date_debut?: string | null
+          date_soumission?: string | null
+          date_validation?: string | null
+          disponibilite_globale?: number | null
+          id?: string
+          nb_points_remplis?: number | null
+          nb_points_total?: number | null
+          semaine_iso?: string
+          soumis_par?: string | null
+          statut?: Database["public"]["Enums"]["statut_ronde"]
+          updated_at?: string | null
+          valide_par?: string | null
+        }
+        Relationships: []
+      }
+      inspection_sous_zones: {
+        Row: {
+          actif: boolean | null
+          created_at: string | null
+          id: string
+          libelle: string
+          nom: string
+          ordre: number
+          updated_at: string | null
+          zone_id: string
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string | null
+          id?: string
+          libelle: string
+          nom: string
+          ordre?: number
+          updated_at?: string | null
+          zone_id: string
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string | null
+          id?: string
+          libelle?: string
+          nom?: string
+          ordre?: number
+          updated_at?: string | null
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_sous_zones_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_zones: {
+        Row: {
+          actif: boolean | null
+          created_at: string | null
+          id: string
+          libelle: string
+          nom: string
+          ordre: number
+          poids_kpi: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string | null
+          id?: string
+          libelle: string
+          nom: string
+          ordre?: number
+          poids_kpi?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string | null
+          id?: string
+          libelle?: string
+          nom?: string
+          ordre?: number
+          poids_kpi?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       lignes_production: {
         Row: {
           chef_ligne_id: string | null
@@ -541,6 +944,7 @@ export type Database = {
           recharges_vivo_b38: number | null
           recharges_vivo_b6: number | null
           shift_id: string
+          temps_arret_ligne_minutes: number | null
           tonnage_ligne: number | null
           updated_at: string | null
         }
@@ -583,6 +987,7 @@ export type Database = {
           recharges_vivo_b38?: number | null
           recharges_vivo_b6?: number | null
           shift_id: string
+          temps_arret_ligne_minutes?: number | null
           tonnage_ligne?: number | null
           updated_at?: string | null
         }
@@ -625,6 +1030,7 @@ export type Database = {
           recharges_vivo_b38?: number | null
           recharges_vivo_b6?: number | null
           shift_id?: string
+          temps_arret_ligne_minutes?: number | null
           tonnage_ligne?: number | null
           updated_at?: string | null
         }
@@ -644,6 +1050,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      maintenance_anomalies: {
+        Row: {
+          created_at: string | null
+          date_constatation: string
+          date_resolution: string | null
+          description: string | null
+          equipement: string
+          id: string
+          numero_di: string | null
+          numero_permis: string | null
+          zone: string
+        }
+        Insert: {
+          created_at?: string | null
+          date_constatation?: string
+          date_resolution?: string | null
+          description?: string | null
+          equipement: string
+          id?: string
+          numero_di?: string | null
+          numero_permis?: string | null
+          zone: string
+        }
+        Update: {
+          created_at?: string | null
+          date_constatation?: string
+          date_resolution?: string | null
+          description?: string | null
+          equipement?: string
+          id?: string
+          numero_di?: string | null
+          numero_permis?: string | null
+          zone?: string
+        }
+        Relationships: []
       }
       mandataires: {
         Row: {
@@ -736,6 +1178,7 @@ export type Database = {
           agent_atelier: number | null
           agent_quai: number | null
           agent_saisie: number | null
+          arret_shift_cumul: number | null
           bouteilles_produites: number
           chariot: number | null
           chariste: number | null
@@ -762,6 +1205,7 @@ export type Database = {
           agent_atelier?: number | null
           agent_quai?: number | null
           agent_saisie?: number | null
+          arret_shift_cumul?: number | null
           bouteilles_produites?: number
           chariot?: number | null
           chariste?: number | null
@@ -788,6 +1232,7 @@ export type Database = {
           agent_atelier?: number | null
           agent_quai?: number | null
           agent_saisie?: number | null
+          arret_shift_cumul?: number | null
           bouteilles_produites?: number
           chariot?: number | null
           chariste?: number | null
@@ -819,6 +1264,193 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rapport_chariot_anomalies: {
+        Row: {
+          created_at: string | null
+          date_debut_arret: string | null
+          date_fin_arret: string | null
+          description: string
+          id: string
+          ligne_id: string
+          numero_di: string | null
+          ordre: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          date_debut_arret?: string | null
+          date_fin_arret?: string | null
+          description: string
+          id?: string
+          ligne_id: string
+          numero_di?: string | null
+          ordre?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          date_debut_arret?: string | null
+          date_fin_arret?: string | null
+          description?: string
+          id?: string
+          ligne_id?: string
+          numero_di?: string | null
+          ordre?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapport_chariot_anomalies_ligne_id_fkey"
+            columns: ["ligne_id"]
+            isOneToOne: false
+            referencedRelation: "rapport_chariot_lignes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rapport_chariot_lignes: {
+        Row: {
+          chariot_id: string
+          compteur_horaire: number | null
+          created_at: string | null
+          ecart: number | null
+          etat: string | null
+          gasoil: number | null
+          horaire_prochaine_vidange: number | null
+          id: string
+          numero_di: string | null
+          numero_permis: string | null
+          rapport_id: string
+          temps_arret: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          chariot_id: string
+          compteur_horaire?: number | null
+          created_at?: string | null
+          ecart?: number | null
+          etat?: string | null
+          gasoil?: number | null
+          horaire_prochaine_vidange?: number | null
+          id?: string
+          numero_di?: string | null
+          numero_permis?: string | null
+          rapport_id: string
+          temps_arret?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          chariot_id?: string
+          compteur_horaire?: number | null
+          created_at?: string | null
+          ecart?: number | null
+          etat?: string | null
+          gasoil?: number | null
+          horaire_prochaine_vidange?: number | null
+          id?: string
+          numero_di?: string | null
+          numero_permis?: string | null
+          rapport_id?: string
+          temps_arret?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapport_chariot_lignes_chariot_id_fkey"
+            columns: ["chariot_id"]
+            isOneToOne: false
+            referencedRelation: "chariots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapport_chariot_lignes_rapport_id_fkey"
+            columns: ["rapport_id"]
+            isOneToOne: false
+            referencedRelation: "rapports_chariots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rapport_maintenance_lignes: {
+        Row: {
+          created_at: string | null
+          disponible: number | null
+          equipement: string
+          id: string
+          ordre: number
+          rapport_id: string
+          total: number
+          zone: string
+        }
+        Insert: {
+          created_at?: string | null
+          disponible?: number | null
+          equipement: string
+          id?: string
+          ordre?: number
+          rapport_id: string
+          total?: number
+          zone: string
+        }
+        Update: {
+          created_at?: string | null
+          disponible?: number | null
+          equipement?: string
+          id?: string
+          ordre?: number
+          rapport_id?: string
+          total?: number
+          zone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapport_maintenance_lignes_rapport_id_fkey"
+            columns: ["rapport_id"]
+            isOneToOne: false
+            referencedRelation: "rapports_maintenance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rapports_chariots: {
+        Row: {
+          created_at: string | null
+          date_rapport: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date_rapport: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date_rapport?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      rapports_maintenance: {
+        Row: {
+          created_at: string | null
+          date_rapport: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date_rapport: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date_rapport?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       receptions_clients: {
         Row: {
@@ -1090,8 +1722,12 @@ export type Database = {
           immatriculation_tracteur: string
           last_modified_at: string | null
           last_modified_by: string | null
+          motif_refus: string | null
+          nom_chauffeur: string | null
           notes: string | null
           numero_bon: string | null
+          refused_at: string | null
+          refused_by: string | null
           statut: string
           tonnage_charge: number | null
           updated_at: string
@@ -1108,8 +1744,12 @@ export type Database = {
           immatriculation_tracteur: string
           last_modified_at?: string | null
           last_modified_by?: string | null
+          motif_refus?: string | null
+          nom_chauffeur?: string | null
           notes?: string | null
           numero_bon?: string | null
+          refused_at?: string | null
+          refused_by?: string | null
           statut?: string
           tonnage_charge?: number | null
           updated_at?: string
@@ -1126,8 +1766,12 @@ export type Database = {
           immatriculation_tracteur?: string
           last_modified_at?: string | null
           last_modified_by?: string | null
+          motif_refus?: string | null
+          nom_chauffeur?: string | null
           notes?: string | null
           numero_bon?: string | null
+          refused_at?: string | null
+          refused_by?: string | null
           statut?: string
           tonnage_charge?: number | null
           updated_at?: string
@@ -1226,6 +1870,9 @@ export type Database = {
         | "AUTRE"
       ligne_type: "B6_L1" | "B6_L2" | "B6_L3" | "B6_L4" | "B12"
       shift_type: "10h-19h" | "20h-5h"
+      statut_anomalie: "OUVERTE" | "RESOLUE"
+      statut_equipement: "OPERATIONNEL" | "DEGRADE" | "HORS_SERVICE"
+      statut_ronde: "EN_COURS" | "EN_ATTENTE_VALIDATION" | "VALIDEE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1374,6 +2021,9 @@ export const Constants = {
       ],
       ligne_type: ["B6_L1", "B6_L2", "B6_L3", "B6_L4", "B12"],
       shift_type: ["10h-19h", "20h-5h"],
+      statut_anomalie: ["OUVERTE", "RESOLUE"],
+      statut_equipement: ["OPERATIONNEL", "DEGRADE", "HORS_SERVICE"],
+      statut_ronde: ["EN_COURS", "EN_ATTENTE_VALIDATION", "VALIDEE"],
     },
   },
 } as const
