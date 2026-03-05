@@ -92,7 +92,7 @@ const Landing = () => {
         <div className="container mx-auto text-center max-w-4xl">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium mb-4 sm:mb-6">
             <Zap className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">ERP nouvelle génération pour l’industrie du GPL</span>
+            <span className="hidden sm:inline">ERP nouvelle génération pour l’industrie du GPL.</span>
             <span className="sm:hidden">GPL nouvelle génération</span>
           </div>
 
