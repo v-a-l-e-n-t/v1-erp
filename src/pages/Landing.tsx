@@ -103,7 +103,7 @@ const Landing = () => {
           </h1>
 
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
-            GazPILOTE centralise la gestion de votre production GPL, le suivi des ventes,
+            GazPILOTE centralise la gestion de votre production GAZ, le suivi des ventes,
             et l'analyse de vos performances en temps réel.
           </p>
 
