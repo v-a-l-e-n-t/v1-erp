@@ -24,6 +24,7 @@ import Stock from "./pages/Stock";
 import BilanBke from "./pages/BilanBke";
 import DashboardBke from "./pages/DashboardBke";
 import FormMaintenance from "./pages/FormMaintenance";
+import FormPalette from "./pages/FormPalette";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +65,7 @@ const App = () => (
           </Route>
 
           <Route path="/form-maintenance" element={<FormMaintenance />} />
+          <Route path="/form-palette" element={<FormPalette />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

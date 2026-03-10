@@ -11,7 +11,7 @@ import { BilanEntry } from '@/types/balance';
 import { loadEntries, deleteEntry, updateEntry, exportToExcel, exportToPDF, exportIndividualToPDF } from '@/utils/storage';
 import { calculateBilan } from '@/utils/calculations';
 import { toast } from 'sonner';
-import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory, Download, FileDown, HardHat, Truck } from 'lucide-react';
+import { BarChart3, FileText, Calculator, ArrowUpRight, ChevronDown, ChevronUp, Presentation, LogOut, User, Eye, EyeOff, Wrench, Map as MapIcon, CalendarIcon, Package as PackageIcon, Users, Factory, Download, FileDown, HardHat, Truck, Layers } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
+import { PaletteEntry, PaletteClientKey, PALETTE_CLIENT_FULL_LABELS } from '@/types/palette';
 import ReceptionsView from '@/components/dashboard/ReceptionsView';
 import ReceptionsHistoryTable from '@/components/dashboard/ReceptionsHistoryTable';
 
@@ -65,7 +66,7 @@ const DashboardHistorique = () => {
 
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [entries, setEntries] = useState<BilanEntry[]>([]);
-  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'carte' | 'graphes' | 'chariot' | 'maintenance'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'receptions' | 'vrac' | 'emplisseur' | 'sorties' | 'distribution' | 'atelier' | 'palette' | 'carte' | 'graphes' | 'chariot' | 'maintenance'>('overview');
   const [loading, setLoading] = useState(true);
   const [editingEntry, setEditingEntry] = useState<BilanEntry | null>(null);
   const [productionAnnuelle, setProductionAnnuelle] = useState<number>(0);
@@ -81,6 +82,7 @@ const DashboardHistorique = () => {
   const kpiSectionRef = useRef<HTMLDivElement>(null);
   const atelierDashboardRef = useRef<HTMLDivElement>(null);
   const atelierHistoryRef = useRef<HTMLDivElement>(null);
+  const paletteDashboardRef = useRef<HTMLDivElement>(null);
 
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
@@ -260,6 +262,63 @@ const DashboardHistorique = () => {
     } catch (error) {
       console.error('Error exporting Atelier PDF:', error);
       toast.error('Erreur lors de l\'export PDF');
+    }
+  };
+
+  // PALETTE Dashboard Export functions
+  const exportPaletteAsImage = async () => {
+    if (!paletteDashboardRef.current) return;
+    try {
+      const canvas = await html2canvas(paletteDashboardRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      } as any);
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+      const link = document.createElement('a');
+      link.download = `dashboard-palette_${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Image Palette exportée avec succès');
+    } catch (error) {
+      console.error('Error exporting Palette image:', error);
+      toast.error("Erreur lors de l'export image");
+    }
+  };
+
+  const exportPaletteAsPDF = async () => {
+    if (!paletteDashboardRef.current) return;
+    try {
+      const canvas = await html2canvas(paletteDashboardRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      } as any);
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const imgWidth = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      const now = new Date();
+      const timestamp = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+      pdf.save(`dashboard-palette_${timestamp}.pdf`);
+      toast.success('PDF Palette exporté avec succès');
+    } catch (error) {
+      console.error('Error exporting Palette PDF:', error);
+      toast.error("Erreur lors de l'export PDF");
     }
   };
 
@@ -503,6 +562,10 @@ const DashboardHistorique = () => {
   // ATELIER data
   const [atelierEntries, setAtelierEntries] = useState<AtelierEntry[]>([]);
   const [atelierLoading, setAtelierLoading] = useState(false);
+
+  // PALETTE data
+  const [paletteEntries, setPaletteEntries] = useState<PaletteEntry[]>([]);
+  const [paletteLoading, setPaletteLoading] = useState(false);
 
   // Generate last 12 months for filter (memoized to avoid duplicates)
   const availableMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => {
@@ -878,6 +941,13 @@ const DashboardHistorique = () => {
   const [atelierSelectedClient, setAtelierSelectedClient] = useState<AtelierClientKey | 'all'>('all');
   const [atelierSelectedBottleType, setAtelierSelectedBottleType] = useState<'BR' | 'BV' | 'BHS' | 'CPT' | 'all'>('all');
 
+  // PALETTE filter state
+  const [paletteFilterType, setPaletteFilterType] = useState<FilterType>('all');
+  const [paletteSelectedYear, setPaletteSelectedYear] = useState<number>(new Date().getFullYear());
+  const [paletteSelectedMonth, setPaletteSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+  const [paletteSelectedDate, setPaletteSelectedDate] = useState<Date | undefined>(undefined);
+  const [paletteDateRange, setPaletteDateRange] = useState<DateRange | undefined>(undefined);
+
   // Années disponibles pour le filtre atelier
   const atelierAvailableYearsList = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -906,6 +976,21 @@ const DashboardHistorique = () => {
       }
     }
   }, [atelierSelectedYear, atelierFilterType]);
+
+  // Années disponibles pour le filtre palette
+  const paletteAvailableYearsList = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => currentYear - i);
+  }, []);
+
+  // Mois disponibles pour le filtre palette
+  const paletteAvailableMonths = useMemo(() => {
+    if (paletteFilterType !== 'month') return [];
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      return `${paletteSelectedYear}-${String(month).padStart(2, '0')}`;
+    }).reverse();
+  }, [paletteSelectedYear, paletteFilterType]);
 
   // RECEPTIONS filter state
   const loadReceptionsFilters = () => {
@@ -1116,6 +1201,82 @@ const DashboardHistorique = () => {
 
     return { categories, clients, totalBouteilles };
   }, [atelierEntries]);
+
+  // Charger les données PALETTE avec filtre
+  useEffect(() => {
+    const fetchPalette = async () => {
+      setPaletteLoading(true);
+      try {
+        let query = (supabase as any).from('palette_entries').select('*, mandataires(nom)');
+
+        if (paletteFilterType === 'all') {
+          // Pas de filtre
+        } else if (paletteFilterType === 'year') {
+          query = query.gte('date', `${paletteSelectedYear}-01-01`).lte('date', `${paletteSelectedYear}-12-31`);
+        } else if (paletteFilterType === 'month') {
+          const startDate = `${paletteSelectedMonth}-01`;
+          const [y, m] = paletteSelectedMonth.split('-').map(Number);
+          const endDateObj = endOfMonth(new Date(y, m - 1, 1));
+          const endDate = format(endDateObj, 'yyyy-MM-dd');
+          query = query.gte('date', startDate).lte('date', endDate);
+        } else if (paletteFilterType === 'day' && paletteSelectedDate) {
+          query = query.eq('date', format(paletteSelectedDate, 'yyyy-MM-dd'));
+        } else if (paletteFilterType === 'period' && paletteDateRange?.from) {
+          const fromStr = format(paletteDateRange.from, 'yyyy-MM-dd');
+          const toStr = paletteDateRange.to ? format(paletteDateRange.to, 'yyyy-MM-dd') : fromStr;
+          query = query.gte('date', fromStr).lte('date', toStr);
+        }
+
+        const { data, error } = await query.order('date', { ascending: false });
+        if (error) throw error;
+        setPaletteEntries((data || []) as PaletteEntry[]);
+      } catch (error) {
+        console.error('Error loading palette entries:', error);
+      } finally {
+        setPaletteLoading(false);
+      }
+    };
+
+    fetchPalette();
+  }, [paletteFilterType, paletteSelectedYear, paletteSelectedMonth, paletteSelectedDate, paletteDateRange]);
+
+  // Stats palette
+  const paletteStats = useMemo(() => {
+    const totalB6 = paletteEntries.reduce((s, e) => s + (e.b6 || 0), 0);
+    const totalB12 = paletteEntries.reduce((s, e) => s + (e.b12 || 0), 0);
+    const totalB28 = paletteEntries.reduce((s, e) => s + (e.b28 || 0), 0);
+    const totalB38 = paletteEntries.reduce((s, e) => s + (e.b38 || 0), 0);
+    const totalBouteilles = totalB6 + totalB12 + totalB28 + totalB38;
+
+    const totalPaletteB6Normale = paletteEntries.reduce((s, e) => s + (e.palette_b6_normale || 0), 0);
+    const totalPaletteB6Courte = paletteEntries.reduce((s, e) => s + (e.palette_b6_courte || 0), 0);
+    const totalPaletteB12Ordinaire = paletteEntries.reduce((s, e) => s + (e.palette_b12_ordinaire || 0), 0);
+    const totalPaletteB12Superpo = paletteEntries.reduce((s, e) => s + (e.palette_b12_superpo || 0), 0);
+    const totalPalettes = totalPaletteB6Normale + totalPaletteB6Courte + totalPaletteB12Ordinaire + totalPaletteB12Superpo;
+
+    const byClient: Record<PaletteClientKey, { b6: number; b12: number; b28: number; b38: number; pb6n: number; pb6c: number; pb12o: number; pb12s: number; totalBtl: number; totalPlt: number }> = {
+      PETRO_IVOIRE: { b6: 0, b12: 0, b28: 0, b38: 0, pb6n: 0, pb6c: 0, pb12o: 0, pb12s: 0, totalBtl: 0, totalPlt: 0 },
+      TOTAL_ENERGIES: { b6: 0, b12: 0, b28: 0, b38: 0, pb6n: 0, pb6c: 0, pb12o: 0, pb12s: 0, totalBtl: 0, totalPlt: 0 },
+      VIVO_ENERGY: { b6: 0, b12: 0, b28: 0, b38: 0, pb6n: 0, pb6c: 0, pb12o: 0, pb12s: 0, totalBtl: 0, totalPlt: 0 },
+    };
+
+    paletteEntries.forEach(e => {
+      const c = e.client as PaletteClientKey;
+      if (!byClient[c]) return;
+      byClient[c].b6 += e.b6 || 0;
+      byClient[c].b12 += e.b12 || 0;
+      byClient[c].b28 += e.b28 || 0;
+      byClient[c].b38 += e.b38 || 0;
+      byClient[c].pb6n += e.palette_b6_normale || 0;
+      byClient[c].pb6c += e.palette_b6_courte || 0;
+      byClient[c].pb12o += e.palette_b12_ordinaire || 0;
+      byClient[c].pb12s += e.palette_b12_superpo || 0;
+      byClient[c].totalBtl += (e.b6 || 0) + (e.b12 || 0) + (e.b28 || 0) + (e.b38 || 0);
+      byClient[c].totalPlt += (e.palette_b6_normale || 0) + (e.palette_b6_courte || 0) + (e.palette_b12_ordinaire || 0) + (e.palette_b12_superpo || 0);
+    });
+
+    return { totalB6, totalB12, totalB28, totalB38, totalBouteilles, totalPaletteB6Normale, totalPaletteB6Courte, totalPaletteB12Ordinaire, totalPaletteB12Superpo, totalPalettes, byClient };
+  }, [paletteEntries]);
 
   const loadData = async () => {
     setLoading(true);
@@ -1643,6 +1804,16 @@ const DashboardHistorique = () => {
           </Button>
 
           <Button
+            variant={activeView === 'palette' ? 'default' : 'outline'}
+            size="sm"
+            className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'palette' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
+            onClick={() => setActiveView('palette')}
+          >
+            <Layers className="mr-0.5 sm:mr-1 h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+            PALETTE
+          </Button>
+
+          <Button
             variant={activeView === 'chariot' ? 'default' : 'outline'}
             size="sm"
             className={`h-7 sm:h-8 md:h-9 px-1.5 sm:px-2 md:px-2.5 text-[8px] sm:text-[9px] md:text-[11px] font-bold uppercase tracking-wide ${activeView === 'chariot' ? 'shadow-md' : 'hover:bg-primary/5 hover:text-primary'}`}
@@ -2095,6 +2266,270 @@ const DashboardHistorique = () => {
                   </div>
 
                 </>
+              )}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'palette' && (
+            <div className="space-y-6">
+              {/* Header : titre à gauche, boutons à droite */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Dashboard Palette</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={exportPaletteAsImage} className="h-8 sm:h-9">
+                    <Download className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Image</span>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportPaletteAsPDF} className="h-8 sm:h-9">
+                    <FileDown className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">PDF</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs sm:text-sm font-semibold px-3 py-1"
+                    onClick={() => navigate('/form-palette')}
+                  >
+                    SAISIE
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filtres */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={paletteFilterType} onValueChange={(v: FilterType) => setPaletteFilterType(v)}>
+                  <SelectTrigger className="h-8 sm:h-9 w-[130px] sm:w-[150px] text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4}>
+                    <SelectItem value="all">Toutes périodes</SelectItem>
+                    <SelectItem value="year">Année</SelectItem>
+                    <SelectItem value="month">Mois</SelectItem>
+                    <SelectItem value="period">Période</SelectItem>
+                    <SelectItem value="day">Jour</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {paletteFilterType === 'year' && (
+                  <Select value={paletteSelectedYear.toString()} onValueChange={v => setPaletteSelectedYear(Number(v))}>
+                    <SelectTrigger className="h-8 sm:h-9 w-[90px] sm:w-[110px] text-xs sm:text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4}>
+                      {paletteAvailableYearsList.map(year => (
+                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {paletteFilterType === 'month' && (
+                  <>
+                    <Select value={paletteSelectedYear.toString()} onValueChange={v => setPaletteSelectedYear(Number(v))}>
+                      <SelectTrigger className="h-8 sm:h-9 w-[90px] sm:w-[110px] text-xs sm:text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4}>
+                        {paletteAvailableYearsList.map(year => (
+                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={paletteSelectedMonth} onValueChange={setPaletteSelectedMonth}>
+                      <SelectTrigger className="h-8 sm:h-9 w-[150px] sm:w-[170px] text-xs sm:text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4} className="max-h-60 overflow-y-auto">
+                        {paletteAvailableMonths.map(month => (
+                          <SelectItem key={month} value={month}>
+                            {new Date(month + '-01').toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
+
+                {paletteFilterType === 'day' && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-8 sm:h-9 w-[150px] sm:w-[170px] justify-start text-left font-normal text-xs sm:text-sm">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {paletteSelectedDate ? format(paletteSelectedDate, 'PPP', { locale: fr }) : 'Choisir une date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={paletteSelectedDate} onSelect={setPaletteSelectedDate} locale={fr} disabled={{ after: new Date() }} />
+                    </PopoverContent>
+                  </Popover>
+                )}
+
+                {paletteFilterType === 'period' && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-8 sm:h-9 w-[220px] sm:w-[260px] justify-start text-left font-normal text-xs sm:text-sm">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {paletteDateRange?.from ? (
+                          paletteDateRange.to
+                            ? `${format(paletteDateRange.from, 'dd/MM/yy')} - ${format(paletteDateRange.to, 'dd/MM/yy')}`
+                            : format(paletteDateRange.from, 'PPP', { locale: fr })
+                        ) : 'Sélectionner une période'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="range" selected={paletteDateRange} onSelect={setPaletteDateRange} locale={fr} disabled={{ after: new Date() }} numberOfMonths={2} />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+
+              {/* Contenu */}
+              <div ref={paletteDashboardRef} className="bg-background p-2 rounded-lg">
+              {paletteLoading ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Chargement des données...</p>
+              ) : paletteEntries.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucune donnée PALETTE à afficher pour le moment.</p>
+              ) : (
+                <div className="p-4 bg-primary/5 rounded-lg border border-primary/10 space-y-6">
+
+                  {/* Cumuls bouteilles */}
+                  <div>
+                    <div className="text-center mb-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Bouteilles</p>
+                      <p className="text-4xl font-extrabold text-primary tracking-tight">
+                        {paletteStats.totalBouteilles.toLocaleString('fr-FR')}
+                        <span className="text-xl text-primary/60 ml-2">bouteilles</span>
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-primary/20">
+                      {[
+                        { label: 'B6', value: paletteStats.totalB6 },
+                        { label: 'B12', value: paletteStats.totalB12 },
+                        { label: 'B28', value: paletteStats.totalB28 },
+                        { label: 'B38', value: paletteStats.totalB38 },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="bg-card p-3 rounded-md border shadow-sm text-center">
+                          <p className="text-xs text-muted-foreground uppercase font-bold mb-1">{label}</p>
+                          <p className="text-2xl font-extrabold text-primary">{value.toLocaleString('fr-FR')}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Cumuls palettes */}
+                  <div>
+                    <div className="text-center mb-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Palettes</p>
+                      <p className="text-4xl font-extrabold text-orange-600 tracking-tight">
+                        {paletteStats.totalPalettes.toLocaleString('fr-FR')}
+                        <span className="text-xl text-orange-400 ml-2">palettes</span>
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-orange-200">
+                      {[
+                        { label: 'B6 Normale', value: paletteStats.totalPaletteB6Normale },
+                        { label: 'B6 Courte', value: paletteStats.totalPaletteB6Courte },
+                        { label: 'B12 Ordinaire', value: paletteStats.totalPaletteB12Ordinaire },
+                        { label: 'B12 Superpo', value: paletteStats.totalPaletteB12Superpo },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="bg-card p-3 rounded-md border shadow-sm text-center">
+                          <p className="text-xs text-muted-foreground uppercase font-bold mb-1">{label}</p>
+                          <p className="text-2xl font-extrabold text-orange-600">{value.toLocaleString('fr-FR')}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Répartition bouteille par client */}
+                  <div className="pt-3 border-t border-primary/20">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <Users className="h-3 w-3" />
+                      Répartition bouteille par client
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY'] as PaletteClientKey[]).map(c => {
+                        const logoMap: Record<PaletteClientKey, string> = {
+                          PETRO_IVOIRE: '/images/logo-petro.png',
+                          TOTAL_ENERGIES: '/images/logo-total.png',
+                          VIVO_ENERGY: '/images/logo-vivo.png',
+                        };
+                        const cd = paletteStats.byClient[c];
+                        const pct = paletteStats.totalBouteilles > 0 ? (cd.totalBtl / paletteStats.totalBouteilles) * 100 : 0;
+                        return (
+                          <div key={c} className="p-3 bg-white/50 rounded-lg border border-primary/20 hover:shadow-sm transition-shadow">
+                            <div className="flex justify-between items-center mb-2">
+                              <img src={logoMap[c]} alt={PALETTE_CLIENT_FULL_LABELS[c]} className="h-12 w-12 object-contain" />
+                              <div className="text-right">
+                                <p className="text-sm font-extrabold text-foreground">{pct.toFixed(1)}%</p>
+                                <p className="text-sm font-extrabold text-primary">{cd.totalBtl.toLocaleString('fr-FR')}</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1 text-center text-xs mt-2">
+                              {[
+                                { label: 'B6', value: cd.b6 },
+                                { label: 'B12', value: cd.b12 },
+                                { label: 'B28', value: cd.b28 },
+                                { label: 'B38', value: cd.b38 },
+                              ].map(({ label, value }) => (
+                                <div key={label} className="bg-muted/30 p-1 rounded">
+                                  <span className="block font-semibold text-muted-foreground">{label}</span>
+                                  <span className="font-bold text-orange-600">{value.toLocaleString('fr-FR')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Répartition palettes par client */}
+                  <div className="pt-3 border-t border-orange-200">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <Layers className="h-3 w-3" />
+                      Répartition palettes par client
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY'] as PaletteClientKey[]).map(c => {
+                        const logoMap: Record<PaletteClientKey, string> = {
+                          PETRO_IVOIRE: '/images/logo-petro.png',
+                          TOTAL_ENERGIES: '/images/logo-total.png',
+                          VIVO_ENERGY: '/images/logo-vivo.png',
+                        };
+                        const cd = paletteStats.byClient[c];
+                        const pct = paletteStats.totalPalettes > 0 ? (cd.totalPlt / paletteStats.totalPalettes) * 100 : 0;
+                        return (
+                          <div key={c} className="p-3 bg-orange-50/50 rounded-lg border border-orange-100 hover:shadow-sm transition-shadow">
+                            <div className="flex justify-between items-center mb-2">
+                              <img src={logoMap[c]} alt={PALETTE_CLIENT_FULL_LABELS[c]} className="h-12 w-12 object-contain" />
+                              <div className="text-right">
+                                <p className="text-sm font-extrabold text-foreground">{pct.toFixed(1)}%</p>
+                                <p className="text-sm font-extrabold text-orange-600">{cd.totalPlt.toLocaleString('fr-FR')}</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1 text-xs mt-2">
+                              {[
+                                { label: 'B6 Normale', value: cd.pb6n },
+                                { label: 'B6 Courte', value: cd.pb6c },
+                                { label: 'B12 Ordinaire', value: cd.pb12o },
+                                { label: 'B12 Superpo', value: cd.pb12s },
+                              ].map(({ label, value }) => (
+                                <div key={label} className="bg-muted/30 p-1.5 rounded flex justify-between items-center">
+                                  <span className="font-semibold text-muted-foreground">{label}</span>
+                                  <span className="font-bold text-orange-600">{value.toLocaleString('fr-FR')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
               )}
               </div>
             </div>
