@@ -35,6 +35,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
 import AtelierHistoryTable from '@/components/dashboard/AtelierHistoryTable';
+import PaletteHistoryTable from '@/components/dashboard/PaletteHistoryTable';
 import { PaletteEntry, PaletteClientKey, PALETTE_CLIENT_FULL_LABELS } from '@/types/palette';
 import ReceptionsView from '@/components/dashboard/ReceptionsView';
 import ReceptionsHistoryTable from '@/components/dashboard/ReceptionsHistoryTable';
@@ -78,6 +79,7 @@ const DashboardHistorique = () => {
   const [isProductionExpanded, setIsProductionExpanded] = useState(false);
   const [isMandatairesVentesExpanded, setIsMandatairesVentesExpanded] = useState(false);
   const [isAtelierExpanded, setIsAtelierExpanded] = useState(false);
+  const [isPaletteHistoryExpanded, setIsPaletteHistoryExpanded] = useState(false);
   const [isReceptionsExpanded, setIsReceptionsExpanded] = useState(false);
   const kpiSectionRef = useRef<HTMLDivElement>(null);
   const atelierDashboardRef = useRef<HTMLDivElement>(null);
@@ -939,6 +941,15 @@ const DashboardHistorique = () => {
     });
   }, [atelierFilterType, atelierSelectedYear, atelierSelectedMonth, atelierSelectedDate, atelierDateRange]);
   const [atelierSelectedClient, setAtelierSelectedClient] = useState<AtelierClientKey | 'all'>('all');
+
+  // États filtres Historique Palette
+  const [paletteHistFilterType, setPaletteHistFilterType] = useState<FilterType>('month');
+  const [paletteHistSelectedYear, setPaletteHistSelectedYear] = useState<number>(new Date().getFullYear());
+  const [paletteHistSelectedMonth, setPaletteHistSelectedMonth] = useState<string>(
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  );
+  const [paletteHistSelectedDate, setPaletteHistSelectedDate] = useState<Date | undefined>(undefined);
+  const [paletteHistDateRange, setPaletteHistDateRange] = useState<DateRange | undefined>(undefined);
   const [atelierSelectedBottleType, setAtelierSelectedBottleType] = useState<'BR' | 'BV' | 'BHS' | 'CPT' | 'all'>('all');
 
   // PALETTE filter state
@@ -2769,6 +2780,43 @@ const DashboardHistorique = () => {
                       }}
                       availableMonths={availableMonths}
                       availableYears={atelierAvailableYears}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Historique Palette - Collapsible */}
+              <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setIsPaletteHistoryExpanded(!isPaletteHistoryExpanded)}
+                >
+                  <h2 className="text-xl sm:text-2xl font-bold">Historique Palette</h2>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
+                      {isPaletteHistoryExpanded ? (
+                        <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                {isPaletteHistoryExpanded && (
+                  <div className="px-6 pb-6 bg-white">
+                    <PaletteHistoryTable
+                      filterType={paletteHistFilterType}
+                      selectedYear={paletteHistSelectedYear}
+                      selectedMonth={paletteHistSelectedMonth}
+                      selectedDate={paletteHistSelectedDate}
+                      dateRange={paletteHistDateRange}
+                      onFilterChange={(type, year, month, date, range) => {
+                        setPaletteHistFilterType(type);
+                        if (year !== undefined) setPaletteHistSelectedYear(year);
+                        if (month !== undefined) setPaletteHistSelectedMonth(month);
+                        if (date !== undefined) setPaletteHistSelectedDate(date);
+                        if (range !== undefined) setPaletteHistDateRange(range);
+                      }}
                     />
                   </div>
                 )}
