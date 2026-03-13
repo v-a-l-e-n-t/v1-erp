@@ -35,17 +35,25 @@ const FormPalette = () => {
   const [capacite, setCapacite] = useState<number>(0);
   const [numCamion, setNumCamion] = useState('');
 
-  // Bouteilles
-  const [b6, setB6] = useState<number>(0);
-  const [b12, setB12] = useState<number>(0);
-  const [b28, setB28] = useState<number>(0);
-  const [b38, setB38] = useState<number>(0);
-
-  // Palettes
+  // Palettes (saisie manuelle)
   const [paletteB6Normale, setPaletteB6Normale] = useState<number>(0);
   const [paletteB6Courte, setPaletteB6Courte] = useState<number>(0);
   const [paletteB12Ordinaire, setPaletteB12Ordinaire] = useState<number>(0);
   const [paletteB12Superpo, setPaletteB12Superpo] = useState<number>(0);
+
+  // Bouteilles — auto-calculées mais modifiables manuellement
+  const [b6,  setB6]  = useState<number>(0);
+  const [b12, setB12] = useState<number>(0);
+  const [b28, setB28] = useState<number>(0);
+  const [b38, setB38] = useState<number>(0);
+
+  useEffect(() => {
+    setB6(paletteB6Normale * 35 + paletteB6Courte * 35 + paletteB12Superpo * 70);
+  }, [paletteB6Normale, paletteB6Courte, paletteB12Superpo]);
+
+  useEffect(() => {
+    setB12(paletteB12Ordinaire * 35);
+  }, [paletteB12Ordinaire]);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -60,11 +68,7 @@ const FormPalette = () => {
         setMandataires(data || []);
       } catch (error) {
         console.error('Error loading mandataires:', error);
-        toast({
-          title: 'Erreur',
-          description: 'Impossible de charger les mandataires',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erreur', description: 'Impossible de charger les mandataires', variant: 'destructive' });
       }
     };
     loadMandataires();
@@ -89,14 +93,14 @@ const FormPalette = () => {
     setMandataireId('');
     setCapacite(0);
     setNumCamion('');
-    setB6(0);
-    setB12(0);
-    setB28(0);
-    setB38(0);
     setPaletteB6Normale(0);
     setPaletteB6Courte(0);
     setPaletteB12Ordinaire(0);
     setPaletteB12Superpo(0);
+    setB6(0);
+    setB12(0);
+    setB28(0);
+    setB38(0);
   };
 
   const handleSubmit = async () => {
@@ -137,11 +141,7 @@ const FormPalette = () => {
       resetForm();
     } catch (error: any) {
       console.error('Error saving palette entry:', error);
-      toast({
-        title: 'Erreur',
-        description: error.message || "Impossible d'enregistrer les données PALETTE",
-        variant: 'destructive',
-      });
+      toast({ title: 'Erreur', description: error.message || "Impossible d'enregistrer les données PALETTE", variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -152,18 +152,15 @@ const FormPalette = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold">Saisie PALETTE</h1>
-          <p className="text-sm text-muted-foreground">
-            Déclarer les bouteilles et palettes par chargement.
-          </p>
+          <p className="text-sm text-muted-foreground">Déclarer les palettes et bouteilles par chargement.</p>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6 max-w-3xl">
+
         {/* Informations générales */}
         <Card>
-          <CardHeader>
-            <CardTitle>Informations générales</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Informations générales</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Date */}
             <div className="space-y-2">
@@ -185,56 +182,33 @@ const FormPalette = () => {
             <div className="space-y-2">
               <Label>Client</Label>
               <Select value={client} onValueChange={v => setClient(v as PaletteClientKey)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un client" /></SelectTrigger>
                 <SelectContent>
                   {CLIENTS.map(c => (
-                    <SelectItem key={c} value={c}>
-                      {PALETTE_CLIENT_FULL_LABELS[c]}
-                    </SelectItem>
+                    <SelectItem key={c} value={c}>{PALETTE_CLIENT_FULL_LABELS[c]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Mandataire/Transporteur */}
+            {/* Mandataire */}
             <div className="space-y-2">
               <Label>Mandataire / Transporteur</Label>
               <Popover open={mandataireOpen} onOpenChange={setMandataireOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={mandataireOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    <span className="truncate">
-                      {selectedMandataireName || 'Sélectionner un mandataire'}
-                    </span>
+                  <Button variant="outline" role="combobox" aria-expanded={mandataireOpen} className="w-full justify-between font-normal">
+                    <span className="truncate">{selectedMandataireName || 'Sélectionner un mandataire'}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0" align="start">
                   <Command shouldFilter={false}>
-                    <CommandInput
-                      placeholder="Rechercher..."
-                      value={mandataireSearch}
-                      onValueChange={setMandataireSearch}
-                    />
+                    <CommandInput placeholder="Rechercher..." value={mandataireSearch} onValueChange={setMandataireSearch} />
                     <CommandList>
                       <CommandEmpty>Aucun mandataire trouvé.</CommandEmpty>
                       <CommandGroup>
                         {filteredMandataires.map(m => (
-                          <CommandItem
-                            key={m.id}
-                            value={m.id}
-                            onSelect={() => {
-                              setMandataireId(m.id);
-                              setMandataireSearch('');
-                              setMandataireOpen(false);
-                            }}
-                          >
+                          <CommandItem key={m.id} value={m.id} onSelect={() => { setMandataireId(m.id); setMandataireSearch(''); setMandataireOpen(false); }}>
                             <Check className={cn('mr-2 h-4 w-4', mandataireId === m.id ? 'opacity-100' : 'opacity-0')} />
                             {m.nom}
                           </CommandItem>
@@ -265,29 +239,23 @@ const FormPalette = () => {
             {/* N° Camion */}
             <div className="space-y-2">
               <Label>N° Camion</Label>
-              <Input
-                value={numCamion}
-                onChange={e => setNumCamion(e.target.value)}
-                placeholder="Ex: AB-1234-CI"
-              />
+              <Input value={numCamion} onChange={e => setNumCamion(e.target.value)} placeholder="Ex: AB-1234-CI" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Bouteilles */}
+        {/* Palettes — saisie manuelle */}
         <Card>
-          <CardHeader>
-            <CardTitle>Bouteilles</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Palettes</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'B6', value: b6, setter: setB6 },
-                { label: 'B12', value: b12, setter: setB12 },
-                { label: 'B28', value: b28, setter: setB28 },
-                { label: 'B38', value: b38, setter: setB38 },
+                { label: 'B6 Normale', value: paletteB6Normale, setter: setPaletteB6Normale },
+                { label: 'B6 Courte',  value: paletteB6Courte,  setter: setPaletteB6Courte },
+                { label: 'B12 Ordinaire', value: paletteB12Ordinaire, setter: setPaletteB12Ordinaire },
+                { label: 'B12 Superpo',   value: paletteB12Superpo,   setter: setPaletteB12Superpo },
               ].map(({ label, value, setter }) => (
-                <div key={label} className="space-y-2">
+                <div key={label} className="space-y-1">
                   <Label>{label}</Label>
                   <Input
                     type="number"
@@ -295,6 +263,7 @@ const FormPalette = () => {
                     value={value || ''}
                     onChange={e => setter(parseQty(e.target.value))}
                     className="text-right"
+                    placeholder="0"
                   />
                 </div>
               ))}
@@ -302,20 +271,20 @@ const FormPalette = () => {
           </CardContent>
         </Card>
 
-        {/* Palettes */}
+        {/* Bouteilles — calculées automatiquement */}
         <Card>
           <CardHeader>
-            <CardTitle>Palettes</CardTitle>
+            <CardTitle>Bouteilles</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'B6 Normale', value: paletteB6Normale, setter: setPaletteB6Normale },
-                { label: 'B6 Courte', value: paletteB6Courte, setter: setPaletteB6Courte },
-                { label: 'B12 Ordinaire', value: paletteB12Ordinaire, setter: setPaletteB12Ordinaire },
-                { label: 'B12 Superpo', value: paletteB12Superpo, setter: setPaletteB12Superpo },
+                { label: 'B6',  value: b6,  setter: setB6 },
+                { label: 'B12', value: b12, setter: setB12 },
+                { label: 'B28', value: b28, setter: setB28 },
+                { label: 'B38', value: b38, setter: setB38 },
               ].map(({ label, value, setter }) => (
-                <div key={label} className="space-y-2">
+                <div key={label} className="space-y-1">
                   <Label>{label}</Label>
                   <Input
                     type="number"
@@ -323,6 +292,7 @@ const FormPalette = () => {
                     value={value || ''}
                     onChange={e => setter(parseQty(e.target.value))}
                     className="text-right"
+                    placeholder="0"
                   />
                 </div>
               ))}
