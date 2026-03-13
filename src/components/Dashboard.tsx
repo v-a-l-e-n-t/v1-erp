@@ -126,6 +126,23 @@ const Dashboard = ({ entries }: DashboardProps) => {
     [client: string]: Array<{ nom: string; tonnage: number }>;
   }>({});
 
+  // Palette overview state (KPIs vue d'ensemble)
+  const [paletteOverview, setPaletteOverview] = useState<{
+    totalBouteilles: number;
+    totalPalettes: number;
+    byClient: Record<string, { bouteilles: number; palettes: number }>;
+    topMandataires: Array<{ nom: string; palettes: number }>;
+    topMandatairesByClient: Record<string, Array<{ nom: string; palettes: number }>>;
+    loading: boolean;
+  }>({
+    totalBouteilles: 0,
+    totalPalettes: 0,
+    byClient: {},
+    topMandataires: [],
+    topMandatairesByClient: {},
+    loading: false,
+  });
+
   // Monthly objective state
   const [showObjectiveDialog, setShowObjectiveDialog] = useState(false);
   const [objectiveValue, setObjectiveValue] = useState('');
@@ -713,6 +730,72 @@ const Dashboard = ({ entries }: DashboardProps) => {
     fetchTopMandataires();
   }, [filterType, selectedMonth, selectedYear, selectedDate, dateRange]);
 
+  // Fetch palette overview KPIs
+  useEffect(() => {
+    const fetchPaletteOverview = async () => {
+      setPaletteOverview(prev => ({ ...prev, loading: true }));
+      try {
+        let query = (supabase.from('palette_entries' as any).select('*, mandataires(nom)')) as any;
+        if (filterType === 'year') {
+          query = query.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
+        } else if (filterType === 'month' && selectedMonth) {
+          const startDate = `${selectedMonth}-01`;
+          const [y, m] = selectedMonth.split('-').map(Number);
+          query = query.gte('date', startDate).lte('date', format(endOfMonth(new Date(y, m - 1, 1)), 'yyyy-MM-dd'));
+        } else if (filterType === 'day' && selectedDate) {
+          query = query.eq('date', format(selectedDate, 'yyyy-MM-dd'));
+        } else if (filterType === 'period' && dateRange?.from) {
+          query = query.gte('date', format(dateRange.from, 'yyyy-MM-dd'));
+          if (dateRange.to) query = query.lte('date', format(dateRange.to, 'yyyy-MM-dd'));
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        const paletteEntries: any[] = data || [];
+
+        let totalBouteilles = 0;
+        let totalPalettes = 0;
+        const byClient: Record<string, { bouteilles: number; palettes: number }> = {};
+        const mandataireMap = new Map<string, number>();
+        const mandataireByClientMap: Record<string, Map<string, number>> = {};
+
+        paletteEntries.forEach((e: any) => {
+          const palettes = (e.palette_b6_normale || 0) + (e.palette_b6_courte || 0) + (e.palette_b12_ordinaire || 0) + (e.palette_b12_superpo || 0);
+          const bouteilles = (e.b6 || 0) + (e.b12 || 0) + (e.b28 || 0) + (e.b38 || 0);
+          totalPalettes += palettes;
+          totalBouteilles += bouteilles;
+          const c = e.client as string;
+          if (!byClient[c]) byClient[c] = { bouteilles: 0, palettes: 0 };
+          byClient[c].bouteilles += bouteilles;
+          byClient[c].palettes += palettes;
+          const nom = normalizeMandataireName(e.mandataires?.nom || 'Inconnu');
+          mandataireMap.set(nom, (mandataireMap.get(nom) || 0) + palettes);
+          if (!mandataireByClientMap[c]) mandataireByClientMap[c] = new Map();
+          mandataireByClientMap[c].set(nom, (mandataireByClientMap[c].get(nom) || 0) + palettes);
+        });
+
+        const topMandataires = Array.from(mandataireMap.entries())
+          .map(([nom, palettes]) => ({ nom, palettes }))
+          .sort((a, b) => b.palettes - a.palettes)
+          .slice(0, 3);
+
+        const topMandatairesByClient: Record<string, Array<{ nom: string; palettes: number }>> = {};
+        Object.entries(mandataireByClientMap).forEach(([client, map]) => {
+          topMandatairesByClient[client] = Array.from(map.entries())
+            .map(([nom, palettes]) => ({ nom, palettes }))
+            .sort((a, b) => b.palettes - a.palettes)
+            .slice(0, 3);
+        });
+
+        setPaletteOverview({ totalBouteilles, totalPalettes, byClient, topMandataires, topMandatairesByClient, loading: false });
+      } catch (error) {
+        console.error('Error fetching palette overview:', error);
+        setPaletteOverview(prev => ({ ...prev, loading: false }));
+      }
+    };
+    fetchPaletteOverview();
+  }, [filterType, selectedMonth, selectedYear, selectedDate, dateRange]);
+
   // Filter entries based on selected filter type
   const filteredEntries = entries.filter(entry => {
     if (filterType === 'all') {
@@ -824,7 +907,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
   // Calculate totals
   const totalReceptions = filteredEntries.reduce((sum, e) => sum + e.reception_gpl, 0);
-  const nombreReceptions = filteredEntries.filter(e => e.reception_gpl > 0).length;
+  const nombreReceptions = filteredEntries.reduce((sum, e) => sum + (Array.isArray(e.receptions) ? e.receptions.length : 0), 0);
 
   // Get stock_initial from first entry of the period (sorted by date ascending)
   const sortedEntriesByDate = [...filteredEntries].sort((a, b) => a.date.localeCompare(b.date));
@@ -1626,6 +1709,158 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
                 )}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ========== ROW PALETTE KPIs ========== */}
+      <div className="mt-3 sm:mt-4 space-y-3">
+        {/* Ligne 1 : Totaux + Répartition par client */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          {/* C + D : Total bouteilles & palettes */}
+          <Card className="bg-orange-50/50 border-orange-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base font-semibold">📦 Totaux Palette</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="pt-2 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Cumul bouteilles</span>
+                <span className="text-xl font-bold text-orange-600">
+                  {paletteOverview.loading ? '...' : formatNumber(paletteOverview.totalBouteilles)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-t pt-2">
+                <span className="text-sm text-muted-foreground">Cumul palettes</span>
+                <span className="text-xl font-bold text-orange-600">
+                  {paletteOverview.loading ? '...' : formatNumber(paletteOverview.totalPalettes)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* E : Palettes par client */}
+          <Card className="bg-orange-50/50 border-orange-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base font-semibold">🏭 Palettes par client</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2 space-y-2">
+              {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY'] as const).map(c => {
+                const labels: Record<string, string> = { PETRO_IVOIRE: 'PETRO IVOIRE', TOTAL_ENERGIES: 'TOTAL ENERGIES', VIVO_ENERGY: 'VIVO ENERGY' };
+                const val = paletteOverview.byClient[c]?.palettes || 0;
+                const pct = paletteOverview.totalPalettes > 0 ? (val / paletteOverview.totalPalettes) * 100 : 0;
+                return (
+                  <div key={c} className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">{labels[c]}</span>
+                    <span className="text-sm font-bold text-orange-600">
+                      {formatNumber(val)} <span className="text-foreground font-bold">({pct.toFixed(1)}%)</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Ligne 2 : Bouteilles par client + Top mandataire global */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          {/* F : Bouteilles par client */}
+          <Card className="bg-orange-50/50 border-orange-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base font-semibold">🧴 Bouteilles par client</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2 space-y-2">
+              {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY'] as const).map(c => {
+                const labels: Record<string, string> = { PETRO_IVOIRE: 'PETRO IVOIRE', TOTAL_ENERGIES: 'TOTAL ENERGIES', VIVO_ENERGY: 'VIVO ENERGY' };
+                const val = paletteOverview.byClient[c]?.bouteilles || 0;
+                const pct = paletteOverview.totalBouteilles > 0 ? (val / paletteOverview.totalBouteilles) * 100 : 0;
+                return (
+                  <div key={c} className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">{labels[c]}</span>
+                    <span className="text-sm font-bold text-orange-600">
+                      {formatNumber(val)} <span className="text-foreground font-bold">({pct.toFixed(1)}%)</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* G : Top mandataire global (par nb palettes) */}
+          <Card className="bg-orange-50/50 border-orange-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base font-semibold">🚚 Top Mandataire Palette</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="pt-2 space-y-2">
+              {paletteOverview.topMandataires.length > 0 ? (
+                paletteOverview.topMandataires.map((m, i) => {
+                  const total = paletteOverview.topMandataires.reduce((s, x) => s + x.palettes, 0);
+                  const pct = total > 0 ? (m.palettes / total) * 100 : 0;
+                  return (
+                    <div key={i} className="bg-white p-2 rounded-lg border border-orange-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-semibold text-orange-600">#{i + 1}</span>
+                          <p className="text-xs font-semibold text-orange-700 truncate">{m.nom}</p>
+                        </div>
+                        <span className="text-xs font-semibold text-foreground">{pct.toFixed(1)}%</span>
+                      </div>
+                      <p className="text-sm font-bold text-foreground mt-0.5">{formatNumber(m.palettes)} palettes</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* H : Top mandataire par client */}
+        <Card className="bg-orange-50/50 border-orange-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">🚚 Top Mandataire Palette par Client</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {([
+                { key: 'PETRO_IVOIRE',   label: 'PETRO IVOIRE',   logo: '/images/logo-petro.png',  color: 'orange' },
+                { key: 'TOTAL_ENERGIES', label: 'TOTAL ENERGIES', logo: '/images/logo-total.png',  color: 'blue' },
+                { key: 'VIVO_ENERGY',    label: 'VIVO ENERGY',    logo: '/images/logo-vivo.png',   color: 'green' },
+              ] as const).map(({ key, label, logo, color }) => {
+                const list = paletteOverview.topMandatairesByClient[key] || [];
+                const clientTotal = list.reduce((s, m) => s + m.palettes, 0);
+                return (
+                  <div key={key}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <img src={logo} alt={label} className="h-8 w-8 object-contain" />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase">{label}</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {list.length > 0 ? list.map((m, i) => {
+                        const pct = clientTotal > 0 ? (m.palettes / clientTotal) * 100 : 0;
+                        return (
+                          <div key={i} className={`bg-white p-2 rounded-lg border border-${color}-100`}>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[10px] font-semibold text-${color}-600`}>#{i + 1}</span>
+                                <p className={`text-xs font-semibold text-${color}-700 truncate`}>{m.nom}</p>
+                              </div>
+                              <span className={`text-xs font-semibold text-${color}-600`}>{pct.toFixed(1)}%</span>
+                            </div>
+                            <p className="text-sm font-bold text-foreground">{formatNumber(m.palettes)} palettes</p>
+                          </div>
+                        );
+                      }) : (
+                        <p className="text-xs text-muted-foreground italic text-center py-2">Aucune donnée</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
