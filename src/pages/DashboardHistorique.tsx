@@ -2573,7 +2573,7 @@ const DashboardHistorique = () => {
 
           {activeView === 'chariot' && (
             <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
-              <h2 className="text-2xl font-bold">Dashboard Chariots Élévateurs</h2>
+              <h2 className="text-2xl font-bold">Dashboard Chariots</h2>
               <p className="text-muted-foreground text-sm">En développement</p>
             </div>
             // <ChariotDashboard onNavigateToForm={() => navigate('/form-chariot')} />
