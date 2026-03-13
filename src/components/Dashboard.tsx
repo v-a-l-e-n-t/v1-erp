@@ -1200,50 +1200,27 @@ const Dashboard = ({ entries }: DashboardProps) => {
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-semibold text-orange-700">📦 RÉPARTITIONS RÉCEPTIONS CLIENTS</CardTitle>
-            <Package className="h-4 w-4 text-orange-600" />
+            <span className="text-sm font-semibold">{formatNumber(receptionsClients.total)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
-            <div className="space-y-3">
-              <div className="text-2xl font-bold">{formatNumber(receptionsClients.total)} Kg</div>
-              <p className="text-xs text-muted-foreground">Cumul des réceptions par client</p>
-              <div className="space-y-2 border-t pt-2">
-                {/* TOTAL_ENERGIES */}
-                <div className="flex items-center justify-between">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+            <div className="flex flex-col gap-2 flex-1">
+              {([
+                { logo: '/images/logo-total.png', alt: 'Total', key: 'TOTAL_ENERGIES' as const },
+                { logo: '/images/logo-petro.png', alt: 'Petro', key: 'PETRO_IVOIRE' as const },
+                { logo: '/images/logo-vivo.png',  alt: 'Vivo',  key: 'VIVO_ENERGIES' as const },
+              ]).map(({ logo, alt, key }) => {
+                const val = receptionsClients.byClient[key] || 0;
+                const pct = receptionsClients.total > 0 ? (val / receptionsClients.total) * 100 : 0;
+                return (
+                  <div key={key} className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-orange-100 flex-1">
+                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5 flex-shrink-0">
+                      <img src={logo} alt={alt} className="h-full w-full object-contain" />
+                    </div>
+                    <span className="flex-1 text-base font-semibold">{formatNumber(val)} Kg</span>
+                    <span className="text-sm font-semibold text-orange-600">{pct.toFixed(1)}%</span>
                   </div>
-                  <span className="text-lg font-semibold">
-                    {formatNumber(receptionsClients.byClient['TOTAL_ENERGIES'] || 0)} Kg
-                    <span className="text-sm font-semibold text-orange-600 ml-2">
-                      {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['TOTAL_ENERGIES'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
-                    </span>
-                  </span>
-                </div>
-                {/* PETRO_IVOIRE */}
-                <div className="flex items-center justify-between">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-lg font-semibold">
-                    {formatNumber(receptionsClients.byClient['PETRO_IVOIRE'] || 0)} Kg
-                    <span className="text-sm font-semibold text-orange-600 ml-2">
-                      {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['PETRO_IVOIRE'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
-                    </span>
-                  </span>
-                </div>
-                {/* VIVO_ENERGIES */}
-                <div className="flex items-center justify-between">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-lg font-semibold">
-                    {formatNumber(receptionsClients.byClient['VIVO_ENERGIES'] || 0)} Kg
-                    <span className="text-sm font-semibold text-orange-600 ml-2">
-                      {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['VIVO_ENERGIES'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
-                    </span>
-                  </span>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -1260,40 +1237,40 @@ const Dashboard = ({ entries }: DashboardProps) => {
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-semibold text-orange-700">📊 VENTES</CardTitle>
-            <TrendingUp className="h-4 w-4 text-orange-600" />
+            <span className="text-sm font-semibold">{formatNumber(totalGlobalSales)} Kg</span>
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
-            <div className="space-y-3">
-              <div className="text-2xl font-bold">{formatNumber(totalGlobalSales)} Kg</div>
-              <p className="text-xs text-muted-foreground">Cumul des ventes (VRAC + Conditionné)</p>
-              <div className="space-y-2 border-t pt-2">
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-lg font-semibold">{formatNumber(globalSimam)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalSimam.toFixed(0)}%)</span></span>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1">
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-simam.png" alt="Simam" className="h-full w-full object-contain" />
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-lg font-semibold">{formatNumber(globalPetro)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalPetro.toFixed(0)}%)</span></span>
+                <span className="text-lg font-semibold mt-1">{formatNumber(globalSimam)}</span>
+                <span className="text-sm text-orange-600 font-semibold">{pctGlobalSimam.toFixed(0)}%</span>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-lg font-semibold">{formatNumber(globalVivo)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalVivo.toFixed(0)}%)</span></span>
+                <span className="text-lg font-semibold mt-1">{formatNumber(globalPetro)}</span>
+                <span className="text-sm text-orange-600 font-semibold">{pctGlobalPetro.toFixed(0)}%</span>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-lg font-semibold">{formatNumber(globalTotalE)} Kg <span className="text-sm font-semibold text-orange-600">({pctGlobalTotalE.toFixed(0)}%)</span></span>
+                <span className="text-lg font-semibold mt-1">{formatNumber(globalVivo)}</span>
+                <span className="text-sm text-orange-600 font-semibold">{pctGlobalVivo.toFixed(0)}%</span>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                 </div>
+                <span className="text-lg font-semibold mt-1">{formatNumber(globalTotalE)}</span>
+                <span className="text-sm text-orange-600 font-semibold">{pctGlobalTotalE.toFixed(0)}%</span>
               </div>
             </div>
-            <div className="bg-orange-100/50 rounded-md p-3 border border-orange-200 text-center mt-auto">
+            <div className="bg-orange-100/50 rounded-md p-3 border border-orange-200 text-center mt-3">
               <span className="text-xs text-muted-foreground">Ventes CE = </span>
               <span className="text-lg font-semibold text-orange-600">{correlation.toFixed(1)}%</span>
               <span className="text-xs text-muted-foreground"> de la production CE</span>
@@ -1351,32 +1328,21 @@ const Dashboard = ({ entries }: DashboardProps) => {
             <CardTitle className="text-base font-semibold">📦 CONDITIONNÉ (Par rapport aux ventes)</CardTitle>
             <span className="text-sm font-semibold">{formatNumber(totalCeAll)} Kg</span>
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-3">
-              {/* Petro */}
-              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
-                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="flex flex-col gap-2 flex-1">
+              {([
+                { logo: '/images/logo-petro.png', alt: 'Petro', val: cePetro, pct: pctCePetro },
+                { logo: '/images/logo-vivo.png',  alt: 'Vivo',  val: ceVivo,  pct: pctCeVivo  },
+                { logo: '/images/logo-total.png', alt: 'Total', val: ceTotalE, pct: pctCeTotalE },
+              ]).map(({ logo, alt, val, pct }) => (
+                <div key={alt} className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-green-100 flex-1">
+                  <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5 flex-shrink-0">
+                    <img src={logo} alt={alt} className="h-full w-full object-contain" />
+                  </div>
+                  <span className="flex-1 text-base font-semibold">{formatNumber(val)} Kg</span>
+                  <span className="text-sm font-semibold text-green-600">{pct.toFixed(1)}%</span>
                 </div>
-                <span className="text-lg font-semibold flex-1 text-center">{formatNumber(cePetro)} Kg</span>
-                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCePetro.toFixed(1)}%</span>
-              </div>
-              {/* Vivo */}
-              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
-                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-lg font-semibold flex-1 text-center">{formatNumber(ceVivo)} Kg</span>
-                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeVivo.toFixed(1)}%</span>
-              </div>
-              {/* Total E */}
-              <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-100">
-                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-lg font-semibold flex-1 text-center">{formatNumber(ceTotalE)} Kg</span>
-                <span className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded">{pctCeTotalE.toFixed(1)}%</span>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -1533,29 +1499,30 @@ const Dashboard = ({ entries }: DashboardProps) => {
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-semibold">Tonnage Production CE</CardTitle>
-            <Weight className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">{productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}</span>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="text-2xl font-bold">
-              {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
-            <div className="mt-3 space-y-1 border-t pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B6</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
+            <p className="text-xs text-muted-foreground mb-2">{getPeriodText()}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B6</span>
+                <span className="text-base font-semibold mt-1">{formatNumber(productionStats.bottlesByType.b6 * 6)}</span>
+                <span className="text-xs text-muted-foreground">Kg</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B12</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12.5)} Kg</span>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B12</span>
+                <span className="text-base font-semibold mt-1">{formatNumber(productionStats.bottlesByType.b12 * 12.5)}</span>
+                <span className="text-xs text-muted-foreground">Kg</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B28</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B28</span>
+                <span className="text-base font-semibold mt-1">{formatNumber(productionStats.bottlesByType.b28 * 28)}</span>
+                <span className="text-xs text-muted-foreground">Kg</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B38</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B38</span>
+                <span className="text-base font-semibold mt-1">{formatNumber(productionStats.bottlesByType.b38 * 38)}</span>
+                <span className="text-xs text-muted-foreground">Kg</span>
               </div>
             </div>
           </CardContent>
@@ -1565,114 +1532,83 @@ const Dashboard = ({ entries }: DashboardProps) => {
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-semibold">Bouteilles Produites</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">{productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}</span>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="text-2xl font-bold">
-              {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
-            <div className="mt-3 space-y-1 border-t pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B6</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB6.toFixed(1)}%)</span>
-                </div>
+            <p className="text-xs text-muted-foreground mb-2">{getPeriodText()}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B6</span>
+                <span className="text-base font-semibold mt-1">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span>
+                <span className="text-xs text-muted-foreground">({pctB6.toFixed(1)}%)</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B12</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB12.toFixed(1)}%)</span>
-                </div>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B12</span>
+                <span className="text-base font-semibold mt-1">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span>
+                <span className="text-xs text-muted-foreground">({pctB12.toFixed(1)}%)</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B28</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB28.toFixed(1)}%)</span>
-                </div>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B28</span>
+                <span className="text-base font-semibold mt-1">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span>
+                <span className="text-xs text-muted-foreground">({pctB28.toFixed(1)}%)</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B38</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB38.toFixed(1)}%)</span>
-                </div>
+              <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                <span className="text-xs font-bold text-orange-600">B38</span>
+                <span className="text-base font-semibold mt-1">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span>
+                <span className="text-xs text-muted-foreground">({pctB38.toFixed(1)}%)</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Production par Client */}
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-semibold">Production par Client</CardTitle>
             <Factory className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="flex flex-col gap-2 flex-1">
+              {([
+                { logo: '/images/logo-petro.png', alt: 'Petro', btl: productionStats.bottlesByClient.petro, pct: pctProdPetro },
+                { logo: '/images/logo-vivo.png',  alt: 'Vivo',  btl: productionStats.bottlesByClient.vivo,  pct: pctProdVivo  },
+                { logo: '/images/logo-total.png', alt: 'Total', btl: productionStats.bottlesByClient.total, pct: pctProdTotal  },
+              ]).map(({ logo, alt, btl, pct }) => (
+                <div key={alt} className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-orange-100 flex-1">
+                  <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5 flex-shrink-0">
+                    <img src={logo} alt={alt} className="h-full w-full object-contain" />
+                  </div>
+                  <span className="flex-1 text-base font-semibold">{btl.toLocaleString('fr-FR')} btl</span>
+                  <span className="text-sm font-semibold text-orange-600">{pct.toFixed(1)}%</span>
                 </div>
-                <span className="text-base font-semibold">{pctProdPetro.toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-base font-semibold">{pctProdVivo.toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-base font-semibold">{pctProdTotal.toFixed(1)}%</span>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
         {/* Retour marché */}
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-semibold">Retour marché</CardTitle>
-            <TrendingDown className="h-4 w-4 text-destructive" />
+            <div className="text-right">
+              <span className="text-sm font-semibold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
+              <span className="text-xs text-destructive block">({totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%)</span>
+            </div>
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Cumul</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-semibold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
-                  <span className="text-sm font-semibold text-destructive">
-                    ({totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%)
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-t pt-2 space-y-2">
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="flex flex-col gap-2 flex-1">
+              {([
+                { logo: '/images/logo-petro.png', alt: 'Petro', val: filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0) },
+                { logo: '/images/logo-vivo.png',  alt: 'Vivo',  val: filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0) },
+                { logo: '/images/logo-total.png', alt: 'Total', val: filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0) },
+              ]).map(({ logo, alt, val }) => (
+                <div key={alt} className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-red-100 flex-1">
+                  <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5 flex-shrink-0">
+                    <img src={logo} alt={alt} className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
+                  <span className="flex-1 text-base font-semibold text-destructive">{formatNumber(val)} Kg</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -1833,41 +1769,51 @@ const Dashboard = ({ entries }: DashboardProps) => {
               <CardTitle className="text-base font-semibold">📦 Totaux Palette</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="pt-2 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Cumul bouteilles</span>
-                <span className="text-xl font-bold text-orange-600">
-                  {paletteOverview.loading ? '...' : formatNumber(paletteOverview.totalBouteilles)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center border-t pt-2">
-                <span className="text-sm text-muted-foreground">Cumul palettes</span>
-                <span className="text-xl font-bold text-orange-600">
-                  {paletteOverview.loading ? '...' : formatNumber(paletteOverview.totalPalettes)}
-                </span>
+            <CardContent className="pt-2">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                  <span className="text-xs font-bold text-orange-600">🧴 Bouteilles</span>
+                  <span className="text-xl font-bold text-orange-600 mt-1">
+                    {paletteOverview.loading ? '...' : formatNumber(paletteOverview.totalBouteilles)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">cumul</span>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-orange-100 flex flex-col items-center">
+                  <span className="text-xs font-bold text-orange-600">🏭 Palettes</span>
+                  <span className="text-xl font-bold text-orange-600 mt-1">
+                    {paletteOverview.loading ? '...' : formatNumber(paletteOverview.totalPalettes)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">cumul</span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* E : Palettes par client */}
-          <Card className="bg-orange-50/50 border-orange-200">
+          <Card className="bg-orange-50/50 border-orange-200 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-base font-semibold">🏭 Palettes par client</CardTitle>
             </CardHeader>
-            <CardContent className="pt-2 space-y-2">
-              {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY'] as const).map(c => {
-                const labels: Record<string, string> = { PETRO_IVOIRE: 'PETRO IVOIRE', TOTAL_ENERGIES: 'TOTAL ENERGIES', VIVO_ENERGY: 'VIVO ENERGY' };
-                const val = paletteOverview.byClient[c]?.palettes || 0;
-                const pct = paletteOverview.totalPalettes > 0 ? (val / paletteOverview.totalPalettes) * 100 : 0;
-                return (
-                  <div key={c} className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">{labels[c]}</span>
-                    <span className="text-sm font-bold text-orange-600">
-                      {formatNumber(val)} <span className="text-foreground font-bold">({pct.toFixed(1)}%)</span>
-                    </span>
-                  </div>
-                );
-              })}
+            <CardContent className="pt-2 flex-1 flex flex-col">
+              <div className="flex flex-col gap-2 flex-1">
+                {([
+                  { key: 'PETRO_IVOIRE',   logo: '/images/logo-petro.png', alt: 'Petro' },
+                  { key: 'TOTAL_ENERGIES', logo: '/images/logo-total.png', alt: 'Total' },
+                  { key: 'VIVO_ENERGY',    logo: '/images/logo-vivo.png',  alt: 'Vivo'  },
+                ] as const).map(({ key, logo, alt }) => {
+                  const val = paletteOverview.byClient[key]?.palettes || 0;
+                  const pct = paletteOverview.totalPalettes > 0 ? (val / paletteOverview.totalPalettes) * 100 : 0;
+                  return (
+                    <div key={key} className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-orange-100 flex-1">
+                      <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5 flex-shrink-0">
+                        <img src={logo} alt={alt} className="h-full w-full object-contain" />
+                      </div>
+                      <span className="flex-1 text-base font-semibold">{formatNumber(val)} palettes</span>
+                      <span className="text-sm font-semibold text-orange-600">{pct.toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1875,24 +1821,30 @@ const Dashboard = ({ entries }: DashboardProps) => {
         {/* Ligne 2 : Bouteilles par client + Top mandataire global */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           {/* F : Bouteilles par client */}
-          <Card className="bg-orange-50/50 border-orange-200">
+          <Card className="bg-orange-50/50 border-orange-200 flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-base font-semibold">🧴 Bouteilles par client</CardTitle>
             </CardHeader>
-            <CardContent className="pt-2 space-y-2">
-              {(['PETRO_IVOIRE', 'TOTAL_ENERGIES', 'VIVO_ENERGY'] as const).map(c => {
-                const labels: Record<string, string> = { PETRO_IVOIRE: 'PETRO IVOIRE', TOTAL_ENERGIES: 'TOTAL ENERGIES', VIVO_ENERGY: 'VIVO ENERGY' };
-                const val = paletteOverview.byClient[c]?.bouteilles || 0;
-                const pct = paletteOverview.totalBouteilles > 0 ? (val / paletteOverview.totalBouteilles) * 100 : 0;
-                return (
-                  <div key={c} className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">{labels[c]}</span>
-                    <span className="text-sm font-bold text-orange-600">
-                      {formatNumber(val)} <span className="text-foreground font-bold">({pct.toFixed(1)}%)</span>
-                    </span>
-                  </div>
-                );
-              })}
+            <CardContent className="pt-2 flex-1 flex flex-col">
+              <div className="flex flex-col gap-2 flex-1">
+                {([
+                  { key: 'PETRO_IVOIRE',   logo: '/images/logo-petro.png', alt: 'Petro' },
+                  { key: 'TOTAL_ENERGIES', logo: '/images/logo-total.png', alt: 'Total' },
+                  { key: 'VIVO_ENERGY',    logo: '/images/logo-vivo.png',  alt: 'Vivo'  },
+                ] as const).map(({ key, logo, alt }) => {
+                  const val = paletteOverview.byClient[key]?.bouteilles || 0;
+                  const pct = paletteOverview.totalBouteilles > 0 ? (val / paletteOverview.totalBouteilles) * 100 : 0;
+                  return (
+                    <div key={key} className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-orange-100 flex-1">
+                      <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden p-0.5 flex-shrink-0">
+                        <img src={logo} alt={alt} className="h-full w-full object-contain" />
+                      </div>
+                      <span className="flex-1 text-base font-semibold">{formatNumber(val)} btl</span>
+                      <span className="text-sm font-semibold text-orange-600">{pct.toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
 
