@@ -1148,8 +1148,13 @@ const Dashboard = ({ entries }: DashboardProps) => {
 
 
 
-      {/* ========== ROW 1: BUTANES SPHERES + REPARTITIONS RECEPTIONS CLIENTS + VENTES ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+      {/* ========== SECTION 1: STOCK & APPROVISIONNEMENT ========== */}
+      <div className="flex items-center gap-3 mt-2 mb-3">
+        <span className="text-base">📦</span>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">STOCK & APPROVISIONNEMENT</h2>
+        <div className="flex-1 h-px bg-orange-200" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {/* BUTANES SPHERES */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1208,7 +1213,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
                   </div>
                   <span className="text-lg font-semibold">
-                    {formatNumber(receptionsClients.byClient['TOTAL_ENERGIES'] || 0)} Kg 
+                    {formatNumber(receptionsClients.byClient['TOTAL_ENERGIES'] || 0)} Kg
                     <span className="text-sm font-semibold text-orange-600 ml-2">
                       {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['TOTAL_ENERGIES'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
                     </span>
@@ -1220,7 +1225,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
                   </div>
                   <span className="text-lg font-semibold">
-                    {formatNumber(receptionsClients.byClient['PETRO_IVOIRE'] || 0)} Kg 
+                    {formatNumber(receptionsClients.byClient['PETRO_IVOIRE'] || 0)} Kg
                     <span className="text-sm font-semibold text-orange-600 ml-2">
                       {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['PETRO_IVOIRE'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
                     </span>
@@ -1232,7 +1237,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                     <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
                   </div>
                   <span className="text-lg font-semibold">
-                    {formatNumber(receptionsClients.byClient['VIVO_ENERGIES'] || 0)} Kg 
+                    {formatNumber(receptionsClients.byClient['VIVO_ENERGIES'] || 0)} Kg
                     <span className="text-sm font-semibold text-orange-600 ml-2">
                       {receptionsClients.total > 0 ? `(${(((receptionsClients.byClient['VIVO_ENERGIES'] || 0) / receptionsClients.total) * 100).toFixed(1)}%)` : '(0.0%)'}
                     </span>
@@ -1242,7 +1247,15 @@ const Dashboard = ({ entries }: DashboardProps) => {
             </div>
           </CardContent>
         </Card>
+      </div>
 
+      {/* ========== SECTION 2: VENTES & DISTRIBUTION ========== */}
+      <div className="flex items-center gap-3 mt-6 mb-3">
+        <span className="text-base">📊</span>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">VENTES & DISTRIBUTION</h2>
+        <div className="flex-1 h-px bg-orange-200" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         {/* VENTES GLOBALES */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1287,10 +1300,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* ========== ROW 2: VRAC + CONDITIONNÉ ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
         {/* VRAC */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1372,8 +1382,303 @@ const Dashboard = ({ entries }: DashboardProps) => {
         </Card>
       </div>
 
-      {/* ========== ROW 3: TOP PERFORMERS ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+        {/* Top Mandataire */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">🚚 Top Mandataire</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="space-y-2 flex-1">
+              {topMandataires.length > 0 ? (
+                topMandataires.map((mandataire, index) => {
+                  const totalTonnage = topMandataires.reduce((sum, m) => sum + m.tonnage, 0);
+                  const percentage = totalTonnage > 0 ? (mandataire.tonnage / totalTonnage) * 100 : 0;
+                  return (
+                    <div key={index} className="bg-white p-2 rounded-lg border border-orange-100">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-semibold text-orange-600">#{index + 1}</span>
+                          <p className="text-xs font-semibold text-orange-700 truncate">{mandataire.nom}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                        <span className="text-xs font-semibold text-orange-600">{percentage.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Mandataire Client */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">🚚 Top Mandataire Client</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2 flex-1 flex flex-col">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* TOTAL_ENERGIES */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-8 w-12 relative flex-shrink-0">
+                    <img src="/images/logo-total.png" alt="Total Énergies" className="h-full w-full object-contain" />
+                  </div>
+                </div>
+                {topMandatairesByClient['TOTAL_ENERGIES'] && topMandatairesByClient['TOTAL_ENERGIES'].length > 0 ? (
+                  topMandatairesByClient['TOTAL_ENERGIES'].map((mandataire, index) => {
+                    const clientTotal = topMandatairesByClient['TOTAL_ENERGIES'].reduce((sum, m) => sum + m.tonnage, 0);
+                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
+                    return (
+                      <div key={index} className="bg-white p-2 rounded-lg border border-blue-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-blue-600">#{index + 1}</span>
+                            <p className="text-xs font-semibold text-blue-700 truncate">{mandataire.nom}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                          <span className="text-xs font-semibold text-blue-600">{percentage.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+                )}
+              </div>
+
+              {/* PETRO_IVOIRE */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-8 w-12 relative flex-shrink-0">
+                    <img src="/images/logo-petro.png" alt="Petro Ivoire" className="h-full w-full object-contain" />
+                  </div>
+                </div>
+                {topMandatairesByClient['PETRO_IVOIRE'] && topMandatairesByClient['PETRO_IVOIRE'].length > 0 ? (
+                  topMandatairesByClient['PETRO_IVOIRE'].map((mandataire, index) => {
+                    const clientTotal = topMandatairesByClient['PETRO_IVOIRE'].reduce((sum, m) => sum + m.tonnage, 0);
+                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
+                    return (
+                      <div key={index} className="bg-white p-2 rounded-lg border border-orange-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-orange-600">#{index + 1}</span>
+                            <p className="text-xs font-semibold text-orange-700 truncate">{mandataire.nom}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                          <span className="text-xs font-semibold text-orange-600">{percentage.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+                )}
+              </div>
+
+              {/* VIVO_ENERGIES */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-8 w-12 relative flex-shrink-0">
+                    <img src="/images/logo-vivo.png" alt="Vivo Énergies" className="h-full w-full object-contain" />
+                  </div>
+                </div>
+                {topMandatairesByClient['VIVO_ENERGIES'] && topMandatairesByClient['VIVO_ENERGIES'].length > 0 ? (
+                  topMandatairesByClient['VIVO_ENERGIES'].map((mandataire, index) => {
+                    const clientTotal = topMandatairesByClient['VIVO_ENERGIES'].reduce((sum, m) => sum + m.tonnage, 0);
+                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
+                    return (
+                      <div key={index} className="bg-white p-2 rounded-lg border border-green-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-green-600">#{index + 1}</span>
+                            <p className="text-xs font-semibold text-green-700 truncate">{mandataire.nom}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
+                          <span className="text-xs font-semibold text-green-600">{percentage.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ========== SECTION 3: PRODUCTION — CENTRE EMPLISSEUR ========== */}
+      <div className="flex items-center gap-3 mt-6 mb-3">
+        <span className="text-base">🏭</span>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">PRODUCTION — CENTRE EMPLISSEUR</h2>
+        <div className="flex-1 h-px bg-orange-200" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Tonnage Production CE */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">Tonnage Production CE</CardTitle>
+            <Weight className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="text-2xl font-bold">
+              {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
+            <div className="mt-3 space-y-1 border-t pt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B6</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B12</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12.5)} Kg</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B28</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B38</span>
+                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bouteilles Produites */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">Bouteilles Produites</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="text-2xl font-bold">
+              {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
+            <div className="mt-3 space-y-1 border-t pt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B6</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB6.toFixed(1)}%)</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B12</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB12.toFixed(1)}%)</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B28</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB28.toFixed(1)}%)</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">B38</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span>
+                  <span className="text-sm font-semibold text-muted-foreground">({pctB38.toFixed(1)}%)</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Production par Client */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">Production par Client</CardTitle>
+            <Factory className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-base font-semibold">{pctProdPetro.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-base font-semibold">{pctProdVivo.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                </div>
+                <span className="text-base font-semibold">{pctProdTotal.toFixed(1)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Retour marché */}
+        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">Retour marché</CardTitle>
+            <TrendingDown className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Cumul</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-semibold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
+                  <span className="text-sm font-semibold text-destructive">
+                    ({totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%)
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t pt-2 space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
+                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
+                  </div>
+                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
         {/* Top Performers - Tonnage */}
         <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1511,150 +1816,15 @@ const Dashboard = ({ entries }: DashboardProps) => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Top Mandataire */}
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">🚚 Top Mandataire</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col">
-            <div className="space-y-2 flex-1">
-              {topMandataires.length > 0 ? (
-                topMandataires.map((mandataire, index) => {
-                  const totalTonnage = topMandataires.reduce((sum, m) => sum + m.tonnage, 0);
-                  const percentage = totalTonnage > 0 ? (mandataire.tonnage / totalTonnage) * 100 : 0;
-                  return (
-                    <div key={index} className="bg-white p-2 rounded-lg border border-orange-100">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-semibold text-orange-600">#{index + 1}</span>
-                          <p className="text-xs font-semibold text-orange-700 truncate">{mandataire.nom}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
-                        <span className="text-xs font-semibold text-orange-600">{percentage.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* ========== ROW 3.5: TOP MANDATAIRE CLIENT ========== */}
-      <div className="mt-3 sm:mt-4">
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">🚚 Top Mandataire Client</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* TOTAL_ENERGIES */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-8 w-12 relative flex-shrink-0">
-                    <img src="/images/logo-total.png" alt="Total Énergies" className="h-full w-full object-contain" />
-                  </div>
-                </div>
-                {topMandatairesByClient['TOTAL_ENERGIES'] && topMandatairesByClient['TOTAL_ENERGIES'].length > 0 ? (
-                  topMandatairesByClient['TOTAL_ENERGIES'].map((mandataire, index) => {
-                    const clientTotal = topMandatairesByClient['TOTAL_ENERGIES'].reduce((sum, m) => sum + m.tonnage, 0);
-                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
-                    return (
-                      <div key={index} className="bg-white p-2 rounded-lg border border-blue-100">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-semibold text-blue-600">#{index + 1}</span>
-                            <p className="text-xs font-semibold text-blue-700 truncate">{mandataire.nom}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
-                          <span className="text-xs font-semibold text-blue-600">{percentage.toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
-                )}
-              </div>
-
-              {/* PETRO_IVOIRE */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-8 w-12 relative flex-shrink-0">
-                    <img src="/images/logo-petro.png" alt="Petro Ivoire" className="h-full w-full object-contain" />
-                  </div>
-                </div>
-                {topMandatairesByClient['PETRO_IVOIRE'] && topMandatairesByClient['PETRO_IVOIRE'].length > 0 ? (
-                  topMandatairesByClient['PETRO_IVOIRE'].map((mandataire, index) => {
-                    const clientTotal = topMandatairesByClient['PETRO_IVOIRE'].reduce((sum, m) => sum + m.tonnage, 0);
-                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
-                    return (
-                      <div key={index} className="bg-white p-2 rounded-lg border border-orange-100">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-semibold text-orange-600">#{index + 1}</span>
-                            <p className="text-xs font-semibold text-orange-700 truncate">{mandataire.nom}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
-                          <span className="text-xs font-semibold text-orange-600">{percentage.toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
-                )}
-              </div>
-
-              {/* VIVO_ENERGIES */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-8 w-12 relative flex-shrink-0">
-                    <img src="/images/logo-vivo.png" alt="Vivo Énergies" className="h-full w-full object-contain" />
-                  </div>
-                </div>
-                {topMandatairesByClient['VIVO_ENERGIES'] && topMandatairesByClient['VIVO_ENERGIES'].length > 0 ? (
-                  topMandatairesByClient['VIVO_ENERGIES'].map((mandataire, index) => {
-                    const clientTotal = topMandatairesByClient['VIVO_ENERGIES'].reduce((sum, m) => sum + m.tonnage, 0);
-                    const percentage = clientTotal > 0 ? (mandataire.tonnage / clientTotal) * 100 : 0;
-                    return (
-                      <div key={index} className="bg-white p-2 rounded-lg border border-green-100">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-semibold text-green-600">#{index + 1}</span>
-                            <p className="text-xs font-semibold text-green-700 truncate">{mandataire.nom}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-foreground">{formatNumber(mandataire.tonnage)} Kg</p>
-                          <span className="text-xs font-semibold text-green-600">{percentage.toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ========== SECTION 4: PALETTES ========== */}
+      <div className="flex items-center gap-3 mt-6 mb-3">
+        <span className="text-base">🎯</span>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">PALETTES</h2>
+        <div className="flex-1 h-px bg-orange-200" />
       </div>
-
-      {/* ========== ROW PALETTE KPIs ========== */}
-      <div className="mt-3 sm:mt-4 space-y-3">
+      <div className="space-y-3">
         {/* Ligne 1 : Totaux + Répartition par client */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           {/* C + D : Total bouteilles & palettes */}
@@ -1800,157 +1970,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   </div>
                 );
               })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ========== ROW 4: PRODUCTION CE ========== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-3 sm:mt-4">
-        {/* Tonnage Production CE */}
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">Tonnage Production CE</CardTitle>
-            <Weight className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="text-2xl font-bold">
-              {productionStats.loading ? '...' : `${formatNumber(productionStats.tonnage)} Kg`}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
-            <div className="mt-3 space-y-1 border-t pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B6</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b6 * 6)} Kg</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B12</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b12 * 12.5)} Kg</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B28</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b28 * 28)} Kg</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B38</span>
-                <span className="text-lg font-semibold text-foreground">{formatNumber(productionStats.bottlesByType.b38 * 38)} Kg</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bouteilles Produites */}
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">Bouteilles Produites</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="text-2xl font-bold">
-              {productionStats.loading ? '...' : productionStats.bouteilles.toLocaleString('fr-FR')}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{getPeriodText()}</p>
-            <div className="mt-3 space-y-1 border-t pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B6</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b6.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB6.toFixed(1)}%)</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B12</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b12.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB12.toFixed(1)}%)</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B28</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b28.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB28.toFixed(1)}%)</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">B38</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-foreground">{productionStats.bottlesByType.b38.toLocaleString('fr-FR')}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">({pctB38.toFixed(1)}%)</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Production par Client */}
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">Production par Client</CardTitle>
-            <Factory className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-base font-semibold">{pctProdPetro.toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-base font-semibold">{pctProdVivo.toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                  <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                </div>
-                <span className="text-base font-semibold">{pctProdTotal.toFixed(1)}%</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Retour marché */}
-        <Card className="bg-orange-50/50 border-orange-200 flex flex-col justify-between h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">Retour marché</CardTitle>
-            <TrendingDown className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Cumul</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-semibold text-destructive">{formatNumber(totalFuyardes)} Kg</span>
-                  <span className="text-sm font-semibold text-destructive">
-                    ({totalSorties > 0 ? ((totalFuyardes / totalSorties) * 100).toFixed(2) : 0}%)
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-t pt-2 space-y-2">
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-petro.png" alt="Petro" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_petro_ivoire || 0), 0))} Kg</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-vivo.png" alt="Vivo" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_vivo_energies || 0), 0))} Kg</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden p-0.5">
-                    <img src="/images/logo-total.png" alt="Total" className="h-full w-full object-contain" />
-                  </div>
-                  <span className="text-base font-semibold">{formatNumber(filteredEntries.reduce((sum, e) => sum + (e.fuyardes_total_energies || 0), 0))} Kg</span>
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
