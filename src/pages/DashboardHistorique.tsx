@@ -2517,8 +2517,10 @@ const DashboardHistorique = () => {
                             <div className="flex justify-between items-center mb-2">
                               <img src={logoMap[c]} alt={PALETTE_CLIENT_FULL_LABELS[c]} className="h-12 w-12 object-contain" />
                               <div className="text-right">
-                                <p className="text-sm font-extrabold text-foreground">{pct.toFixed(1)}%</p>
-                                <p className="text-sm font-extrabold text-orange-600">{cd.totalPlt.toLocaleString('fr-FR')}</p>
+                                <p className="text-sm font-extrabold text-orange-600">
+                                  {cd.totalPlt.toLocaleString('fr-FR')}
+                                  <span className="text-foreground font-bold ml-1">({pct.toFixed(1)}%)</span>
+                                </p>
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-1 text-xs mt-2">
@@ -2527,12 +2529,17 @@ const DashboardHistorique = () => {
                                 { label: 'B6 Courte', value: cd.pb6c },
                                 { label: 'B12 Ordinaire', value: cd.pb12o },
                                 { label: 'B12 Superpo', value: cd.pb12s },
-                              ].map(({ label, value }) => (
+                              ].map(({ label, value }) => {
+                                const typePct = cd.totalPlt > 0 ? (value / cd.totalPlt) * 100 : 0;
+                                return (
                                 <div key={label} className="bg-muted/30 p-1.5 rounded flex justify-between items-center">
                                   <span className="font-semibold text-muted-foreground">{label}</span>
-                                  <span className="font-bold text-orange-600">{value.toLocaleString('fr-FR')}</span>
+                                  <span className="font-bold text-orange-600">
+                                    {value.toLocaleString('fr-FR')}
+                                    <span className="text-foreground font-bold ml-1">({typePct.toFixed(1)}%)</span>
+                                  </span>
                                 </div>
-                              ))}
+                              )})}
                             </div>
                           </div>
                         );
