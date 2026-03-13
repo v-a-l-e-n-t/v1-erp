@@ -18,6 +18,20 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
 
+// Helper : calcule les heures réelles d'un shift (identique à CentreEmplisseurView)
+const calculateShiftHours = (heureDebut: string, heureFin: string): number => {
+  try {
+    const [startH, startM] = heureDebut.split(':').map(Number);
+    const [endH, endM] = heureFin.split(':').map(Number);
+    let totalH = endH - startH;
+    const totalM = endM - startM;
+    if (totalH < 0) totalH += 24;
+    return totalH + totalM / 60;
+  } catch {
+    return 9;
+  }
+};
+
 // Fonction pour normaliser les noms de mandataires similaires (identique à DistributionView)
 const normalizeMandataireName = (nom: string): string => {
     if (!nom) return nom;
@@ -110,12 +124,14 @@ const Dashboard = ({ entries }: DashboardProps) => {
     topChefByProductivity: { name: string; tonnage: number; productivity: number } | null;
     topAgentByTonnage: { name: string; tonnage: number; percentage: number } | null;
     topAgentByProductivity: { name: string; tonnage: number; productivity: number } | null;
+    topLineByProductivity: { name: string; tonnage: number; productivity: number } | null;
   }>({
     topLine: null,
     topChefByTonnage: null,
     topChefByProductivity: null,
     topAgentByTonnage: null,
-    topAgentByProductivity: null
+    topAgentByProductivity: null,
+    topLineByProductivity: null
   });
 
   // Top mandataires state
@@ -344,222 +360,145 @@ const Dashboard = ({ entries }: DashboardProps) => {
           loading: false
         });
 
-        // Calculate top performers using independent queries (robust method)
+        // Calculate top performers — même logique que CentreEmplisseurView (productivité réelle)
         const calculateTopPerformers = async () => {
           try {
-            // 1. Fetch Agents Directories
+            // 1. Résolution des noms
             const [chefsQuartResult, chefsLigneResult] = await Promise.all([
               supabase.from('chefs_quart').select('id, nom, prenom'),
               supabase.from('chefs_ligne').select('id, nom, prenom')
             ]);
+            if (chefsQuartResult.error) throw chefsQuartResult.error;
+            if (chefsLigneResult.error) throw chefsLigneResult.error;
 
-            const chefsQuartMap = new Map(chefsQuartResult.data?.map(c => [c.id, `${c.nom} ${c.prenom || ''}`.trim()]) || []);
-            const chefsLigneMap = new Map(chefsLigneResult.data?.map(c => [c.id, `${c.nom} ${c.prenom || ''}`.trim()]) || []);
+            const chefsQuartMap = new Map((chefsQuartResult.data || []).map(c => [c.id, `${c.nom} ${c.prenom || ''}`.trim()]));
+            const chefsLigneMap = new Map((chefsLigneResult.data || []).map(c => [c.id, `${c.nom} ${c.prenom || ''}`.trim()]));
 
-            // 2. Build Range Filters
-            let dateFilter: any = {};
+            // 2. Fetch bulk production data
+            let allShiftsQ = supabase
+              .from('production_shifts')
+              .select('chef_quart_id, tonnage_total, heure_debut_reelle, heure_fin_reelle, lignes_production(numero_ligne, tonnage_ligne, temps_arret_ligne_minutes)');
+
+            let allLinesQ = supabase
+              .from('lignes_production')
+              .select('chef_ligne_id, numero_ligne, tonnage_ligne, temps_arret_ligne_minutes, production_shifts!inner(heure_debut_reelle, heure_fin_reelle)');
+
             if (filterType === 'year') {
-              dateFilter = { gte: `${selectedYear}-01-01`, lte: `${selectedYear}-12-31` };
-            } else if (filterType === 'month') {
-              const startDate = `${selectedMonth}-01`;
+              allShiftsQ = allShiftsQ.gte('date', `${selectedYear}-01-01`).lte('date', `${selectedYear}-12-31`);
+              allLinesQ = allLinesQ.gte('production_shifts.date', `${selectedYear}-01-01`).lte('production_shifts.date', `${selectedYear}-12-31`);
+            } else if (filterType === 'month' && selectedMonth) {
               const [y, m] = selectedMonth.split('-').map(Number);
+              const startDate = `${selectedMonth}-01`;
               const endDate = new Date(y, m, 0).toISOString().split('T')[0];
-              dateFilter = { gte: startDate, lte: endDate };
+              allShiftsQ = allShiftsQ.gte('date', startDate).lte('date', endDate);
+              allLinesQ = allLinesQ.gte('production_shifts.date', startDate).lte('production_shifts.date', endDate);
             } else if (filterType === 'day' && selectedDate) {
               const dateStr = format(selectedDate, 'yyyy-MM-dd');
-              dateFilter = { eq: dateStr };
+              allShiftsQ = allShiftsQ.eq('date', dateStr);
+              allLinesQ = allLinesQ.eq('production_shifts.date', dateStr);
             } else if (filterType === 'period' && dateRange?.from) {
               const fromStr = format(dateRange.from, 'yyyy-MM-dd');
               const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
-              dateFilter = { gte: fromStr, lte: toStr };
-            }
-            // 'all' = pas de filtre
-
-            // 3. Fetch Production Data (with more details for productivity calc)
-            let shiftsQuery = supabase
-              .from('production_shifts')
-              .select('id, chef_quart_id, tonnage_total, lignes_production(numero_ligne, tonnage_ligne), arrets_production(duree_minutes, heure_debut, heure_fin, lignes_concernees)');
-
-            let linesQuery = supabase
-              .from('lignes_production')
-              .select('numero_ligne, tonnage_ligne, chef_ligne_id, production_shifts!inner(id, date, arrets_production(duree_minutes, heure_debut, heure_fin, lignes_concernees))');
-
-            if (dateFilter.gte && dateFilter.lte) {
-              shiftsQuery = shiftsQuery.gte('date', dateFilter.gte).lte('date', dateFilter.lte);
-              linesQuery = linesQuery.gte('production_shifts.date', dateFilter.gte).lte('production_shifts.date', dateFilter.lte);
-            } else if (dateFilter.eq) {
-              shiftsQuery = shiftsQuery.eq('date', dateFilter.eq);
-              linesQuery = linesQuery.eq('production_shifts.date', dateFilter.eq);
+              allShiftsQ = allShiftsQ.gte('date', fromStr).lte('date', toStr);
+              allLinesQ = allLinesQ.gte('production_shifts.date', fromStr).lte('production_shifts.date', toStr);
             }
 
-            const [shiftsResult, linesResult] = await Promise.all([shiftsQuery, linesQuery]);
+            const [allShiftsResult, allLinesResult] = await Promise.all([allShiftsQ, allLinesQ]);
+            if (allShiftsResult.error) throw allShiftsResult.error;
+            if (allLinesResult.error) throw allLinesResult.error;
 
-            if (shiftsResult.error) throw shiftsResult.error;
-            if (linesResult.error) throw linesResult.error;
+            const allShifts = allShiftsResult.data || [];
+            const allLines = allLinesResult.data || [];
 
-            const shifts = shiftsResult.data || [];
-            const lines = linesResult.data || [];
+            // Tonnage total période (en tonnes) pour les %
+            const totalPeriodTonnage = allShifts.reduce((s: number, r: any) => s + (Number(r.tonnage_total) || 0), 0);
 
-            // 4. Aggregate Data for Tonnage-based ranking
-
-            // Chef de Quart stats (tonnage and productivity)
-            const agentQuartTonnage = new Map<string, number>();
-            const agentQuartProductivity = new Map<string, { tonnage: number; theorique: number }>();
-
-            shifts.forEach((shift: any) => {
-              if (shift.chef_quart_id && chefsQuartMap.has(shift.chef_quart_id)) {
-                const name = chefsQuartMap.get(shift.chef_quart_id)!;
-                const tonnage = (Number(shift.tonnage_total) || 0) * 1000;
-
-                // Tonnage cumul
-                const currentTonnage = agentQuartTonnage.get(name) || 0;
-                agentQuartTonnage.set(name, currentTonnage + tonnage);
-
-                // Productivity calc: sum theoretical production per line
-                const shiftLines = shift.lignes_production || [];
-                const shiftArrets = shift.arrets_production || [];
-
-                let shiftTheorique = 0;
-                shiftLines.forEach((l: any) => {
-                  // Find downtime for this line
-                  const lineArrets = shiftArrets.filter((a: any) =>
-                    a.lignes_concernees && a.lignes_concernees.includes(l.numero_ligne)
-                  );
-                  let downtime = 0;
-                  lineArrets.forEach((a: any) => {
-                    if (a.duree_minutes && a.duree_minutes > 0) {
-                      downtime += a.duree_minutes;
-                    } else if (a.heure_debut && a.heure_fin) {
-                      const [hD, mD] = a.heure_debut.split(':').map(Number);
-                      const [hF, mF] = a.heure_fin.split(':').map(Number);
-                      let diff = (hF * 60 + mF) - (hD * 60 + mD);
-                      if (diff < 0) diff += 24 * 60;
-                      downtime += diff;
-                    }
-                  });
-                  const productiveHours = 9 - Math.min(downtime, 540) / 60;
-                  const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                  shiftTheorique += (rate * productiveHours) / 1000 * 1000; // in Kg
-                });
-
-                const currentProd = agentQuartProductivity.get(name) || { tonnage: 0, theorique: 0 };
-                agentQuartProductivity.set(name, {
-                  tonnage: currentProd.tonnage + tonnage,
-                  theorique: currentProd.theorique + shiftTheorique
-                });
-              }
+            // 3. Agrégation par chef de quart (tonnage + théorique)
+            const quartStats = new Map<string, { tonnage: number; theorique: number }>();
+            allShifts.forEach((shift: any) => {
+              if (!shift.chef_quart_id) return;
+              const shiftHours = calculateShiftHours(shift.heure_debut_reelle || '10:00', shift.heure_fin_reelle || '19:00');
+              const shiftTonnage = Number(shift.tonnage_total) || 0;
+              let shiftTheorique = 0;
+              (shift.lignes_production || []).forEach((l: any) => {
+                const arret = Number(l.temps_arret_ligne_minutes) || 0;
+                const prodH = shiftHours - Math.min(arret, shiftHours * 60) / 60;
+                const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+                shiftTheorique += (rate * prodH) / 1000;
+              });
+              const cur = quartStats.get(shift.chef_quart_id) || { tonnage: 0, theorique: 0 };
+              quartStats.set(shift.chef_quart_id, { tonnage: cur.tonnage + shiftTonnage, theorique: cur.theorique + shiftTheorique });
             });
 
-            // Chef de Ligne stats
-            const agentLigneTonnage = new Map<string, number>();
-            const agentLigneProductivity = new Map<string, { tonnage: number; theorique: number }>();
-
-            lines.forEach((ligne: any) => {
-              if (ligne.chef_ligne_id && chefsLigneMap.has(ligne.chef_ligne_id)) {
-                const name = chefsLigneMap.get(ligne.chef_ligne_id)!;
-                const tonnage = (Number(ligne.tonnage_ligne) || 0) * 1000;
-
-                // Tonnage cumul
-                const currentTonnage = agentLigneTonnage.get(name) || 0;
-                agentLigneTonnage.set(name, currentTonnage + tonnage);
-
-                // Productivity: calculate theoretical for this line
-                const shiftArrets = ligne.production_shifts?.arrets_production || [];
-                const lineArrets = shiftArrets.filter((a: any) =>
-                  a.lignes_concernees && a.lignes_concernees.includes(ligne.numero_ligne)
-                );
-                let downtime = 0;
-                lineArrets.forEach((a: any) => {
-                  if (a.duree_minutes && a.duree_minutes > 0) {
-                    downtime += a.duree_minutes;
-                  } else if (a.heure_debut && a.heure_fin) {
-                    const [hD, mD] = a.heure_debut.split(':').map(Number);
-                    const [hF, mF] = a.heure_fin.split(':').map(Number);
-                    let diff = (hF * 60 + mF) - (hD * 60 + mD);
-                    if (diff < 0) diff += 24 * 60;
-                    downtime += diff;
-                  }
-                });
-                const productiveHours = 9 - Math.min(downtime, 540) / 60;
-                const rate = (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                const theorique = (rate * productiveHours) / 1000 * 1000; // in Kg
-
-                const currentProd = agentLigneProductivity.get(name) || { tonnage: 0, theorique: 0 };
-                agentLigneProductivity.set(name, {
-                  tonnage: currentProd.tonnage + tonnage,
-                  theorique: currentProd.theorique + theorique
-                });
-              }
+            // 4. Agrégation par chef de ligne (tonnage + théorique)
+            const ligneStatsMap = new Map<string, { tonnage: number; theorique: number }>();
+            allLines.forEach((ligne: any) => {
+              if (!ligne.chef_ligne_id) return;
+              const shift = ligne.production_shifts;
+              const shiftHours = shift ? calculateShiftHours(shift.heure_debut_reelle || '10:00', shift.heure_fin_reelle || '19:00') : 9;
+              const arret = Number(ligne.temps_arret_ligne_minutes) || 0;
+              const prodH = shiftHours - Math.min(arret, shiftHours * 60) / 60;
+              const rate = (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+              const theorique = (rate * prodH) / 1000;
+              const tonnageLigne = Number(ligne.tonnage_ligne) || 0;
+              const cur = ligneStatsMap.get(ligne.chef_ligne_id) || { tonnage: 0, theorique: 0 };
+              ligneStatsMap.set(ligne.chef_ligne_id, { tonnage: cur.tonnage + tonnageLigne, theorique: cur.theorique + theorique });
             });
 
-            // Top Ligne (by tonnage only)
-            const lineStats = new Map<number, number>();
-            lines.forEach((ligne: any) => {
-              if (ligne.numero_ligne) {
-                const current = lineStats.get(ligne.numero_ligne) || 0;
-                lineStats.set(ligne.numero_ligne, current + (Number(ligne.tonnage_ligne) || 0) * 1000);
-              }
+            // 5. Top Ligne par tonnage + par productivité (séparés)
+            const lineMap = new Map<number, { tonnage: number; theorique: number }>();
+            allLines.forEach((l: any) => {
+              if (!l.numero_ligne) return;
+              const shift = l.production_shifts;
+              const shiftHours = shift ? calculateShiftHours(shift.heure_debut_reelle || '10:00', shift.heure_fin_reelle || '19:00') : 9;
+              const arret = Number(l.temps_arret_ligne_minutes) || 0;
+              const prodH = shiftHours - Math.min(arret, shiftHours * 60) / 60;
+              const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
+              const theorique = (rate * prodH) / 1000;
+              const prev = lineMap.get(l.numero_ligne) || { tonnage: 0, theorique: 0 };
+              lineMap.set(l.numero_ligne, { tonnage: prev.tonnage + (Number(l.tonnage_ligne) || 0), theorique: prev.theorique + theorique });
             });
-
-
-            // Calculate Total Period Tonnage for percentages
-            const totalPeriodTonnage = shifts.reduce((sum: number, s: any) => sum + (Number(s.tonnage_total) || 0), 0) * 1000;
-
-            // 5. Determine Winners
-
-            // Top Chef de Quart by Tonnage
-            let topChefByTonnage: { name: string; tonnage: number; percentage: number } | null = null;
-            let maxChefTonnage = 0;
-            agentQuartTonnage.forEach((tonnage, name) => {
-              if (tonnage > maxChefTonnage) {
-                maxChefTonnage = tonnage;
-                topChefByTonnage = { name, tonnage, percentage: totalPeriodTonnage > 0 ? (tonnage / totalPeriodTonnage) * 100 : 0 };
-              }
-            });
-
-            // Top Chef de Quart by Productivity
-            let topChefByProductivity: { name: string; tonnage: number; productivity: number } | null = null;
-            let maxChefProd = 0;
-            agentQuartProductivity.forEach((stats, name) => {
-              const prod = stats.theorique > 0 ? (stats.tonnage / stats.theorique) * 100 : 0;
-              if (prod > maxChefProd && stats.tonnage > 0) {
-                maxChefProd = prod;
-                topChefByProductivity = { name, tonnage: stats.tonnage, productivity: prod };
-              }
-            });
-
-            // Top Chef de Ligne by Tonnage
-            let topAgentByTonnage: { name: string; tonnage: number; percentage: number } | null = null;
-            let maxAgentTonnage = 0;
-            agentLigneTonnage.forEach((tonnage, name) => {
-              if (tonnage > maxAgentTonnage) {
-                maxAgentTonnage = tonnage;
-                topAgentByTonnage = { name, tonnage, percentage: totalPeriodTonnage > 0 ? (tonnage / totalPeriodTonnage) * 100 : 0 };
-              }
-            });
-
-            // Top Chef de Ligne by Productivity
-            let topAgentByProductivity: { name: string; tonnage: number; productivity: number } | null = null;
-            let maxAgentProd = 0;
-            agentLigneProductivity.forEach((stats, name) => {
-              const prod = stats.theorique > 0 ? (stats.tonnage / stats.theorique) * 100 : 0;
-              if (prod > maxAgentProd && stats.tonnage > 0) {
-                maxAgentProd = prod;
-                topAgentByProductivity = { name, tonnage: stats.tonnage, productivity: prod };
-              }
-            });
-
-            // Top Ligne
             let topLine: { name: string; tonnage: number; percentage: number } | null = null;
-            let maxLineTonnage = 0;
-            lineStats.forEach((tonnage, num) => {
-              if (tonnage > maxLineTonnage) {
-                maxLineTonnage = tonnage;
-                topLine = { name: `Ligne ${num}`, tonnage, percentage: totalPeriodTonnage > 0 ? (tonnage / totalPeriodTonnage) * 100 : 0 };
+            let topLineByProductivity: { name: string; tonnage: number; productivity: number } | null = null;
+            let maxLineTonnage = 0, maxLineProd = 0;
+            lineMap.forEach((stats, num) => {
+              if (stats.tonnage > maxLineTonnage) {
+                maxLineTonnage = stats.tonnage;
+                topLine = { name: `Ligne ${num}`, tonnage: stats.tonnage * 1000, percentage: totalPeriodTonnage > 0 ? (stats.tonnage / totalPeriodTonnage) * 100 : 0 };
+              }
+              const prod = stats.theorique > 0 ? (stats.tonnage / stats.theorique) * 100 : 0;
+              if (prod > maxLineProd) {
+                maxLineProd = prod;
+                topLineByProductivity = { name: `Ligne ${num}`, tonnage: stats.tonnage * 1000, productivity: prod };
               }
             });
 
-            setTopPerformers({ topLine, topChefByTonnage, topChefByProductivity, topAgentByTonnage, topAgentByProductivity });
+            // 6. Déterminer les top performers
+            let topChefByTonnage: { name: string; tonnage: number; percentage: number } | null = null;
+            let topChefByProductivity: { name: string; tonnage: number; productivity: number } | null = null;
+            let topAgentByTonnage: { name: string; tonnage: number; percentage: number } | null = null;
+            let topAgentByProductivity: { name: string; tonnage: number; productivity: number } | null = null;
+            let maxCT = 0, maxCP = 0, maxAT = 0, maxAP = 0;
+
+            quartStats.forEach((stats, id) => {
+              if (!chefsQuartMap.has(id) || stats.tonnage === 0) return;
+              const name = chefsQuartMap.get(id)!;
+              const tKg = stats.tonnage * 1000;
+              const prod = stats.theorique > 0 ? (stats.tonnage / stats.theorique) * 100 : 0;
+              if (stats.tonnage > maxCT) { maxCT = stats.tonnage; topChefByTonnage = { name, tonnage: tKg, percentage: totalPeriodTonnage > 0 ? (stats.tonnage / totalPeriodTonnage) * 100 : 0 }; }
+              if (prod > maxCP) { maxCP = prod; topChefByProductivity = { name, tonnage: tKg, productivity: prod }; }
+            });
+
+            ligneStatsMap.forEach((stats, id) => {
+              if (!chefsLigneMap.has(id) || stats.tonnage === 0) return;
+              const name = chefsLigneMap.get(id)!;
+              const tKg = stats.tonnage * 1000;
+              const prod = stats.theorique > 0 ? (stats.tonnage / stats.theorique) * 100 : 0;
+              if (stats.tonnage > maxAT) { maxAT = stats.tonnage; topAgentByTonnage = { name, tonnage: tKg, percentage: totalPeriodTonnage > 0 ? (stats.tonnage / totalPeriodTonnage) * 100 : 0 }; }
+              if (prod > maxAP) { maxAP = prod; topAgentByProductivity = { name, tonnage: tKg, productivity: prod }; }
+            });
+
+            setTopPerformers({ topLine, topLineByProductivity, topChefByTonnage, topChefByProductivity, topAgentByTonnage, topAgentByProductivity });
           } catch (error) {
             console.error('Error calculating top performers:', error);
           }
@@ -1443,7 +1382,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-2 flex-1">
-              {/* Meilleure Ligne */}
               {topPerformers.topLine ? (
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
                   <div className="flex items-center justify-between mb-1">
@@ -1451,6 +1389,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                       <span className="text-[10px] font-semibold text-orange-600">#1</span>
                       <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topLine.name}</p>
                     </div>
+                    <span className="text-[10px] text-muted-foreground">Ligne</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
@@ -1462,7 +1401,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
                 </div>
               )}
-              {/* Chef de Quart */}
               {topPerformers.topChefByTonnage ? (
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
                   <div className="flex items-center justify-between mb-1">
@@ -1470,6 +1408,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                       <span className="text-[10px] font-semibold text-orange-600">#2</span>
                       <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topChefByTonnage.name}</p>
                     </div>
+                    <span className="text-[10px] text-muted-foreground">Chef de Quart</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topChefByTonnage.tonnage)} Kg</p>
@@ -1481,7 +1420,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
                 </div>
               )}
-              {/* Chef de Ligne */}
               {topPerformers.topAgentByTonnage ? (
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
                   <div className="flex items-center justify-between mb-1">
@@ -1489,6 +1427,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                       <span className="text-[10px] font-semibold text-orange-600">#3</span>
                       <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topAgentByTonnage.name}</p>
                     </div>
+                    <span className="text-[10px] text-muted-foreground">Chef de Ligne</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topAgentByTonnage.tonnage)} Kg</p>
@@ -1512,18 +1451,18 @@ const Dashboard = ({ entries }: DashboardProps) => {
           </CardHeader>
           <CardContent className="pt-2 flex-1 flex flex-col">
             <div className="space-y-2 flex-1">
-              {/* Meilleure Ligne */}
-              {topPerformers.topLine ? (
+              {topPerformers.topLineByProductivity ? (
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-semibold text-orange-600">#1</span>
-                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topLine.name}</p>
+                      <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topLineByProductivity.name}</p>
                     </div>
+                    <span className="text-[10px] text-muted-foreground">Ligne</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topLine.tonnage)} Kg</p>
-                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topLine.percentage.toFixed(1)}%</span>
+                    <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topLineByProductivity.tonnage)} Kg</p>
+                    <span className="text-xs font-semibold text-orange-600">{topPerformers.topLineByProductivity.productivity.toFixed(1)}%</span>
                   </div>
                 </div>
               ) : (
@@ -1531,7 +1470,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
                 </div>
               )}
-              {/* Chef de Quart */}
               {topPerformers.topChefByProductivity ? (
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
                   <div className="flex items-center justify-between mb-1">
@@ -1539,6 +1477,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                       <span className="text-[10px] font-semibold text-orange-600">#2</span>
                       <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topChefByProductivity.name}</p>
                     </div>
+                    <span className="text-[10px] text-muted-foreground">Chef de Quart</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topChefByProductivity.tonnage)} Kg</p>
@@ -1550,7 +1489,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
                   <p className="text-xs text-muted-foreground italic text-center py-2">-</p>
                 </div>
               )}
-              {/* Chef de Ligne */}
               {topPerformers.topAgentByProductivity ? (
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
                   <div className="flex items-center justify-between mb-1">
@@ -1558,6 +1496,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                       <span className="text-[10px] font-semibold text-orange-600">#3</span>
                       <p className="text-xs font-semibold text-orange-700 truncate">{topPerformers.topAgentByProductivity.name}</p>
                     </div>
+                    <span className="text-[10px] text-muted-foreground">Chef de Ligne</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-foreground">{formatNumber(topPerformers.topAgentByProductivity.tonnage)} Kg</p>
