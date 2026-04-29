@@ -1,8 +1,4 @@
-import {
-  formatFr,
-  RESERVE_TECHNIQUE_KG,
-  type GlobalSummary,
-} from '@/utils/sphereStockCompute';
+import { formatFr, type GlobalSummary } from '@/utils/sphereStockCompute';
 
 interface GlobalSummaryBarProps {
   summary: GlobalSummary;
@@ -46,7 +42,7 @@ export function GlobalSummaryBar({ summary }: GlobalSummaryBarProps) {
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch">
         <Kpi label="Stock du jour" value={summary.stockJour} />
         <Kpi
-          label={`Stock exploitable ( − ${RESERVE_TECHNIQUE_KG.toLocaleString('fr-FR')} kg Impompable )`}
+          label="Stock exploitable"
           value={summary.stockExploitable}
           tone="positive"
         />
