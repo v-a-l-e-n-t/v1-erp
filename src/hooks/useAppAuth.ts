@@ -20,6 +20,8 @@ interface VerifyLoginRow {
   logged_at: string;
 }
 
+const AUTH_CHANGED_EVENT = 'app-auth:changed';
+
 function persist(session: AppAuthSession | null) {
   if (session) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -32,6 +34,9 @@ function persist(session: AppAuthSession | null) {
     localStorage.removeItem(LEGACY_LS_USER_NAME);
     sessionStorage.removeItem(LEGACY_SS_DASHBOARD);
   }
+  // Notifie toutes les instances de useAppAuth dans le même onglet
+  // (les events "storage" ne se propagent qu'entre onglets différents).
+  window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
 }
 
 function read(): AppAuthSession | null {
@@ -49,13 +54,21 @@ export function useAppAuth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Re-sync if another tab logs out / in.
+  // Re-sync sur :
+  // - changement dans un autre onglet (event "storage")
+  // - changement dans le même onglet via une autre instance du hook
+  //   (event custom "app-auth:changed" émis par persist())
   useEffect(() => {
+    const sync = () => setSession(read());
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setSession(read());
+      if (e.key === STORAGE_KEY) sync();
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener(AUTH_CHANGED_EVENT, sync);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(AUTH_CHANGED_EVENT, sync);
+    };
   }, []);
 
   const login = useCallback(async (code: string): Promise<boolean> => {

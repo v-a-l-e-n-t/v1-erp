@@ -33,6 +33,16 @@ export default function StockSphere() {
 
   const { session, isAuthenticated, logout } = useAppAuth();
   const [loginOpen, setLoginOpen] = useState(false);
+  // Si l'utilisateur a cliqué "Historique" sans être connecté, on mémorise
+  // l'intention pour rediriger automatiquement dès qu'il s'authentifie.
+  const [pendingHistoryNav, setPendingHistoryNav] = useState(false);
+
+  useEffect(() => {
+    if (pendingHistoryNav && isAuthenticated) {
+      setPendingHistoryNav(false);
+      navigate('/stock-sphere-history');
+    }
+  }, [pendingHistoryNav, isAuthenticated, navigate]);
 
   const s01 = useSphereStock('S01');
   const s02 = useSphereStock('S02');
@@ -159,6 +169,7 @@ export default function StockSphere() {
   const handleHistoryClick = () => {
     if (!isAuthenticated) {
       toast.info('Connecte-toi pour accéder à l\'historique');
+      setPendingHistoryNav(true);
       setLoginOpen(true);
       return;
     }
@@ -176,34 +187,32 @@ export default function StockSphere() {
       {/* ---------- Écran (caché à l'impression) ---------- */}
       <div className="print:hidden flex flex-col flex-1">
         <header className="border-b bg-card/50">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 shrink-0 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center">
                 <Calculator className="h-4 w-4 text-primary" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight">
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">
                   Stock sphères butane
                   {editingSession && (
-                    <span className="ml-2 text-xs font-normal text-orange-500">
-                      (édition d'un calcul du {new Date(editingSession.created_at).toLocaleDateString('fr-FR')})
+                    <span className="ml-2 text-[10px] sm:text-xs font-normal text-orange-500">
+                      (édition du {new Date(editingSession.created_at).toLocaleDateString('fr-FR')})
                     </span>
                   )}
                 </h1>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                   Calcul temps réel · S01 · S02 · S03
                   {session && (
                     <>
                       {' · '}
-                      <span className="font-medium text-foreground">
-                        {session.user_name}
-                      </span>
+                      <span className="font-medium text-foreground">{session.user_name}</span>
                     </>
                   )}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
               {showDevButton && (
                 <Button
                   variant="outline"
@@ -212,8 +221,8 @@ export default function StockSphere() {
                   className="border-purple-500 text-purple-600 hover:bg-purple-50"
                   title="Remplissage aléatoire (debug — Ctrl+Shift+Z)"
                 >
-                  <Sparkles className="h-4 w-4 mr-1.5" />
-                  Random
+                  <Sparkles className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Random</span>
                 </Button>
               )}
               <Button
@@ -221,26 +230,25 @@ export default function StockSphere() {
                 size="sm"
                 onClick={handlePrint}
                 disabled={summary.stockJour === null}
+                title="Imprimer"
               >
-                <Printer className="h-4 w-4 mr-1.5" />
-                Imprimer
+                <Printer className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Imprimer</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleHistoryClick}
-                title={isAuthenticated ? 'Voir l\'historique' : 'Connexion requise'}
+                title={isAuthenticated ? "Voir l'historique" : 'Connexion requise'}
               >
-                <History className="h-4 w-4 mr-1.5" />
-                Historique
+                <History className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Historique</span>
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={!canSave || saving}>
-                <Save className="h-4 w-4 mr-1.5" />
-                {saving
-                  ? 'Enregistrement…'
-                  : editingSession
-                    ? 'Mettre à jour'
-                    : 'Enregistrer'}
+              <Button size="sm" onClick={handleSave} disabled={!canSave || saving} title="Enregistrer">
+                <Save className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">
+                  {saving ? 'Enregistrement…' : editingSession ? 'Mettre à jour' : 'Enregistrer'}
+                </span>
               </Button>
               {isAuthenticated ? (
                 <Button variant="ghost" size="sm" onClick={logout} title="Se déconnecter">
@@ -255,8 +263,8 @@ export default function StockSphere() {
           </div>
         </header>
 
-        <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-32">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             <SphereStockBlock sphereId="S01" sphere={s01} />
             <SphereStockBlock sphereId="S02" sphere={s02} />
             <SphereStockBlock sphereId="S03" sphere={s03} />
