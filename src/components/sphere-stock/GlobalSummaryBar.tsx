@@ -1,0 +1,67 @@
+import {
+  formatFr,
+  RESERVE_TECHNIQUE_KG,
+  type GlobalSummary,
+} from '@/utils/sphereStockCompute';
+
+interface GlobalSummaryBarProps {
+  summary: GlobalSummary;
+}
+
+interface KpiProps {
+  label: string;
+  value: number | null;
+  hint?: string;
+  tone?: 'default' | 'positive' | 'warning';
+}
+
+function Kpi({ label, value, hint, tone = 'default' }: KpiProps) {
+  const toneClass =
+    tone === 'positive'
+      ? 'text-green-600'
+      : tone === 'warning'
+        ? 'text-orange-500'
+        : 'text-foreground';
+  return (
+    <div className="flex flex-col gap-0.5 px-6 py-3 border-r last:border-r-0 border-border/60 flex-1 min-w-0">
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+        {label}
+      </span>
+      <span
+        className={`font-mono tabular-nums text-2xl font-bold ${toneClass} truncate`}
+      >
+        {formatFr(value, 0)}
+        <span className="ml-1 text-xs text-muted-foreground font-sans">kg</span>
+      </span>
+      {hint && (
+        <span className="text-[10px] text-muted-foreground/80">{hint}</span>
+      )}
+    </div>
+  );
+}
+
+export function GlobalSummaryBar({ summary }: GlobalSummaryBarProps) {
+  return (
+    <div className="sticky bottom-0 z-10 border-t-2 border-primary bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <div className="max-w-7xl mx-auto flex items-stretch divide-x divide-border/60">
+        <Kpi
+          label="Stock du jour"
+          value={summary.stockJour}
+          hint="Σ masse totale 3 sphères"
+        />
+        <Kpi
+          label="Stock exploitable"
+          value={summary.stockExploitable}
+          hint={`− ${RESERVE_TECHNIQUE_KG.toLocaleString('fr-FR')} kg réserve`}
+          tone="positive"
+        />
+        <Kpi
+          label="Niveau de creux total"
+          value={summary.creuxTotal}
+          hint="Σ creux 3 sphères"
+          tone="warning"
+        />
+      </div>
+    </div>
+  );
+}
