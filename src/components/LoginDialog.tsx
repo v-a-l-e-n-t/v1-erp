@@ -11,9 +11,15 @@ import { useAppAuth } from "@/hooks/useAppAuth";
 interface LoginDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    /**
+     * Route où rediriger après un login réussi.
+     * - undefined (défaut) → "/dashboard"
+     * - null               → pas de redirection (rester sur la page courante)
+     */
+    redirectTo?: string | null;
 }
 
-const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
+const LoginDialog = ({ open, onOpenChange, redirectTo }: LoginDialogProps) => {
     const [code, setCode] = useState("");
     const navigate = useNavigate();
     const { login, loading } = useAppAuth();
@@ -24,7 +30,9 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
         if (ok) {
             toast.success(`Bienvenue`);
             onOpenChange(false);
-            navigate("/dashboard");
+            if (redirectTo !== null) {
+                navigate(redirectTo ?? "/dashboard");
+            }
         } else {
             toast.error("Code incorrect");
         }

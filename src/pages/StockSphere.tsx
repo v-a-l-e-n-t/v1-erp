@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Calculator, Save, History, LogOut, Printer, Sparkles } from 'lucide-react';
+import { Calculator, Save, History, LogOut, LogIn, Printer, Sparkles } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -16,7 +16,7 @@ import {
   type SphereInputStrings,
 } from '@/utils/sphereStockCompute';
 import { buildRandomSphereInput } from '@/utils/sphereStockRandom';
-import PasswordGate from '@/components/PasswordGate';
+import LoginDialog from '@/components/LoginDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LoadedSession {
@@ -32,7 +32,7 @@ export default function StockSphere() {
   const editId = searchParams.get('session');
 
   const { session, isAuthenticated, logout } = useAppAuth();
-  const [, setAuthTick] = useState(0);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const s01 = useSphereStock('S01');
   const s02 = useSphereStock('S02');
@@ -102,12 +102,9 @@ export default function StockSphere() {
   }, [editId]);
 
   const canSave =
-    summary.stockJour !== null &&
-    summary.creuxTotal !== null &&
-    !!session;
+    summary.stockJour !== null && summary.creuxTotal !== null;
 
   const handleSave = async () => {
-    if (!session) return;
     setSaving(true);
     try {
       const spheres = SPHERE_IDS.reduce<Record<string, unknown>>((acc, id) => {
@@ -117,8 +114,8 @@ export default function StockSphere() {
       }, {});
 
       const payload = {
-        user_id: session.user_id,
-        user_name: session.user_name,
+        user_id: session?.user_id ?? null,
+        user_name: session?.user_name ?? 'Anonyme',
         spheres,
         stock_jour_kg: summary.stockJour,
         stock_exploitable_kg: summary.stockExploitable,
@@ -159,9 +156,14 @@ export default function StockSphere() {
     window.print();
   };
 
-  if (!isAuthenticated) {
-    return <PasswordGate onAuthenticated={() => setAuthTick((t) => t + 1)} />;
-  }
+  const handleHistoryClick = () => {
+    if (!isAuthenticated) {
+      toast.info('Connecte-toi pour accéder à l\'historique');
+      setLoginOpen(true);
+      return;
+    }
+    navigate('/stock-sphere-history');
+  };
 
   const printSpheres: Record<SphereId, { input: SphereInputStrings; result: typeof s01.result }> = {
     S01: { input: s01.input, result: s01.result },
@@ -226,7 +228,8 @@ export default function StockSphere() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/stock-sphere-history')}
+                onClick={handleHistoryClick}
+                title={isAuthenticated ? 'Voir l\'historique' : 'Connexion requise'}
               >
                 <History className="h-4 w-4 mr-1.5" />
                 Historique
@@ -239,9 +242,15 @@ export default function StockSphere() {
                     ? 'Mettre à jour'
                     : 'Enregistrer'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={logout} title="Se déconnecter">
-                <LogOut className="h-4 w-4" />
-              </Button>
+              {isAuthenticated ? (
+                <Button variant="ghost" size="sm" onClick={logout} title="Se déconnecter">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setLoginOpen(true)} title="Se connecter">
+                  <LogIn className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </header>
@@ -265,6 +274,8 @@ export default function StockSphere() {
           occurredAt={new Date()}
         />
       </div>
+
+      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} redirectTo={null} />
     </div>
   );
 }
