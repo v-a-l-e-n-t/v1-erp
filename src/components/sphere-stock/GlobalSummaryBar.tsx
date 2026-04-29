@@ -44,21 +44,15 @@ export function GlobalSummaryBar({ summary }: GlobalSummaryBarProps) {
   return (
     <div className="sticky bottom-0 z-10 border-t-2 border-primary bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch">
+        <Kpi label="Stock du jour" value={summary.stockJour} />
         <Kpi
-          label="Stock du jour"
-          value={summary.stockJour}
-          hint="Σ masse totale 3 sphères"
-        />
-        <Kpi
-          label="Stock exploitable"
+          label={`Stock exploitable ( − ${RESERVE_TECHNIQUE_KG.toLocaleString('fr-FR')} kg Impompable )`}
           value={summary.stockExploitable}
-          hint={`− ${RESERVE_TECHNIQUE_KG.toLocaleString('fr-FR')} kg réserve`}
           tone="positive"
         />
         <Kpi
           label="Niveau de creux total"
           value={summary.creuxTotal}
-          hint="Σ creux 3 sphères"
           tone="warning"
         />
       </div>
