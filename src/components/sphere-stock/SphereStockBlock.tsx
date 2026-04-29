@@ -66,15 +66,13 @@ function SectionHeader({
   unit?: string;
 }) {
   return (
-    <div className="flex items-center gap-2 pt-2">
-      <Icon className="h-3.5 w-3.5 text-primary" />
-      <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+    <div className="flex items-center gap-2 mt-3 mb-1 -mx-4 px-4 py-1.5 bg-primary text-primary-foreground">
+      <Icon className="h-3.5 w-3.5" />
+      <span className="text-[11px] uppercase tracking-widest font-bold">
         {title}
       </span>
       {unit && (
-        <span className="text-[10px] text-muted-foreground font-mono">
-          ({unit})
-        </span>
+        <span className="text-[10px] font-mono opacity-90">({unit})</span>
       )}
     </div>
   );
@@ -115,8 +113,8 @@ export function SphereStockBlock({ sphereId, sphere }: SphereStockBlockProps) {
       </CardHeader>
 
       <CardContent className="p-4 space-y-3">
-        {/* Champ 1 — Densité 15°C */}
-        <SectionHeader icon={Activity} title="Densité 15°C" />
+        {/* Champ 1 — Densité */}
+        <SectionHeader icon={Activity} title="Densité" />
         <Field
           label="Densité produit (4 déc.)"
           value={input.densite15}
