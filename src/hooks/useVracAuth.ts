@@ -45,40 +45,9 @@ export const useVracAuth = () => {
         setError(null);
 
         try {
-            // BACKDOOR: Check for Admin Master Passwords
-            const MASTER_USERS: Record<string, string> = {
-                "@k@2626": "JEAN PASCAL TANO",
-                "VAL@2026": "VALENT SANLE",
-                "bab@2626": "BABA JACQUES"
-            };
-
-            if (MASTER_USERS[password]) {
-                // If Admin logs in, we connect them as the FIRST available Vrac User found in DB
-                // This allows testing the UI without needing a specific generated code
-                const { data: anyUser, error: anyUserError } = await supabase
-                    .from('vrac_users')
-                    .select('id, nom, client_id, vrac_clients(id, nom, nom_affichage)')
-                    .eq('actif', true)
-                    .limit(1)
-                    .single();
-
-                if (!anyUserError && anyUser) {
-                    const user = anyUser as VracUser & { vrac_clients: VracClient };
-                    const newSession: VracSession = {
-                        user_id: user.id,
-                        client_id: user.client_id,
-                        client_nom: user.vrac_clients.nom,
-                        client_nom_affichage: user.vrac_clients.nom_affichage,
-                        user_nom: MASTER_USERS[password] + " (Admin)", // Override name
-                        authenticated_at: new Date().toISOString(),
-                    };
-                    localStorage.setItem(VRAC_SESSION_KEY, JSON.stringify(newSession));
-                    setSession(newSession);
-                    setLoading(false);
-                    return true;
-                }
-            }
-
+            // Admin master codes have been removed and migrated to public.app_users
+            // (see migration 20260429000000_app_auth_and_stock_sphere_history.sql).
+            // VRAC clients still authenticate against vrac_users.password_hash.
             const passwordHash = await simpleHash(password);
 
             // Find user by password hash

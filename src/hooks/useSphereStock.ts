@@ -12,6 +12,7 @@ export interface UseSphereStock {
   input: SphereInputStrings;
   result: SphereResult;
   setField: (key: keyof SphereInputStrings, value: string) => void;
+  setAll: (input: SphereInputStrings) => void;
   reset: () => void;
 }
 
@@ -87,9 +88,10 @@ export function useSphereStock(sphereId: SphereId): UseSphereStock {
     [sphereId],
   );
 
+  const setAll = useCallback((next: SphereInputStrings) => setInput(next), []);
   const reset = useCallback(() => setInput(EMPTY_SPHERE_INPUT), []);
 
   const result = useMemo(() => computeSphere(sphereId, input), [sphereId, input]);
 
-  return { input, result, setField, reset };
+  return { input, result, setField, setAll, reset };
 }

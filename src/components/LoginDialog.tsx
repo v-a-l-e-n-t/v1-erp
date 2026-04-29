@@ -6,37 +6,27 @@ import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Lock } from "lucide-react";
+import { useAppAuth } from "@/hooks/useAppAuth";
 
 interface LoginDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
 
-const USERS_MAP: Record<string, string> = {
-    "@k@2626": "JEAN PASCAL TANO",
-    "VAL@2026": "VALENT SANLE",
-    "bab@2626": "BABA JACQUES"
-};
-
 const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
-    const [password, setPassword] = useState("");
+    const [code, setCode] = useState("");
     const navigate = useNavigate();
+    const { login, loading } = useAppAuth();
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        // Check if password exists in map
-        const userName = USERS_MAP[password];
-
-        if (userName) {
-            // Success
-            localStorage.setItem("user_name", userName);
-            localStorage.setItem("isAuthenticated", "true");
-            toast.success(`Bienvenue, ${userName}`);
+        const ok = await login(code);
+        if (ok) {
+            toast.success(`Bienvenue`);
+            onOpenChange(false);
             navigate("/dashboard");
         } else {
-            // Failure
-            toast.error("Mot de passe incorrect");
+            toast.error("Code incorrect");
         }
     };
 
@@ -54,19 +44,20 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
                 </DialogHeader>
                 <form onSubmit={handleLogin} className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="password">Code d'accès</Label>
+                        <Label htmlFor="code">Code d'accès</Label>
                         <Input
-                            id="password"
+                            id="code"
                             type="password"
                             placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
                             autoFocus
+                            disabled={loading}
                         />
                     </div>
                     <DialogFooter>
-                        <Button type="submit" className="w-full">
-                            Se connecter
+                        <Button type="submit" className="w-full" disabled={loading || !code}>
+                            {loading ? "Vérification..." : "Se connecter"}
                         </Button>
                     </DialogFooter>
                 </form>

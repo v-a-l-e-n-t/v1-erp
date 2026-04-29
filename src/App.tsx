@@ -26,6 +26,7 @@ import DashboardBke from "./pages/DashboardBke";
 import FormMaintenance from "./pages/FormMaintenance";
 import FormPalette from "./pages/FormPalette";
 import StockSphere from "./pages/StockSphere";
+import StockSphereHistory from "./pages/StockSphereHistory";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ const App = () => (
           <Route path="/stock" element={<Stock />} />
           <Route path="/form-chariot" element={<FormChariot />} />
           <Route path="/stock-sphere" element={<StockSphere />} />
+          <Route path="/stock-sphere-history" element={<StockSphereHistory />} />
           {/* VRAC Module Routes - Public Access */}
           <Route path="/vrac-login" element={<VracLogin />} />
           <Route path="/vrac" element={<VracClientPortal />} />
