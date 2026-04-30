@@ -379,15 +379,14 @@ export default function Reception() {
                   ].join(' ')}
                   onClick={() => !isOpen && setOpenSphere(id)}
                 >
-                  {/* État replié : bande verticale avec titre tourné */}
+                  {/* État replié : bande verticale, titre lu normalement (caractères empilés) */}
                   {!isOpen && (
                     <div className="h-full flex flex-col items-center justify-between py-3">
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      <div
-                        className="font-bold text-orange-500 tracking-widest text-sm uppercase whitespace-nowrap"
-                        style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-                      >
-                        SPHERE {id}
+                      <div className="flex flex-col items-center font-bold text-orange-500 text-sm uppercase leading-[1.1] tracking-tight">
+                        {`SPHERE ${id}`.split('').map((ch, i) => (
+                          <span key={i} className={ch === ' ' ? 'block h-1.5' : ''}>{ch === ' ' ? '' : ch}</span>
+                        ))}
                       </div>
                       <div className="text-[10px] text-muted-foreground font-mono">
                         {result.masse_transferee !== null ? '●' : '○'}
