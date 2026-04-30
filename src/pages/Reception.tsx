@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft,
   Calculator,
   Save,
   History,
@@ -9,6 +8,8 @@ import {
   LogIn,
   Printer,
   Sparkles,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -58,11 +59,23 @@ const EMPTY_HEADER: ReceptionHeader = {
   date_jauge_controle: '',
 };
 
-const SPHERES: { id: SphereId; capacity: string }[] = [
-  { id: 'S01', capacity: '3 323 413 L' },
-  { id: 'S02', capacity: '3 330 579 L' },
-  { id: 'S03', capacity: '3 332 688 L' },
-];
+const SPHERE_ORDER: SphereId[] = ['S01', 'S02', 'S03'];
+
+interface SphereSlotState {
+  avant: ReceptionStateInputs;
+  apres: ReceptionStateInputs;
+  marketer: MarketerSplit;
+  editingId: string | null;
+  editingCreatedAt: string | null;
+}
+
+const EMPTY_SLOT: SphereSlotState = {
+  avant: EMPTY_RECEPTION_STATE,
+  apres: EMPTY_RECEPTION_STATE,
+  marketer: EMPTY_MARKETER_SPLIT,
+  editingId: null,
+  editingCreatedAt: null,
+};
 
 export default function Reception() {
   const navigate = useNavigate();
@@ -80,20 +93,24 @@ export default function Reception() {
     }
   }, [pendingHistoryNav, isAuthenticated, navigate]);
 
-  // Étape 1 : choix de la sphère
-  const [selectedSphere, setSelectedSphere] = useState<SphereId | null>(null);
-
-  // Étape 2 : saisie
+  // En-tête commun aux 3 sphères
   const [header, setHeader] = useState<ReceptionHeader>(EMPTY_HEADER);
-  const [avantInputs, setAvantInputs] = useState<ReceptionStateInputs>(EMPTY_RECEPTION_STATE);
-  const [apresInputs, setApresInputs] = useState<ReceptionStateInputs>(EMPTY_RECEPTION_STATE);
-  const [marketer, setMarketer] = useState<MarketerSplit>(EMPTY_MARKETER_SPLIT);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingCreatedAt, setEditingCreatedAt] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+
+  // State par sphère
+  const [slots, setSlots] = useState<Record<SphereId, SphereSlotState>>({
+    S01: EMPTY_SLOT,
+    S02: EMPTY_SLOT,
+    S03: EMPTY_SLOT,
+  });
+
+  // Sphère actuellement ouverte (modèle accordéon : 1 seule à la fois)
+  const [openSphere, setOpenSphere] = useState<SphereId | null>('S01');
+
+  // Saving + dev random
+  const [savingSphere, setSavingSphere] = useState<SphereId | null>(null);
+  const [printingSphere, setPrintingSphere] = useState<SphereId | null>(null);
   const [showDevButton, setShowDevButton] = useState(false);
 
-  // Ctrl+Shift+Z (ou +W sur clavier FR) : bascule l'affichage du bouton dev
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -106,33 +123,20 @@ export default function Reception() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const fillRandom = () => {
-    if (!selectedSphere) return;
-    const { avant, apres } = buildRandomReception(selectedSphere);
-    setAvantInputs(avant);
-    setApresInputs(apres);
-    toast.success('Données aléatoires injectées AVANT + APRÈS');
-  };
-
-  const result: ReceptionResult = useMemo(
+  // Résultats par sphère (recalculés à chaque modif)
+  const results: Record<SphereId, ReceptionResult> = useMemo(
     () =>
-      selectedSphere
-        ? computeReception(selectedSphere, avantInputs, apresInputs)
-        : { avant: { volume_liquide: null, volume_gazeux: null, pression_absolue: null, densite_15C_melange: null, rho_butane_liq: null, rho_air: null, masse_liquide: null, masse_gazeuse: null, masse_totale: null }, apres: { volume_liquide: null, volume_gazeux: null, pression_absolue: null, densite_15C_melange: null, rho_butane_liq: null, rho_air: null, masse_liquide: null, masse_gazeuse: null, masse_totale: null }, masse_transferee: null },
-    [selectedSphere, avantInputs, apresInputs],
+      SPHERE_ORDER.reduce(
+        (acc, id) => {
+          acc[id] = computeReception(id, slots[id].avant, slots[id].apres);
+          return acc;
+        },
+        {} as Record<SphereId, ReceptionResult>,
+      ),
+    [slots],
   );
 
-  // Pré-remplissage AVANT → APRÈS pour les champs identiques par construction
-  const prefillFromAvant = () => {
-    setApresInputs((prev) => ({
-      ...prev,
-      densite_recue: prev.densite_recue || avantInputs.densite_recue,
-      densite_bac: prev.densite_bac || avantInputs.densite_bac,
-    }));
-    toast.success('Densités recopiées depuis AVANT');
-  };
-
-  // Charger une session existante (édition)
+  /* --------------------- Edit mode via ?session=<id> --------------------- */
   const loadedRef = useRef(false);
   useEffect(() => {
     if (!editId || loadedRef.current) return;
@@ -148,9 +152,7 @@ export default function Reception() {
         setSearchParams({});
         return;
       }
-      setEditingId(data.id);
-      setEditingCreatedAt(data.created_at);
-      setSelectedSphere(data.sphere_id as SphereId);
+      const sId = data.sphere_id as SphereId;
       setHeader({
         numero_reception: data.numero_reception ?? '',
         depot: data.depot ?? '',
@@ -163,22 +165,44 @@ export default function Reception() {
         date_deblocage: data.date_deblocage?.slice(0, 16) ?? '',
         date_jauge_controle: data.date_jauge_controle?.slice(0, 16) ?? '',
       });
-      setAvantInputs({ ...EMPTY_RECEPTION_STATE, ...(data.inputs_avant ?? {}) });
-      setApresInputs({ ...EMPTY_RECEPTION_STATE, ...(data.inputs_apres ?? {}) });
-      setMarketer({ ...EMPTY_MARKETER_SPLIT, ...(data.marketer_repartition ?? {}) });
-      toast.success(`Édition de la réception du ${new Date(data.created_at).toLocaleString('fr-FR')}`);
+      setSlots((prev) => ({
+        ...prev,
+        [sId]: {
+          avant: { ...EMPTY_RECEPTION_STATE, ...(data.inputs_avant ?? {}) },
+          apres: { ...EMPTY_RECEPTION_STATE, ...(data.inputs_apres ?? {}) },
+          marketer: { ...EMPTY_MARKETER_SPLIT, ...(data.marketer_repartition ?? {}) },
+          editingId: data.id,
+          editingCreatedAt: data.created_at,
+        },
+      }));
+      setOpenSphere(sId);
+      toast.success(
+        `Édition de la réception ${sId} du ${new Date(data.created_at).toLocaleString('fr-FR')}`,
+      );
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
-  const handleSave = async () => {
-    if (!selectedSphere) return;
-    setSaving(true);
+  /* ------------------------------ Actions ------------------------------- */
+
+  const updateSlot = (id: SphereId, patch: Partial<SphereSlotState>) =>
+    setSlots((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+
+  const handleFillRandom = (id: SphereId) => {
+    const { avant, apres } = buildRandomReception(id);
+    updateSlot(id, { avant, apres });
+    toast.success(`Données aléatoires injectées dans ${id}`);
+  };
+
+  const handleSave = async (id: SphereId) => {
+    const slot = slots[id];
+    if (results[id].masse_transferee === null) return;
+    setSavingSphere(id);
     try {
       const payload = {
         user_id: session?.user_id ?? null,
         user_name: session?.user_name ?? 'Anonyme',
-        sphere_id: selectedSphere,
+        sphere_id: id,
         numero_reception: header.numero_reception || null,
         depot: header.depot || null,
         produit: header.produit || null,
@@ -189,19 +213,18 @@ export default function Reception() {
         date_fin_transfert: header.date_fin_transfert || null,
         date_deblocage: header.date_deblocage || null,
         date_jauge_controle: header.date_jauge_controle || null,
-        inputs_avant: avantInputs,
-        inputs_apres: apresInputs,
-        results: result,
-        marketer_repartition: marketer,
-        masse_transferee_kg: result.masse_transferee,
+        inputs_avant: slot.avant,
+        inputs_apres: slot.apres,
+        results: results[id],
+        marketer_repartition: slot.marketer,
+        masse_transferee_kg: results[id].masse_transferee,
       };
-
       let error;
-      if (editingId) {
+      if (slot.editingId) {
         ({ error } = await (supabase as any)
           .from('reception_sessions')
           .update(payload)
-          .eq('id', editingId));
+          .eq('id', slot.editingId));
       } else {
         ({ error } = await (supabase as any)
           .from('reception_sessions')
@@ -211,10 +234,9 @@ export default function Reception() {
         console.error(error);
         toast.error("Échec de l'enregistrement");
       } else {
-        toast.success(editingId ? 'Réception mise à jour' : 'Réception enregistrée');
-        if (editingId) {
-          setEditingId(null);
-          setEditingCreatedAt(null);
+        toast.success(slot.editingId ? `${id} mise à jour` : `${id} enregistrée`);
+        if (slot.editingId) {
+          updateSlot(id, { editingId: null, editingCreatedAt: null });
           setSearchParams({});
         }
       }
@@ -222,9 +244,20 @@ export default function Reception() {
       console.error(e);
       toast.error('Erreur réseau');
     } finally {
-      setSaving(false);
+      setSavingSphere(null);
     }
   };
+
+  const handlePrint = (id: SphereId) => {
+    setPrintingSphere(id);
+    setTimeout(() => window.print(), 50);
+  };
+
+  useEffect(() => {
+    const after = () => setPrintingSphere(null);
+    window.addEventListener('afterprint', after);
+    return () => window.removeEventListener('afterprint', after);
+  }, []);
 
   const handleHistoryClick = () => {
     if (!isAuthenticated) {
@@ -236,22 +269,15 @@ export default function Reception() {
     navigate('/reception-history');
   };
 
-  const handlePrint = () => window.print();
+  /* ----------------------------- Rendu UI ------------------------------- */
 
-  const canSave =
-    !!selectedSphere && result.masse_transferee !== null;
-
-  /* ----------------------- Étape 1 : choix sphère ----------------------- */
-
-  if (!selectedSphere) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Vue écran (cachée à l'impression) */}
+      <div className="print:hidden flex flex-col flex-1">
         <header className="border-b bg-card/50">
-          <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/app')}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
               <div className="h-9 w-9 shrink-0 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center">
                 <Calculator className="h-4 w-4 text-primary" />
               </div>
@@ -260,87 +286,7 @@ export default function Reception() {
                   Réception butane
                 </h1>
                 <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                  Calcul de la masse transférée d'un navire vers une sphère
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Button variant="outline" size="sm" onClick={handleHistoryClick} title="Historique">
-                <History className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">Historique</span>
-              </Button>
-              {isAuthenticated ? (
-                <Button variant="ghost" size="sm" onClick={logout} title="Se déconnecter">
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button variant="ghost" size="sm" onClick={() => setLoginOpen(true)} title="Se connecter">
-                  <LogIn className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
-          <div className="text-center mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-2">
-              Quelle sphère reçoit le produit ?
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Sélectionne la sphère qui a été remplie pour démarrer le calcul.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {SPHERES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSelectedSphere(s.id)}
-                className="group rounded-lg border-2 border-border hover:border-primary hover:shadow-md transition bg-card p-6 text-center"
-              >
-                <div className="text-3xl font-bold text-orange-500 mb-1">{s.id}</div>
-                <div className="text-xs text-muted-foreground font-mono tabular-nums">
-                  Capacité {s.capacity}
-                </div>
-                <div className="mt-4 text-[10px] uppercase tracking-widest text-muted-foreground group-hover:text-primary font-semibold">
-                  Choisir cette sphère →
-                </div>
-              </button>
-            ))}
-          </div>
-        </main>
-
-        <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} redirectTo={null} />
-      </div>
-    );
-  }
-
-  /* ----------------------- Étape 2 : saisie ----------------------- */
-
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="print:hidden flex flex-col flex-1">
-        <header className="border-b bg-card/50">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Button variant="ghost" size="sm" onClick={() => setSelectedSphere(null)} title="Changer de sphère">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div className="h-9 w-9 shrink-0 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Calculator className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">
-                  Réception butane — <span className="text-orange-500">{selectedSphere}</span>
-                  {editingId && (
-                    <span className="ml-2 text-[10px] sm:text-xs font-normal text-orange-500">
-                      (édition du {editingCreatedAt && new Date(editingCreatedAt).toLocaleDateString('fr-FR')})
-                    </span>
-                  )}
-                </h1>
-                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                  AVANT / APRÈS · Calcul temps réel
+                  Saisie AVANT / APRÈS par sphère
                   {session && (
                     <>
                       {' · '}
@@ -351,31 +297,9 @@ export default function Reception() {
               </div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
-              {showDevButton && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fillRandom}
-                  className="border-purple-500 text-purple-600 hover:bg-purple-50"
-                  title="Remplissage aléatoire (debug — Ctrl+Shift+Z)"
-                >
-                  <Sparkles className="h-4 w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Random</span>
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={handlePrint} disabled={result.masse_transferee === null} title="Imprimer">
-                <Printer className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">Imprimer</span>
-              </Button>
               <Button variant="outline" size="sm" onClick={handleHistoryClick} title="Historique">
                 <History className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Historique</span>
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={!canSave || saving} title="Enregistrer">
-                <Save className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">
-                  {saving ? 'Enregistrement…' : editingId ? 'Mettre à jour' : 'Enregistrer'}
-                </span>
               </Button>
               {isAuthenticated ? (
                 <Button variant="ghost" size="sm" onClick={logout} title="Se déconnecter">
@@ -390,8 +314,8 @@ export default function Reception() {
           </div>
         </header>
 
-        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
-          {/* Entête réception */}
+        <main className="flex-1 max-w-[1400px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+          {/* Entête réception (commun aux 3 sphères) */}
           <Card>
             <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="space-y-1">
@@ -437,50 +361,180 @@ export default function Reception() {
             </CardContent>
           </Card>
 
-          {/* Saisies AVANT / APRÈS */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ReceptionStateInputsBlock
-              title="AVANT transfert"
-              sphereId={selectedSphere}
-              inputs={avantInputs}
-              onChange={setAvantInputs}
-            />
-            <div className="space-y-2">
-              <ReceptionStateInputsBlock
-                title="APRÈS transfert"
-                sphereId={selectedSphere}
-                inputs={apresInputs}
-                onChange={setApresInputs}
-              />
-              <Button variant="link" size="sm" onClick={prefillFromAvant} className="text-primary h-auto p-0">
-                ↳ Recopier les densités depuis AVANT
-              </Button>
-            </div>
-          </div>
+          {/* Accordéon horizontal des 3 sphères */}
+          <div className="flex items-stretch gap-2 min-h-[60vh]">
+            {SPHERE_ORDER.map((id) => {
+              const isOpen = openSphere === id;
+              const slot = slots[id];
+              const result = results[id];
+              const negative = result.masse_transferee !== null && result.masse_transferee < 0;
+              return (
+                <div
+                  key={id}
+                  className={[
+                    'relative rounded-lg border-2 overflow-hidden transition-all duration-300 ease-in-out',
+                    isOpen
+                      ? 'flex-1 border-primary bg-card'
+                      : 'w-12 sm:w-14 border-border bg-muted/40 hover:bg-muted hover:border-primary/50 cursor-pointer',
+                  ].join(' ')}
+                  onClick={() => !isOpen && setOpenSphere(id)}
+                >
+                  {/* État replié : bande verticale avec titre tourné */}
+                  {!isOpen && (
+                    <div className="h-full flex flex-col items-center justify-between py-3">
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <div
+                        className="font-bold text-orange-500 tracking-widest text-sm uppercase whitespace-nowrap"
+                        style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                      >
+                        SPHERE {id}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {result.masse_transferee !== null ? '●' : '○'}
+                      </div>
+                    </div>
+                  )}
 
-          {/* Résultats */}
-          <ReceptionResults
-            sphereId={selectedSphere}
-            avantInputs={avantInputs}
-            apresInputs={apresInputs}
-            result={result}
-            marketer={marketer}
-            onMarketerChange={setMarketer}
-          />
+                  {/* État ouvert : panneau complet */}
+                  {isOpen && (
+                    <div className="flex flex-col h-full">
+                      {/* Barre supérieure du panneau */}
+                      <div className="flex items-center justify-between px-4 py-2 border-b bg-primary/5">
+                        <div className="flex items-center gap-2">
+                          <h2 className="font-bold text-orange-500 tracking-tight text-base">
+                            SPHERE {id}
+                          </h2>
+                          {slot.editingId && slot.editingCreatedAt && (
+                            <span className="text-[10px] text-orange-500">
+                              (édition du {new Date(slot.editingCreatedAt).toLocaleDateString('fr-FR')})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {showDevButton && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleFillRandom(id)}
+                              className="border-purple-500 text-purple-600 hover:bg-purple-50"
+                              title="Random (Ctrl+Shift+Z)"
+                            >
+                              <Sparkles className="h-4 w-4 sm:mr-1.5" />
+                              <span className="hidden sm:inline">Random</span>
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePrint(id)}
+                            disabled={result.masse_transferee === null}
+                            title="Imprimer"
+                          >
+                            <Printer className="h-4 w-4 sm:mr-1.5" />
+                            <span className="hidden sm:inline">Imprimer</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSave(id)}
+                            disabled={result.masse_transferee === null || savingSphere === id}
+                            title="Enregistrer"
+                          >
+                            <Save className="h-4 w-4 sm:mr-1.5" />
+                            <span className="hidden sm:inline">
+                              {savingSphere === id
+                                ? 'Enregistrement…'
+                                : slot.editingId
+                                  ? 'Mettre à jour'
+                                  : 'Enregistrer'}
+                            </span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenSphere(null);
+                            }}
+                            title="Replier"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Contenu du panneau */}
+                      <div className="flex-1 overflow-auto p-4 space-y-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <ReceptionStateInputsBlock
+                            title="AVANT transfert"
+                            sphereId={id}
+                            inputs={slot.avant}
+                            onChange={(next) => updateSlot(id, { avant: next })}
+                          />
+                          <div className="space-y-2">
+                            <ReceptionStateInputsBlock
+                              title="APRÈS transfert"
+                              sphereId={id}
+                              inputs={slot.apres}
+                              onChange={(next) => updateSlot(id, { apres: next })}
+                            />
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() =>
+                                updateSlot(id, {
+                                  apres: {
+                                    ...slot.apres,
+                                    densite_recue: slot.apres.densite_recue || slot.avant.densite_recue,
+                                    densite_bac: slot.apres.densite_bac || slot.avant.densite_bac,
+                                  },
+                                })
+                              }
+                              className="text-primary h-auto p-0"
+                            >
+                              ↳ Recopier les densités depuis AVANT
+                            </Button>
+                          </div>
+                        </div>
+
+                        <ReceptionResults
+                          sphereId={id}
+                          avantInputs={slot.avant}
+                          apresInputs={slot.apres}
+                          result={result}
+                          marketer={slot.marketer}
+                          onMarketerChange={(next) => updateSlot(id, { marketer: next })}
+                        />
+
+                        {negative && (
+                          <p className="text-xs text-red-600">
+                            ⚠ Masse transférée négative — vérifie les valeurs AVANT / APRÈS.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </main>
       </div>
 
-      <div className="hidden print:block">
-        <ReceptionPrint
-          sphereId={selectedSphere}
-          header={header}
-          avantInputs={avantInputs}
-          apresInputs={apresInputs}
-          result={result}
-          marketer={marketer}
-          occurredAt={new Date()}
-        />
-      </div>
+      {/* Vue impression */}
+      {printingSphere && (
+        <div className="hidden print:block">
+          <ReceptionPrint
+            sphereId={printingSphere}
+            header={header}
+            avantInputs={slots[printingSphere].avant}
+            apresInputs={slots[printingSphere].apres}
+            result={results[printingSphere]}
+            marketer={slots[printingSphere].marketer}
+            occurredAt={new Date()}
+          />
+        </div>
+      )}
 
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} redirectTo={null} />
     </div>
