@@ -96,10 +96,10 @@ export function ReceptionResults({
                 <th className="px-2 py-1 text-left text-[10px] uppercase font-bold border-r border-border/40 w-[28%]">
                   Grandeur
                 </th>
-                <th colSpan={2} className="px-2 py-1 text-center border-r border-border/40 bg-blue-50 text-blue-700 font-semibold">
+                <th colSpan={2} className="px-2 py-1 text-center border-r border-border/40 bg-muted/40 font-semibold">
                   AVANT transfert
                 </th>
-                <th colSpan={2} className="px-2 py-1 text-center bg-green-50 text-green-700 font-semibold">
+                <th colSpan={2} className="px-2 py-1 text-center bg-primary/10 text-primary font-semibold">
                   APRÈS transfert
                 </th>
               </tr>

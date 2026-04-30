@@ -14,8 +14,6 @@ interface Props {
   sphereId: SphereId;
   inputs: ReceptionStateInputs;
   onChange: (next: ReceptionStateInputs) => void;
-  /** Couleur d'accent pour distinguer AVANT (bleu) et APRÈS (vert). */
-  accent?: 'blue' | 'green';
 }
 
 const blur = (decimals: number) => (v: string) => padDecimalsFr(v, decimals);
@@ -60,18 +58,13 @@ function Section({
   icon: Icon,
   title,
   unit,
-  accent,
 }: {
   icon: typeof Gauge;
   title: string;
   unit?: string;
-  accent: 'blue' | 'green';
 }) {
-  const bg = accent === 'blue' ? 'bg-blue-600' : 'bg-green-600';
   return (
-    <div
-      className={`flex items-center gap-2 mt-3 mb-1 -mx-4 px-4 py-1.5 ${bg} text-white`}
-    >
+    <div className="flex items-center gap-2 mt-3 mb-1 -mx-4 px-4 py-1.5 bg-primary text-primary-foreground">
       <Icon className="h-3.5 w-3.5" />
       <span className="text-[11px] uppercase tracking-widest font-bold">{title}</span>
       {unit && <span className="text-[10px] font-mono opacity-90">({unit})</span>}
@@ -92,11 +85,7 @@ export function ReceptionStateInputsBlock({
   sphereId,
   inputs,
   onChange,
-  accent = 'blue',
 }: Props) {
-  const headerBg = accent === 'blue' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200';
-  const headerTxt = accent === 'blue' ? 'text-blue-700' : 'text-green-700';
-
   const setField = (key: keyof ReceptionStateInputs) => (v: string) => {
     const patch = autoFillFromKey(sphereId, key, v);
     onChange({ ...inputs, [key]: v, ...(patch ?? {}) });
@@ -109,12 +98,12 @@ export function ReceptionStateInputsBlock({
 
   return (
     <Card className="border-border/80 shadow-sm">
-      <CardHeader className={`py-3 px-4 border-b ${headerBg}`}>
-        <h3 className={`font-bold tracking-tight ${headerTxt}`}>{title}</h3>
+      <CardHeader className="py-3 px-4 border-b bg-muted/30">
+        <h3 className="font-bold text-orange-500 tracking-tight">{title}</h3>
       </CardHeader>
       <CardContent className="p-4 space-y-3">
         {/* Densités */}
-        <Section icon={FlaskConical} title="Densité 15°C" accent={accent} />
+        <Section icon={FlaskConical} title="Densité 15°C" />
         <div className="grid grid-cols-2 gap-2">
           <Field
             label="Densité reçue (4 déc.)"
@@ -133,7 +122,7 @@ export function ReceptionStateInputsBlock({
         </div>
 
         {/* Jauge */}
-        <Section icon={Gauge} title="Jauge du jour" unit="mm" accent={accent} />
+        <Section icon={Gauge} title="Jauge du jour" unit="mm" />
         <Field
           label="Valeur (mm)"
           value={inputs.jauge_mm}
@@ -154,7 +143,7 @@ export function ReceptionStateInputsBlock({
         </div>
 
         {/* Température liquide */}
-        <Section icon={Thermometer} title="T° liquide" unit="°C" accent={accent} />
+        <Section icon={Thermometer} title="T° liquide" unit="°C" />
         <Field
           label="Valeur (°C)"
           value={inputs.temperature_liquide_C}
@@ -174,7 +163,7 @@ export function ReceptionStateInputsBlock({
         </div>
 
         {/* Température gaz */}
-        <Section icon={Flame} title="T° gaz" unit="°C" accent={accent} />
+        <Section icon={Flame} title="T° gaz" unit="°C" />
         <Field
           label="Valeur (°C)"
           value={inputs.temperature_gaz_C}
@@ -194,7 +183,7 @@ export function ReceptionStateInputsBlock({
         </div>
 
         {/* Pression */}
-        <Section icon={Activity} title="Pression relative" unit="bar" accent={accent} />
+        <Section icon={Activity} title="Pression relative" unit="bar" />
         <Field
           label="Valeur (3 déc.)"
           value={inputs.pression_relative_bar}

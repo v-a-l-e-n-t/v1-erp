@@ -408,7 +408,6 @@ export default function Reception() {
               sphereId={selectedSphere}
               inputs={avantInputs}
               onChange={setAvantInputs}
-              accent="blue"
             />
             <div className="space-y-2">
               <ReceptionStateInputsBlock
@@ -416,9 +415,8 @@ export default function Reception() {
                 sphereId={selectedSphere}
                 inputs={apresInputs}
                 onChange={setApresInputs}
-                accent="green"
               />
-              <Button variant="link" size="sm" onClick={prefillFromAvant} className="text-green-600 h-auto p-0">
+              <Button variant="link" size="sm" onClick={prefillFromAvant} className="text-primary h-auto p-0">
                 ↳ Recopier les densités depuis AVANT
               </Button>
             </div>
