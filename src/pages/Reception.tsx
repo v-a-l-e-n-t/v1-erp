@@ -8,6 +8,7 @@ import {
   LogOut,
   LogIn,
   Printer,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   EMPTY_MARKETER_SPLIT,
   EMPTY_RECEPTION_STATE,
+  buildRandomReception,
   computeReception,
   type MarketerSplit,
   type ReceptionResult,
@@ -89,6 +91,28 @@ export default function Reception() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingCreatedAt, setEditingCreatedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showDevButton, setShowDevButton] = useState(false);
+
+  // Ctrl+Shift+Z (ou +W sur clavier FR) : bascule l'affichage du bouton dev
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (e.ctrlKey && e.shiftKey && (k === 'z' || k === 'w')) {
+        e.preventDefault();
+        setShowDevButton((s) => !s);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const fillRandom = () => {
+    if (!selectedSphere) return;
+    const { avant, apres } = buildRandomReception(selectedSphere);
+    setAvantInputs(avant);
+    setApresInputs(apres);
+    toast.success('Données aléatoires injectées AVANT + APRÈS');
+  };
 
   const result: ReceptionResult = useMemo(
     () =>
@@ -327,6 +351,18 @@ export default function Reception() {
               </div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+              {showDevButton && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fillRandom}
+                  className="border-purple-500 text-purple-600 hover:bg-purple-50"
+                  title="Remplissage aléatoire (debug — Ctrl+Shift+Z)"
+                >
+                  <Sparkles className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Random</span>
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handlePrint} disabled={result.masse_transferee === null} title="Imprimer">
                 <Printer className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Imprimer</span>

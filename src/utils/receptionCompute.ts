@@ -353,6 +353,134 @@ export function computeMarketerKg(
 
 const isInteger = (n: number) => Number.isFinite(n) && Math.floor(n) === n;
 
+/* ------------------------------------------------------------------ */
+/* Génération de données de test cohérentes (Ctrl+Shift+Z)             */
+/* ------------------------------------------------------------------ */
+
+function rand(min: number, max: number): number {
+  return Math.random() * (max - min) + min;
+}
+
+function frFixed(n: number, d: number): string {
+  return n.toLocaleString('fr-FR', {
+    minimumFractionDigits: d,
+    maximumFractionDigits: d,
+    useGrouping: false,
+  });
+}
+
+function buildOneState(sphereId: SphereId): ReceptionStateInputs {
+  // Densités produit
+  const densiteRecue = rand(0.572, 0.589);
+  const densiteBac = rand(0.572, 0.589);
+
+  // Jauge : entre 1 500 et 9 800 mm
+  const jauge = Math.round(rand(1500, 9800));
+  const isS01 = sphereId === 'S01';
+  const hMin = isS01 ? jauge : Math.floor(jauge / 10) * 10;
+  const hMaxRaw = isS01 ? '' : jauge % 10 === 0 ? '' : Math.ceil(jauge / 10) * 10;
+
+  // Volume linéaire approximatif (~capacité_litre / 10 000 mm)
+  const litresPerMm = CAPACITE_VOLUMIQUE_L[sphereId] / 10000;
+  const vMin = Math.round((typeof hMin === 'number' ? hMin : Number(hMin)) * litresPerMm);
+  const vMax = hMaxRaw === '' ? '' : Math.round(Number(hMaxRaw) * litresPerMm);
+
+  // Températures
+  const tLiq = rand(18, 30);
+  const tLiqInt = Number.isInteger(tLiq);
+  const tLiqMin = tLiqInt ? Math.round(tLiq) : Math.floor(tLiq);
+  const tLiqMax = tLiqInt ? '' : Math.ceil(tLiq);
+
+  const tGaz = rand(18, 30);
+  const tGazIsHalf = Number.isInteger(tGaz * 2);
+  const tGazRound = Math.round(tGaz * 2) / 2;
+  const tGazMin = tGazIsHalf ? tGazRound : Math.floor(tGaz * 2) / 2;
+  const tGazMax = tGazIsHalf ? '' : Math.ceil(tGaz * 2) / 2;
+
+  // Densité butane liquide centrée selon T° (kg/m³)
+  const dLiqCenter = 583 - (tLiq - 15) * 0.7;
+  const dLiqMin = dLiqCenter + rand(-0.5, 0.5);
+  const dLiqMax = dLiqMin - rand(0.7, 1.0);
+
+  // Densité air sec selon T° gaz (kg/m³)
+  const dGazCenter = 1.182 - (tGaz - 15) * 0.0006;
+  const dGazMin = dGazCenter;
+  const dGazMax = dGazMin - rand(0.0003, 0.0006);
+
+  // Pression relative
+  const pression = rand(0.6, 2.4);
+
+  return {
+    densite_recue: frFixed(densiteRecue, 4),
+    densite_bac: frFixed(densiteBac, 4),
+    jauge_mm: String(jauge),
+    hauteur_min_mm: String(hMin),
+    hauteur_max_mm: hMaxRaw === '' ? '' : String(hMaxRaw),
+    volume_min_L: String(vMin),
+    volume_max_L: vMax === '' ? '' : String(vMax),
+    temperature_liquide_C: frFixed(tLiq, 2),
+    temp_liq_min_C: String(tLiqMin),
+    temp_liq_max_C: tLiqMax === '' ? '' : String(tLiqMax),
+    densite_liq_min: frFixed(dLiqMin, 4),
+    densite_liq_max: frFixed(dLiqMax, 4),
+    temperature_gaz_C: frFixed(tGaz, 2),
+    temp_gaz_min_C: String(tGazMin),
+    temp_gaz_max_C: tGazMax === '' ? '' : String(tGazMax),
+    airdensity_min: frFixed(dGazMin, 4),
+    airdensity_max: frFixed(dGazMax, 4),
+    pression_relative_bar: frFixed(pression, 3),
+  };
+}
+
+/**
+ * Génère deux états cohérents AVANT / APRÈS pour une même sphère.
+ * - mêmes densités produit
+ * - jauge AVANT < jauge APRÈS (transfert positif)
+ * - mêmes bornes IL / air sec quand les températures coïncident
+ */
+export function buildRandomReception(sphereId: SphereId): {
+  avant: ReceptionStateInputs;
+  apres: ReceptionStateInputs;
+} {
+  const avant = buildOneState(sphereId);
+  const apres = buildOneState(sphereId);
+  // Cohérence : même densité produit reçue + bac, jauge APRÈS >= jauge AVANT.
+  apres.densite_recue = avant.densite_recue;
+  apres.densite_bac = avant.densite_bac;
+
+  const jauseAv = parseFr(avant.jauge_mm);
+  const jauseAp = parseFr(apres.jauge_mm);
+  if (Number.isFinite(jauseAv) && Number.isFinite(jauseAp) && jauseAp < jauseAv) {
+    // Inverse pour que APRÈS soit toujours >= AVANT (jauge croît avec le transfert)
+    const tmp = avant.jauge_mm;
+    avant.jauge_mm = apres.jauge_mm;
+    avant.hauteur_min_mm = apres.hauteur_min_mm;
+    avant.hauteur_max_mm = apres.hauteur_max_mm;
+    avant.volume_min_L = apres.volume_min_L;
+    avant.volume_max_L = apres.volume_max_L;
+    apres.jauge_mm = tmp;
+    // Recalcul des bornes APRÈS depuis la nouvelle jauge
+    const j = parseFr(tmp);
+    if (sphereId === 'S01') {
+      apres.hauteur_min_mm = String(j);
+      apres.hauteur_max_mm = '';
+    } else if (j % 10 === 0) {
+      apres.hauteur_min_mm = String(j);
+      apres.hauteur_max_mm = '';
+    } else {
+      apres.hauteur_min_mm = String(Math.floor(j / 10) * 10);
+      apres.hauteur_max_mm = String(Math.ceil(j / 10) * 10);
+    }
+    const lpm = CAPACITE_VOLUMIQUE_L[sphereId] / 10000;
+    apres.volume_min_L = String(Math.round(parseFr(apres.hauteur_min_mm) * lpm));
+    apres.volume_max_L = apres.hauteur_max_mm === ''
+      ? ''
+      : String(Math.round(parseFr(apres.hauteur_max_mm) * lpm));
+  }
+
+  return { avant, apres };
+}
+
 export function autoFillFromKey(
   sphereId: SphereId,
   key: keyof ReceptionStateInputs,
