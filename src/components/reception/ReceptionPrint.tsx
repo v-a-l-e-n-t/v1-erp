@@ -363,22 +363,33 @@ export function ReceptionPrint({
   const cumul = result.masse_transferee ?? 0;
 
   return (
-    <div className="bg-white text-black p-4 print:p-2 font-sans w-full max-w-[1400px] mx-auto">
+    <>
+      {/* Force A4 paysage avec marges minimales pour rentrer sur 1 page */}
+      <style>{`
+        @page { size: A4 landscape; margin: 6mm; }
+        @media print {
+          html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .reception-print-root { font-size: 7px; }
+          .reception-print-root table { font-size: 7px; }
+          .reception-print-root td, .reception-print-root th { padding: 1px 3px !important; line-height: 1.05; }
+        }
+      `}</style>
+    <div className="reception-print-root bg-white text-black p-2 print:p-0 font-sans w-full mx-auto">
       {/* ========== Bandeau supérieur : logo + titre ========== */}
-      <div className="grid grid-cols-[110px_1fr] items-center gap-3 mb-2">
+      <div className="grid grid-cols-[70px_1fr] items-center gap-2 mb-1.5">
         <img
           src="/saepp-logo.png"
           alt="SAEPP"
-          className="h-16 w-16 object-contain"
+          className="h-12 w-12 object-contain"
           onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
         />
-        <div className={`${BORDER} ${GREY} px-3 py-1.5 font-bold text-center text-[12px] tracking-wide`}>
+        <div className={`${BORDER} ${GREY} px-2 py-1 font-bold text-center text-[10px] tracking-wide`}>
           ETAT DE RECEPTION BUTANE {numero}
         </div>
       </div>
 
       {/* ========== 3 colonnes métadonnées ========== */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-1.5 mb-1.5">
         {SPHERE_ORDER.map((id) => (
           <div key={id}>
             <MetadataBlock header={header} />
@@ -388,14 +399,14 @@ export function ReceptionPrint({
       </div>
 
       {/* ========== 3 sphères côte à côte ========== */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-1.5 mb-1.5">
         {SPHERE_ORDER.map((id) => (
           <SphereBlock key={id} sphereId={id} data={datasets[id]} />
         ))}
       </div>
 
       {/* ========== Bandeau marketer + cumul réception ========== */}
-      <div className="grid grid-cols-[1fr_1fr] gap-3 mb-3">
+      <div className="grid grid-cols-[1fr_1fr] gap-2 mb-1.5">
         <table className="w-full border-collapse text-[8px]">
           <thead>
             <tr>
@@ -442,13 +453,13 @@ export function ReceptionPrint({
       </div>
 
       {/* ========== Zones de signature SAEPP / SBI / DOUANE ========== */}
-      <div className="grid grid-cols-3 gap-2 mb-2">
+      <div className="grid grid-cols-3 gap-1.5 mb-1.5">
         {['DEPOT', 'SBI', 'DOUANE'].map((label) => (
           <div key={label}>
-            <div className={`${CELL} ${GREY_LIGHT} text-left font-bold text-[8px] tracking-wide`}>
+            <div className={`${CELL} ${GREY_LIGHT} text-left font-bold text-[7px] tracking-wide`}>
               {label}
             </div>
-            <div className={`${BORDER} bg-white h-[60px]`} />
+            <div className={`${BORDER} bg-white h-[28px] print:h-[24px]`} />
           </div>
         ))}
       </div>
@@ -459,13 +470,13 @@ export function ReceptionPrint({
           REPARTITION PAR MARKETER (KG)
         </div>
       </div>
-      <div className="grid grid-cols-4 mb-3 text-[8px]">
+      <div className="grid grid-cols-4 mb-1 text-[7px]">
         <div className={`${CELL} ${GREY_LIGHT} font-bold text-center`}>CUMUL RECEPTION</div>
         <div className={`${CELL} ${GREY_LIGHT} font-bold text-center`}>PETROIVOIRE</div>
         <div className={`${CELL} ${GREY_LIGHT} font-bold text-center`}>TOTAL CI</div>
         <div className={`${CELL} ${GREY_LIGHT} font-bold text-center`}>CUMUL</div>
       </div>
-      <div className="grid grid-cols-4 mb-4 text-[9px]">
+      <div className="grid grid-cols-4 mb-2 text-[8px]">
         <div className={`${CELL} text-right tabular-nums font-bold text-red-600`}>
           {fmtNumOrDash(cumul, 0)}
         </div>
@@ -480,11 +491,12 @@ export function ReceptionPrint({
       </div>
 
       {/* ========== Pied : signature finale DEPOT / PETROCI / DOUANE ========== */}
-      <div className="grid grid-cols-3 mt-6 pt-1 border-t border-black text-[8px] uppercase font-bold tracking-wide">
+      <div className="grid grid-cols-3 mt-3 pt-1 border-t border-black text-[8px] uppercase font-bold tracking-wide">
         <div>DEPOT</div>
         <div className="text-center">PETROCI</div>
         <div className="text-right">DOUANE</div>
       </div>
     </div>
+    </>
   );
 }
