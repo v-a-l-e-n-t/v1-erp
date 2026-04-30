@@ -375,18 +375,16 @@ export default function Reception() {
                     'relative rounded-lg border-2 overflow-hidden transition-all duration-300 ease-in-out',
                     isOpen
                       ? 'flex-1 border-primary bg-card'
-                      : 'w-12 sm:w-14 border-border bg-muted/40 hover:bg-muted hover:border-primary/50 cursor-pointer',
+                      : 'w-[140px] sm:w-[160px] border-border bg-muted/40 hover:bg-muted hover:border-primary/50 cursor-pointer',
                   ].join(' ')}
                   onClick={() => !isOpen && setOpenSphere(id)}
                 >
-                  {/* État replié : bande verticale, titre lu normalement (caractères empilés) */}
+                  {/* État replié : bande étroite, titre horizontal lu normalement */}
                   {!isOpen && (
-                    <div className="h-full flex flex-col items-center justify-between py-3">
+                    <div className="h-full flex flex-col items-center justify-between py-3 px-2">
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex flex-col items-center font-bold text-orange-500 text-sm uppercase leading-[1.1] tracking-tight">
-                        {`SPHERE ${id}`.split('').map((ch, i) => (
-                          <span key={i} className={ch === ' ' ? 'block h-1.5' : ''}>{ch === ' ' ? '' : ch}</span>
-                        ))}
+                      <div className="font-bold text-orange-500 text-sm uppercase tracking-[0.3em] whitespace-nowrap">
+                        {`SPHERE ${id.replace('S0', '0')}`}
                       </div>
                       <div className="text-[10px] text-muted-foreground font-mono">
                         {result.masse_transferee !== null ? '●' : '○'}
