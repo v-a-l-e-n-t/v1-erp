@@ -379,14 +379,14 @@ export default function Reception() {
                   ].join(' ')}
                   onClick={() => !isOpen && setOpenSphere(id)}
                 >
-                  {/* État replié : bande étroite, titre horizontal lu normalement */}
+                  {/* État replié : bande étroite, titre en haut puis chevron */}
                   {!isOpen && (
-                    <div className="h-full flex flex-col items-center justify-between py-3 px-2">
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <div className="h-full flex flex-col items-center py-3 px-2 gap-2">
                       <div className="font-bold text-orange-500 text-sm uppercase tracking-[0.3em] whitespace-nowrap">
                         {`SPHERE ${id.replace('S0', '0')}`}
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-mono">
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <div className="mt-auto text-[10px] text-muted-foreground font-mono">
                         {result.masse_transferee !== null ? '●' : '○'}
                       </div>
                     </div>
