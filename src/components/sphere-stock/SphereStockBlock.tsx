@@ -1,15 +1,18 @@
+import { useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Gauge, Thermometer, Flame, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Gauge, Thermometer, Flame, Activity, Camera, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
-  CAPACITE_VOLUMIQUE_L,
   padDecimalsFr,
   type SphereId,
   type SphereInputStrings,
 } from '@/utils/sphereStockCompute';
 import { ResultsPanel } from './ResultsPanel';
 import type { UseSphereStock } from '@/hooks/useSphereStock';
+import { extractSphereReadings } from '@/lib/geminiExtractSphere';
 
 interface SphereStockBlockProps {
   sphereId: SphereId;
@@ -99,24 +102,106 @@ export function SphereStockBlock({ sphereId, sphere }: SphereStockBlockProps) {
   const blur2 = (v: string) => padDecimalsFr(v, 2);
   const blur0 = (v: string) => padDecimalsFr(v, 0);
 
+  // ----------- Import photo via Gemini Vision (free tier) -----------
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [extracting, setExtracting] = useState(false);
+
+  const handlePickPhoto = () => fileInputRef.current?.click();
+
+  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset l'input tout de suite pour pouvoir re-sélectionner la même photo.
+    e.target.value = '';
+    if (!file) return;
+    setExtracting(true);
+    try {
+      const r = await extractSphereReadings(file);
+      const filled: string[] = [];
+      const fmt = (n: number, d: number) =>
+        n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false });
+      // Tronque à `d` décimales (sans arrondir) — utilisé pour les températures :
+      // si le SCADA affiche 23,456 on veut garder 23,45 et non 23,46.
+      const trunc = (n: number, d: number) => {
+        const f = 10 ** d;
+        return Math.trunc(n * f) / f;
+      };
+
+      if (r.densite_15c !== null && Number.isFinite(r.densite_15c)) {
+        setField('densite15', fmt(r.densite_15c, 4));
+        filled.push('densité');
+      }
+      if (r.jauge_mm !== null && Number.isFinite(r.jauge_mm)) {
+        setField('jauge', String(Math.round(r.jauge_mm)));
+        filled.push('jauge');
+      }
+      if (r.temperature_liquide_c !== null && Number.isFinite(r.temperature_liquide_c)) {
+        setField('tLiq', fmt(trunc(r.temperature_liquide_c, 2), 2));
+        filled.push('T° liquide');
+      }
+      if (r.temperature_gaz_c !== null && Number.isFinite(r.temperature_gaz_c)) {
+        setField('tGaz', fmt(trunc(r.temperature_gaz_c, 2), 2));
+        filled.push('T° gaz');
+      }
+      if (r.pression_relative_bar !== null && Number.isFinite(r.pression_relative_bar)) {
+        setField('pression', fmt(r.pression_relative_bar, 3));
+        filled.push('pression');
+      }
+      if (filled.length === 0) {
+        toast.error('Aucune valeur détectée — vérifie la photo');
+      } else {
+        toast.success(`Extrait : ${filled.join(', ')}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || 'Échec de l\'extraction');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <Card className="border-border/80 shadow-sm">
       <CardHeader className="py-3 px-4 border-b bg-muted/30">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="font-bold text-orange-500 tracking-tight">
             Sphère {sphereId}
           </h3>
-          <span className="text-[10px] text-muted-foreground font-mono tabular-nums">
-            Cap. {CAPACITE_VOLUMIQUE_L[sphereId].toLocaleString('fr-FR')} L
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePickPhoto}
+              disabled={extracting}
+              className="h-7 px-2 text-[11px]"
+              title="Importer une photo de l'écran SCADA"
+            >
+              {extracting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Camera className="h-3.5 w-3.5" />
+              )}
+              <span className="ml-1.5 hidden sm:inline">
+                {extracting ? 'Lecture…' : 'Photo'}
+              </span>
+            </Button>
+          </div>
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handlePhotoSelected}
+        />
       </CardHeader>
 
       <CardContent className="p-4 space-y-3">
         {/* Champ 1 — Densité */}
         <SectionHeader icon={Activity} title="Densité" />
         <Field
-          label="Densité produit (4 déc.)"
+          label="Densité produit"
           value={input.densite15}
           onChange={set('densite15')}
           onBlur={blur4}
@@ -207,7 +292,7 @@ export function SphereStockBlock({ sphereId, sphere }: SphereStockBlockProps) {
         {/* Champ 5 — Pression */}
         <SectionHeader icon={Activity} title="Pression relative" unit="bar" />
         <Field
-          label="Valeur (3 déc.)"
+          label="Valeur"
           value={input.pression}
           onChange={set('pression')}
           onBlur={blur3}

@@ -18,6 +18,21 @@ import {
 import { buildRandomSphereInput } from '@/utils/sphereStockRandom';
 import LoginDialog from '@/components/LoginDialog';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 interface LoadedSession {
   id: string;
@@ -61,6 +76,8 @@ export default function StockSphere() {
   const [saving, setSaving] = useState(false);
   const [showDevButton, setShowDevButton] = useState(false);
   const [editingSession, setEditingSession] = useState<LoadedSession | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveDateTime, setSaveDateTime] = useState<string>('');
 
   // ---- Ctrl+Shift+Z : révèle le bouton dev de remplissage aléatoire ----
   useEffect(() => {
@@ -114,7 +131,18 @@ export default function StockSphere() {
   const canSave =
     summary.stockJour !== null && summary.creuxTotal !== null;
 
+  const openSaveDialog = () => {
+    const base = editingSession ? new Date(editingSession.created_at) : new Date();
+    setSaveDateTime(toLocalInputValue(base));
+    setSaveDialogOpen(true);
+  };
+
   const handleSave = async () => {
+    if (!saveDateTime) {
+      toast.error('Date/heure manquante');
+      return;
+    }
+    const occurredAtIso = new Date(saveDateTime).toISOString();
     setSaving(true);
     try {
       const spheres = SPHERE_IDS.reduce<Record<string, unknown>>((acc, id) => {
@@ -130,6 +158,7 @@ export default function StockSphere() {
         stock_jour_kg: summary.stockJour,
         stock_exploitable_kg: summary.stockExploitable,
         creux_total_kg: summary.creuxTotal,
+        created_at: occurredAtIso,
       };
 
       let error;
@@ -149,6 +178,7 @@ export default function StockSphere() {
         toast.error("Échec de l'enregistrement");
       } else {
         toast.success(editingSession ? 'Calcul mis à jour' : 'Calcul enregistré');
+        setSaveDialogOpen(false);
         if (editingSession) {
           setEditingSession(null);
           setSearchParams({});
@@ -244,7 +274,7 @@ export default function StockSphere() {
                 <History className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Historique</span>
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={!canSave || saving} title="Enregistrer">
+              <Button size="sm" onClick={openSaveDialog} disabled={!canSave || saving} title="Enregistrer">
                 <Save className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">
                   {saving ? 'Enregistrement…' : editingSession ? 'Mettre à jour' : 'Enregistrer'}
@@ -284,6 +314,37 @@ export default function StockSphere() {
       </div>
 
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} redirectTo={null} />
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingSession ? 'Mettre à jour le calcul' : 'Enregistrer le calcul'}
+            </DialogTitle>
+            <DialogDescription>
+              Choisis la date et l'heure pour lesquelles ce calcul s'applique
+              (par défaut : maintenant).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="save-datetime">Date et heure</Label>
+            <Input
+              id="save-datetime"
+              type="datetime-local"
+              value={saveDateTime}
+              onChange={(e) => setSaveDateTime(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)} disabled={saving}>
+              Annuler
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !saveDateTime}>
+              {saving ? 'Enregistrement…' : editingSession ? 'Mettre à jour' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.send-inspection-report]
 verify_jwt = false
+
+[functions.extract-sphere-readings]
+verify_jwt = false

@@ -796,8 +796,6 @@ const Dashboard = ({ entries }: DashboardProps) => {
           setCurrentObjective((data as any).objectif_receptions);
         } else {
           setCurrentObjective(null);
-          // Show dialog automatically if no objective exists for the selected month
-          setShowObjectiveDialog(true);
         }
       } catch (error) {
         console.error('Error checking objective:', error);

@@ -7,6 +7,10 @@ import {
   type SphereInputStrings,
   type SphereResult,
 } from '@/utils/sphereStockCompute';
+import {
+  airDensityBounds,
+  formatAirDensityFr,
+} from '@/data/airDensityTable';
 
 export interface UseSphereStock {
   input: SphereInputStrings;
@@ -62,14 +66,26 @@ function autoFillPatch(
   }
 
   if (key === 'tGaz') {
-    // Entier : Tmin = T, Tmax vide
+    // Entier : Tmin = T, Tmax vide ; densité air sec correspondante = lookup(T)
     if (isInteger(v)) {
-      return { tGazMin: String(v), tGazMax: '' };
+      const { dMin } = airDensityBounds(v, null);
+      return {
+        tGazMin: String(v),
+        tGazMax: '',
+        dGazMin: formatAirDensityFr(dMin),
+        dGazMax: '',
+      };
     }
-    // Décimal : encadrement de 0,5 en 0,5
+    // Décimal : encadrement de 0,5 en 0,5 + lookup table air sec pour les bornes
     const lo = Math.floor(v * 2) / 2;
     const hi = Math.ceil(v * 2) / 2;
-    return { tGazMin: String(lo), tGazMax: String(hi) };
+    const { dMin, dMax } = airDensityBounds(lo, hi);
+    return {
+      tGazMin: String(lo),
+      tGazMax: String(hi),
+      dGazMin: formatAirDensityFr(dMin),
+      dGazMax: formatAirDensityFr(dMax),
+    };
   }
 
   return null;

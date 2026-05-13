@@ -354,6 +354,11 @@ export function computeMarketerKg(
 const isInteger = (n: number) => Number.isFinite(n) && Math.floor(n) === n;
 
 /* ------------------------------------------------------------------ */
+/* Lookup air sec ↔ température (utilisé par autoFillFromKey ci-bas)   */
+/* ------------------------------------------------------------------ */
+import { airDensityBounds, formatAirDensityFr } from '@/data/airDensityTable';
+
+/* ------------------------------------------------------------------ */
 /* Génération de données de test cohérentes (Ctrl+Shift+Z)             */
 /* ------------------------------------------------------------------ */
 
@@ -515,11 +520,22 @@ export function autoFillFromKey(
 
   if (key === 'temperature_gaz_C') {
     if (isInteger(v)) {
-      return { temp_gaz_min_C: String(v), temp_gaz_max_C: '' };
+      const { dMin } = airDensityBounds(v, null);
+      return {
+        temp_gaz_min_C: String(v),
+        temp_gaz_max_C: '',
+        airdensity_min: formatAirDensityFr(dMin),
+        airdensity_max: '',
+      };
     }
+    const lo = Math.floor(v * 2) / 2;
+    const hi = Math.ceil(v * 2) / 2;
+    const { dMin, dMax } = airDensityBounds(lo, hi);
     return {
-      temp_gaz_min_C: String(Math.floor(v * 2) / 2),
-      temp_gaz_max_C: String(Math.ceil(v * 2) / 2),
+      temp_gaz_min_C: String(lo),
+      temp_gaz_max_C: String(hi),
+      airdensity_min: formatAirDensityFr(dMin),
+      airdensity_max: formatAirDensityFr(dMax),
     };
   }
 
