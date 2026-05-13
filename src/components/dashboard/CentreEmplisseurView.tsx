@@ -41,6 +41,26 @@ const calculateShiftHours = (heureDebut: string, heureFin: string): number => {
     }
 };
 
+/**
+ * Heures réelles d'une ligne sur son shift.
+ * - Si la ligne est marquée Inactive → 0.
+ * - Si la ligne porte ses propres heures (`heure_debut_reelle` / `heure_fin_reelle`),
+ *   on les utilise — elles peuvent être plus courtes que la fenêtre du shift.
+ * - Sinon (ancienne saisie sans heures propres), on retombe sur les heures du
+ *   shift global pour rester rétro-compatible.
+ */
+const calculateLigneHours = (ligne: any): number => {
+    if (ligne?.actif === false) return 0;
+    if (ligne?.heure_debut_reelle && ligne?.heure_fin_reelle) {
+        return calculateShiftHours(ligne.heure_debut_reelle, ligne.heure_fin_reelle);
+    }
+    const shift = ligne?.production_shifts;
+    if (shift?.heure_debut_reelle && shift?.heure_fin_reelle) {
+        return calculateShiftHours(shift.heure_debut_reelle, shift.heure_fin_reelle);
+    }
+    return 9;
+};
+
 interface CentreEmplisseurViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
@@ -381,20 +401,21 @@ const CentreEmplisseurView = ({
                 let productionTheorique = 0;
 
                 lineLines.forEach((l) => {
+                    // Ligne marquée Inactive → exclue (heures = 0, pas de production
+                    // théorique).
+                    if (l?.actif === false) return;
+
                     // Temps d'arrêt for this specific line session
                     const tempsArretSession = Number(l.temps_arret_ligne_minutes) || 0;
 
-                    // Get shift hours from the associated shift (use real hours instead of fixed 9)
-                    const shift = l.production_shifts;
-                    const shiftHours = shift ? calculateShiftHours(
-                        shift.heure_debut_reelle || '10:00',
-                        shift.heure_fin_reelle || '19:00'
-                    ) : 9;
+                    // Heures effectives de la ligne (propre à la ligne si renseigné,
+                    // sinon fallback sur les heures du shift global).
+                    const ligneHours = calculateLigneHours(l);
 
-                    // Calculate effective downtime (capped at shift duration)
-                    const maxDowntimeMinutes = shiftHours * 60;
+                    // Calculate effective downtime (capped at ligne duration)
+                    const maxDowntimeMinutes = ligneHours * 60;
                     const effectiveDowntime = Math.min(tempsArretSession, maxDowntimeMinutes);
-                    const heuresProductives = Math.max(0, shiftHours - (effectiveDowntime / 60));
+                    const heuresProductives = Math.max(0, ligneHours - (effectiveDowntime / 60));
 
                     // Production rate based on line type
                     const rate = (id >= 1 && id <= 4) ? (1600 * 6) : (900 * 12.5);

@@ -77,6 +77,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       consignes_petro_b6: undefined,
       consignes_total_b6: undefined,
       consignes_vivo_b6: undefined,
+      actif: true,
+      heure_debut_reelle: undefined,
+      heure_fin_reelle: undefined,
       arrets: []
     },
     {
@@ -89,6 +92,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       consignes_petro_b6: undefined,
       consignes_total_b6: undefined,
       consignes_vivo_b6: undefined,
+      actif: true,
+      heure_debut_reelle: undefined,
+      heure_fin_reelle: undefined,
       arrets: []
     },
     {
@@ -101,6 +107,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       consignes_petro_b6: undefined,
       consignes_total_b6: undefined,
       consignes_vivo_b6: undefined,
+      actif: true,
+      heure_debut_reelle: undefined,
+      heure_fin_reelle: undefined,
       arrets: []
     },
     {
@@ -113,6 +122,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       consignes_petro_b6: undefined,
       consignes_total_b6: undefined,
       consignes_vivo_b6: undefined,
+      actif: true,
+      heure_debut_reelle: undefined,
+      heure_fin_reelle: undefined,
       arrets: []
     },
     {
@@ -137,6 +149,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       consignes_vivo_b12: undefined,
       consignes_vivo_b28: undefined,
       consignes_vivo_b38: undefined,
+      actif: true,
+      heure_debut_reelle: undefined,
+      heure_fin_reelle: undefined,
       arrets: []
     }
   ]);
@@ -173,6 +188,14 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       heure_debut_reelle: hours.debut,
       heure_fin_reelle: hours.fin
     }));
+    // Pré-remplir les heures par ligne avec celles du shift (l'utilisateur peut
+    // ensuite les ajuster individuellement). On ne touche pas les lignes
+    // chargées en mode édition qui ont déjà des heures propres.
+    setLignes(prev => prev.map(l => ({
+      ...l,
+      heure_debut_reelle: l.heure_debut_reelle ?? hours.debut,
+      heure_fin_reelle: l.heure_fin_reelle ?? hours.fin,
+    })));
   }, [shift.shift_type]);
 
   // Initialize form with existing data when in edit mode
@@ -284,6 +307,11 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
           return {
             ...ligne,
+            // Compatibilité historique : si la ligne n'a pas de flag actif
+            // explicite, on considère qu'elle était active.
+            actif: ligne.actif !== false,
+            heure_debut_reelle: ligne.heure_debut_reelle ?? undefined,
+            heure_fin_reelle: ligne.heure_fin_reelle ?? undefined,
             arrets: formArrets
           };
         });
@@ -388,6 +416,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
           consignes_petro_b6: randomInt(0, 999),
           consignes_total_b6: randomInt(0, 999),
           consignes_vivo_b6: randomInt(0, 999),
+          actif: true,
+          heure_debut_reelle: SHIFT_HOURS[randomShiftType].debut,
+          heure_fin_reelle: SHIFT_HOURS[randomShiftType].fin,
           arrets: []
         };
 
@@ -430,6 +461,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
           consignes_vivo_b12: randomInt(0, 999),
           consignes_vivo_b28: randomInt(0, 999),
           consignes_vivo_b38: randomInt(0, 999),
+          actif: true,
+          heure_debut_reelle: SHIFT_HOURS[randomShiftType].debut,
+          heure_fin_reelle: SHIFT_HOURS[randomShiftType].fin,
           arrets: []
         };
 
@@ -490,15 +524,38 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       return false;
     }
 
-    // Validation des chefs de ligne (tous obligatoires)
+    // Validation des chefs de ligne + heures réelles (uniquement si actif)
     for (let i = 0; i < lignes.length; i++) {
-      if (!lignes[i].chef_ligne_id) {
+      const l = lignes[i];
+      if (l.actif === false) continue; // ligne inactive : on ne valide rien
+      if (!l.chef_ligne_id) {
         toast({
           title: "Validation",
           description: "Veuillez renseigner tous les champs obligatoires",
           variant: "destructive"
         });
         return false;
+      }
+      if (!l.heure_debut_reelle || !l.heure_fin_reelle) {
+        toast({
+          title: "Validation",
+          description: `Ligne ${l.numero_ligne} : heures début et fin réelles requises (ou marque la ligne Inactive).`,
+          variant: "destructive"
+        });
+        return false;
+      }
+      if (l.heure_debut_reelle >= l.heure_fin_reelle) {
+        // Comparaison lexicographique OK pour "HH:MM" sur un même jour.
+        // Les shifts qui chevauchent minuit (20h-5h) sont une exception connue
+        // et restent acceptés au niveau du form (heure_fin < heure_debut).
+        if (shift.shift_type !== '20h-5h') {
+          toast({
+            title: "Validation",
+            description: `Ligne ${l.numero_ligne} : l'heure de fin doit être postérieure à l'heure de début.`,
+            variant: "destructive"
+          });
+          return false;
+        }
       }
     }
 
@@ -688,7 +745,10 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
             cumul_consignes_b6: ligne.cumul_consignes_b6 || 0,
             cumul_consignes_b12: ligne.cumul_consignes_b12 || 0,
             tonnage_ligne: ligne.tonnage_ligne || 0,
-            temps_arret_ligne_minutes: tempsArretLigne
+            temps_arret_ligne_minutes: tempsArretLigne,
+            actif: ligne.actif !== false,
+            heure_debut_reelle: ligne.actif === false ? null : (ligne.heure_debut_reelle || null),
+            heure_fin_reelle: ligne.actif === false ? null : (ligne.heure_fin_reelle || null),
           };
         });
 
@@ -1061,6 +1121,8 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                   isB12Only={index === 4}
                   isOpen={activeLineIndex === index}
                   onToggle={() => setActiveLineIndex(activeLineIndex === index ? null : index)}
+                  shiftDebut={shift.heure_debut_reelle}
+                  shiftFin={shift.heure_fin_reelle}
                 />
               ))}
             </div>

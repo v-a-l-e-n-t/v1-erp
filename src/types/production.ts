@@ -115,6 +115,12 @@ export interface LigneProduction {
   tonnage_ligne?: number;
   temps_arret_ligne_minutes?: number;
   arrets?: ArretProductionForm[];
+  // Heures réelles de la ligne (peuvent différer du shift). Optionnelles pour
+  // compatibilité avec les anciennes saisies — requises côté front pour les
+  // nouvelles si actif === true.
+  actif?: boolean;
+  heure_debut_reelle?: string;
+  heure_fin_reelle?: string;
 }
 
 // Interface pour le formulaire (inclut duree_minutes pour le calcul)

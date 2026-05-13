@@ -947,6 +947,9 @@ export type Database = {
           temps_arret_ligne_minutes: number | null
           tonnage_ligne: number | null
           updated_at: string | null
+          actif: boolean
+          heure_debut_reelle: string | null
+          heure_fin_reelle: string | null
         }
         Insert: {
           chef_ligne_id?: string | null
@@ -990,6 +993,9 @@ export type Database = {
           temps_arret_ligne_minutes?: number | null
           tonnage_ligne?: number | null
           updated_at?: string | null
+          actif?: boolean
+          heure_debut_reelle?: string | null
+          heure_fin_reelle?: string | null
         }
         Update: {
           chef_ligne_id?: string | null
@@ -1033,6 +1039,9 @@ export type Database = {
           temps_arret_ligne_minutes?: number | null
           tonnage_ligne?: number | null
           updated_at?: string | null
+          actif?: boolean
+          heure_debut_reelle?: string | null
+          heure_fin_reelle?: string | null
         }
         Relationships: [
           {

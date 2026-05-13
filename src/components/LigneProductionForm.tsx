@@ -8,6 +8,7 @@ import { Plus, Minus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { LigneProduction, ChefLigne, ArretProductionForm as ArretFormType } from "@/types/production";
 import { ArretProductionForm } from "./ArretProductionForm";
+import { Switch } from "@/components/ui/switch";
 
 interface LigneProductionFormProps {
   ligne: LigneProduction;
@@ -17,9 +18,23 @@ interface LigneProductionFormProps {
   isB12Only?: boolean;
   isOpen: boolean;
   onToggle: () => void;
+  /** Heures du shift utilisées comme valeur par défaut quand la ligne devient
+   *  Active et n'a pas encore d'heures propres. */
+  shiftDebut?: string;
+  shiftFin?: string;
 }
 
-export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12Only = false, isOpen, onToggle }: LigneProductionFormProps) => {
+export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12Only = false, isOpen, onToggle, shiftDebut, shiftFin }: LigneProductionFormProps) => {
+  const actif = ligne.actif !== false; // défaut Actif
+
+  const handleToggleActif = (next: boolean) => {
+    onUpdate(index, 'actif', next);
+    // Quand on réactive une ligne, on pré-remplit les heures depuis le shift si vides.
+    if (next) {
+      if (!ligne.heure_debut_reelle && shiftDebut) onUpdate(index, 'heure_debut_reelle', shiftDebut);
+      if (!ligne.heure_fin_reelle && shiftFin) onUpdate(index, 'heure_fin_reelle', shiftFin);
+    }
+  };
 
   // Calcul des cumuls par type de bouteille
   const cumulRechargesB6 = (ligne.recharges_petro_b6 || 0) + (ligne.recharges_total_b6 || 0) + (ligne.recharges_vivo_b6 || 0);
@@ -98,28 +113,80 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
 
   return (
     <Collapsible open={isOpen} onOpenChange={() => onToggle()}>
-      <Card className="border-2">
-        <CollapsibleTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            className={`w-full flex items-center justify-between p-4 transition-colors hover:bg-muted/50 ${isOpen ? 'text-orange-500' : 'text-foreground hover:text-orange-500'
-              }`}
+      <Card className={`border-2 ${!actif ? 'opacity-70' : ''}`}>
+        <div className="flex items-stretch w-full">
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className={`flex-1 flex items-center justify-between p-4 transition-colors hover:bg-muted/50 ${isOpen ? 'text-orange-500' : 'text-foreground hover:text-orange-500'
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="font-semibold text-lg">Ligne {index + 1}</span>
+                {!actif && (
+                  <span className="text-xs uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                    Inactive
+                  </span>
+                )}
+                {ligne.chef_ligne_id && actif && (
+                  <span className="text-sm text-muted-foreground">
+                    - {chefsLigne.find(c => c.id === ligne.chef_ligne_id)?.prenom} {chefsLigne.find(c => c.id === ligne.chef_ligne_id)?.nom}
+                  </span>
+                )}
+              </div>
+              {isOpen ? <Minus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+            </Button>
+          </CollapsibleTrigger>
+          <div
+            className="flex items-center gap-2 px-4 border-l"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3">
-              <span className="font-semibold text-lg">Ligne {index + 1}</span>
-              {ligne.chef_ligne_id && (
-                <span className="text-sm text-muted-foreground">
-                  - {chefsLigne.find(c => c.id === ligne.chef_ligne_id)?.prenom} {chefsLigne.find(c => c.id === ligne.chef_ligne_id)?.nom}
-                </span>
-              )}
-            </div>
-            {isOpen ? <Minus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-          </Button>
-        </CollapsibleTrigger>
+            <Switch
+              id={`ligne-actif-${index}`}
+              checked={actif}
+              onCheckedChange={handleToggleActif}
+            />
+            <Label htmlFor={`ligne-actif-${index}`} className="text-xs text-muted-foreground cursor-pointer">
+              {actif ? 'Actif' : 'Inactif'}
+            </Label>
+          </div>
+        </div>
 
         <CollapsibleContent>
+          {!actif ? (
+            <div className="p-6 border-t text-center text-sm text-muted-foreground">
+              Cette ligne est marquée <strong>Inactive</strong> pour ce shift —
+              elle est exclue des saisies et des statistiques.
+            </div>
+          ) : (
           <div className="p-4 pt-0 border-t space-y-4">
+            {/* Heures réelles de la ligne */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+              <div>
+                <Label htmlFor={`ligne-debut-${index}`}>
+                  Heure début réelle <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`ligne-debut-${index}`}
+                  type="time"
+                  value={ligne.heure_debut_reelle ?? ''}
+                  onChange={(e) => onUpdate(index, 'heure_debut_reelle', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor={`ligne-fin-${index}`}>
+                  Heure fin réelle <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id={`ligne-fin-${index}`}
+                  type="time"
+                  value={ligne.heure_fin_reelle ?? ''}
+                  onChange={(e) => onUpdate(index, 'heure_fin_reelle', e.target.value)}
+                />
+              </div>
+            </div>
+
             {/* Chef de ligne et nombre d'agents */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -615,6 +682,7 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
               )}
             </div>
           </div>
+          )}
         </CollapsibleContent>
       </Card>
     </Collapsible >
