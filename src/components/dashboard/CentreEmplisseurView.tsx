@@ -3080,14 +3080,6 @@ const CentreEmplisseurView = ({
                                                 </CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-4">
-                                                {/* Hero — Productivité */}
-                                                <div className={`text-center p-5 border-2 rounded-xl ${tabData.productivite >= 90 ? 'bg-green-50 border-green-200' : tabData.productivite >= 70 ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
-                                                    <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-1">Productivité</p>
-                                                    <p className={`text-5xl font-bold tabular-nums ${tabData.productivite >= 90 ? 'text-green-600' : tabData.productivite >= 70 ? 'text-orange-600' : 'text-red-600'}`}>
-                                                        {tabData.productivite?.toFixed(1) || '0'}%
-                                                    </p>
-                                                </div>
-
                                                 {/* Attendu vs Réalisé */}
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                     <div className="p-4 border rounded-lg bg-purple-50/50">
