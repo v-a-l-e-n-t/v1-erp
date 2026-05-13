@@ -61,6 +61,24 @@ const calculateLigneHours = (ligne: any): number => {
     return 9;
 };
 
+/**
+ * Production théorique d'une ligne (en tonnes), basée sur ses heures propres
+ * et son temps d'arrêt. Centralise la formule utilisée par "Détail par Ligne"
+ * et "Productivité par agent".
+ * - Ligne inactive → 0 (ni théorique ni productivité comptées).
+ * - Temps d'arrêt plafonné à la durée réelle de la ligne.
+ * - Rate : lignes 1-4 (B6) = 1600 × 6 kg/h, ligne 5 (B12) = 900 × 12.5 kg/h.
+ */
+const lineTheoreticalTonnes = (l: any): number => {
+    if (l?.actif === false) return 0;
+    const ligneHours = calculateLigneHours(l);
+    if (ligneHours <= 0) return 0;
+    const downtime = Math.min(Number(l.temps_arret_ligne_minutes) || 0, ligneHours * 60);
+    const productiveHours = ligneHours - downtime / 60;
+    const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? 1600 * 6 : 900 * 12.5;
+    return (rate * productiveHours) / 1000;
+};
+
 interface CentreEmplisseurViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
@@ -397,32 +415,12 @@ const CentreEmplisseurView = ({
                 // Calculate temps d'arrêt for this line - now stored directly in lignes_production
                 const tempsArret = lineLines.reduce((sum, l) => sum + (Number(l.temps_arret_ligne_minutes) || 0), 0);
 
-                // Calculate theoretical production using real shift hours
-                let productionTheorique = 0;
-
-                lineLines.forEach((l) => {
-                    // Ligne marquée Inactive → exclue (heures = 0, pas de production
-                    // théorique).
-                    if (l?.actif === false) return;
-
-                    // Temps d'arrêt for this specific line session
-                    const tempsArretSession = Number(l.temps_arret_ligne_minutes) || 0;
-
-                    // Heures effectives de la ligne (propre à la ligne si renseigné,
-                    // sinon fallback sur les heures du shift global).
-                    const ligneHours = calculateLigneHours(l);
-
-                    // Calculate effective downtime (capped at ligne duration)
-                    const maxDowntimeMinutes = ligneHours * 60;
-                    const effectiveDowntime = Math.min(tempsArretSession, maxDowntimeMinutes);
-                    const heuresProductives = Math.max(0, ligneHours - (effectiveDowntime / 60));
-
-                    // Production rate based on line type
-                    const rate = (id >= 1 && id <= 4) ? (1600 * 6) : (900 * 12.5);
-
-                    // Add to total theoretical production
-                    productionTheorique += (rate * heuresProductives) / 1000; // tonnes
-                });
+                // Production théorique = somme des théoriques de chaque session de
+                // ligne (helper unique partagé avec "Productivité par agent").
+                const productionTheorique = lineLines.reduce(
+                    (sum, l) => sum + lineTheoreticalTonnes(l),
+                    0,
+                );
 
                 // Calculate productivity
                 const productivite = productionTheorique > 0 ? (tonnage / productionTheorique) * 100 : 0;
@@ -611,7 +609,7 @@ const CentreEmplisseurView = ({
                     // Query lignes as chef de ligne (including arrets for productivity calc)
                     let lignesQuery = supabase
                         .from('lignes_production')
-                        .select('tonnage_ligne, numero_ligne, temps_arret_ligne_minutes, production_shifts!inner(*)')
+                        .select('tonnage_ligne, numero_ligne, temps_arret_ligne_minutes, actif, heure_debut_reelle, heure_fin_reelle, production_shifts!inner(*)')
                         .eq('chef_ligne_id', agent.id);
 
                     // Apply filters
@@ -669,68 +667,36 @@ const CentreEmplisseurView = ({
                     let productionTheoriqueLigne = 0;
                     let tonnageReelLigne = 0;
 
-                    // A. Process shifts (Chef de Quart) - Accumulate totals for global ratio
+                    // A. Process shifts (Chef de Quart) - chaque ligne utilise SES
+                    // propres heures (heure_debut_reelle / heure_fin_reelle) et est
+                    // exclue si actif === false (via lineTheoreticalTonnes).
                     (shiftsData as any[]).forEach((s: any) => {
                         const shiftLines = s.lignes_production || [];
 
-                        // Calculate real shift hours from actual start/end times
-                        const shiftHours = calculateShiftHours(
-                            s.heure_debut_reelle || '10:00',
-                            s.heure_fin_reelle || '19:00'
-                        );
-
-                        // Get shift total tonnage (same as modal)
-                        const shiftTonnage = Number(s.tonnage_total) || 0;
-
                         shiftLines.forEach((l: any) => {
-                            // Nouvelle structure: temps d'arrêt stocké directement dans lignes_production
-                            const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
-
-                            // Calculate theoretical for THIS line only
-                            // Cap downtime at shift hours to avoid negative hours
-                            const maxDowntimeMinutes = shiftHours * 60;
-                            const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
-                            const productiveHours = shiftHours - (effectiveDowntime / 60);
-
-                            // Rate: Lines 1-4 = B6 (1600 × 6kg), Line 5 = B12 (900 × 12.5kg)
-                            const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                            const theorique = (rate * productiveHours) / 1000; // Convert to Tonnes
-
-                            // Accumulate theoretical production
+                            const theorique = lineTheoreticalTonnes(l);
                             productionTheoriqueTotal += theorique;
                             productionTheoriqueQuart += theorique;
                         });
 
-                        // Accumulate real tonnage using shift total (same as modal)
+                        // Tonnage réel : on garde le tonnage_total du shift tel qu'il
+                        // est saisi (les lignes inactives y contribuent à 0 par
+                        // construction du formulaire).
+                        const shiftTonnage = Number(s.tonnage_total) || 0;
                         tonnageReelTotal += shiftTonnage;
                         tonnageReelQuart += shiftTonnage;
                     });
 
-                    // B. Process lignes (Chef de Ligne) - Accumulate totals for global ratio
+                    // B. Process lignes (Chef de Ligne) - même logique : chaque ligne
+                    // sur sa durée propre, lignes inactives exclues du tonnage.
                     (lignesData as any[]).forEach((l: any) => {
-                        // Temps d'arrêt is now stored directly in lignes_production
-                        const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
-
-                        // Get shift hours from the associated shift
-                        const shift = l.production_shifts;
-                        const shiftHours = shift ? calculateShiftHours(
-                            shift.heure_debut_reelle || '10:00',
-                            shift.heure_fin_reelle || '19:00'
-                        ) : 9;
-
-                        // Calculate theoretical for this line
-                        const maxDowntimeMinutes = shiftHours * 60;
-                        const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
-                        const productiveHours = shiftHours - (effectiveDowntime / 60);
-                        const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                        const theorique = (rate * productiveHours) / 1000;
-
+                        const theorique = lineTheoreticalTonnes(l);
                         productionTheoriqueTotal += theorique;
-                        tonnageReelTotal += Number(l.tonnage_ligne) || 0;
-
-                        // Accumulate for Chef de Ligne role
                         productionTheoriqueLigne += theorique;
-                        tonnageReelLigne += Number(l.tonnage_ligne) || 0;
+
+                        const tonnage = l.actif === false ? 0 : Number(l.tonnage_ligne) || 0;
+                        tonnageReelTotal += tonnage;
+                        tonnageReelLigne += tonnage;
                     });
 
                     // Calculate final productivity using GLOBAL RATIO for all cases
@@ -933,15 +899,10 @@ const CentreEmplisseurView = ({
                         totalConsignes += (ligne.cumul_consignes_b12 || 0) + (ligne.cumul_consignes_b28 || 0) + (ligne.cumul_consignes_b38 || 0);
                     }
 
-                    // Shift info
-                    const shift = ligne.production_shifts;
-                    if (shift) {
-                        const shiftHours = calculateShiftHours(
-                            shift.heure_debut_reelle || '10:00',
-                            shift.heure_fin_reelle || '19:00'
-                        );
-                        totalHeuresShift += shiftHours;
-                    }
+                    // Heures réelles de la ligne sur cette session : utilise les
+                    // heures propres si renseignées, retourne 0 si la ligne est
+                    // marquée Inactive, sinon fallback sur les heures du shift.
+                    totalHeuresShift += calculateLigneHours(ligne);
                 });
 
                 // Calculate theoretical production and productivity
@@ -950,10 +911,13 @@ const CentreEmplisseurView = ({
                 const heuresProductives = Math.max(0, totalHeuresShift - (effectiveDowntime / 60));
 
                 let productionTheorique = 0;
+                let bouteillesAttendu = 0;
                 if (lineNumber >= 1 && lineNumber <= 4) {
                     productionTheorique = (1600 * 6 * heuresProductives) / 1000;
+                    bouteillesAttendu = 1600 * heuresProductives;
                 } else if (lineNumber === 5) {
                     productionTheorique = (900 * 12.5 * heuresProductives) / 1000;
+                    bouteillesAttendu = 900 * heuresProductives;
                 }
 
                 const productivite = productionTheorique > 0 ? (totalTonnage / productionTheorique) * 100 : 0;
@@ -966,6 +930,7 @@ const CentreEmplisseurView = ({
                     heuresProductives,
                     totalTempsArret,
                     totalBouteilles: totalRecharges + totalConsignes,
+                    bouteillesAttendu,
                     totalRecharges,
                     totalConsignes,
                     formatBreakdown
@@ -3114,43 +3079,75 @@ const CentreEmplisseurView = ({
                                                     Statistiques Clés
                                                 </CardTitle>
                                             </CardHeader>
-                                            <CardContent>
-                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                    <div className="text-center p-3 border rounded-lg bg-blue-50/50">
-                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Tonnage Produit</p>
-                                                        <p className="text-2xl font-bold text-blue-600">
-                                                            {((tabData.totalTonnage || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                                        </p>
+                                            <CardContent className="space-y-4">
+                                                {/* Hero — Productivité */}
+                                                <div className={`text-center p-5 border-2 rounded-xl ${tabData.productivite >= 90 ? 'bg-green-50 border-green-200' : tabData.productivite >= 70 ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
+                                                    <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-1">Productivité</p>
+                                                    <p className={`text-5xl font-bold tabular-nums ${tabData.productivite >= 90 ? 'text-green-600' : tabData.productivite >= 70 ? 'text-orange-600' : 'text-red-600'}`}>
+                                                        {tabData.productivite?.toFixed(1) || '0'}%
+                                                    </p>
+                                                </div>
+
+                                                {/* Attendu vs Réalisé */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div className="p-4 border rounded-lg bg-purple-50/50">
+                                                        <p className="text-xs uppercase tracking-wider text-purple-700 font-bold mb-3">Attendu</p>
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-baseline justify-between">
+                                                                <span className="text-sm text-muted-foreground">Bouteilles</span>
+                                                                <span className="text-xl font-bold text-purple-600 tabular-nums">
+                                                                    {Math.round(tabData.bouteillesAttendu || 0).toLocaleString('fr-FR')}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-baseline justify-between">
+                                                                <span className="text-sm text-muted-foreground">Tonnage</span>
+                                                                <span className="text-xl font-bold text-purple-600 tabular-nums">
+                                                                    {((tabData.productionTheorique || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} kg
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="text-center p-3 border rounded-lg bg-purple-50/50">
-                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Tonnage Attendu</p>
-                                                        <p className="text-2xl font-bold text-purple-600">
-                                                            {((tabData.productionTheorique || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
-                                                        </p>
+                                                    <div className="p-4 border rounded-lg bg-blue-50/50">
+                                                        <p className="text-xs uppercase tracking-wider text-blue-700 font-bold mb-3">Réalisé</p>
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-baseline justify-between">
+                                                                <span className="text-sm text-muted-foreground">Bouteilles</span>
+                                                                <span className="text-xl font-bold text-blue-600 tabular-nums">
+                                                                    {(tabData.totalBouteilles || 0).toLocaleString('fr-FR')}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-baseline justify-between">
+                                                                <span className="text-sm text-muted-foreground">Tonnage</span>
+                                                                <span className="text-xl font-bold text-blue-600 tabular-nums">
+                                                                    {((tabData.totalTonnage || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} kg
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className={`text-center p-3 border rounded-lg ${tabData.productivite >= 90 ? 'bg-green-50/50' : tabData.productivite >= 70 ? 'bg-orange-50/50' : 'bg-red-50/50'}`}>
-                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Productivité</p>
-                                                        <p className={`text-2xl font-bold ${tabData.productivite >= 90 ? 'text-green-600' : tabData.productivite >= 70 ? 'text-orange-600' : 'text-red-600'}`}>
-                                                            {tabData.productivite?.toFixed(1) || '0'}%
-                                                        </p>
-                                                    </div>
-                                                    <div className="text-center p-3 border rounded-lg bg-green-50/50">
-                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Temps Productif</p>
-                                                        <p className="text-2xl font-bold text-green-600">
-                                                            {tabData.heuresProductives?.toFixed(2) || '0'} h
-                                                        </p>
-                                                    </div>
-                                                    <div className="text-center p-3 border rounded-lg bg-orange-50/50">
-                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Temps d'Arrêt</p>
-                                                        <p className="text-2xl font-bold text-orange-600">
-                                                            {Math.floor((tabData.totalTempsArret || 0) / 60)}h{Math.round((tabData.totalTempsArret || 0) % 60).toString().padStart(2, '0')}
-                                                        </p>
-                                                    </div>
-                                                    <div className="text-center p-3 border rounded-lg bg-indigo-50/50">
-                                                        <p className="text-xs text-muted-foreground font-semibold mb-1">Bouteilles Produites</p>
-                                                        <p className="text-2xl font-bold text-indigo-600">
-                                                            {(tabData.totalBouteilles || 0).toLocaleString('fr-FR')}
-                                                        </p>
+                                                </div>
+
+                                                {/* Temps */}
+                                                <div className="p-4 border rounded-lg bg-orange-50/50">
+                                                    <p className="text-xs uppercase tracking-wider text-orange-700 font-bold mb-3">Temps</p>
+                                                    <div className="grid grid-cols-3 gap-3">
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-1">Attendu</p>
+                                                            <p className="text-xl font-bold text-orange-700 tabular-nums">
+                                                                {(tabData.totalHeuresShift || 0).toFixed(2)} h
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-1">Réel</p>
+                                                            <p className="text-xl font-bold text-orange-600 tabular-nums">
+                                                                {(tabData.heuresProductives || 0).toFixed(2)} h
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-1">Arrêt</p>
+                                                            <p className="text-xl font-bold text-red-600 tabular-nums">
+                                                                {Math.floor((tabData.totalTempsArret || 0) / 60)}h{Math.round((tabData.totalTempsArret || 0) % 60).toString().padStart(2, '0')}
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </CardContent>
