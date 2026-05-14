@@ -191,7 +191,6 @@ export function SphereStockBlock({ sphereId, sphere }: SphereStockBlockProps) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={handlePhotoSelected}
         />
