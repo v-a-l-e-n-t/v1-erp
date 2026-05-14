@@ -79,6 +79,20 @@ const lineTheoreticalTonnes = (l: any): number => {
     return (rate * productiveHours) / 1000;
 };
 
+/**
+ * Bouteilles attendues d'une ligne sur sa durée propre.
+ * Cadence : lignes 1-4 (B6) = 1600 b/h, ligne 5 (B12) = 900 b/h.
+ */
+const lineExpectedBottles = (l: any): number => {
+    if (l?.actif === false) return 0;
+    const ligneHours = calculateLigneHours(l);
+    if (ligneHours <= 0) return 0;
+    const downtime = Math.min(Number(l.temps_arret_ligne_minutes) || 0, ligneHours * 60);
+    const productiveHours = ligneHours - downtime / 60;
+    const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? 1600 : 900;
+    return rate * productiveHours;
+};
+
 interface CentreEmplisseurViewProps {
     dateRange: DateRange | undefined;
     setDateRange: (range: DateRange | undefined) => void;
@@ -1170,63 +1184,30 @@ const CentreEmplisseurView = ({
             let productionTheoriqueLigne = 0;
             let tonnageReelLigne = 0;
 
-            // Calculate productivity for each Chef de Quart shift
+            // Calculate productivity for each Chef de Quart shift — utilise
+            // lineTheoreticalTonnes pour rester aligné avec la liste agents :
+            // chaque ligne sur SES propres heures, lignes inactives exclues.
             shifts.forEach(shift => {
-                const shiftTonnage = Number(shift.tonnage_total) || 0;
-
-                // Use real shift hours instead of fixed 9 hours
-                const shiftHours = calculateShiftHours(
-                    shift.heure_debut_reelle || '10:00',
-                    shift.heure_fin_reelle || '19:00'
-                );
-
-                // Production théorique for all lines in this shift
                 const shiftLignes = shift.lignes_production || [];
                 shiftLignes.forEach((l: any) => {
-                    const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
-                    const maxDowntimeMinutes = shiftHours * 60;
-                    const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
-                    const heuresProductives = shiftHours - (effectiveDowntime / 60);
-
-                    const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                    const theorique = (rate * heuresProductives) / 1000; // Tonnes
-
-                    // Accumulate totals for global ratio
+                    const theorique = lineTheoreticalTonnes(l);
                     productionTheoriqueTotal += theorique;
                     productionTheoriqueQuart += theorique;
                 });
-
-                // Accumulate real tonnage
+                const shiftTonnage = Number(shift.tonnage_total) || 0;
                 tonnageReelTotal += shiftTonnage;
                 tonnageReelQuart += shiftTonnage;
             });
 
             // Calculate productivity for each Chef de Ligne session
             lignes.forEach(ligne => {
-                const ligneTonnage = Number(ligne.tonnage_ligne) || 0;
-                const shift = ligne.production_shifts;
-
-                // Use real shift hours from associated shift
-                const shiftHours = shift ? calculateShiftHours(
-                    shift.heure_debut_reelle || '10:00',
-                    shift.heure_fin_reelle || '19:00'
-                ) : 9;
-
-                // Temps d'arrêt is now stored directly in lignes_production
-                const ligneTempsArret = Number(ligne.temps_arret_ligne_minutes) || 0;
-                const maxDowntimeMinutes = shiftHours * 60;
-                const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
-                const heuresProductives = shiftHours - (effectiveDowntime / 60);
-
-                // Production théorique for this specific line
-                const rate = (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) ? (1600 * 6) : (900 * 12.5);
-                const theorique = (rate * heuresProductives) / 1000; // Tonnes
-
-                // Accumulate totals for global ratio
+                const theorique = lineTheoreticalTonnes(ligne);
                 productionTheoriqueTotal += theorique;
-                tonnageReelTotal += ligneTonnage;
                 productionTheoriqueLigne += theorique;
-                tonnageReelLigne += ligneTonnage;
+
+                const tonnage = ligne.actif === false ? 0 : Number(ligne.tonnage_ligne) || 0;
+                tonnageReelTotal += tonnage;
+                tonnageReelLigne += tonnage;
             });
 
             // Calculate GLOBAL RATIO productivity (same formula as main list)
@@ -1606,51 +1587,25 @@ const CentreEmplisseurView = ({
                 }))
                 .sort((a, b) => b.tonnage - a.tonnage); // Sort by tonnage descending
 
-            // Calculer le tonnage attendu (production théorique)
+            // Calculer le tonnage et les bouteilles attendus (production théorique)
+            // — aligné sur la logique de "Productivité par agent" : chaque ligne
+            // utilise SES propres heures, les lignes inactives sont exclues.
             let tonnageAttendu = 0;
+            let bouteillesAttendues = 0;
 
             // Pour les shifts (Chef de Quart)
             shifts.forEach(shift => {
-                // Calculate real shift hours
-                const shiftHours = calculateShiftHours(
-                    shift.heure_debut_reelle || '10:00',
-                    shift.heure_fin_reelle || '19:00'
-                );
-
                 const shiftLignes = shift.lignes_production || [];
                 shiftLignes.forEach((l: any) => {
-                    const ligneTempsArret = Number(l.temps_arret_ligne_minutes) || 0;
-                    const maxDowntimeMinutes = shiftHours * 60;
-                    const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
-                    const heuresProductives = shiftHours - (effectiveDowntime / 60);
-
-                    if (l.numero_ligne >= 1 && l.numero_ligne <= 4) {
-                        tonnageAttendu += (1600 * 6 * heuresProductives) / 1000; // Tonnes
-                    } else if (l.numero_ligne === 5) {
-                        tonnageAttendu += (900 * 12.5 * heuresProductives) / 1000; // Tonnes
-                    }
+                    tonnageAttendu += lineTheoreticalTonnes(l);
+                    bouteillesAttendues += lineExpectedBottles(l);
                 });
             });
 
             // Pour les lignes (Chef de Ligne)
             lignes.forEach(ligne => {
-                // Get shift hours from the associated shift
-                const shift = ligne.production_shifts;
-                const shiftHours = shift ? calculateShiftHours(
-                    shift.heure_debut_reelle || '10:00',
-                    shift.heure_fin_reelle || '19:00'
-                ) : 9;
-
-                const ligneTempsArret = Number(ligne.temps_arret_ligne_minutes) || 0;
-                const maxDowntimeMinutes = shiftHours * 60;
-                const effectiveDowntime = Math.min(ligneTempsArret, maxDowntimeMinutes);
-                const heuresProductives = shiftHours - (effectiveDowntime / 60);
-
-                if (ligne.numero_ligne >= 1 && ligne.numero_ligne <= 4) {
-                    tonnageAttendu += (1600 * 6 * heuresProductives) / 1000; // Tonnes
-                } else if (ligne.numero_ligne === 5) {
-                    tonnageAttendu += (900 * 12.5 * heuresProductives) / 1000; // Tonnes
-                }
+                tonnageAttendu += lineTheoreticalTonnes(ligne);
+                bouteillesAttendues += lineExpectedBottles(ligne);
             });
 
             // Liste des shifts travaillés avec les lignes
@@ -1714,6 +1669,7 @@ const CentreEmplisseurView = ({
                 shiftBreakdown,
                 lineBreakdown: lineBreakdownArray,
                 tonnageAttendu,
+                bouteillesAttendues,
                 shiftsList,
                 // Dual-role specific data
                 isDualRole,
@@ -2766,23 +2722,67 @@ const CentreEmplisseurView = ({
                     {agentModalData ? (
                         <div className="space-y-6 py-4" ref={agentModalRef}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Card 1: Volume Produit */}
+                                {/* Card 1: Volume — Attendu vs Réalisé en miroir */}
                                 <Card className="border-l-4 border-l-blue-500">
                                     <CardHeader>
                                         <CardTitle className="text-lg flex items-center gap-2">
                                             <Package className="h-5 w-5 text-blue-600" />
-                                            Volume Produit
+                                            Volume
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="text-center p-4 bg-blue-50/50 rounded-lg">
-                                            <p className="text-4xl font-extrabold text-blue-600">
-                                                {(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                                                <span className="text-2xl ml-1">Kg</span>
-                                            </p>
+                                    <CardContent className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* Attendu */}
+                                            <div className="p-3 rounded-lg bg-purple-50/50 border border-purple-100">
+                                                <p className="text-[10px] uppercase tracking-widest text-purple-600 font-semibold mb-2">Attendu</p>
+                                                <div className="space-y-1.5">
+                                                    <div>
+                                                        <p className="text-[11px] text-muted-foreground">Bouteilles</p>
+                                                        <p className="font-bold text-purple-700 tabular-nums">
+                                                            {Math.round(agentModalData.bouteillesAttendues || 0).toLocaleString('fr-FR')}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] text-muted-foreground">Tonnage</p>
+                                                        <p className="font-bold text-purple-700 tabular-nums">
+                                                            {((agentModalData.tonnageAttendu || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {/* Réalisé */}
+                                            <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                                                <p className="text-[10px] uppercase tracking-widest text-blue-600 font-semibold mb-2">Réalisé</p>
+                                                <div className="space-y-1.5">
+                                                    <div>
+                                                        <p className="text-[11px] text-muted-foreground">Bouteilles</p>
+                                                        <p className="font-bold text-blue-700 tabular-nums">
+                                                            {(agentModalData.recharges + agentModalData.consignes).toLocaleString('fr-FR')}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] text-muted-foreground">Tonnage</p>
+                                                        <p className="font-bold text-blue-700 tabular-nums">
+                                                            {(agentModalData.tonnage * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                        {/* Détail recharges / consignes */}
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div className="text-center p-2 border rounded">
+                                                <p className="text-xs text-muted-foreground">Recharges</p>
+                                                <p className="font-bold text-foreground">{agentModalData.recharges.toLocaleString('fr-FR')}</p>
+                                            </div>
+                                            <div className="text-center p-2 border rounded">
+                                                <p className="text-xs text-muted-foreground">Consignes</p>
+                                                <p className="font-bold text-foreground">{agentModalData.consignes.toLocaleString('fr-FR')}</p>
+                                            </div>
+                                        </div>
+                                        {/* Split Quart/Ligne si dual-role */}
                                         {agentModalData.isDualRole ? (
-                                            <div className="mt-4 space-y-2 text-sm">
+                                            <div className="space-y-2 text-sm pt-2 border-t">
                                                 <div className="flex items-center justify-between p-2 border rounded bg-purple-50/50">
                                                     <span className="text-xs text-muted-foreground font-semibold">📊 Chef de Quart</span>
                                                     <span className="font-bold text-purple-600">{(agentModalData.tonnageQuart * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</span>
@@ -2793,16 +2793,6 @@ const CentreEmplisseurView = ({
                                                 </div>
                                             </div>
                                         ) : null}
-                                        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                                            <div className="text-center p-2 border rounded">
-                                                <p className="text-xs text-muted-foreground">Recharges</p>
-                                                <p className="font-bold text-foreground">{agentModalData.recharges.toLocaleString('fr-FR')}</p>
-                                            </div>
-                                            <div className="text-center p-2 border rounded">
-                                                <p className="text-xs text-muted-foreground">Consignes</p>
-                                                <p className="font-bold text-foreground">{agentModalData.consignes.toLocaleString('fr-FR')}</p>
-                                            </div>
-                                        </div>
                                     </CardContent>
                                 </Card>
 
@@ -2868,24 +2858,39 @@ const CentreEmplisseurView = ({
                                     </CardContent>
                                 </Card>
 
-                                {/* Card 3: Temps d'Arrêt */}
+                                {/* Card 3: Temps — Attendu / Travaillé / Arrêt */}
                                 <Card className="border-l-4 border-l-orange-500">
                                     <CardHeader>
                                         <CardTitle className="text-lg flex items-center gap-2">
                                             <ArrowDown className="h-5 w-5 text-orange-600" />
-                                            Temps d'Arrêt
+                                            Temps
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="text-center p-4 bg-orange-50/50 rounded-lg">
-                                            <p className="text-4xl font-extrabold text-orange-600">
-                                                {Math.floor(agentModalData.tempsArretMinutes / 60)}<span className="text-2xl">h</span>
-                                                {Math.round(agentModalData.tempsArretMinutes % 60)}<span className="text-2xl">m</span>
-                                            </p>
+                                    <CardContent className="space-y-3">
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="text-center p-2.5 rounded-lg bg-purple-50/50 border border-purple-100">
+                                                <p className="text-[10px] uppercase tracking-wider text-purple-600 font-semibold mb-1">Attendu</p>
+                                                <p className="text-xl font-bold text-purple-700 tabular-nums">
+                                                    {agentModalData.expectedHours.toFixed(1)}<span className="text-sm">h</span>
+                                                </p>
+                                            </div>
+                                            <div className="text-center p-2.5 rounded-lg bg-green-50/50 border border-green-100">
+                                                <p className="text-[10px] uppercase tracking-wider text-green-600 font-semibold mb-1">Travaillé</p>
+                                                <p className="text-xl font-bold text-green-700 tabular-nums">
+                                                    {agentModalData.actualHours.toFixed(1)}<span className="text-sm">h</span>
+                                                </p>
+                                            </div>
+                                            <div className="text-center p-2.5 rounded-lg bg-orange-50/50 border border-orange-100">
+                                                <p className="text-[10px] uppercase tracking-wider text-orange-600 font-semibold mb-1">Arrêt</p>
+                                                <p className="text-xl font-bold text-orange-700 tabular-nums">
+                                                    {Math.floor(agentModalData.tempsArretMinutes / 60)}<span className="text-sm">h</span>
+                                                    {Math.round(agentModalData.tempsArretMinutes % 60).toString().padStart(2, '0')}
+                                                </p>
+                                            </div>
                                         </div>
                                         {agentModalData.downtimeByLine && Object.keys(agentModalData.downtimeByLine).length > 0 && (
-                                            <div className="mt-4">
-                                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Par Ligne</p>
+                                            <div className="pt-1">
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Arrêts par ligne</p>
                                                 <div className="space-y-1">
                                                     {Object.entries(agentModalData.downtimeByLine)
                                                         .sort((a, b) => (b[1] as number) - (a[1] as number))
@@ -2893,7 +2898,7 @@ const CentreEmplisseurView = ({
                                                             <div key={line} className="flex items-center justify-between text-xs">
                                                                 <span className="text-muted-foreground">Ligne {line}</span>
                                                                 <span className="font-bold text-orange-600">
-                                                                    {Math.floor((minutes as number) / 60)}h{Math.round((minutes as number) % 60)}m
+                                                                    {Math.floor((minutes as number) / 60)}h{Math.round((minutes as number) % 60).toString().padStart(2, '0')}
                                                                 </span>
                                                             </div>
                                                         ))}
@@ -2903,16 +2908,17 @@ const CentreEmplisseurView = ({
                                     </CardContent>
                                 </Card>
 
-                                {/* Card 4: Taux de Présence */}
+                                {/* Card 4: Périmètre — Présence + shifts/lignes couverts */}
                                 <Card className="border-l-4 border-l-purple-500">
                                     <CardHeader>
                                         <CardTitle className="text-lg flex items-center gap-2">
                                             <Users className="h-5 w-5 text-purple-600" />
-                                            Taux de Présence
+                                            Périmètre
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
+                                    <CardContent className="space-y-3">
                                         <div className="text-center p-4 bg-purple-50/50 rounded-lg">
+                                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Taux de présence</p>
                                             <p className={`text-4xl font-extrabold ${agentModalData.tauxPresence >= 95 ? 'text-green-600' :
                                                 agentModalData.tauxPresence >= 85 ? 'text-orange-500' : 'text-red-600'
                                                 }`}>
@@ -2920,28 +2926,18 @@ const CentreEmplisseurView = ({
                                                 <span className="text-2xl ml-1">%</span>
                                             </p>
                                         </div>
-                                        <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                                            <div className="text-center p-3 border rounded bg-gradient-to-br from-green-50 to-green-100/50">
-                                                <p className="text-muted-foreground font-semibold mb-1">Temps travaillé</p>
-                                                <p className="font-bold text-green-600 text-lg">{agentModalData.actualHours.toFixed(1)}h</p>
-                                                <div className="mt-2 pt-2 border-t border-green-200">
-                                                    <p className="text-muted-foreground text-xs mb-1">Tonnage Attendu</p>
-                                                    <p className="font-bold text-blue-600">{(agentModalData.tonnageAttendu * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Kg</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-center p-3 border rounded bg-gradient-to-br from-purple-50 to-purple-100/50">
-                                                <p className="text-muted-foreground font-semibold mb-1">Shift</p>
-                                                <div className="font-bold text-purple-600">
-                                                    {agentModalData.shiftsList && agentModalData.shiftsList.length > 0 ? (
-                                                        agentModalData.shiftsList.map((item: any, idx: number) => (
-                                                            <div key={idx} className="text-sm">
-                                                                {item.shift} - Lignes: {item.lignes.join(', ')}
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <span className="text-sm">-</span>
-                                                    )}
-                                                </div>
+                                        <div className="p-3 border rounded bg-gradient-to-br from-purple-50 to-purple-100/50">
+                                            <p className="text-xs text-muted-foreground font-semibold uppercase mb-2">Shifts / lignes couverts</p>
+                                            <div className="font-bold text-purple-600 space-y-1">
+                                                {agentModalData.shiftsList && agentModalData.shiftsList.length > 0 ? (
+                                                    agentModalData.shiftsList.map((item: any, idx: number) => (
+                                                        <div key={idx} className="text-sm">
+                                                            {item.shift} — Lignes : {item.lignes.join(', ')}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-sm">—</span>
+                                                )}
                                             </div>
                                         </div>
                                     </CardContent>
