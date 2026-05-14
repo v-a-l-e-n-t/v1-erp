@@ -581,8 +581,8 @@ const DashboardHistorique = () => {
     try {
       // Fetch both chefs de quart and chefs de ligne
       const [quartsResult, lignesResult] = await Promise.all([
-        supabase.from('chefs_quart').select('*').order('nom'),
-        supabase.from('chefs_ligne').select('*').order('nom')
+        supabase.from('agents').select('*').eq('role', 'chef_quart').order('nom'),
+        supabase.from('agents').select('*').eq('role', 'chef_ligne').order('nom')
       ]);
 
       if (quartsResult.error) throw quartsResult.error;
@@ -676,9 +676,9 @@ const DashboardHistorique = () => {
 
         // Fetch chefs
         const [chefsQuartResult, chefsLigneResult1, chefsLigneResult2] = await Promise.all([
-          chefQuartIds.length > 0 ? supabase.from('chefs_quart').select('id, nom, prenom').in('id', chefQuartIds) : Promise.resolve({ data: [] }),
-          chefQuartIds.length > 0 ? supabase.from('chefs_ligne').select('id, nom, prenom').in('id', chefQuartIds) : Promise.resolve({ data: [] }),
-          chefLigneIds.size > 0 ? supabase.from('chefs_ligne').select('id, nom, prenom').in('id', Array.from(chefLigneIds)) : Promise.resolve({ data: [] })
+          chefQuartIds.length > 0 ? supabase.from('agents').select('id, nom, prenom').in('id', chefQuartIds) : Promise.resolve({ data: [] }),
+          chefQuartIds.length > 0 ? supabase.from('agents').select('id, nom, prenom').in('id', chefQuartIds) : Promise.resolve({ data: [] }),
+          chefLigneIds.size > 0 ? supabase.from('agents').select('id, nom, prenom').in('id', Array.from(chefLigneIds)) : Promise.resolve({ data: [] })
         ]);
 
         const chefsQuartMap: Map<string, any> = new Map();

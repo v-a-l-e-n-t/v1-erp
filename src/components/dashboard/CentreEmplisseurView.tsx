@@ -574,20 +574,18 @@ const CentreEmplisseurView = ({
 
     const fetchAgents = async () => {
         try {
-            // Fetch both chefs de quart and chefs de ligne
+            // Source unifiée : la table `agents` filtrée par rôle.
             const [quartsResult, lignesResult] = await Promise.all([
-                supabase.from('chefs_quart').select('*').order('nom'),
-                supabase.from('chefs_ligne').select('*').order('nom')
+                supabase.from('agents').select('*').eq('role', 'chef_quart').order('nom'),
+                supabase.from('agents').select('*').eq('role', 'chef_ligne').order('nom')
             ]);
 
             if (quartsResult.error) throw quartsResult.error;
             if (lignesResult.error) throw lignesResult.error;
 
-            // Combine both lists with unique IDs and role info
             const quartsWithRole = (quartsResult.data || []).map(agent => ({ ...agent, role: 'chef_quart' }));
             const lignesWithRole = (lignesResult.data || []).map(agent => ({ ...agent, role: 'chef_ligne' }));
 
-            // Merge and remove duplicates based on name (in case same person is in both tables)
             const allAgentsList = [...quartsWithRole, ...lignesWithRole];
             setAllAgents(allAgentsList);
         } catch (error) {
@@ -597,10 +595,10 @@ const CentreEmplisseurView = ({
 
     const fetchAllAgentsComparison = async () => {
         try {
-            // Get all agents
+            // Get all agents from unified `agents` table (filtered by role)
             const [quartsResult, lignesResult] = await Promise.all([
-                supabase.from('chefs_quart').select('id, nom, prenom'),
-                supabase.from('chefs_ligne').select('id, nom, prenom')
+                supabase.from('agents').select('id, nom, prenom').eq('role', 'chef_quart'),
+                supabase.from('agents').select('id, nom, prenom').eq('role', 'chef_ligne')
             ]);
 
             if (quartsResult.error) throw quartsResult.error;

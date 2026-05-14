@@ -320,10 +320,15 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
     }
   }, [editMode, initialData]);
 
+  // Les chefs (ligne / quart) sont désormais des entrées de la table unifiée
+  // `agents` filtrée par `role`. Permet aux agents créés sur /agents
+  // d'apparaître ici. On exclut les agents marqués inactifs (`actif = false`).
   const loadChefsLigne = async () => {
     const { data, error } = await (supabase as any)
-      .from('chefs_ligne')
-      .select('*')
+      .from('agents')
+      .select('id, nom, prenom')
+      .eq('role', 'chef_ligne')
+      .neq('actif', false)
       .order('nom');
 
     if (error) {
@@ -340,8 +345,10 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
   const loadChefsQuart = async () => {
     const { data, error } = await (supabase as any)
-      .from('chefs_quart')
-      .select('*')
+      .from('agents')
+      .select('id, nom, prenom')
+      .eq('role', 'chef_quart')
+      .neq('actif', false)
       .order('nom');
 
     if (error) {

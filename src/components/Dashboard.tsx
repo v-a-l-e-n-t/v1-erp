@@ -365,8 +365,8 @@ const Dashboard = ({ entries }: DashboardProps) => {
           try {
             // 1. Résolution des noms
             const [chefsQuartResult, chefsLigneResult] = await Promise.all([
-              supabase.from('chefs_quart').select('id, nom, prenom'),
-              supabase.from('chefs_ligne').select('id, nom, prenom')
+              supabase.from('agents').select('id, nom, prenom').eq('role', 'chef_quart'),
+              supabase.from('agents').select('id, nom, prenom').eq('role', 'chef_ligne')
             ]);
             if (chefsQuartResult.error) throw chefsQuartResult.error;
             if (chefsLigneResult.error) throw chefsLigneResult.error;
