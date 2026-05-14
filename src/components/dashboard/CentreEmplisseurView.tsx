@@ -69,12 +69,15 @@ const calculateLigneHours = (ligne: any): number => {
  * - Temps d'arrêt plafonné à la durée réelle de la ligne.
  * - Rate : lignes 1-4 (B6) = 1600 × 6 kg/h, ligne 5 (B12) = 900 × 12.5 kg/h.
  */
+/** Arrondit une durée en heures à 2 décimales (~36 secondes près). */
+const round2 = (h: number) => Math.round(h * 100) / 100;
+
 const lineTheoreticalTonnes = (l: any): number => {
     if (l?.actif === false) return 0;
     const ligneHours = calculateLigneHours(l);
     if (ligneHours <= 0) return 0;
     const downtime = Math.min(Number(l.temps_arret_ligne_minutes) || 0, ligneHours * 60);
-    const productiveHours = ligneHours - downtime / 60;
+    const productiveHours = round2(ligneHours - downtime / 60);
     const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? 1600 * 6 : 900 * 12.5;
     return (rate * productiveHours) / 1000;
 };
@@ -88,7 +91,7 @@ const lineExpectedBottles = (l: any): number => {
     const ligneHours = calculateLigneHours(l);
     if (ligneHours <= 0) return 0;
     const downtime = Math.min(Number(l.temps_arret_ligne_minutes) || 0, ligneHours * 60);
-    const productiveHours = ligneHours - downtime / 60;
+    const productiveHours = round2(ligneHours - downtime / 60);
     const rate = (l.numero_ligne >= 1 && l.numero_ligne <= 4) ? 1600 : 900;
     return rate * productiveHours;
 };
@@ -922,7 +925,7 @@ const CentreEmplisseurView = ({
                 // Calculate theoretical production and productivity
                 const maxDowntimeMinutes = totalHeuresShift * 60;
                 const effectiveDowntime = Math.min(totalTempsArret, maxDowntimeMinutes);
-                const heuresProductives = Math.max(0, totalHeuresShift - (effectiveDowntime / 60));
+                const heuresProductives = round2(Math.max(0, totalHeuresShift - (effectiveDowntime / 60)));
 
                 let productionTheorique = 0;
                 let bouteillesAttendu = 0;
