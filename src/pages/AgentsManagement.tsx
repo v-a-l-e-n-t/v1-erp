@@ -7,37 +7,21 @@ import { AgentForm } from "@/components/AgentForm";
 import { AgentsList } from "@/components/AgentsList";
 import { Agent } from "@/types/production";
 import { useAudit } from "@/hooks/useAudit";
+import { useAppAuth } from "@/hooks/useAppAuth";
+import PasswordGate from "@/components/PasswordGate";
 
 const AgentsManagement = () => {
     const navigate = useNavigate();
+    const { session, isAuthenticated } = useAppAuth();
+    const [, setAuthTick] = useState(0);
     const [loading, setLoading] = useState(false);
-    // Auth disabled for dev
-    const [isAdmin, setIsAdmin] = useState(true);
     const [agents, setAgents] = useState<Agent[]>([]);
     const [editingAgent, setEditingAgent] = useState<Agent | undefined>();
-    const [userEmail, setUserEmail] = useState<string>('');
+    const userEmail = session?.user_name ?? '';
 
     useEffect(() => {
-        checkAuth();
-        loadAgents();
-    }, []);
-
-    const checkAuth = () => {
-        // Authentification propriétaire (localStorage)
-        const isAuth = localStorage.getItem("isAuthenticated") === "true";
-        const storedUser = localStorage.getItem("user_name");
-
-        if (!isAuth || !storedUser) {
-            toast({
-                title: "Authentification requise",
-                description: "Veuillez vous connecter avec votre identifiant.",
-                variant: "destructive"
-            });
-            setTimeout(() => navigate('/'), 2000);
-        } else {
-            setUserEmail(storedUser);
-        }
-    };
+        if (isAuthenticated) loadAgents();
+    }, [isAuthenticated]);
 
     const loadAgents = async () => {
         // Assuming table is 'agents' or 'chefs_ligne' with role column
@@ -174,6 +158,10 @@ const AgentsManagement = () => {
     const handleCancel = () => {
         setEditingAgent(undefined);
     };
+
+    if (!isAuthenticated) {
+        return <PasswordGate onAuthenticated={() => setAuthTick((t) => t + 1)} />;
+    }
 
     return (
         <div className="min-h-screen bg-background">
