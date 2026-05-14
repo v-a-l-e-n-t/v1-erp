@@ -3121,13 +3121,27 @@ const CentreEmplisseurView = ({
                                                         <div>
                                                             <p className="text-xs text-muted-foreground mb-1">Attendu</p>
                                                             <p className="text-xl font-bold text-orange-700 tabular-nums">
-                                                                {(tabData.totalHeuresShift || 0).toFixed(2)} h
+                                                                {(() => {
+                                                                    const v = tabData.totalHeuresShift || 0;
+                                                                    const h = Math.floor(v);
+                                                                    const m = Math.round((v - h) * 60);
+                                                                    return m === 60
+                                                                        ? `${h + 1}h00`
+                                                                        : `${h}h${m.toString().padStart(2, '0')}`;
+                                                                })()}
                                                             </p>
                                                         </div>
                                                         <div>
                                                             <p className="text-xs text-muted-foreground mb-1">Réel</p>
                                                             <p className="text-xl font-bold text-orange-600 tabular-nums">
-                                                                {(tabData.heuresProductives || 0).toFixed(2)} h
+                                                                {(() => {
+                                                                    const v = tabData.heuresProductives || 0;
+                                                                    const h = Math.floor(v);
+                                                                    const m = Math.round((v - h) * 60);
+                                                                    return m === 60
+                                                                        ? `${h + 1}h00`
+                                                                        : `${h}h${m.toString().padStart(2, '0')}`;
+                                                                })()}
                                                             </p>
                                                         </div>
                                                         <div>
