@@ -1425,27 +1425,23 @@ const CentreEmplisseurView = ({
                 }))
                 .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-            // NEW: Taux de Présence (Attendance Rate)
-            // Calculate expected hours from real shift hours instead of fixed 9 hours
+            // Taux de Présence — modèle hybride par rôle :
+            // - Chef de Quart : présent tout le shift (peu importe l'état des lignes)
+            //   → expectedHours += durée totale du shift.
+            // - Chef de Ligne : présent quand SA ligne tourne (= heures propres de
+            //   la ligne, 0 si la ligne est marquée Inactive)
+            //   → expectedHours += calculateLigneHours(l).
             let expectedHours = 0;
 
-            // Sum hours from shifts (Chef de Quart)
             shifts.forEach(shift => {
-                const shiftHours = calculateShiftHours(
+                expectedHours += calculateShiftHours(
                     shift.heure_debut_reelle || '10:00',
                     shift.heure_fin_reelle || '19:00'
                 );
-                expectedHours += shiftHours;
             });
 
-            // Sum hours from lignes (Chef de Ligne)
             lignes.forEach(ligne => {
-                const shift = ligne.production_shifts;
-                const shiftHours = shift ? calculateShiftHours(
-                    shift.heure_debut_reelle || '10:00',
-                    shift.heure_fin_reelle || '19:00'
-                ) : 9;
-                expectedHours += shiftHours;
+                expectedHours += calculateLigneHours(ligne);
             });
 
             const downtimeHours = totalTempsArret / 60; // Convert minutes to hours (pour affichage)
@@ -2874,13 +2870,27 @@ const CentreEmplisseurView = ({
                                             <div className="text-center p-2.5 rounded-lg bg-purple-50/50 border border-purple-100">
                                                 <p className="text-[10px] uppercase tracking-wider text-purple-600 font-semibold mb-1">Attendu</p>
                                                 <p className="text-xl font-bold text-purple-700 tabular-nums">
-                                                    {agentModalData.expectedHours.toFixed(1)}<span className="text-sm">h</span>
+                                                    {(() => {
+                                                        const v = agentModalData.expectedHours || 0;
+                                                        const h = Math.floor(v);
+                                                        const m = Math.round((v - h) * 60);
+                                                        return m === 60
+                                                            ? `${h + 1}h00`
+                                                            : `${h}h${m.toString().padStart(2, '0')}`;
+                                                    })()}
                                                 </p>
                                             </div>
                                             <div className="text-center p-2.5 rounded-lg bg-green-50/50 border border-green-100">
                                                 <p className="text-[10px] uppercase tracking-wider text-green-600 font-semibold mb-1">Travaillé</p>
                                                 <p className="text-xl font-bold text-green-700 tabular-nums">
-                                                    {agentModalData.actualHours.toFixed(1)}<span className="text-sm">h</span>
+                                                    {(() => {
+                                                        const v = agentModalData.actualHours || 0;
+                                                        const h = Math.floor(v);
+                                                        const m = Math.round((v - h) * 60);
+                                                        return m === 60
+                                                            ? `${h + 1}h00`
+                                                            : `${h}h${m.toString().padStart(2, '0')}`;
+                                                    })()}
                                                 </p>
                                             </div>
                                             <div className="text-center p-2.5 rounded-lg bg-orange-50/50 border border-orange-100">
