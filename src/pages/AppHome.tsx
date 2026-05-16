@@ -45,6 +45,13 @@ export default function Home() {
           path: '/import_data',
           color: 'text-amber-500',
         },
+        {
+          title: 'Rapport BL',
+          description: 'Bons de transfert : saisie, import, rapports',
+          icon: ClipboardList,
+          path: '/rapport-bl',
+          color: 'text-cyan-500',
+        },
       ]
     },
     {

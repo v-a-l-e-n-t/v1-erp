@@ -29,7 +29,9 @@ import StockSphere from "./pages/StockSphere";
 import StockSphereHistory from "./pages/StockSphereHistory";
 import Reception from "./pages/Reception";
 import ReceptionHistory from "./pages/ReceptionHistory";
+import RapportBL from "./pages/RapportBL";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { BonsExpiryWatcher } from "./components/rapport-bl/BonsExpiryWatcher";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -44,6 +46,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <BonsExpiryWatcher />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -64,6 +67,7 @@ const App = () => (
           <Route path="/stock-sphere-history" element={<StockSphereHistory />} />
           <Route path="/reception" element={<Reception />} />
           <Route path="/reception-history" element={<ReceptionHistory />} />
+          <Route path="/rapport-bl" element={<RapportBL />} />
           {/* VRAC Module Routes - Public Access */}
           <Route path="/vrac-login" element={<VracLogin />} />
           <Route path="/vrac" element={<VracClientPortal />} />
