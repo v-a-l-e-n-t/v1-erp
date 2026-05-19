@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
-import { Agent, AGENT_ROLES } from "@/types/production";
+import { Agent, AGENT_ROLES, Role } from "@/types/production";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -13,19 +13,20 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
 
 interface AgentsListProps {
     agents: Agent[];
+    roles: Role[];
     onEdit: (agent: Agent) => void;
     onDelete: (id: string) => Promise<void>;
     loading: boolean;
 }
 
-export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProps) => {
+export const AgentsList = ({ agents, roles, onEdit, onDelete, loading }: AgentsListProps) => {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
     const [filterRole, setFilterRole] = useState<string>('all');
@@ -43,8 +44,16 @@ export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProp
         }
     };
 
+    // Map code → label (rôles dynamiques + fallback hardcodé pour anciens codes)
+    const roleLabels = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const k of Object.keys(AGENT_ROLES)) m.set(k, AGENT_ROLES[k]);
+        for (const r of roles) m.set(r.code, r.label);
+        return m;
+    }, [roles]);
+
     const filteredAgents = agents.filter(agent =>
-        filterRole === 'all' || agent.role === filterRole
+        filterRole === 'all' || agent.role === filterRole,
     );
 
     return (
@@ -52,23 +61,28 @@ export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProp
             <Card>
                 <CardHeader>
                     <div className="flex flex-col space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                             <div>
                                 <CardTitle>Liste des agents</CardTitle>
                                 <CardDescription>
                                     {filteredAgents.length} agent{filteredAgents.length > 1 ? 's' : ''} affiché{filteredAgents.length > 1 ? 's' : ''} (Total: {agents.length})
                                 </CardDescription>
                             </div>
+                            <div className="space-y-1">
+                                <span className="text-xs text-muted-foreground">Filtrer par rôle</span>
+                                <Select value={filterRole} onValueChange={setFilterRole}>
+                                    <SelectTrigger className="w-[220px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tous les rôles</SelectItem>
+                                        {roles.map(r => (
+                                            <SelectItem key={r.id} value={r.code}>{r.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <Tabs defaultValue="all" value={filterRole} onValueChange={setFilterRole} className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
-                                <TabsTrigger value="all">Tous</TabsTrigger>
-                                <TabsTrigger value="chef_ligne">Chefs de ligne</TabsTrigger>
-                                <TabsTrigger value="chef_quart">Chefs de quart</TabsTrigger>
-                                <TabsTrigger value="agent_exploitation">Exploitation</TabsTrigger>
-                                <TabsTrigger value="agent_mouvement">Mouvement</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -83,6 +97,7 @@ export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProp
                                     <TableHead>Nom</TableHead>
                                     <TableHead>Prénom</TableHead>
                                     <TableHead>Rôle</TableHead>
+                                    <TableHead>Lignes</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -93,8 +108,21 @@ export const AgentsList = ({ agents, onEdit, onDelete, loading }: AgentsListProp
                                         <TableCell>{agent.prenom}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="bg-slate-100 whitespace-nowrap">
-                                                {AGENT_ROLES[agent.role] || agent.role || 'Inconnu'}
+                                                {roleLabels.get(agent.role) || agent.role || 'Inconnu'}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {agent.lignes_affectees && agent.lignes_affectees.length > 0 ? (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {agent.lignes_affectees.map(n => (
+                                                        <Badge key={n} variant="secondary" className="font-mono text-xs">
+                                                            L{n}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground italic">—</span>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex gap-2 justify-end items-center">

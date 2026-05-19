@@ -29,9 +29,17 @@ export interface ChefQuart {
   prenom: string;
 }
 
-export type AgentRole = 'chef_ligne' | 'chef_quart' | 'chef_equipe_atelier' | 'agent_exploitation' | 'agent_mouvement';
+// Le rôle est désormais un `code` libre (référence à la table `roles`).
+// On garde l'ancien type union pour rétro-compat sur quelques composants.
+export type AgentRole =
+  | 'chef_ligne'
+  | 'chef_quart'
+  | 'chef_equipe_atelier'
+  | 'agent_exploitation'
+  | 'agent_mouvement'
+  | (string & {}); // accepte tout nouveau code créé via la page /agents
 
-export const AGENT_ROLES: Record<AgentRole, string> = {
+export const AGENT_ROLES: Record<string, string> = {
   chef_ligne: 'Chef de ligne',
   chef_quart: 'Chef de quart',
   chef_equipe_atelier: "Chef d'équipe atelier",
@@ -39,12 +47,23 @@ export const AGENT_ROLES: Record<AgentRole, string> = {
   agent_mouvement: 'Agent Mouvement',
 };
 
+export interface Role {
+  id: string;
+  code: string;
+  label: string;
+  actif?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Agent {
   id: string;
   nom: string;
   prenom: string;
-  role: AgentRole;
+  role: string; // = roles.code
   actif?: boolean;
+  // Lignes auxquelles l'agent est affecté (multi). Chargé en parallèle.
+  lignes_affectees?: number[];
   last_modified_by?: string;
   last_modified_at?: string;
 }
