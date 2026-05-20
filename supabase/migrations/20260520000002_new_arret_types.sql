@@ -1,0 +1,9 @@
+-- Ajout des nouveaux types d'arrêt à l'enum arret_type.
+-- Les anciens types sont conservés pour compatibilité historique.
+ALTER TYPE public.arret_type ADD VALUE IF NOT EXISTS 'causerie_securite';
+ALTER TYPE public.arret_type ADD VALUE IF NOT EXISTS 'exercice_securite';
+ALTER TYPE public.arret_type ADD VALUE IF NOT EXISTS 'perte_vitesse';
+ALTER TYPE public.arret_type ADD VALUE IF NOT EXISTS 'lenteur_cariste';
+ALTER TYPE public.arret_type ADD VALUE IF NOT EXISTS 'panne_palettiseur';
+ALTER TYPE public.arret_type ADD VALUE IF NOT EXISTS 'autre_panne';
+-- 'manque_personnel' existe déjà dans l'enum, on le réutilise.

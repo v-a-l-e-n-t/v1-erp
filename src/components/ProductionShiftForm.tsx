@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Save, FlaskConical } from "lucide-react";
+import { Plus, Save, FlaskConical, Users } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArretProductionForm } from "./ArretProductionForm";
 import { LigneProductionForm } from "./LigneProductionForm";
 import { ProductionRecapitulatif } from "./ProductionRecapitulatif";
@@ -49,14 +51,18 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
   const [chefsQuart, setChefsQuart] = useState<ChefQuart[]>([]);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [showTestButton, setShowTestButton] = useState(false);
+  const [showShiftEffectifDialog, setShowShiftEffectifDialog] = useState(false);
+  const [shiftAgents, setShiftAgents] = useState<any[]>([]);
+  const [allAgents, setAllAgents] = useState<any[]>([]);
+  const [agentPresences, setAgentPresences] = useState<Record<string, boolean>>({});
   const [shift, setShift] = useState<ProductionShift>({
     date: new Date().toISOString().split('T')[0],
     shift_type: '10h-19h',
     chef_quart_id: '',
-    heure_debut_theorique: '10:00',
-    heure_fin_theorique: '19:00',
-    heure_debut_reelle: '10:00',
-    heure_fin_reelle: '19:00',
+    heure_debut_theorique: '11:30',
+    heure_fin_theorique: '20:30',
+    heure_debut_reelle: '11:30',
+    heure_fin_reelle: '20:30',
     bouteilles_produites: 0,
     chariste: 0,
     chariot: 0,
@@ -160,24 +166,29 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
   useEffect(() => {
     loadChefsLigne();
     loadChefsQuart();
+    loadShiftAgents();
+    loadAllAgents();
   }, []);
 
-  // Raccourci clavier pour afficher/cacher le bouton de test (Ctrl+Alt+T)
+  // Raccourci clavier pour afficher/cacher le bouton de test (Ctrl+I)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 't') {
+      if (e.ctrlKey && e.key.toLowerCase() === 'i') {
         e.preventDefault();
-        setShowTestButton(prev => !prev);
-        toast({
-          title: showTestButton ? "Mode test désactivé" : "Mode test activé",
-          description: showTestButton ? "Le bouton de test est masqué" : "Le bouton de test est maintenant visible",
+        setShowTestButton(prev => {
+          const nextVal = !prev;
+          toast({
+            title: nextVal ? "Mode test activé" : "Mode test désactivé",
+            description: nextVal ? "Le bouton de test est maintenant visible" : "Le bouton de test est masqué",
+          });
+          return nextVal;
         });
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showTestButton]);
+  }, []);
 
   useEffect(() => {
     const hours = SHIFT_HOURS[shift.shift_type];
@@ -363,6 +374,88 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
     setChefsQuart(data || []);
   };
 
+  const loadShiftAgents = async () => {
+    const { data } = await (supabase as any)
+      .from('agents_lignes')
+      .select('agent_id, agents(id, nom, prenom, role, actif)')
+      .eq('numero_ligne', 0);
+    const agents = (data || [])
+      .map((row: any) => row.agents)
+      .filter((a: any) => a && a.actif !== false);
+    setShiftAgents(agents);
+  };
+
+  const loadAllAgents = async () => {
+    const { data: agentsData } = await (supabase as any)
+      .from('agents')
+      .select('id, nom, prenom, role, actif')
+      .neq('actif', false)
+      .order('nom');
+    if (!agentsData) { setAllAgents([]); return; }
+    // Load lignes for each agent
+    const { data: lignesData } = await (supabase as any)
+      .from('agents_lignes')
+      .select('agent_id, numero_ligne');
+    const lignesMap: Record<string, number[]> = {};
+    (lignesData || []).forEach((row: any) => {
+      if (!lignesMap[row.agent_id]) lignesMap[row.agent_id] = [];
+      lignesMap[row.agent_id].push(row.numero_ligne);
+    });
+    const enriched = agentsData.map((a: any) => ({
+      ...a,
+      lignes_affectees: lignesMap[a.id] || [],
+    }));
+    setAllAgents(enriched);
+  };
+
+  // Flag to know if we have loaded presences for an editing shift
+  const [presencesLoaded, setPresencesLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadPresences = async () => {
+      if (editMode && initialData?.id) {
+        const { data, error } = await (supabase as any)
+          .from('shift_agent_presences')
+          .select('agent_id, numero_ligne, present')
+          .eq('shift_id', initialData.id);
+
+        if (error) {
+          console.error("Error loading agent presences:", error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const loaded: Record<string, boolean> = {};
+          data.forEach((p: any) => {
+            loaded[`${p.agent_id}_${p.numero_ligne}`] = p.present;
+          });
+          setAgentPresences(loaded);
+          setPresencesLoaded(true);
+        } else {
+          setPresencesLoaded(false);
+        }
+      }
+    };
+
+    loadPresences();
+  }, [editMode, initialData]);
+
+  useEffect(() => {
+    if (allAgents.length === 0) return;
+    if (editMode && !presencesLoaded && Object.keys(agentPresences).length === 0) {
+      return;
+    }
+    setLignes(prev => prev.map(l => {
+      const lineAgents = allAgents.filter(a => a.lignes_affectees?.includes(l.numero_ligne));
+      const presentCount = lineAgents.filter(agent => agentPresences[`${agent.id}_${l.numero_ligne}`] !== false).length;
+      return { ...l, nombre_agents: presentCount };
+    }));
+  }, [agentPresences, allAgents, editMode, presencesLoaded]);
+
+  const handleAgentPresenceChange = (agentId: string, numeroLigne: number, present: boolean) => {
+    setAgentPresences(prev => ({ ...prev, [`${agentId}_${numeroLigne}`]: present }));
+  };
+
   const handleShiftChange = (field: keyof ProductionShift, value: any) => {
     setShift(prev => ({ ...prev, [field]: value }));
   };
@@ -385,7 +478,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
     const arretTypes: ArretType[] = ['maintenance_corrective', 'manque_personnel', 'probleme_approvisionnement', 'panne_ligne', 'autre'];
     const etapes: EtapeLigne[] = ['BASCULES', 'PURGE', 'CONTROLE', 'ETANCHEITE', 'CAPSULAGE', 'VIDANGE', 'PALETTISEUR', 'TRI', 'AUTRE'];
 
-    // Remplir le shift (uniquement les champs essentiels)
+    // Remplir le shift
     const randomShiftType: ShiftType = Math.random() > 0.5 ? '10h-19h' : '20h-5h';
     const randomChefQuart = chefsQuart.length > 0 ? chefsQuart[randomInt(0, chefsQuart.length - 1)].id : (chefsLigne.length > 0 ? chefsLigne[randomInt(0, chefsLigne.length - 1)].id : '');
 
@@ -402,8 +495,53 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       chariot: 0,
       agent_quai: 0,
       agent_saisie: 0,
-      agent_atelier: 0
+      agent_atelier: 0,
+      // Stock Outil (niveau Shift)
+      stock_outil_pi_b6_vides: randomInt(10, 150),
+      stock_outil_pi_b6_pleines: randomInt(10, 150),
+      stock_outil_pi_b12_vides: randomInt(10, 150),
+      stock_outil_pi_b12_pleines: randomInt(10, 150),
+      stock_outil_vivo_b6_vides: randomInt(10, 150),
+      stock_outil_vivo_b6_pleines: randomInt(10, 150),
+      stock_outil_vivo_b12_vides: randomInt(10, 150),
+      stock_outil_vivo_b12_pleines: randomInt(10, 150),
+      stock_outil_total_b6_vides: randomInt(10, 150),
+      stock_outil_total_b6_pleines: randomInt(10, 150),
+      stock_outil_total_b12_vides: randomInt(10, 150),
+      stock_outil_total_b12_pleines: randomInt(10, 150),
+      // Consignes (niveau Shift)
+      consignes_shift_pi_b6_vides: randomInt(10, 150),
+      consignes_shift_pi_b6_pleines: randomInt(10, 150),
+      consignes_shift_pi_b12_vides: randomInt(10, 150),
+      consignes_shift_pi_b12_pleines: randomInt(10, 150),
+      consignes_shift_vivo_b6_vides: randomInt(10, 150),
+      consignes_shift_vivo_b6_pleines: randomInt(10, 150),
+      consignes_shift_vivo_b12_vides: randomInt(10, 150),
+      consignes_shift_vivo_b12_pleines: randomInt(10, 150),
+      consignes_shift_total_b6_vides: randomInt(10, 150),
+      consignes_shift_total_b6_pleines: randomInt(10, 150),
+      consignes_shift_total_b12_vides: randomInt(10, 150),
+      consignes_shift_total_b12_pleines: randomInt(10, 150)
     });
+
+    // Remplir les présences des agents aléatoirement
+    const randomPresences: Record<string, boolean> = {};
+    
+    // Shift agents (numero_ligne = 0)
+    shiftAgents.forEach(agent => {
+      randomPresences[`${agent.id}_0`] = Math.random() > 0.15; // 85% présent
+    });
+
+    // Line agents (numero_ligne = 1..5)
+    allAgents.forEach(agent => {
+      if (agent.lignes_affectees) {
+        agent.lignes_affectees.forEach((lineNum: number) => {
+          randomPresences[`${agent.id}_${lineNum}`] = Math.random() > 0.15; // 85% présent
+        });
+      }
+    });
+
+    setAgentPresences(randomPresences);
 
     // Remplir les lignes
     const newLignes: LigneProduction[] = [];
@@ -699,6 +837,11 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
           .delete()
           .eq('shift_id', initialData.id);
 
+        await (supabase as any)
+          .from('shift_agent_presences')
+          .delete()
+          .eq('shift_id', initialData.id);
+
       } else {
         // INSERT new shift
         const { data: newShift, error: shiftError } = await (supabase as any)
@@ -777,6 +920,45 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
           .insert(arretsData);
 
         if (arretsError) throw arretsError;
+      }
+
+      // Enregistrer les présences des agents
+      if (insertedShift) {
+        const presencesToSave: any[] = [];
+
+        // 1. Shift agents (numero_ligne = 0)
+        shiftAgents.forEach(agent => {
+          const isPresent = agentPresences[`${agent.id}_0`] !== false;
+          presencesToSave.push({
+            shift_id: insertedShift.id,
+            agent_id: agent.id,
+            numero_ligne: 0,
+            present: isPresent
+          });
+        });
+
+        // 2. Active line agents
+        lignes.forEach(l => {
+          if (l.actif === false) return; // skip inactive lines
+          const lineAgents = allAgents.filter(a => a.lignes_affectees?.includes(l.numero_ligne));
+          lineAgents.forEach(agent => {
+            const isPresent = agentPresences[`${agent.id}_${l.numero_ligne}`] !== false;
+            presencesToSave.push({
+              shift_id: insertedShift.id,
+              agent_id: agent.id,
+              numero_ligne: l.numero_ligne,
+              present: isPresent
+            });
+          });
+        });
+
+        if (presencesToSave.length > 0) {
+          const { error: presencesError } = await (supabase as any)
+            .from('shift_agent_presences')
+            .insert(presencesToSave);
+
+          if (presencesError) throw presencesError;
+        }
       }
 
       toast({
@@ -936,6 +1118,65 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog open={showShiftEffectifDialog} onOpenChange={setShowShiftEffectifDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Effectif Shift</DialogTitle>
+            <DialogDescription>
+              Liste des agents affectés au Shift. Cochez pour marquer la présence.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 my-4 max-h-[400px] overflow-y-auto pr-2">
+            {shiftAgents.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucun agent affecté au Shift. Vous pouvez en affecter depuis la page /agents.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {shiftAgents.map((agent) => {
+                  const isPresent = agentPresences[`${agent.id}_0`] !== false;
+                  return (
+                    <div
+                      key={agent.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30"
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">
+                          {agent.prenom} {agent.nom}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {agent.role === 'chef_ligne' ? 'Chef de Ligne' : agent.role === 'chef_quart' ? 'Chef de Quart' : agent.role === 'chef_equipe_atelier' ? "Chef d'équipe atelier" : agent.role === 'agent_exploitation' ? 'Agent Exploitation' : agent.role === 'agent_mouvement' ? 'Agent Mouvement' : agent.role}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`shift-presence-${agent.id}`}
+                          checked={isPresent}
+                          onCheckedChange={(checked) => {
+                            handleAgentPresenceChange(agent.id, 0, checked === true);
+                          }}
+                        />
+                        <Label
+                          htmlFor={`shift-presence-${agent.id}`}
+                          className="text-xs text-muted-foreground cursor-pointer"
+                        >
+                          {isPresent ? 'Présent' : 'Absent'}
+                        </Label>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => setShowShiftEffectifDialog(false)}>
+              Fermer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className={`flex flex-col lg:flex-row ${editMode ? '' : 'min-h-screen'} bg-background`}>
         {/* Sidebar Recapitulatif - Fixed on Desktop only in full page mode */}
         <aside className={`w-full lg:w-80 bg-background z-20 overflow-y-auto ${editMode ? 'border-b lg:border-b-0 lg:border-r' : 'lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:border-r'}`}>
@@ -984,32 +1225,6 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                   </div>
 
                   <div>
-                    <Label htmlFor="heure-debut">
-                      Heure début réelle <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="heure-debut"
-                      type="time"
-                      value={shift.heure_debut_reelle}
-                      onChange={(e) => handleShiftChange('heure_debut_reelle', e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="heure-fin">
-                      Heure fin réelle <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="heure-fin"
-                      type="time"
-                      value={shift.heure_fin_reelle}
-                      onChange={(e) => handleShiftChange('heure_fin_reelle', e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
                     <Label htmlFor="shift-type">
                       Shift <span className="text-red-500">*</span>
                     </Label>
@@ -1025,6 +1240,32 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                         <SelectItem value="20h-5h">Shift 2</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="heure-debut">
+                      Heure début théorique
+                    </Label>
+                    <Input
+                      id="heure-debut"
+                      type="time"
+                      value={shift.heure_debut_reelle}
+                      readOnly
+                      className="bg-muted/50"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="heure-fin">
+                      Heure fin théorique
+                    </Label>
+                    <Input
+                      id="heure-fin"
+                      type="time"
+                      value={shift.heure_fin_reelle}
+                      readOnly
+                      className="bg-muted/50"
+                    />
                   </div>
 
                   <div>
@@ -1054,63 +1295,170 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                   </div>
 
                   <div>
-                    <Label htmlFor="chariste">Cariste</Label>
-                    <Input
-                      id="chariste"
-                      type="number"
-                      min="0"
-                      value={shift.chariste || ''}
-                      onChange={(e) => handleShiftChange('chariste', parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                    />
+                    <Label>Effectif Shift</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full mt-1"
+                      onClick={() => setShowShiftEffectifDialog(true)}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Voir l'effectif ({shiftAgents.length} agents)
+                    </Button>
                   </div>
+                </div>
 
-                  <div>
-                    <Label htmlFor="chariot">Chariot</Label>
-                    <Input
-                      id="chariot"
-                      type="number"
-                      min="0"
-                      value={shift.chariot || ''}
-                      onChange={(e) => handleShiftChange('chariot', parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                    />
+                {/* Stock Outil */}
+                <Separator className="my-4" />
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Stock Outil</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs">PETRO IVOIRE</Label>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_pi_b6_vides || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_pi_b6_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_pi_b6_pleines || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_pi_b6_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_pi_b12_vides || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_pi_b12_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_pi_b12_pleines || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_pi_b12_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">VIVO ENERGIES</Label>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_vivo_b6_vides || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_vivo_b6_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_vivo_b6_pleines || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_vivo_b6_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_vivo_b12_vides || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_vivo_b12_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_vivo_b12_pleines || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_vivo_b12_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">TOTAL ENERGIES</Label>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_total_b6_vides || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_total_b6_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_total_b6_pleines || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_total_b6_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_total_b12_vides || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_total_b12_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                        <Input type="number" min="0" value={shift.stock_outil_total_b12_pleines || ''}
+                          onChange={(e) => handleShiftChange('stock_outil_total_b12_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                    </div>
                   </div>
+                </div>
 
-                  <div>
-                    <Label htmlFor="agent-quai">Agent de Quai</Label>
-                    <Input
-                      id="agent-quai"
-                      type="number"
-                      min="0"
-                      value={shift.agent_quai || ''}
-                      onChange={(e) => handleShiftChange('agent_quai', parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="agent-saisie">Agent de Saisie</Label>
-                    <Input
-                      id="agent-saisie"
-                      type="number"
-                      min="0"
-                      value={shift.agent_saisie || ''}
-                      onChange={(e) => handleShiftChange('agent_saisie', parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="agent-atelier">Agent Atelier</Label>
-                    <Input
-                      id="agent-atelier"
-                      type="number"
-                      min="0"
-                      value={shift.agent_atelier || ''}
-                      onChange={(e) => handleShiftChange('agent_atelier', parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                    />
+                {/* Consignes Shift */}
+                <Separator className="my-4" />
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Consignes</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs">PETRO IVOIRE</Label>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_pi_b6_vides || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_pi_b6_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_pi_b6_pleines || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_pi_b6_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_pi_b12_vides || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_pi_b12_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_pi_b12_pleines || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_pi_b12_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">VIVO ENERGIES</Label>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b6_vides || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b6_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b6_pleines || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b6_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b12_vides || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b12_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b12_pleines || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b12_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">TOTAL ENERGIES</Label>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_total_b6_vides || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_total_b6_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_total_b6_pleines || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_total_b6_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_total_b12_vides || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_total_b12_vides', parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                        <Input type="number" min="0" value={shift.consignes_shift_total_b12_pleines || ''}
+                          onChange={(e) => handleShiftChange('consignes_shift_total_b12_pleines', parseInt(e.target.value) || 0)} />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1130,6 +1478,9 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                   onToggle={() => setActiveLineIndex(activeLineIndex === index ? null : index)}
                   shiftDebut={shift.heure_debut_reelle}
                   shiftFin={shift.heure_fin_reelle}
+                  allAgents={allAgents}
+                  agentPresences={agentPresences}
+                  onAgentPresenceChange={handleAgentPresenceChange}
                 />
               ))}
             </div>

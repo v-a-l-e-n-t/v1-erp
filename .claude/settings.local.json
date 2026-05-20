@@ -19,7 +19,9 @@
       "Bash(for f in *.sql)",
       "Bash(do echo \"=== $f ===\")",
       "Read(//c/Users/VAL/Desktop/v1-erp/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__8d7189e2-c147-4d10-9e71-6167f3fb83df__apply_migration",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

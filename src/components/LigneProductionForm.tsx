@@ -4,10 +4,18 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Users } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { LigneProduction, ChefLigne, ArretProductionForm as ArretFormType } from "@/types/production";
-import { ArretProductionForm } from "./ArretProductionForm";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  LigneProduction,
+  ChefLigne,
+  ArretProductionForm as ArretFormType,
+  ARRET_CATEGORIES,
+  ARRET_LABELS,
+  ArretType
+} from "@/types/production";
 import { Switch } from "@/components/ui/switch";
 
 interface LigneProductionFormProps {
@@ -22,10 +30,27 @@ interface LigneProductionFormProps {
    *  Active et n'a pas encore d'heures propres. */
   shiftDebut?: string;
   shiftFin?: string;
+  allAgents: any[];
+  agentPresences: Record<string, boolean>;
+  onAgentPresenceChange: (agentId: string, numeroLigne: number, present: boolean) => void;
 }
 
-export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12Only = false, isOpen, onToggle, shiftDebut, shiftFin }: LigneProductionFormProps) => {
+export const LigneProductionForm = ({
+  ligne,
+  index,
+  chefsLigne,
+  onUpdate,
+  isB12Only = false,
+  isOpen,
+  onToggle,
+  shiftDebut,
+  shiftFin,
+  allAgents,
+  agentPresences,
+  onAgentPresenceChange
+}: LigneProductionFormProps) => {
   const actif = ligne.actif !== false; // défaut Actif
+  const [showLigneEffectifDialog, setShowLigneEffectifDialog] = useState(false);
 
   const handleToggleActif = (next: boolean) => {
     onUpdate(index, 'actif', next);
@@ -64,6 +89,11 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
 
   const tonnage = tonnageRecharges + tonnageConsignes;
 
+  const newMotifsList = ARRET_CATEGORIES.flatMap(c => c.motifs);
+  const legacyArrets = (ligne.arrets || []).filter(a => !newMotifsList.includes(a.type_arret));
+  const tempsArretCumule = (ligne.arrets || []).reduce((sum, a) => sum + (a.duree_minutes || 0), 0);
+  const lineAgents = allAgents.filter(a => a.lignes_affectees?.includes(ligne.numero_ligne));
+
   // Mettre à jour les valeurs calculées dans le parent
   useEffect(() => {
     onUpdate(index, 'cumul_recharges_b6', cumulRechargesB6);
@@ -86,28 +116,31 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
     ligne.consignes_vivo_b6, ligne.consignes_vivo_b12, ligne.consignes_vivo_b28, ligne.consignes_vivo_b38
   ]);
 
-  const handleAddArret = () => {
-    const newArret: ArretFormType = {
-      numero_ligne: ligne.numero_ligne,
-      duree_minutes: 0,
-      type_arret: 'maintenance_corrective',
-      ordre_intervention: '',
-      etape_ligne: undefined,
-      description: '',
-      action_corrective: ''
-    };
-    const updatedArrets = [...(ligne.arrets || []), newArret];
-    onUpdate(index, 'arrets', updatedArrets);
+  const getDureeForMotif = (motif: ArretType): number => {
+    const found = (ligne.arrets || []).find(a => a.type_arret === motif);
+    return found?.duree_minutes || 0;
   };
 
-  const handleUpdateArret = (arretIndex: number, field: keyof ArretFormType, value: any) => {
-    const updatedArrets = [...(ligne.arrets || [])];
-    updatedArrets[arretIndex] = { ...updatedArrets[arretIndex], [field]: value };
-    onUpdate(index, 'arrets', updatedArrets);
-  };
+  const handleDureeChange = (motif: ArretType, value: number) => {
+    let updatedArrets = [...(ligne.arrets || [])];
+    const existingIndex = updatedArrets.findIndex(a => a.type_arret === motif);
 
-  const handleRemoveArret = (arretIndex: number) => {
-    const updatedArrets = (ligne.arrets || []).filter((_, i) => i !== arretIndex);
+    if (value > 0) {
+      const arretObj: ArretFormType = {
+        numero_ligne: ligne.numero_ligne,
+        duree_minutes: value,
+        type_arret: motif,
+      };
+      if (existingIndex > -1) {
+        updatedArrets[existingIndex] = arretObj;
+      } else {
+        updatedArrets.push(arretObj);
+      }
+    } else {
+      if (existingIndex > -1) {
+        updatedArrets.splice(existingIndex, 1);
+      }
+    }
     onUpdate(index, 'arrets', updatedArrets);
   };
 
@@ -211,19 +244,19 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
               </div>
 
               <div>
-                <Label htmlFor={`ligne-agents-${index}`}>Nombre d'agents</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id={`ligne-agents-${index}`}
-                    type="number"
-                    min="0"
-                    max={[0, 1].includes(index) ? 8 : [2, 3].includes(index) ? 14 : 10}
-                    value={ligne.nombre_agents || ''}
-                    onChange={(e) => onUpdate(index, 'nombre_agents', parseInt(e.target.value) || 0)}
-                    className="w-20"
-                  />
-                  <span className="text-muted-foreground">
-                    / {[0, 1].includes(index) ? '08' : [2, 3].includes(index) ? '14' : '10'}
+                <Label>Effectif Ligne</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowLigneEffectifDialog(true)}
+                    className="gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Gérer l'effectif ({ligne.nombre_agents || 0} présents)
+                  </Button>
+                  <span className="text-muted-foreground text-sm">
+                    / {[0, 1].includes(index) ? '08' : [2, 3].includes(index) ? '14' : '10'} max
                   </span>
                 </div>
               </div>
@@ -646,41 +679,136 @@ export const LigneProductionForm = ({ ligne, index, chefsLigne, onUpdate, isB12O
             </div>
 
 
-            {/* Arrêts de production */}
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-sm">Arrêts de production pour cette ligne</h4>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddArret}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Ajouter un arrêt
-                </Button>
+            {/* Arrêts de production - Refonte */}
+            <div className="space-y-4 pt-4 border-t">
+              <h4 className="font-semibold text-sm">Arrêts de production</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {ARRET_CATEGORIES.map((cat, catIdx) => {
+                  const subTotal = cat.motifs.reduce((sum, motif) => sum + getDureeForMotif(motif), 0);
+                  return (
+                    <div key={catIdx} className="space-y-3 border rounded-lg p-3 bg-card">
+                      <h5 className="font-medium text-sm text-orange-500">{cat.label}</h5>
+                      <div className="space-y-2">
+                        {cat.motifs.map((motif) => {
+                          const val = getDureeForMotif(motif);
+                          return (
+                            <div key={motif} className="flex items-center justify-between gap-2">
+                              <Label htmlFor={`ligne-${index}-arret-${motif}`} className="text-xs flex-1">
+                                {ARRET_LABELS[motif] || motif}
+                              </Label>
+                              <div className="flex items-center gap-1.5">
+                                <Input
+                                  id={`ligne-${index}-arret-${motif}`}
+                                  type="number"
+                                  min="0"
+                                  value={val || ''}
+                                  onChange={(e) => handleDureeChange(motif, parseInt(e.target.value) || 0)}
+                                  className="w-20 text-right"
+                                  placeholder="0"
+                                />
+                                <span className="text-xs text-muted-foreground">min</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="text-xs font-semibold bg-muted/40 p-2 rounded text-right mt-2">
+                        Sous-total {cat.label}: {subTotal} min
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              {ligne.arrets && ligne.arrets.length > 0 ? (
-                <div className="space-y-3">
-                  {ligne.arrets.map((arret, arretIndex) => (
-                    <ArretProductionForm
-                      key={arretIndex}
-                      arret={arret}
-                      index={arretIndex}
-                      onUpdate={handleUpdateArret}
-                      onRemove={handleRemoveArret}
-                      numeroLigne={ligne.numero_ligne}
-                    />
-                  ))}
+              {/* legacy stops */}
+              {legacyArrets.length > 0 && (
+                <div className="border border-yellow-200 bg-yellow-50/50 rounded-lg p-3 space-y-2">
+                  <h5 className="text-xs font-semibold text-yellow-800 uppercase tracking-wider">
+                    Arrêts Historiques (Lecture seule)
+                  </h5>
+                  <div className="space-y-1">
+                    {legacyArrets.map((arret, idx) => (
+                      <div key={idx} className="flex justify-between text-xs text-yellow-900">
+                        <span>{ARRET_LABELS[arret.type_arret] || arret.type_arret} {arret.description ? `(${arret.description})` : ''}</span>
+                        <span className="font-medium">{arret.duree_minutes} min</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-yellow-700 italic">
+                    Ces arrêts proviennent d'une saisie ancienne. Si vous les modifiez, ils seront convertis au nouveau format.
+                  </p>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Aucun arrêt enregistré pour cette ligne
-                </p>
               )}
+
+              {/* Cumul total arrêts de la ligne */}
+              <div className="p-3 bg-primary/10 rounded-md">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">Temps d'arrêt cumulé:</span>
+                  <span className="text-sm font-bold text-primary">{tempsArretCumule} min</span>
+                </div>
+              </div>
             </div>
+
+            {/* Dialog Effectif Ligne */}
+            <Dialog open={showLigneEffectifDialog} onOpenChange={setShowLigneEffectifDialog}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Effectif Ligne {ligne.numero_ligne}</DialogTitle>
+                  <DialogDescription>
+                    Liste des agents affectés à la Ligne {ligne.numero_ligne}. Cochez pour marquer la présence.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 my-4 max-h-[400px] overflow-y-auto pr-2">
+                  {lineAgents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Aucun agent affecté à cette ligne. Vous pouvez en affecter depuis la page /agents.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {lineAgents.map((agent) => {
+                        const isPresent = agentPresences[`${agent.id}_${ligne.numero_ligne}`] !== false;
+                        return (
+                          <div
+                            key={agent.id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30"
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">
+                                {agent.prenom} {agent.nom}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {agent.role === 'chef_ligne' ? 'Chef de Ligne' : agent.role === 'chef_quart' ? 'Chef de Quart' : agent.role === 'chef_equipe_atelier' ? "Chef d'équipe atelier" : agent.role === 'agent_exploitation' ? 'Agent Exploitation' : agent.role === 'agent_mouvement' ? 'Agent Mouvement' : agent.role}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`ligne-${ligne.numero_ligne}-presence-${agent.id}`}
+                                checked={isPresent}
+                                onCheckedChange={(checked) => {
+                                  onAgentPresenceChange(agent.id, ligne.numero_ligne, checked === true);
+                                }}
+                              />
+                              <Label
+                                htmlFor={`ligne-${ligne.numero_ligne}-presence-${agent.id}`}
+                                className="text-xs text-muted-foreground cursor-pointer"
+                              >
+                                {isPresent ? 'Présent' : 'Absent'}
+                              </Label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <Button type="button" onClick={() => setShowLigneEffectifDialog(false)}>
+                    Fermer
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           )}
         </CollapsibleContent>

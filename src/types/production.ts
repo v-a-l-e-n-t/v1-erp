@@ -1,8 +1,15 @@
 export type ShiftType = '10h-19h' | '20h-5h';
 export type LigneType = 'B6_L1' | 'B6_L2' | 'B6_L3' | 'B6_L4' | 'B12';
 export type ArretType =
-  | 'maintenance_corrective'
+  | 'causerie_securite'
+  | 'exercice_securite'
   | 'manque_personnel'
+  | 'perte_vitesse'
+  | 'lenteur_cariste'
+  | 'panne_palettiseur'
+  | 'autre_panne'
+  // Legacy types (conservés pour compatibilité historique)
+  | 'maintenance_corrective'
   | 'probleme_approvisionnement'
   | 'panne_ligne'
   | 'autre';
@@ -88,6 +95,32 @@ export interface ProductionShift {
   cumul_consignes_total?: number;
   temps_arret_total_minutes?: number;
   arret_shift_cumul?: number;
+  // Stock Outil (niveau Shift)
+  stock_outil_pi_b6_vides?: number;
+  stock_outil_pi_b6_pleines?: number;
+  stock_outil_pi_b12_vides?: number;
+  stock_outil_pi_b12_pleines?: number;
+  stock_outil_vivo_b6_vides?: number;
+  stock_outil_vivo_b6_pleines?: number;
+  stock_outil_vivo_b12_vides?: number;
+  stock_outil_vivo_b12_pleines?: number;
+  stock_outil_total_b6_vides?: number;
+  stock_outil_total_b6_pleines?: number;
+  stock_outil_total_b12_vides?: number;
+  stock_outil_total_b12_pleines?: number;
+  // Consignes (niveau Shift)
+  consignes_shift_pi_b6_vides?: number;
+  consignes_shift_pi_b6_pleines?: number;
+  consignes_shift_pi_b12_vides?: number;
+  consignes_shift_pi_b12_pleines?: number;
+  consignes_shift_vivo_b6_vides?: number;
+  consignes_shift_vivo_b6_pleines?: number;
+  consignes_shift_vivo_b12_vides?: number;
+  consignes_shift_vivo_b12_pleines?: number;
+  consignes_shift_total_b6_vides?: number;
+  consignes_shift_total_b6_pleines?: number;
+  consignes_shift_total_b12_vides?: number;
+  consignes_shift_total_b12_pleines?: number;
   user_id?: string;
   last_modified_by?: string;
   last_modified_at?: string;
@@ -168,17 +201,40 @@ export interface ArretProduction {
 }
 
 export const SHIFT_HOURS = {
-  '10h-19h': { debut: '10:00', fin: '19:00' },
-  '20h-5h': { debut: '20:00', fin: '05:00' }
+  '10h-19h': { debut: '11:30', fin: '20:30' },
+  '20h-5h': { debut: '21:30', fin: '05:30' }
 } as const;
 
 export const ARRET_LABELS: Record<ArretType, string> = {
-  maintenance_corrective: 'Maintenance corrective',
+  causerie_securite: 'Causerie sécurité',
+  exercice_securite: 'Exercice sécurité',
   manque_personnel: 'Manque de personnel',
-  probleme_approvisionnement: 'Problème approvisionnement produit',
+  perte_vitesse: 'Perte de vitesse',
+  lenteur_cariste: 'Lenteur cariste',
+  panne_palettiseur: 'Panne palettiseur',
+  autre_panne: 'Autre panne',
+  // Legacy
+  maintenance_corrective: 'Maintenance corrective',
+  probleme_approvisionnement: 'Problème approvisionnement',
   panne_ligne: 'Pannes sur la ligne',
-  autre: 'Autre'
+  autre: 'Autre',
 };
+
+/** Motifs d'arrêt regroupés par catégorie pour l'affichage en saisie. */
+export const ARRET_CATEGORIES: { label: string; motifs: ArretType[] }[] = [
+  {
+    label: 'Sécurité',
+    motifs: ['causerie_securite', 'exercice_securite'],
+  },
+  {
+    label: 'Ressources',
+    motifs: ['manque_personnel', 'perte_vitesse', 'lenteur_cariste'],
+  },
+  {
+    label: 'Pannes',
+    motifs: ['panne_palettiseur', 'autre_panne'],
+  },
+];
 
 export const ETAPE_LABELS: Record<EtapeLigne, string> = {
   BASCULES: 'Bascules',

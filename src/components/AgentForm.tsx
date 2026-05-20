@@ -29,7 +29,14 @@ interface AgentFormProps {
     loading: boolean;
 }
 
-const LIGNES = [1, 2, 3, 4, 5] as const;
+const AFFECTATIONS = [
+  { value: 0, label: 'Shift' },
+  { value: 1, label: 'Ligne 1' },
+  { value: 2, label: 'Ligne 2' },
+  { value: 3, label: 'Ligne 3' },
+  { value: 4, label: 'Ligne 4' },
+  { value: 5, label: 'Ligne 5' },
+] as const;
 
 export const AgentForm = ({ agent, roles, onSubmit, onCancel, loading }: AgentFormProps) => {
     const [formData, setFormData] = useState({
@@ -166,13 +173,13 @@ export const AgentForm = ({ agent, roles, onSubmit, onCancel, loading }: AgentFo
 
                     {!isChefQuart && (
                         <div>
-                            <Label>Lignes d'affectation</Label>
+                            <Label>Affectation</Label>
                             <p className="text-xs text-muted-foreground mb-2">
-                                Coche les lignes sur lesquelles l'agent peut travailler.
+                                Coche les affectations de l'agent.
                                 Laisse vide si non applicable.
                             </p>
                             <div className="flex flex-wrap gap-3">
-                                {LIGNES.map(n => (
+                                {AFFECTATIONS.map(({ value: n, label }) => (
                                     <label
                                         key={n}
                                         className="flex items-center gap-2 px-3 py-1.5 border rounded-md cursor-pointer hover:bg-muted/30"
@@ -181,7 +188,7 @@ export const AgentForm = ({ agent, roles, onSubmit, onCancel, loading }: AgentFo
                                             checked={lignesAffectees.includes(n)}
                                             onCheckedChange={() => toggleLigne(n)}
                                         />
-                                        <span className="text-sm font-medium">Ligne {n}</span>
+                                        <span className="text-sm font-medium">{label}</span>
                                     </label>
                                 ))}
                             </div>
@@ -189,7 +196,7 @@ export const AgentForm = ({ agent, roles, onSubmit, onCancel, loading }: AgentFo
                     )}
                     {isChefQuart && (
                         <p className="text-xs text-muted-foreground italic">
-                            Un chef de quart n'est pas affecté à une ligne spécifique.
+                            Un chef de quart n'est pas affecté à un poste spécifique.
                         </p>
                     )}
 
