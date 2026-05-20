@@ -4,6 +4,7 @@ export type ArretType =
   | 'causerie_securite'
   | 'exercice_securite'
   | 'manque_personnel'
+  | 'manque_bouteilles'
   | 'perte_vitesse'
   | 'lenteur_cariste'
   | 'panne_palettiseur'
@@ -210,6 +211,7 @@ export const ARRET_LABELS: Record<ArretType, string> = {
   causerie_securite: 'Causerie sécurité',
   exercice_securite: 'Exercice sécurité',
   manque_personnel: 'Manque de personnel',
+  manque_bouteilles: 'Manque de bouteilles',
   perte_vitesse: 'Perte de vitesse',
   lenteur_cariste: 'Lenteur cariste',
   panne_palettiseur: 'Panne palettiseur',
@@ -229,7 +231,7 @@ export const ARRET_CATEGORIES: { label: string; motifs: ArretType[] }[] = [
   },
   {
     label: 'Ressources',
-    motifs: ['manque_personnel', 'perte_vitesse', 'lenteur_cariste'],
+    motifs: ['manque_personnel', 'manque_bouteilles', 'perte_vitesse', 'lenteur_cariste'],
   },
   {
     label: 'Pannes',

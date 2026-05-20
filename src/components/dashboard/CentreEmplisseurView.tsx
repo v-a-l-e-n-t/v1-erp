@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
-import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown, ChevronDown, ChevronUp, Camera, FileText } from 'lucide-react';
+import { Loader2, Factory, Users, ArrowUp, ArrowDown, Calendar as CalendarIcon, Package, Download, FileDown, ChevronDown, ChevronUp, Camera, FileText, Eye, EyeOff } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -82,6 +82,7 @@ const categorizeArret = (type: string): 'Sécurité' | 'Ressources' | 'Pannes' |
         case 'exercice_securite':
             return 'Sécurité';
         case 'manque_personnel':
+        case 'manque_bouteilles':
         case 'perte_vitesse':
         case 'lenteur_cariste':
             return 'Ressources';
@@ -99,6 +100,7 @@ const ARRET_LABELS: Record<string, string> = {
     causerie_securite: 'Causerie sécurité',
     exercice_securite: 'Exercice sécurité',
     manque_personnel: 'Manque de personnel',
+    manque_bouteilles: 'Manque de bouteilles',
     perte_vitesse: 'Perte de vitesse',
     lenteur_cariste: 'Lenteur cariste',
     panne_palettiseur: 'Panne palettiseur',
@@ -107,6 +109,147 @@ const ARRET_LABELS: Record<string, string> = {
     probleme_approvisionnement: 'Problème approvisionnement',
     panne_ligne: 'Pannes sur la ligne',
     autre: 'Autre',
+};
+
+type ShiftInventoryClientKey = 'pi' | 'vivo' | 'total';
+
+const SHIFT_INVENTORY_LOGOS: Record<ShiftInventoryClientKey, string> = {
+    pi: '/images/logo-petro.png',
+    vivo: '/images/logo-vivo.png',
+    total: '/images/logo-total.png',
+};
+
+const SHIFT_INVENTORY_CLIENT_KEYS: ShiftInventoryClientKey[] = ['pi', 'vivo', 'total'];
+
+type ShiftInventoryFormatRow = {
+    formatLabel: string;
+    vides: number;
+    pleines: number;
+    cumul: number;
+    tauxVides: number;
+    tauxPleines: number;
+};
+
+type ShiftInventoryClientBlock = {
+    clientKey: ShiftInventoryClientKey;
+    logoSrc: string;
+    rows: [ShiftInventoryFormatRow, ShiftInventoryFormatRow];
+};
+
+const aggregateShiftInventoryFormat = (
+    shifts: any[],
+    fieldPrefix: 'stock_outil' | 'consignes_shift',
+    clientKey: ShiftInventoryClientKey,
+    fmt: 'b6' | 'b12',
+): ShiftInventoryFormatRow => {
+    const vides = shifts.reduce(
+        (sum, s) => sum + (Number(s[`${fieldPrefix}_${clientKey}_${fmt}_vides`]) || 0),
+        0,
+    );
+    const pleines = shifts.reduce(
+        (sum, s) => sum + (Number(s[`${fieldPrefix}_${clientKey}_${fmt}_pleines`]) || 0),
+        0,
+    );
+    const cumul = vides + pleines;
+    const tauxVides = cumul > 0 ? (vides / cumul) * 100 : 0;
+    const tauxPleines = cumul > 0 ? (pleines / cumul) * 100 : 0;
+    return {
+        formatLabel: fmt === 'b6' ? 'B6' : 'B12',
+        vides,
+        pleines,
+        cumul,
+        tauxVides,
+        tauxPleines,
+    };
+};
+
+const buildShiftInventoryByClient = (
+    shifts: any[],
+    fieldPrefix: 'stock_outil' | 'consignes_shift',
+): ShiftInventoryClientBlock[] =>
+    SHIFT_INVENTORY_CLIENT_KEYS.map((clientKey) => ({
+        clientKey,
+        logoSrc: SHIFT_INVENTORY_LOGOS[clientKey],
+        rows: [
+            aggregateShiftInventoryFormat(shifts, fieldPrefix, clientKey, 'b6'),
+            aggregateShiftInventoryFormat(shifts, fieldPrefix, clientKey, 'b12'),
+        ],
+    }));
+
+const ShiftInventoryQtyTauxCell = ({ qty, taux }: { qty: number; taux: number }) => (
+    <td className="p-2 text-right align-middle tabular-nums">
+        <div className="font-semibold">{qty.toLocaleString('fr-FR')}</div>
+        <div className="text-[10px] text-muted-foreground">{taux.toFixed(1)} %</div>
+    </td>
+);
+
+const ShiftInventoryTable = ({ title, clients }: { title: string; clients: ShiftInventoryClientBlock[] }) => {
+    const totalCumulTable = clients.reduce(
+        (s, b) => s + b.rows[0].cumul + b.rows[1].cumul,
+        0,
+    );
+    return (
+    <div className="space-y-2 min-w-0">
+        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{title}</h4>
+        <div className="overflow-x-auto rounded-md border bg-card">
+            <table className="w-full text-xs border-collapse">
+                <thead>
+                    <tr className="bg-muted/50 border-b">
+                        <th className="p-2 text-center font-semibold w-[76px] border-r">Client</th>
+                        <th className="p-2 text-center font-semibold w-14">Format</th>
+                        <th className="p-2 text-right font-semibold">
+                            Vides
+                            <span className="block text-[10px] font-normal text-muted-foreground normal-case">avec taux</span>
+                        </th>
+                        <th className="p-2 text-right font-semibold">
+                            Pleines
+                            <span className="block text-[10px] font-normal text-muted-foreground normal-case">avec taux</span>
+                        </th>
+                        <th className="p-2 text-right font-semibold">
+                            Cumul
+                            <span className="block text-[10px] font-normal text-muted-foreground normal-case">avec taux</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-border/80">
+                    {clients.map((block) => (
+                        <Fragment key={block.clientKey}>
+                            <tr>
+                                <td
+                                    rowSpan={2}
+                                    className="p-2 align-middle text-center border-r bg-muted/15"
+                                >
+                                    <img
+                                        src={block.logoSrc}
+                                        alt=""
+                                        className="h-9 w-auto max-w-[64px] mx-auto object-contain"
+                                        loading="lazy"
+                                    />
+                                </td>
+                                <td className="p-2 text-center font-medium">{block.rows[0].formatLabel}</td>
+                                <ShiftInventoryQtyTauxCell qty={block.rows[0].vides} taux={block.rows[0].tauxVides} />
+                                <ShiftInventoryQtyTauxCell qty={block.rows[0].pleines} taux={block.rows[0].tauxPleines} />
+                                <ShiftInventoryQtyTauxCell
+                                    qty={block.rows[0].cumul}
+                                    taux={totalCumulTable > 0 ? (block.rows[0].cumul / totalCumulTable) * 100 : 0}
+                                />
+                            </tr>
+                            <tr>
+                                <td className="p-2 text-center font-medium">{block.rows[1].formatLabel}</td>
+                                <ShiftInventoryQtyTauxCell qty={block.rows[1].vides} taux={block.rows[1].tauxVides} />
+                                <ShiftInventoryQtyTauxCell qty={block.rows[1].pleines} taux={block.rows[1].tauxPleines} />
+                                <ShiftInventoryQtyTauxCell
+                                    qty={block.rows[1].cumul}
+                                    taux={totalCumulTable > 0 ? (block.rows[1].cumul / totalCumulTable) * 100 : 0}
+                                />
+                            </tr>
+                        </Fragment>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    );
 };
 
 /**
@@ -175,6 +318,12 @@ const CentreEmplisseurView = ({
     const [isArretsExpanded, setIsArretsExpanded] = useState(false);
     const [arretFilter, setArretFilter] = useState<'Tous' | 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre'>('Tous');
     const [rawShifts, setRawShifts] = useState<any[]>([]);
+    const [showShiftStockConsignes, setShowShiftStockConsignes] = useState(false);
+
+    const shiftInventoryStats = useMemo(() => ({
+        stockOutil: buildShiftInventoryByClient(rawShifts, 'stock_outil'),
+        consignes: buildShiftInventoryByClient(rawShifts, 'consignes_shift'),
+    }), [rawShifts]);
 
     // Export utility functions
     const exportSectionAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
@@ -282,7 +431,8 @@ const CentreEmplisseurView = ({
     const [stats, setStats] = useState({
         // Global
         totalTonnage: 0,
-        averageOpeningHours: 0,
+        totalOpeningHours: 0,
+        averageOpeningHoursPerDay: 0,
         periodTarget: 0,
         performancePct: 0,
         shift1: { tonnage: 0, recharges: 0, consignes: 0 },
@@ -664,13 +814,15 @@ const CentreEmplisseurView = ({
                 totalDailyRealOpeningHours += dailyOpeningHours[d];
             });
 
-            const averageOpeningHours = numDays > 0 ? totalDailyRealOpeningHours / numDays : 0;
-            const periodTarget = numDays > 0 ? numDays * ((averageOpeningHours * 720) / 16) : 0;
+            const totalOpeningHours = totalDailyRealOpeningHours;
+            const averageOpeningHoursPerDay = numDays > 0 ? totalDailyRealOpeningHours / numDays : 0;
+            const periodTarget = totalOpeningHours > 0 ? (totalOpeningHours * 720) / 16 : 0;
             const performancePct = periodTarget > 0 ? (totalTonnage / periodTarget) * 100 : 0;
 
             setStats({
                 totalTonnage,
-                averageOpeningHours,
+                totalOpeningHours,
+                averageOpeningHoursPerDay,
                 periodTarget,
                 performancePct,
                 shift1: {
@@ -2050,6 +2202,23 @@ const CentreEmplisseurView = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowShiftStockConsignes((v) => !v)}
+                        className="gap-1 sm:gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm h-8 sm:h-9"
+                        title={showShiftStockConsignes ? 'Masquer stock et consignes' : 'Afficher stock et consignes'}
+                    >
+                        {showShiftStockConsignes ? (
+                            <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        ) : (
+                            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        )}
+                        <span className="hidden sm:inline">
+                            {showShiftStockConsignes ? 'Masquer' : 'Afficher'} stock &amp; consignes
+                        </span>
+                    </Button>
                     <Select value={filterType} onValueChange={(v: 'all' | 'year' | 'month' | 'period' | 'day') => setFilterType(v)}>
                         <SelectTrigger className="h-8 sm:h-9 w-[140px] sm:w-[160px] text-xs sm:text-sm">
                             <SelectValue />
@@ -2154,6 +2323,24 @@ const CentreEmplisseurView = ({
                 </div>
             </div>
 
+            {showShiftStockConsignes && (
+                <div className="rounded-lg border bg-card/80 p-3 sm:p-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                    <p className="text-xs text-muted-foreground mb-3">
+                        Informations du shift — stock outil et consignes (cumul sur la période filtrée)
+                    </p>
+                    {rawShifts.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                            Aucune donnée de shift pour la période sélectionnée.
+                        </p>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                            <ShiftInventoryTable title="Stock outil" clients={shiftInventoryStats.stockOutil} />
+                            <ShiftInventoryTable title="Consignes" clients={shiftInventoryStats.consignes} />
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* 1. PRODUCTION GLOBALE - NEW LAYOUT */}
             <Card className="border-l-4 border-l-primary">
                 <CardHeader>
@@ -2212,10 +2399,18 @@ const CentreEmplisseurView = ({
                                         </p>
                                     </div>
                                     <div className="p-2 bg-card/60 backdrop-blur-sm rounded-md border shadow-sm">
-                                        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium">Moy. Ouverture</p>
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium">
+                                            {filterType === 'day' ? 'Moy. Ouverture' : 'Ouverture'}
+                                        </p>
                                         <p className="text-sm sm:text-lg font-bold text-slate-800 tabular-nums">
-                                            {formatHours(stats.averageOpeningHours || 0)}
-                                            <span className="text-[10px] font-normal text-muted-foreground ml-0.5 font-sans">/j</span>
+                                            {formatHours(
+                                                filterType === 'day'
+                                                    ? (stats.averageOpeningHoursPerDay || 0)
+                                                    : (stats.totalOpeningHours || 0),
+                                            )}
+                                            {filterType === 'day' && (
+                                                <span className="text-[10px] font-normal text-muted-foreground ml-0.5 font-sans">/j</span>
+                                            )}
                                         </p>
                                     </div>
                                 </div>
@@ -3496,7 +3691,7 @@ const CentreEmplisseurView = ({
                                                             </p>
                                                         </div>
                                                         <div className="p-2 bg-white/60 rounded-md border border-orange-100">
-                                                            <p className="text-xs text-muted-foreground mb-1 font-medium">Temps Réel de prod.</p>
+                                                            <p className="text-xs text-muted-foreground mb-1 font-medium">Temps Réel Ouverture</p>
                                                             <p className="text-lg font-bold text-blue-700 tabular-nums">
                                                                 {formatHours(tabData.totalHeuresShift || 0)}
                                                             </p>

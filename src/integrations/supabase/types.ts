@@ -1867,9 +1867,16 @@ export type Database = {
       arret_type:
         | "maintenance_corrective"
         | "manque_personnel"
+        | "manque_bouteilles"
         | "probleme_approvisionnement"
         | "panne_ligne"
         | "autre"
+        | "causerie_securite"
+        | "exercice_securite"
+        | "perte_vitesse"
+        | "lenteur_cariste"
+        | "panne_palettiseur"
+        | "autre_panne"
       etape_ligne:
         | "BASCULES"
         | "PURGE"
@@ -2016,9 +2023,16 @@ export const Constants = {
       arret_type: [
         "maintenance_corrective",
         "manque_personnel",
+        "manque_bouteilles",
         "probleme_approvisionnement",
         "panne_ligne",
         "autre",
+        "causerie_securite",
+        "exercice_securite",
+        "perte_vitesse",
+        "lenteur_cariste",
+        "panne_palettiseur",
+        "autre_panne",
       ],
       etape_ligne: [
         "BASCULES",
