@@ -786,12 +786,13 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
         );
         arretShiftCumul += tempsArretLigne;
 
-        // Ajouter les arrêts à la liste (sans les durées, uniquement les infos descriptives)
+        // Ajouter les arrêts à la liste avec la durée pour la stocker en base
         if (ligne.arrets && ligne.arrets.length > 0) {
           ligne.arrets.forEach(arret => {
             allArrets.push({
               type_arret: arret.type_arret,
               numero_ligne: ligne.numero_ligne,
+              duree_minutes: Number(arret.duree_minutes) || 0,
               ordre_intervention: arret.ordre_intervention || undefined,
               etape_ligne: arret.etape_ligne || undefined,
               description: arret.description || undefined,

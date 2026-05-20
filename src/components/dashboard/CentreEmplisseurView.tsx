@@ -61,6 +61,39 @@ const calculateLigneHours = (ligne: any): number => {
     return 9;
 };
 
+const categorizeArret = (type: string): 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre' => {
+    switch (type) {
+        case 'causerie_securite':
+        case 'exercice_securite':
+            return 'Sécurité';
+        case 'manque_personnel':
+        case 'perte_vitesse':
+        case 'lenteur_cariste':
+            return 'Ressources';
+        case 'panne_palettiseur':
+        case 'autre_panne':
+        case 'maintenance_corrective':
+        case 'panne_ligne':
+            return 'Pannes';
+        default:
+            return 'Autre';
+    }
+};
+
+const ARRET_LABELS: Record<string, string> = {
+    causerie_securite: 'Causerie sécurité',
+    exercice_securite: 'Exercice sécurité',
+    manque_personnel: 'Manque de personnel',
+    perte_vitesse: 'Perte de vitesse',
+    lenteur_cariste: 'Lenteur cariste',
+    panne_palettiseur: 'Panne palettiseur',
+    autre_panne: 'Autre panne',
+    maintenance_corrective: 'Maintenance corrective',
+    probleme_approvisionnement: 'Problème approvisionnement',
+    panne_ligne: 'Pannes sur la ligne',
+    autre: 'Autre',
+};
+
 /**
  * Production théorique d'une ligne (en tonnes), basée sur ses heures propres
  * et son temps d'arrêt. Centralise la formule utilisée par "Détail par Ligne"
@@ -118,11 +151,15 @@ const CentreEmplisseurView = ({
     const section1Ref = useRef<HTMLDivElement>(null);
     const section2Ref = useRef<HTMLDivElement>(null);
     const section3Ref = useRef<HTMLDivElement>(null);
+    const sectionArretsRef = useRef<HTMLDivElement>(null);
     const agentModalRef = useRef<HTMLDivElement>(null);
 
     // Collapsible sections state
     const [isLinesExpanded, setIsLinesExpanded] = useState(false);
     const [isAgentsExpanded, setIsAgentsExpanded] = useState(false);
+    const [isArretsExpanded, setIsArretsExpanded] = useState(false);
+    const [arretFilter, setArretFilter] = useState<'Tous' | 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre'>('Tous');
+    const [rawShifts, setRawShifts] = useState<any[]>([]);
 
     // Export utility functions
     const exportSectionAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
@@ -214,10 +251,25 @@ const CentreEmplisseurView = ({
 
 
 
+    const formatHours = (v: number) => {
+        const h = Math.floor(v);
+        const m = Math.round((v - h) * 60);
+        return m === 60 ? `${h + 1}h00` : `${h}h${m.toString().padStart(2, '0')}`;
+    };
+
+    const formatMinutesToHours = (mins: number) => {
+        const h = Math.floor(mins / 60);
+        const m = Math.round(mins % 60);
+        return `${h}h${m.toString().padStart(2, '0')}`;
+    };
+
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         // Global
         totalTonnage: 0,
+        averageOpeningHours: 0,
+        periodTarget: 0,
+        performancePct: 0,
         shift1: { tonnage: 0, recharges: 0, consignes: 0 },
         shift2: { tonnage: 0, recharges: 0, consignes: 0 },
 
@@ -290,6 +342,61 @@ const CentreEmplisseurView = ({
         }).reverse();
     }, [selectedYear, filterType]);
 
+    // Analyse des arrêts par ligne et par motif
+    const arretStatsByLine = useMemo(() => {
+        return [1, 2, 3, 4, 5].map(lineId => {
+            let totalDuration = 0;
+            let incidentCount = 0;
+            const motifBreakdown: Record<string, { duration: number; count: number }> = {};
+
+            rawShifts.forEach(shift => {
+                const arrets = shift.arrets_production || [];
+                const lineArrets = arrets.filter((a: any) => Number(a.numero_ligne) === lineId);
+
+                // Get the total downtime of this line on this shift
+                const lineData = (shift.lignes_production || []).find((l: any) => Number(l.numero_ligne) === lineId);
+                const tempsArretTotal = lineData ? (Number(lineData.temps_arret_ligne_minutes) || 0) : 0;
+
+                lineArrets.forEach((arret: any) => {
+                    const cat = categorizeArret(arret.type_arret);
+                    
+                    if (arretFilter !== 'Tous' && cat !== arretFilter) {
+                        return;
+                    }
+
+                    // Fallback to equal distribution if duree_minutes is missing in database
+                    let duration = Number(arret.duree_minutes) || 0;
+                    if (duration === 0 && tempsArretTotal > 0 && lineArrets.length > 0) {
+                        duration = Math.round(tempsArretTotal / lineArrets.length);
+                    }
+
+                    totalDuration += duration;
+                    incidentCount += 1;
+
+                    const type = arret.type_arret || 'autre';
+                    if (!motifBreakdown[type]) {
+                        motifBreakdown[type] = { duration: 0, count: 0 };
+                    }
+                    motifBreakdown[type].duration += duration;
+                    motifBreakdown[type].count += 1;
+                });
+            });
+
+            return {
+                id: lineId,
+                totalDuration,
+                incidentCount,
+                motifs: Object.entries(motifBreakdown).map(([type, data]) => ({
+                    type,
+                    label: ARRET_LABELS[type] || type,
+                    ...data
+                })).sort((a, b) => b.duration - a.duration)
+            };
+        });
+    }, [rawShifts, arretFilter]);
+
+
+
 
     // Fetch agent details when modal opens
     useEffect(() => {
@@ -346,7 +453,7 @@ const CentreEmplisseurView = ({
     const fetchStats = async () => {
         setLoading(true);
         try {
-            let shiftsQuery = supabase.from('production_shifts').select('*, arrets_production(*)');
+            let shiftsQuery = supabase.from('production_shifts').select('*, arrets_production(*), lignes_production(*)');
             let linesQuery = supabase.from('lignes_production').select('*, production_shifts!inner(date, shift_type, heure_debut_reelle, heure_fin_reelle)');
 
             // Apply filters
@@ -512,8 +619,41 @@ const CentreEmplisseurView = ({
             const vivoTonnage = calculateClientTonnage(lines, 'vivo');
             const totalClientTonnage = calculateClientTonnage(lines, 'total');
 
+            // Calculate Performance du Centre
+            // Group shifts by date to find daily real opening hours
+            const shiftsByDate: Record<string, any[]> = {};
+            shifts.forEach(s => {
+                if (s.date) {
+                    if (!shiftsByDate[s.date]) {
+                        shiftsByDate[s.date] = [];
+                    }
+                    shiftsByDate[s.date].push(s);
+                }
+            });
+
+            const uniqueDates = Object.keys(shiftsByDate);
+            const numDays = uniqueDates.length;
+
+            let totalDailyRealOpeningHours = 0;
+            uniqueDates.forEach(d => {
+                let dayHours = 0;
+                shiftsByDate[d].forEach(s => {
+                    const start = s.heure_debut_reelle || '11:30';
+                    const end = s.heure_fin_reelle || (s.shift_type === '20h-5h' ? '05:30' : '20:30');
+                    dayHours += calculateShiftHours(start, end);
+                });
+                totalDailyRealOpeningHours += dayHours;
+            });
+
+            const averageOpeningHours = numDays > 0 ? totalDailyRealOpeningHours / numDays : 0;
+            const periodTarget = numDays > 0 ? numDays * ((averageOpeningHours * 765) / 17) : 0;
+            const performancePct = periodTarget > 0 ? (totalTonnage / periodTarget) * 100 : 0;
+
             setStats({
                 totalTonnage,
+                averageOpeningHours,
+                periodTarget,
+                performancePct,
                 shift1: {
                     tonnage: shifts.filter(s => s.shift_type === '10h-19h').reduce((sum, s) => sum + (Number(s.tonnage_total) || 0), 0),
                     recharges: shift1Recharges,
@@ -564,6 +704,7 @@ const CentreEmplisseurView = ({
                 },
                 dailyHistory: {}
             });
+            setRawShifts(shifts);
 
         } catch (error) {
             console.error('Error fetching production stats:', error);
@@ -825,7 +966,7 @@ const CentreEmplisseurView = ({
             // Fetch all lignes_production for this line and period
             const { data: lignesData, error: lignesError } = await supabase
                 .from('lignes_production')
-                .select('*, production_shifts!inner(*)')
+                .select('*, production_shifts!inner(*, arrets_production(*))')
                 .eq('numero_ligne', lineNumber)
                 .gte('production_shifts.date', startDate)
                 .lte('production_shifts.date', endDate);
@@ -846,6 +987,11 @@ const CentreEmplisseurView = ({
                 let totalRecharges = 0;
                 let totalConsignes = 0;
                 let totalHeuresShift = 0;
+                let totalTempsTheorique = 0;
+                let arretsSecurite = 0;
+                let arretsRessources = 0;
+                let arretsPannes = 0;
+                let arretsAutre = 0;
                 const formatBreakdown: any = {};
 
                 lignesList.forEach((ligne: any) => {
@@ -914,10 +1060,32 @@ const CentreEmplisseurView = ({
                         totalConsignes += (ligne.cumul_consignes_b12 || 0) + (ligne.cumul_consignes_b28 || 0) + (ligne.cumul_consignes_b38 || 0);
                     }
 
-                    // Heures réelles de la ligne sur cette session : utilise les
-                    // heures propres si renseignées, retourne 0 si la ligne est
-                    // marquée Inactive, sinon fallback sur les heures du shift.
+                    // Heures réelles de la ligne sur cette session
                     totalHeuresShift += calculateLigneHours(ligne);
+
+                    // Temps Théorique
+                    const shift = ligne.production_shifts;
+                    if (ligne.actif !== false) {
+                        const start = shift?.heure_debut_theorique || '11:30';
+                        const end = shift?.heure_fin_theorique || (shift?.shift_type === '20h-5h' ? '05:30' : '20:30');
+                        totalTempsTheorique += calculateShiftHours(start, end);
+                    }
+
+                    // Categorize downtime categories
+                    const arrets = shift?.arrets_production || [];
+                    const lineArrets = arrets.filter((a: any) => Number(a.numero_ligne) === lineNumber);
+                    const tempsArretTotal = Number(ligne.temps_arret_ligne_minutes) || 0;
+                    lineArrets.forEach((arret: any) => {
+                        let duration = Number(arret.duree_minutes) || 0;
+                        if (duration === 0 && tempsArretTotal > 0 && lineArrets.length > 0) {
+                            duration = Math.round(tempsArretTotal / lineArrets.length);
+                        }
+                        const cat = categorizeArret(arret.type_arret);
+                        if (cat === 'Sécurité') arretsSecurite += duration;
+                        else if (cat === 'Ressources') arretsRessources += duration;
+                        else if (cat === 'Pannes') arretsPannes += duration;
+                        else arretsAutre += duration;
+                    });
                 });
 
                 // Calculate theoretical production and productivity
@@ -944,6 +1112,11 @@ const CentreEmplisseurView = ({
                     totalHeuresShift,
                     heuresProductives,
                     totalTempsArret,
+                    totalTempsTheorique,
+                    arretsSecurite,
+                    arretsRessources,
+                    arretsPannes,
+                    arretsAutre,
                     totalBouteilles: totalRecharges + totalConsignes,
                     bouteillesAttendu,
                     totalRecharges,
@@ -2002,6 +2175,33 @@ const CentreEmplisseurView = ({
                                 </p>
                             </div>
 
+                            {/* Performance du Centre */}
+                            <div className="mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 text-center">
+                                <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-2">PERFORMANCE DU CENTRE</p>
+                                <div className="grid grid-cols-3 gap-2 sm:gap-4 items-center">
+                                    <div className="p-2 bg-card/60 backdrop-blur-sm rounded-md border shadow-sm">
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium">Tonnage Cible</p>
+                                        <p className="text-sm sm:text-lg font-bold text-slate-800 tabular-nums">
+                                            {((stats.periodTarget || 0) * 1000).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                                            <span className="text-xs font-normal text-muted-foreground ml-1">Kg</span>
+                                        </p>
+                                    </div>
+                                    <div className="p-2 bg-card/60 backdrop-blur-sm rounded-md border shadow-sm border-blue-500/30">
+                                        <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-400 uppercase font-bold">Taux (%)</p>
+                                        <p className="text-base sm:text-2xl font-black text-blue-600 tabular-nums">
+                                            {(stats.performancePct || 0).toFixed(1)}%
+                                        </p>
+                                    </div>
+                                    <div className="p-2 bg-card/60 backdrop-blur-sm rounded-md border shadow-sm">
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium">Moy. Ouverture</p>
+                                        <p className="text-sm sm:text-lg font-bold text-slate-800 tabular-nums">
+                                            {formatHours(stats.averageOpeningHours || 0)}
+                                            <span className="text-[10px] font-normal text-muted-foreground ml-0.5 font-sans">/j</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Total Recharges et Consignes */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-primary/20">
                                 <div className="bg-card p-3 rounded-md border shadow-sm">
@@ -2231,14 +2431,6 @@ const CentreEmplisseurView = ({
                                                 <p className="text-xs text-muted-foreground uppercase font-semibold">Productivité</p>
                                                 <p className={`text-xl font-extrabold ${textClass}`}>
                                                     {line.productivite.toFixed(1)}%
-                                                </p>
-                                            </div>
-
-                                            {/* Temps d'arrêt */}
-                                            <div className="text-center mb-3">
-                                                <p className="text-xs text-muted-foreground uppercase font-semibold">Temps d'arrêt</p>
-                                                <p className="text-lg font-bold text-orange-600">
-                                                    {formatTime(line.tempsArret)}
                                                 </p>
                                             </div>
 
@@ -2643,6 +2835,155 @@ const CentreEmplisseurView = ({
                                     </div>
                                 </>
                             )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* 3. ANALYSE DES TEMPS D'ARRÊT */}
+            <Card className="border-l-4 border-l-red-500">
+                <CardHeader>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div
+                            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1 min-w-0"
+                            onClick={() => setIsArretsExpanded(!isArretsExpanded)}
+                        >
+                            {isArretsExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                            <CardTitle className="text-xl flex items-center gap-2">
+                                <span className="text-lg">⏱️</span>
+                                <span>ANALYSE DES TEMPS D'ARRÊT</span>
+                            </CardTitle>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsImage(sectionArretsRef, 'analyse-temps-arret')}
+                                className="hidden sm:flex"
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Image
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsPDF(sectionArretsRef, 'analyse-temps-arret')}
+                                className="hidden sm:flex"
+                            >
+                                <FileDown className="h-4 w-4 mr-2" />
+                                PDF
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsImage(sectionArretsRef, 'analyse-temps-arret')}
+                                className="sm:hidden"
+                            >
+                                <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => exportSectionAsPDF(sectionArretsRef, 'analyse-temps-arret')}
+                                className="sm:hidden"
+                            >
+                                <FileDown className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
+
+                <CardContent className="space-y-6 pt-6" ref={sectionArretsRef}>
+                    {isArretsExpanded && (
+                        <div className="space-y-6">
+                            {/* Filter Buttons */}
+                            <div className="flex flex-wrap gap-1.5 p-1 bg-muted rounded-lg w-fit">
+                                {(['Tous', 'Sécurité', 'Ressources', 'Pannes', 'Autre'] as const).map((cat) => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setArretFilter(cat)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all",
+                                            arretFilter === cat
+                                                ? "bg-background text-foreground shadow-sm font-bold"
+                                                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                        )}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Lines Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                                {arretStatsByLine.map((line) => {
+                                    // Determine color badge based on duration in minutes
+                                    const totalMin = line.totalDuration;
+                                    const level = totalMin === 0 ? 'none' : totalMin < 60 ? 'low' : totalMin < 180 ? 'medium' : 'high';
+                                    
+                                    const borderClass = level === 'none' ? 'border-t-slate-200 bg-slate-50/20' :
+                                        level === 'low' ? 'border-t-green-500 bg-green-50/20' :
+                                        level === 'medium' ? 'border-t-orange-500 bg-orange-50/20' : 'border-t-red-500 bg-red-50/20';
+
+                                    const textClass = level === 'none' ? 'text-slate-500' :
+                                        level === 'low' ? 'text-green-600' :
+                                        level === 'medium' ? 'text-orange-600' : 'text-red-600';
+
+                                    const labelClass = level === 'none' ? 'bg-slate-100 text-slate-700' :
+                                        level === 'low' ? 'bg-green-100 text-green-800' :
+                                        level === 'medium' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800';
+
+                                    return (
+                                        <div
+                                            key={line.id}
+                                            className={cn(
+                                                "p-4 bg-card border rounded-lg shadow-sm border-t-4 transition-all hover:shadow-md",
+                                                borderClass
+                                            )}
+                                        >
+                                            {/* Header */}
+                                            <div className="text-center mb-3 pb-2 border-b flex items-center justify-between">
+                                                <span className="font-bold text-base text-foreground">Ligne {line.id}</span>
+                                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider", labelClass)}>
+                                                    {line.id <= 4 ? 'B6' : 'B12'}
+                                                </span>
+                                            </div>
+
+                                            {/* Total Downtime */}
+                                            <div className="text-center mb-4">
+                                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Temps d'arrêt</p>
+                                                <p className={cn("text-2xl font-black tabular-nums mt-0.5", textClass)}>
+                                                    {formatMinutesToHours(line.totalDuration)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    {line.incidentCount} incident{line.incidentCount > 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+
+                                            {/* Motif list breakdown */}
+                                            <div className="pt-3 border-t space-y-2">
+                                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">Détail des Motifs</p>
+                                                {line.motifs.length === 0 ? (
+                                                    <p className="text-xs text-center text-muted-foreground py-2 italic">Aucun arrêt enregistré</p>
+                                                ) : (
+                                                    <div className="space-y-1.5">
+                                                        {line.motifs.map((motif) => (
+                                                            <div key={motif.type} className="flex justify-between items-center text-xs p-1.5 rounded bg-muted/40 hover:bg-muted/80 transition-colors">
+                                                                <span className="font-medium text-foreground truncate max-w-[100px] sm:max-w-[120px]" title={motif.label}>
+                                                                    {motif.label}
+                                                                </span>
+                                                                <span className="font-bold text-slate-700 tabular-nums flex-shrink-0">
+                                                                    {formatMinutesToHours(motif.duration)} <span className="text-[10px] font-normal text-muted-foreground">({motif.count}x)</span>
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </CardContent>
@@ -3090,7 +3431,7 @@ const CentreEmplisseurView = ({
                                                 {/* Attendu vs Réalisé */}
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                     <div className="p-4 border rounded-lg bg-purple-50/50">
-                                                        <p className="text-xs uppercase tracking-wider text-purple-700 font-bold mb-3">Attendu</p>
+                                                        <p className="text-xs uppercase tracking-wider text-purple-700 font-bold mb-3">PRODUCTION ATTENDUE</p>
                                                         <div className="space-y-2">
                                                             <div className="flex items-baseline justify-between">
                                                                 <span className="text-sm text-muted-foreground">Bouteilles</span>
@@ -3107,7 +3448,7 @@ const CentreEmplisseurView = ({
                                                         </div>
                                                     </div>
                                                     <div className="p-4 border rounded-lg bg-blue-50/50">
-                                                        <p className="text-xs uppercase tracking-wider text-blue-700 font-bold mb-3">Réalisé</p>
+                                                        <p className="text-xs uppercase tracking-wider text-blue-700 font-bold mb-3">PRODUCTION REALISEE</p>
                                                         <div className="space-y-2">
                                                             <div className="flex items-baseline justify-between">
                                                                 <span className="text-sm text-muted-foreground">Bouteilles</span>
@@ -3126,40 +3467,55 @@ const CentreEmplisseurView = ({
                                                 </div>
 
                                                 {/* Temps */}
-                                                <div className="p-4 border rounded-lg bg-orange-50/50">
-                                                    <p className="text-xs uppercase tracking-wider text-orange-700 font-bold mb-3">Temps</p>
-                                                    <div className="grid grid-cols-3 gap-3">
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-1">Attendu</p>
-                                                            <p className="text-xl font-bold text-orange-700 tabular-nums">
-                                                                {(() => {
-                                                                    const v = tabData.totalHeuresShift || 0;
-                                                                    const h = Math.floor(v);
-                                                                    const m = Math.round((v - h) * 60);
-                                                                    return m === 60
-                                                                        ? `${h + 1}h00`
-                                                                        : `${h}h${m.toString().padStart(2, '0')}`;
-                                                                })()}
+                                                <div className="p-4 border rounded-lg bg-orange-50/50 space-y-4">
+                                                    <p className="text-xs uppercase tracking-wider text-orange-700 font-bold">Temps de Production</p>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        <div className="p-2 bg-white/60 rounded-md border border-orange-100">
+                                                            <p className="text-xs text-muted-foreground mb-1 font-medium">Temps Théorique</p>
+                                                            <p className="text-lg font-bold text-slate-800 tabular-nums">
+                                                                {formatHours(tabData.totalTempsTheorique || 0)}
                                                             </p>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-1">Réel</p>
-                                                            <p className="text-xl font-bold text-orange-600 tabular-nums">
-                                                                {(() => {
-                                                                    const v = tabData.heuresProductives || 0;
-                                                                    const h = Math.floor(v);
-                                                                    const m = Math.round((v - h) * 60);
-                                                                    return m === 60
-                                                                        ? `${h + 1}h00`
-                                                                        : `${h}h${m.toString().padStart(2, '0')}`;
-                                                                })()}
+                                                        <div className="p-2 bg-white/60 rounded-md border border-orange-100">
+                                                            <p className="text-xs text-muted-foreground mb-1 font-medium">Temps Réel de prod.</p>
+                                                            <p className="text-lg font-bold text-blue-700 tabular-nums">
+                                                                {formatHours(tabData.totalHeuresShift || 0)}
                                                             </p>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-1">Arrêt</p>
-                                                            <p className="text-xl font-bold text-red-600 tabular-nums">
-                                                                {Math.floor((tabData.totalTempsArret || 0) / 60)}h{Math.round((tabData.totalTempsArret || 0) % 60).toString().padStart(2, '0')}
+                                                        <div className="p-2 bg-white/60 rounded-md border border-orange-100">
+                                                            <p className="text-xs text-muted-foreground mb-1 font-medium">Temps productif</p>
+                                                            <p className="text-lg font-bold text-green-700 tabular-nums">
+                                                                {formatHours(tabData.heuresProductives || 0)}
                                                             </p>
+                                                        </div>
+                                                        <div className="p-2 bg-white/60 rounded-md border border-orange-100">
+                                                            <p className="text-xs text-muted-foreground mb-1 font-medium">Temps d'arrêt</p>
+                                                            <p className="text-lg font-bold text-red-600 tabular-nums">
+                                                                {formatMinutesToHours(tabData.totalTempsArret || 0)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Détail des arrêts par catégorie */}
+                                                    <div className="pt-2 border-t border-orange-100">
+                                                        <p className="text-xs font-semibold text-orange-800 mb-2">Détail des temps d'arrêt par catégorie :</p>
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                                            <div className="flex justify-between p-2 rounded bg-white/40">
+                                                                <span className="text-muted-foreground">Sécurité :</span>
+                                                                <span className="font-semibold text-orange-950">{formatMinutesToHours(tabData.arretsSecurite || 0)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between p-2 rounded bg-white/40">
+                                                                <span className="text-muted-foreground">Ressources :</span>
+                                                                <span className="font-semibold text-orange-950">{formatMinutesToHours(tabData.arretsRessources || 0)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between p-2 rounded bg-white/40">
+                                                                <span className="text-muted-foreground">Pannes :</span>
+                                                                <span className="font-semibold text-orange-950">{formatMinutesToHours(tabData.arretsPannes || 0)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between p-2 rounded bg-white/40">
+                                                                <span className="text-muted-foreground">Autre :</span>
+                                                                <span className="font-semibold text-orange-950">{formatMinutesToHours(tabData.arretsAutre || 0)}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

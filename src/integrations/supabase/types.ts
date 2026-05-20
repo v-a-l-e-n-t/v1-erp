@@ -50,11 +50,12 @@ export type Database = {
         }
         Relationships: []
       }
-      arrets_production: {
+       arrets_production: {
         Row: {
           action_corrective: string | null
           created_at: string
           description: string | null
+          duree_minutes: number | null
           etape_ligne: Database["public"]["Enums"]["etape_ligne"] | null
           id: string
           numero_ligne: number | null
@@ -67,6 +68,7 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
+          duree_minutes?: number | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
           id?: string
           numero_ligne?: number | null
@@ -79,6 +81,7 @@ export type Database = {
           action_corrective?: string | null
           created_at?: string
           description?: string | null
+          duree_minutes?: number | null
           etape_ligne?: Database["public"]["Enums"]["etape_ligne"] | null
           id?: string
           numero_ligne?: number | null

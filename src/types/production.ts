@@ -194,6 +194,7 @@ export interface ArretProduction {
   shift_id?: string;
   numero_ligne: number;
   type_arret: ArretType;
+  duree_minutes?: number;
   ordre_intervention?: string;
   etape_ligne?: EtapeLigne;
   description?: string;
