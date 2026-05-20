@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Save, FlaskConical, Users } from "lucide-react";
+import { Plus, Save, FlaskConical, Users, ChevronDown, ChevronUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArretProductionForm } from "./ArretProductionForm";
@@ -52,6 +52,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [showTestButton, setShowTestButton] = useState(false);
   const [showShiftEffectifDialog, setShowShiftEffectifDialog] = useState(false);
+  const [isStockOutilConsignesExpanded, setIsStockOutilConsignesExpanded] = useState(false);
   const [shiftAgents, setShiftAgents] = useState<any[]>([]);
   const [allAgents, setAllAgents] = useState<any[]>([]);
   const [agentPresences, setAgentPresences] = useState<Record<string, boolean>>({});
@@ -1309,159 +1310,188 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
                   </div>
                 </div>
 
-                {/* Stock Outil */}
+                {/* Stock Outil & Consignes Accordion */}
                 <Separator className="my-4" />
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm">Stock Outil</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs">PETRO IVOIRE</Label>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_pi_b6_vides || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_pi_b6_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_pi_b6_pleines || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_pi_b6_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_pi_b12_vides || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_pi_b12_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_pi_b12_pleines || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_pi_b12_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">VIVO ENERGIES</Label>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_vivo_b6_vides || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_vivo_b6_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_vivo_b6_pleines || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_vivo_b6_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_vivo_b12_vides || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_vivo_b12_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_vivo_b12_pleines || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_vivo_b12_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">TOTAL ENERGIES</Label>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_total_b6_vides || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_total_b6_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_total_b6_pleines || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_total_b6_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_total_b12_vides || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_total_b12_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
-                        <Input type="number" min="0" value={shift.stock_outil_total_b12_pleines || ''}
-                          onChange={(e) => handleShiftChange('stock_outil_total_b12_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                    </div>
+                <div 
+                  className="flex items-center justify-between p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100/70 cursor-pointer transition-all mt-4 select-none"
+                  onClick={() => setIsStockOutilConsignesExpanded(!isStockOutilConsignesExpanded)}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base">📦</span>
+                    <span className="font-bold text-sm text-slate-800">STOCK OUTIL & CONSIGNES</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {isStockOutilConsignesExpanded ? "Masquer les détails" : "Saisir ou voir les détails"}
+                    </span>
+                    {isStockOutilConsignesExpanded ? (
+                      <ChevronUp className="h-5 w-5 text-slate-500" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-slate-500" />
+                    )}
                   </div>
                 </div>
 
-                {/* Consignes Shift */}
-                <Separator className="my-4" />
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm">Consignes</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs">PETRO IVOIRE</Label>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_pi_b6_vides || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_pi_b6_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_pi_b6_pleines || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_pi_b6_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_pi_b12_vides || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_pi_b12_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_pi_b12_pleines || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_pi_b12_pleines', parseInt(e.target.value) || 0)} />
+                {isStockOutilConsignesExpanded && (
+                  <div className="space-y-6 pt-4 border border-slate-150 rounded-lg p-5 mt-3 bg-slate-50/20 transition-all">
+                    {/* Stock Outil */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-primary flex items-center gap-2 pb-2 border-b">
+                        <span>🛠️</span> Stock Outil
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">PETRO IVOIRE</Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_pi_b6_vides || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_pi_b6_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_pi_b6_pleines || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_pi_b6_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_pi_b12_vides || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_pi_b12_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_pi_b12_pleines || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_pi_b12_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">VIVO ENERGIES</Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_vivo_b6_vides || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_vivo_b6_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_vivo_b6_pleines || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_vivo_b6_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_vivo_b12_vides || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_vivo_b12_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_vivo_b12_pleines || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_vivo_b12_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">TOTAL ENERGIES</Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_total_b6_vides || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_total_b6_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_total_b6_pleines || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_total_b6_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_total_b12_vides || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_total_b12_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                            <Input type="number" min="0" value={shift.stock_outil_total_b12_pleines || ''}
+                              onChange={(e) => handleShiftChange('stock_outil_total_b12_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">VIVO ENERGIES</Label>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b6_vides || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b6_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b6_pleines || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b6_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b12_vides || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b12_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_vivo_b12_pleines || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_vivo_b12_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">TOTAL ENERGIES</Label>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Vides</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_total_b6_vides || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_total_b6_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_total_b6_pleines || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_total_b6_pleines', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Vides</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_total_b12_vides || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_total_b12_vides', parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
-                        <Input type="number" min="0" value={shift.consignes_shift_total_b12_pleines || ''}
-                          onChange={(e) => handleShiftChange('consignes_shift_total_b12_pleines', parseInt(e.target.value) || 0)} />
+
+                    {/* Consignes Shift */}
+                    <Separator className="my-2" />
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-primary flex items-center gap-2 pb-2 border-b">
+                        <span>📝</span> Consignes
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">PETRO IVOIRE</Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_pi_b6_vides || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_pi_b6_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_pi_b6_pleines || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_pi_b6_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_pi_b12_vides || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_pi_b12_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_pi_b12_pleines || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_pi_b12_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">VIVO ENERGIES</Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_vivo_b6_vides || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_vivo_b6_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_vivo_b6_pleines || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_vivo_b6_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_vivo_b12_vides || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_vivo_b12_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_vivo_b12_pleines || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_vivo_b12_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold text-slate-600">TOTAL ENERGIES</Label>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Vides</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_total_b6_vides || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_total_b6_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B6 Pleines</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_total_b6_pleines || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_total_b6_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Vides</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_total_b12_vides || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_total_b12_vides', parseInt(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">B12 Pleines</Label>
+                            <Input type="number" min="0" value={shift.consignes_shift_total_b12_pleines || ''}
+                              onChange={(e) => handleShiftChange('consignes_shift_total_b12_pleines', parseInt(e.target.value) || 0)} />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
