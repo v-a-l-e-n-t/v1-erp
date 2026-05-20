@@ -42,6 +42,21 @@ const calculateShiftHours = (heureDebut: string, heureFin: string): number => {
 };
 
 /**
+ * Durée réelle d'ouverture d'un shift : la plus longue session parmi les
+ * lignes actives (parallèle). On n'additionne pas les lignes, et on n'étire
+ * pas la fenêtre du premier démarrage au dernier arrêt (qui gonfle artificiellement).
+ */
+const calculateShiftOpeningHours = (shiftLines: any[]): number => {
+    let maxHours = 0;
+    shiftLines.forEach(l => {
+        if (l.actif === false || !l.heure_debut_reelle || !l.heure_fin_reelle) return;
+        const h = calculateShiftHours(l.heure_debut_reelle, l.heure_fin_reelle);
+        if (h > maxHours) maxHours = h;
+    });
+    return maxHours;
+};
+
+/**
  * Heures réelles d'une ligne sur son shift.
  * - Si la ligne est marquée Inactive → 0.
  * - Si la ligne porte ses propres heures (`heure_debut_reelle` / `heure_fin_reelle`),
@@ -619,34 +634,38 @@ const CentreEmplisseurView = ({
             const vivoTonnage = calculateClientTonnage(lines, 'vivo');
             const totalClientTonnage = calculateClientTonnage(lines, 'total');
 
-            // Calculate Performance du Centre
-            // Group shifts by date to find daily real opening hours
-            const shiftsByDate: Record<string, any[]> = {};
-            shifts.forEach(s => {
-                if (s.date) {
-                    if (!shiftsByDate[s.date]) {
-                        shiftsByDate[s.date] = [];
-                    }
-                    shiftsByDate[s.date].push(s);
+            // Performance du Centre : par jour, somme des durées réelles de chaque shift
+            // (= durée max parmi les lignes actives du shift), via heure_debut_reelle /
+            // heure_fin_reelle — pas la somme ligne par ligne ni la durée shift globale.
+            const linesByDateShift: Record<string, any[]> = {};
+            lines.forEach(l => {
+                const date = l.production_shifts?.date;
+                const shiftType = l.production_shifts?.shift_type;
+                if (!date || !shiftType) return;
+                const key = `${date}|${shiftType}`;
+                if (!linesByDateShift[key]) {
+                    linesByDateShift[key] = [];
                 }
+                linesByDateShift[key].push(l);
             });
 
-            const uniqueDates = Object.keys(shiftsByDate);
+            const dailyOpeningHours: Record<string, number> = {};
+            Object.entries(linesByDateShift).forEach(([key, shiftLines]) => {
+                const date = key.split('|')[0];
+                const shiftHours = calculateShiftOpeningHours(shiftLines);
+                dailyOpeningHours[date] = (dailyOpeningHours[date] || 0) + shiftHours;
+            });
+
+            const uniqueDates = Object.keys(dailyOpeningHours);
             const numDays = uniqueDates.length;
 
             let totalDailyRealOpeningHours = 0;
             uniqueDates.forEach(d => {
-                let dayHours = 0;
-                shiftsByDate[d].forEach(s => {
-                    const start = s.heure_debut_reelle || '11:30';
-                    const end = s.heure_fin_reelle || (s.shift_type === '20h-5h' ? '05:30' : '20:30');
-                    dayHours += calculateShiftHours(start, end);
-                });
-                totalDailyRealOpeningHours += dayHours;
+                totalDailyRealOpeningHours += dailyOpeningHours[d];
             });
 
             const averageOpeningHours = numDays > 0 ? totalDailyRealOpeningHours / numDays : 0;
-            const periodTarget = numDays > 0 ? numDays * ((averageOpeningHours * 765) / 17) : 0;
+            const periodTarget = numDays > 0 ? numDays * ((averageOpeningHours * 720) / 16) : 0;
             const performancePct = periodTarget > 0 ? (totalTonnage / periodTarget) * 100 : 0;
 
             setStats({
