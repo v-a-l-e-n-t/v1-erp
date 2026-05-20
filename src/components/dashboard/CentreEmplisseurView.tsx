@@ -178,16 +178,12 @@ const buildShiftInventoryByClient = (
 
 const ShiftInventoryQtyTauxCell = ({ qty, taux }: { qty: number; taux: number }) => (
     <td className="p-2 text-right align-middle tabular-nums">
-        <div className="font-semibold">{qty.toLocaleString('fr-FR')}</div>
-        <div className="text-[10px] text-muted-foreground">{taux.toFixed(1)} %</div>
+        <div className="text-sm sm:text-base font-bold">{qty.toLocaleString('fr-FR')}</div>
+        <div className="text-xs sm:text-sm font-semibold text-muted-foreground">{taux.toFixed(1)} %</div>
     </td>
 );
 
 const ShiftInventoryTable = ({ title, clients }: { title: string; clients: ShiftInventoryClientBlock[] }) => {
-    const totalCumulTable = clients.reduce(
-        (s, b) => s + b.rows[0].cumul + b.rows[1].cumul,
-        0,
-    );
     return (
     <div className="space-y-2 min-w-0">
         <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{title}</h4>
@@ -197,18 +193,9 @@ const ShiftInventoryTable = ({ title, clients }: { title: string; clients: Shift
                     <tr className="bg-muted/50 border-b">
                         <th className="p-2 text-center font-semibold w-[76px] border-r">Client</th>
                         <th className="p-2 text-center font-semibold w-14">Format</th>
-                        <th className="p-2 text-right font-semibold">
-                            Vides
-                            <span className="block text-[10px] font-normal text-muted-foreground normal-case">avec taux</span>
-                        </th>
-                        <th className="p-2 text-right font-semibold">
-                            Pleines
-                            <span className="block text-[10px] font-normal text-muted-foreground normal-case">avec taux</span>
-                        </th>
-                        <th className="p-2 text-right font-semibold">
-                            Cumul
-                            <span className="block text-[10px] font-normal text-muted-foreground normal-case">avec taux</span>
-                        </th>
+                        <th className="p-2 text-right font-semibold">Vides</th>
+                        <th className="p-2 text-right font-semibold">Pleines</th>
+                        <th className="p-2 text-right font-semibold">Cumul</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-border/80">
@@ -229,19 +216,17 @@ const ShiftInventoryTable = ({ title, clients }: { title: string; clients: Shift
                                 <td className="p-2 text-center font-medium">{block.rows[0].formatLabel}</td>
                                 <ShiftInventoryQtyTauxCell qty={block.rows[0].vides} taux={block.rows[0].tauxVides} />
                                 <ShiftInventoryQtyTauxCell qty={block.rows[0].pleines} taux={block.rows[0].tauxPleines} />
-                                <ShiftInventoryQtyTauxCell
-                                    qty={block.rows[0].cumul}
-                                    taux={totalCumulTable > 0 ? (block.rows[0].cumul / totalCumulTable) * 100 : 0}
-                                />
+                                <td className="p-2 text-right align-middle tabular-nums text-sm sm:text-base font-bold">
+                                    {block.rows[0].cumul.toLocaleString('fr-FR')}
+                                </td>
                             </tr>
                             <tr>
                                 <td className="p-2 text-center font-medium">{block.rows[1].formatLabel}</td>
                                 <ShiftInventoryQtyTauxCell qty={block.rows[1].vides} taux={block.rows[1].tauxVides} />
                                 <ShiftInventoryQtyTauxCell qty={block.rows[1].pleines} taux={block.rows[1].tauxPleines} />
-                                <ShiftInventoryQtyTauxCell
-                                    qty={block.rows[1].cumul}
-                                    taux={totalCumulTable > 0 ? (block.rows[1].cumul / totalCumulTable) * 100 : 0}
-                                />
+                                <td className="p-2 text-right align-middle tabular-nums text-sm sm:text-base font-bold">
+                                    {block.rows[1].cumul.toLocaleString('fr-FR')}
+                                </td>
                             </tr>
                         </Fragment>
                     ))}
@@ -432,6 +417,7 @@ const CentreEmplisseurView = ({
         // Global
         totalTonnage: 0,
         totalOpeningHours: 0,
+        totalTheoreticalOpeningHours: 0,
         averageOpeningHoursPerDay: 0,
         periodTarget: 0,
         performancePct: 0,
@@ -815,6 +801,17 @@ const CentreEmplisseurView = ({
             });
 
             const totalOpeningHours = totalDailyRealOpeningHours;
+            const shiftsByDateType: Record<string, any> = {};
+            shifts.forEach((s: any) => {
+                if (!s?.date || !s?.shift_type) return;
+                const key = `${s.date}|${s.shift_type}`;
+                shiftsByDateType[key] = s;
+            });
+            const totalTheoreticalOpeningHours = Object.values(shiftsByDateType).reduce((sum: number, s: any) => {
+                const start = s.heure_debut_theorique || (s.shift_type === '20h-5h' ? '21:30' : '11:30');
+                const end = s.heure_fin_theorique || (s.shift_type === '20h-5h' ? '05:30' : '20:30');
+                return sum + calculateShiftHours(start, end);
+            }, 0);
             const averageOpeningHoursPerDay = numDays > 0 ? totalDailyRealOpeningHours / numDays : 0;
             const periodTarget = totalOpeningHours > 0 ? (totalOpeningHours * 720) / 16 : 0;
             const performancePct = periodTarget > 0 ? (totalTonnage / periodTarget) * 100 : 0;
@@ -822,6 +819,7 @@ const CentreEmplisseurView = ({
             setStats({
                 totalTonnage,
                 totalOpeningHours,
+                totalTheoreticalOpeningHours,
                 averageOpeningHoursPerDay,
                 periodTarget,
                 performancePct,
@@ -2384,7 +2382,7 @@ const CentreEmplisseurView = ({
                             {/* Performance du Centre */}
                             <div className="mt-4 p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 text-center">
                                 <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-2">PERFORMANCE DU CENTRE</p>
-                                <div className="grid grid-cols-3 gap-2 sm:gap-4 items-center">
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 items-center">
                                     <div className="p-2 bg-card/60 backdrop-blur-sm rounded-md border shadow-sm">
                                         <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium">Tonnage Cible</p>
                                         <p className="text-sm sm:text-lg font-bold text-slate-800 tabular-nums">
@@ -2400,7 +2398,15 @@ const CentreEmplisseurView = ({
                                     </div>
                                     <div className="p-2 bg-card/60 backdrop-blur-sm rounded-md border shadow-sm">
                                         <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium">
-                                            {filterType === 'day' ? 'Moy. Ouverture' : 'Ouverture'}
+                                            Ouverture Theorique
+                                        </p>
+                                        <p className="text-sm sm:text-lg font-bold text-slate-800 tabular-nums">
+                                            {formatHours(stats.totalTheoreticalOpeningHours || 0)}
+                                        </p>
+                                    </div>
+                                    <div className="p-2 bg-card/60 backdrop-blur-sm rounded-md border shadow-sm">
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-medium">
+                                            {filterType === 'day' ? 'Moy. Ouverture' : 'Ouverture Reelle'}
                                         </p>
                                         <p className="text-sm sm:text-lg font-bold text-slate-800 tabular-nums">
                                             {formatHours(
@@ -3197,6 +3203,35 @@ const CentreEmplisseurView = ({
                                         </div>
                                     );
                                 })}
+                            </div>
+
+                            {/* Historique des bilans/commentaires de shift */}
+                            <div className="mt-3 border-t pt-4">
+                                <h4 className="text-sm font-bold text-foreground mb-3">Historique des commentaires de shift</h4>
+                                {rawShifts
+                                    .filter((s: any) => (s.bilan_commentaire || '').trim().length > 0)
+                                    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                    .length === 0 ? (
+                                    <p className="text-sm text-muted-foreground italic">
+                                        Aucun commentaire enregistré pour le filtre actuel.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {rawShifts
+                                            .filter((s: any) => (s.bilan_commentaire || '').trim().length > 0)
+                                            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                            .map((s: any) => (
+                                                <div key={s.id} className="p-3 rounded-md border bg-card/70">
+                                                    <p className="text-xs font-semibold text-muted-foreground mb-1">
+                                                        {new Date(s.date).toLocaleDateString('fr-FR')} - {s.shift_type === '10h-19h' ? 'Shift 1' : 'Shift 2'}
+                                                    </p>
+                                                    <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                                                        {s.bilan_commentaire}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

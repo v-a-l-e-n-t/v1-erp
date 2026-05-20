@@ -69,7 +69,8 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
     chariot: 0,
     agent_quai: 0,
     agent_saisie: 0,
-    agent_atelier: 0
+    agent_atelier: 0,
+    bilan_commentaire: ''
   });
 
   // Initialiser les 5 lignes dès le début
@@ -228,7 +229,8 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
         chariot: initialData.chariot || 0,
         agent_quai: initialData.agent_quai || 0,
         agent_saisie: initialData.agent_saisie || 0,
-        agent_atelier: initialData.agent_atelier || 0
+        agent_atelier: initialData.agent_atelier || 0,
+        bilan_commentaire: initialData.bilan_commentaire || ''
       });
 
       if (initialData.lignes_production) {
@@ -740,6 +742,14 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
     if (!validateForm()) return;
 
+    const bilanPrompt = window.prompt(
+      "Commentaire bilan du shift (optionnel) :",
+      shift.bilan_commentaire || ""
+    );
+    if (bilanPrompt === null) return;
+    const bilanCommentaire = bilanPrompt.trim();
+    setShift(prev => ({ ...prev, bilan_commentaire: bilanCommentaire }));
+
     setLoading(true);
 
     try {
@@ -805,6 +815,7 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
       const shiftData = {
         ...shift,
+        bilan_commentaire: bilanCommentaire || null,
         chef_quart_id: shift.chef_quart_id || null,
         bouteilles_produites: bouteillesProduites,
         tonnage_total: parseFloat(tonnageTotal.toFixed(3)),
@@ -989,7 +1000,8 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
           chariot: 0,
           agent_quai: 0,
           agent_saisie: 0,
-          agent_atelier: 0
+          agent_atelier: 0,
+          bilan_commentaire: ''
         });
         setLignes([
           {

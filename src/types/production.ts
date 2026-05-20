@@ -122,6 +122,7 @@ export interface ProductionShift {
   consignes_shift_total_b6_pleines?: number;
   consignes_shift_total_b12_vides?: number;
   consignes_shift_total_b12_pleines?: number;
+  bilan_commentaire?: string | null;
   user_id?: string;
   last_modified_by?: string;
   last_modified_at?: string;

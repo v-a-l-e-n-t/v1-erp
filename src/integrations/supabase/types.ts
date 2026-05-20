@@ -1191,6 +1191,7 @@ export type Database = {
           agent_quai: number | null
           agent_saisie: number | null
           arret_shift_cumul: number | null
+          bilan_commentaire: string | null
           bouteilles_produites: number
           chariot: number | null
           chariste: number | null
@@ -1218,6 +1219,7 @@ export type Database = {
           agent_quai?: number | null
           agent_saisie?: number | null
           arret_shift_cumul?: number | null
+          bilan_commentaire?: string | null
           bouteilles_produites?: number
           chariot?: number | null
           chariste?: number | null
@@ -1245,6 +1247,7 @@ export type Database = {
           agent_quai?: number | null
           agent_saisie?: number | null
           arret_shift_cumul?: number | null
+          bilan_commentaire?: string | null
           bouteilles_produites?: number
           chariot?: number | null
           chariste?: number | null
