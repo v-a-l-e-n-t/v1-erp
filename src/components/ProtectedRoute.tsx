@@ -1,35 +1,17 @@
-import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { useAuthGuard, type AuthRole } from '@/hooks/useAuthGuard';
 
-export const ProtectedRoute = () => {
-    const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+interface Props {
+    /** 'admin' (default) ou 'vrac'. */
+    role?: AuthRole;
+    /** Route de redirection si non autorise. Defaut : "/" pour admin, "/vrac-login" pour vrac. */
+    redirectTo?: string;
+}
 
-    useEffect(() => {
-        const checkAuth = async () => {
-            // 1. Check Supabase session
-            const { data: { session } } = await supabase.auth.getSession();
-
-            // 2. Check Local Storage (LoginDialog)
-            const localAuth = localStorage.getItem("isAuthenticated") === "true";
-
-            // 3. Check Session Storage (PasswordGate)
-            const sessionAuth = sessionStorage.getItem("dashboard_authenticated") === "true";
-
-            setIsAuthorized(!!session || localAuth || sessionAuth);
-        };
-
-        checkAuth();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            const localAuth = localStorage.getItem("isAuthenticated") === "true";
-            const sessionAuth = sessionStorage.getItem("dashboard_authenticated") === "true";
-            setIsAuthorized(!!session || localAuth || sessionAuth);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+export const ProtectedRoute = ({ role = 'admin', redirectTo }: Props) => {
+    const { isAuthorized } = useAuthGuard(role);
+    const fallback = redirectTo ?? (role === 'vrac' ? '/vrac-login' : '/');
 
     if (isAuthorized === null) {
         return (
@@ -40,8 +22,13 @@ export const ProtectedRoute = () => {
     }
 
     if (!isAuthorized) {
-        return <Navigate to="/" replace />;
+        return <Navigate to={fallback} replace />;
     }
 
     return <Outlet />;
 };
+
+/** Sucre syntaxique : <VracProtectedRoute /> equivalent a <ProtectedRoute role="vrac" />. */
+export const VracProtectedRoute = (props: Omit<Props, 'role'>) => (
+    <ProtectedRoute role="vrac" {...props} />
+);

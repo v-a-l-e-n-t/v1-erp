@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Copy, Key, Loader2, Check, User, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { VracClient } from '@/types/vrac';
-import { generateVracPassword, hashPassword } from '@/hooks/useVracAuth';
+import { generateVracPassword } from '@/hooks/useVracAuth';
 import { useToast } from '@/hooks/use-toast';
 
 const VracPasswordGenerator: React.FC = () => {
@@ -48,13 +48,13 @@ const VracPasswordGenerator: React.FC = () => {
         setLoading(true);
         try {
             const password = generateVracPassword();
-            const passwordHash = await hashPassword(password);
 
-            const { error } = await supabase.from('vrac_users').insert({
-                client_id: selectedClientId,
-                nom: userName.trim() || null,
-                password_hash: passwordHash,
-                actif: true,
+            // Le hash bcrypt est calcule server-side via la RPC set_vrac_password.
+            const { error } = await (supabase as any).rpc('set_vrac_password', {
+                p_user_id: null,
+                p_client_id: selectedClientId,
+                p_nom: userName.trim() || null,
+                p_password: password,
             });
 
             if (error) {

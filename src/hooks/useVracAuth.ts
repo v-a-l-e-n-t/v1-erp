@@ -1,18 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { VracSession, VracUser, VracClient } from '@/types/vrac';
+import { VracSession } from '@/types/vrac';
 
 const VRAC_SESSION_KEY = 'vrac_session';
 
-// Simple hash function for password comparison
-// Note: In production, use bcrypt or similar on the server side
-const simpleHash = async (password: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-};
+interface VerifyVracLoginRow {
+    user_id: string;
+    client_id: string;
+    user_nom: string | null;
+    client_nom: string;
+    client_nom_affichage: string;
+}
 
 export const useVracAuth = () => {
     const [session, setSession] = useState<VracSession | null>(null);
@@ -35,7 +33,6 @@ export const useVracAuth = () => {
         setLoading(false);
     }, []);
 
-    // Load session from localStorage on mount
     useEffect(() => {
         checkSession();
     }, [checkSession]);
@@ -45,53 +42,35 @@ export const useVracAuth = () => {
         setError(null);
 
         try {
-            // Admin master codes have been removed and migrated to public.app_users
-            // (see migration 20260429000000_app_auth_and_stock_sphere_history.sql).
-            // VRAC clients still authenticate against vrac_users.password_hash.
-            const passwordHash = await simpleHash(password);
+            // Le hash est calcule server-side (bcrypt) via la RPC verify_vrac_login.
+            // Fallback transparent pour les anciens hashes SHA-256, qui sont
+            // automatiquement reecrits en bcrypt au premier login reussi.
+            const { data, error: rpcError } = await (supabase as any).rpc(
+                'verify_vrac_login',
+                { p_password: password },
+            );
 
-            // Find user by password hash
-            const { data: users, error: fetchError } = await supabase
-                .from('vrac_users')
-                .select('id, nom, client_id, actif, vrac_clients(id, nom, nom_affichage)')
-                .eq('password_hash', passwordHash)
-                .eq('actif', true)
-                .limit(1) as { data: (VracUser & { vrac_clients: VracClient })[] | null; error: unknown };
-
-            if (fetchError) {
-                console.error('Login error:', fetchError);
-                setError(`Erreur technique: ${(fetchError as any).message || 'Erreur inconnue'}`);
+            if (rpcError) {
+                console.error('Login error:', rpcError);
+                setError(`Erreur technique: ${rpcError.message || 'Erreur inconnue'}`);
                 setLoading(false);
                 return false;
             }
 
-            if (!users || users.length === 0) {
+            const rows = (data ?? []) as VerifyVracLoginRow[];
+            if (rows.length === 0) {
                 setError('Mot de passe incorrect');
                 setLoading(false);
                 return false;
             }
 
-            const user = users[0] as VracUser & { vrac_clients: VracClient };
-
-            if (!user.vrac_clients) {
-                setError('Configuration client invalide');
-                setLoading(false);
-                return false;
-            }
-
-            // Update last_login
-            await supabase
-                .from('vrac_users')
-                .update({ last_login: new Date().toISOString() })
-                .eq('id', user.id);
-
-            // Create session
+            const row = rows[0];
             const newSession: VracSession = {
-                user_id: user.id,
-                client_id: user.client_id,
-                client_nom: user.vrac_clients.nom,
-                client_nom_affichage: user.vrac_clients.nom_affichage,
-                user_nom: user.nom,
+                user_id: row.user_id,
+                client_id: row.client_id,
+                client_nom: row.client_nom,
+                client_nom_affichage: row.client_nom_affichage,
+                user_nom: row.user_nom ?? '',
                 authenticated_at: new Date().toISOString(),
             };
 
@@ -125,7 +104,9 @@ export const useVracAuth = () => {
     };
 };
 
-// Utility function to generate a secure random password
+// Generation d'un mot de passe aleatoire (alphabet sans confusion).
+// Utilise par l'admin pour creer un compte VRAC ; le hash est calcule server-side
+// par la RPC set_vrac_password.
 export const generateVracPassword = (): string => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     const length = 8;
@@ -138,6 +119,3 @@ export const generateVracPassword = (): string => {
     }
     return password;
 };
-
-// Hash password for storage
-export const hashPassword = simpleHash;

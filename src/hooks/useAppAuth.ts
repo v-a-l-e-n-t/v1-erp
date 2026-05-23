@@ -80,7 +80,14 @@ export function useAppAuth() {
         { p_code: code },
       );
       if (rpcError) {
-        setError('Erreur technique. Réessayez.');
+        // Rate limit (cf migration 20260523000001) leve une exception avec un
+        // message commencant par "Trop de tentatives". On le propage tel quel.
+        const msg = (rpcError as { message?: string }).message ?? '';
+        if (msg.toLowerCase().includes('tentatives')) {
+          setError(msg);
+        } else {
+          setError('Erreur technique. Réessayez.');
+        }
         return false;
       }
       const rows = (data ?? []) as VerifyLoginRow[];

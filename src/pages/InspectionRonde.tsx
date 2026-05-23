@@ -85,7 +85,7 @@ export default function InspectionRonde() {
     }
 
     toast.success('Ronde soumise pour validation');
-    navigate(`/form-maintenance/ronde/${ronde.id}/validation`);
+    navigate(`/inspection/ronde/${ronde.id}/validation`);
   };
 
   const loading = refLoading || rondeLoading;
@@ -170,7 +170,7 @@ export default function InspectionRonde() {
           )}
 
           {ronde.statut === 'EN_ATTENTE_VALIDATION' && (
-            <Button onClick={() => navigate(`/form-maintenance/ronde/${ronde.id}/validation`)}>
+            <Button onClick={() => navigate(`/inspection/ronde/${ronde.id}/validation`)}>
               Voir la validation
             </Button>
           )}

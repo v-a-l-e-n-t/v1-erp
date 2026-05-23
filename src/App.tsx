@@ -30,7 +30,12 @@ import StockSphereHistory from "./pages/StockSphereHistory";
 import Reception from "./pages/Reception";
 import ReceptionHistory from "./pages/ReceptionHistory";
 import RapportBL from "./pages/RapportBL";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import InspectionDashboard from "./pages/InspectionDashboard";
+import InspectionConfiguration from "./pages/InspectionConfiguration";
+import InspectionRonde from "./pages/InspectionRonde";
+import InspectionValidation from "./pages/InspectionValidation";
+import InspectionHistorique from "./pages/InspectionHistorique";
+import { ProtectedRoute, VracProtectedRoute } from "./components/ProtectedRoute";
 import { BonsExpiryWatcher } from "./components/rapport-bl/BonsExpiryWatcher";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,35 +54,46 @@ const App = () => (
       <BonsExpiryWatcher />
       <BrowserRouter>
         <Routes>
+          {/* ===== Routes publiques ===== */}
           <Route path="/" element={<Landing />} />
           <Route path="/app" element={<AppHome />} />
-          <Route path="/dashboard" element={<DashboardHistorique />} />
-          <Route path="/sphere-calculation" element={<SphereCalculation />} />
-          <Route path="/sphere-history" element={<SphereHistory />} />
-          <Route path="/production-entry" element={<ProductionDataEntry />} />
-          <Route path="/atelier-form" element={<FormAtelier />} />
-          <Route path="/agents" element={<AgentsManagement />} />
-          <Route path="/import_data" element={<ImportData />} />
-          <Route path="/new-bilan" element={<NewBilan />} />
-          <Route path="/bilan-bke" element={<BilanBke />} />
-          <Route path="/bouake" element={<DashboardBke />} />
-          <Route path="/stock" element={<Stock />} />
-          <Route path="/form-chariot" element={<FormChariot />} />
-          <Route path="/stock-sphere" element={<StockSphere />} />
-          <Route path="/stock-sphere-history" element={<StockSphereHistory />} />
-          <Route path="/reception" element={<Reception />} />
-          <Route path="/reception-history" element={<ReceptionHistory />} />
-          <Route path="/rapport-bl" element={<RapportBL />} />
-          {/* VRAC Module Routes - Public Access */}
           <Route path="/vrac-login" element={<VracLogin />} />
-          <Route path="/vrac" element={<VracClientPortal />} />
 
+          {/* ===== Routes admin (Supabase Auth | app_auth_session | dashboard_authenticated) ===== */}
           <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardHistorique />} />
+            <Route path="/sphere-calculation" element={<SphereCalculation />} />
+            <Route path="/sphere-history" element={<SphereHistory />} />
+            <Route path="/production-entry" element={<ProductionDataEntry />} />
+            <Route path="/atelier-form" element={<FormAtelier />} />
+            <Route path="/agents" element={<AgentsManagement />} />
+            <Route path="/import_data" element={<ImportData />} />
+            <Route path="/new-bilan" element={<NewBilan />} />
+            <Route path="/bilan-bke" element={<BilanBke />} />
+            <Route path="/bouake" element={<DashboardBke />} />
+            <Route path="/stock" element={<Stock />} />
+            <Route path="/form-chariot" element={<FormChariot />} />
+            <Route path="/stock-sphere" element={<StockSphere />} />
+            <Route path="/stock-sphere-history" element={<StockSphereHistory />} />
+            <Route path="/reception" element={<Reception />} />
+            <Route path="/reception-history" element={<ReceptionHistory />} />
+            <Route path="/rapport-bl" element={<RapportBL />} />
             <Route path="/vrac-admin" element={<VracAdminPanel />} />
+            <Route path="/form-maintenance" element={<FormMaintenance />} />
+            <Route path="/form-palette" element={<FormPalette />} />
+            {/* Inspection module */}
+            <Route path="/inspection" element={<InspectionDashboard />} />
+            <Route path="/inspection/config" element={<InspectionConfiguration />} />
+            <Route path="/inspection/ronde/:id" element={<InspectionRonde />} />
+            <Route path="/inspection/ronde/:id/validation" element={<InspectionValidation />} />
+            <Route path="/inspection/history" element={<InspectionHistorique />} />
           </Route>
 
-          <Route path="/form-maintenance" element={<FormMaintenance />} />
-          <Route path="/form-palette" element={<FormPalette />} />
+          {/* ===== Routes VRAC client (vrac_session) ===== */}
+          <Route element={<VracProtectedRoute />}>
+            <Route path="/vrac" element={<VracClientPortal />} />
+          </Route>
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
