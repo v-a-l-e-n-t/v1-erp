@@ -49,7 +49,8 @@ interface ReceptionData {
 const CLIENT_LABELS: Record<string, string> = {
   'TOTAL_ENERGIES': 'Total Énergies',
   'PETRO_IVOIRE': 'Petro Ivoire',
-  'VIVO_ENERGIES': 'Vivo Énergies'
+  'VIVO_ENERGIES': 'Vivo Énergies',
+  'SIMAM': 'SIMAM'
 };
 
 interface ReceptionsHistoryTableProps {
@@ -480,6 +481,7 @@ const ReceptionsHistoryTable = ({
             <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
             <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
             <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+            <SelectItem value="SIMAM">SIMAM</SelectItem>
           </SelectContent>
         </Select>
 
@@ -537,6 +539,7 @@ const ReceptionsHistoryTable = ({
                               <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
                               <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
                               <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+                              <SelectItem value="SIMAM">SIMAM</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
@@ -708,6 +711,7 @@ const ReceptionsHistoryTable = ({
                   <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
                   <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
                   <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+                  <SelectItem value="SIMAM">SIMAM</SelectItem>
                 </SelectContent>
               </Select>
             </div>

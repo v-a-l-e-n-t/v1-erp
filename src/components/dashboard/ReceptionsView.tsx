@@ -54,7 +54,8 @@ interface ReceptionData {
 const CLIENT_LABELS: Record<string, string> = {
   'TOTAL_ENERGIES': 'Total Énergies',
   'PETRO_IVOIRE': 'Petro Ivoire',
-  'VIVO_ENERGIES': 'Vivo Énergies'
+  'VIVO_ENERGIES': 'Vivo Énergies',
+  'SIMAM': 'SIMAM'
 };
 
 export default function ReceptionsView({
@@ -479,6 +480,8 @@ export default function ReceptionsView({
         return '#10b981'; // vert
       case 'TOTAL_ENERGIES':
         return '#3b82f6'; // bleu
+      case 'SIMAM':
+        return '#1e3a8a'; // bleu marine SIMAM (logo)
       default:
         return '#3b82f6';
     }
@@ -676,17 +679,20 @@ export default function ReceptionsView({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {clientData.map((client) => {
                 const color = getClientColor(client.clientKey);
                 const bgColor = client.clientKey === 'PETRO_IVOIRE' ? 'bg-orange-50/50' :
                                client.clientKey === 'VIVO_ENERGIES' ? 'bg-green-50/50' :
+                               client.clientKey === 'SIMAM' ? 'bg-indigo-50/50' :
                                'bg-blue-50/50';
                 const borderColor = client.clientKey === 'PETRO_IVOIRE' ? 'border-orange-100' :
                                    client.clientKey === 'VIVO_ENERGIES' ? 'border-green-100' :
+                                   client.clientKey === 'SIMAM' ? 'border-indigo-200' :
                                    'border-blue-100';
                 const logoPath = client.clientKey === 'PETRO_IVOIRE' ? '/images/logo-petro.png' :
                                 client.clientKey === 'VIVO_ENERGIES' ? '/images/logo-vivo.png' :
+                                client.clientKey === 'SIMAM' ? '/images/logo-simam.png' :
                                 '/images/logo-total.png';
 
                 return (
@@ -740,6 +746,7 @@ export default function ReceptionsView({
                   <SelectItem value="TOTAL_ENERGIES">Total Énergies</SelectItem>
                   <SelectItem value="PETRO_IVOIRE">Petro Ivoire</SelectItem>
                   <SelectItem value="VIVO_ENERGIES">Vivo Énergies</SelectItem>
+                  <SelectItem value="SIMAM">SIMAM</SelectItem>
                 </SelectContent>
               </Select>
             </div>
