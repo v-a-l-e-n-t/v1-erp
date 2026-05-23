@@ -216,14 +216,17 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
     if (editMode && initialData) {
       console.log('Initializing form with data:', initialData);
 
+      const shiftType = initialData.shift_type || '10h-19h';
+      const hours = SHIFT_HOURS[shiftType];
+
       setShift({
         date: initialData.date || new Date().toISOString().split('T')[0],
-        shift_type: initialData.shift_type || '10h-19h',
+        shift_type: shiftType,
         chef_quart_id: initialData.chef_quart_id || '',
-        heure_debut_theorique: initialData.heure_debut_theorique || '10:00',
-        heure_fin_theorique: initialData.heure_fin_theorique || '19:00',
-        heure_debut_reelle: initialData.heure_debut_reelle || '10:00',
-        heure_fin_reelle: initialData.heure_fin_reelle || '19:00',
+        heure_debut_theorique: initialData.heure_debut_theorique || hours.debut,
+        heure_fin_theorique: initialData.heure_fin_theorique || hours.fin,
+        heure_debut_reelle: initialData.heure_debut_reelle || hours.debut,
+        heure_fin_reelle: initialData.heure_fin_reelle || hours.fin,
         bouteilles_produites: initialData.bouteilles_produites || 0,
         chariste: initialData.chariste || 0,
         chariot: initialData.chariot || 0,
@@ -987,14 +990,15 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
 
       // Réinitialiser tous les champs du formulaire (only in creation mode)
       if (!editMode) {
+        const defaultHours = SHIFT_HOURS['10h-19h'];
         setShift({
           date: new Date().toISOString().split('T')[0],
           shift_type: '10h-19h',
           chef_quart_id: '',
-          heure_debut_theorique: '10:00',
-          heure_fin_theorique: '19:00',
-          heure_debut_reelle: '10:00',
-          heure_fin_reelle: '19:00',
+          heure_debut_theorique: defaultHours.debut,
+          heure_fin_theorique: defaultHours.fin,
+          heure_debut_reelle: defaultHours.debut,
+          heure_fin_reelle: defaultHours.fin,
           bouteilles_produites: 0,
           chariste: 0,
           chariot: 0,

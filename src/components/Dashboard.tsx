@@ -1206,6 +1206,7 @@ const Dashboard = ({ entries }: DashboardProps) => {
                 { logo: '/images/logo-total.png', alt: 'Total', key: 'TOTAL_ENERGIES' as const },
                 { logo: '/images/logo-petro.png', alt: 'Petro', key: 'PETRO_IVOIRE' as const },
                 { logo: '/images/logo-vivo.png',  alt: 'Vivo',  key: 'VIVO_ENERGIES' as const },
+                { logo: '/images/logo-simam.png', alt: 'Simam', key: 'SIMAM' as const },
               ]).map(({ logo, alt, key }) => {
                 const val = receptionsClients.byClient[key] || 0;
                 const pct = receptionsClients.total > 0 ? (val / receptionsClients.total) * 100 : 0;
