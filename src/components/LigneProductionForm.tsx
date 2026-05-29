@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, Users } from "lucide-react";
+import { Plus, Minus, Users, Wrench } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,9 +14,12 @@ import {
   ArretProductionForm as ArretFormType,
   ARRET_CATEGORIES,
   ARRET_LABELS,
-  ArretType
+  ArretType,
+  isCountedInDowntime,
 } from "@/types/production";
+import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 interface LigneProductionFormProps {
   ligne: LigneProduction;
@@ -51,6 +54,43 @@ export const LigneProductionForm = ({
 }: LigneProductionFormProps) => {
   const actif = ligne.actif !== false; // défaut Actif
   const [showLigneEffectifDialog, setShowLigneEffectifDialog] = useState(false);
+  const [showEquipementsDialog, setShowEquipementsDialog] = useState(false);
+  const [equipementsLigne, setEquipementsLigne] = useState<Array<{
+    id: string;
+    nom: string;
+    code: string | null;
+    actif: boolean;
+    motif_inactif: string | null;
+  }>>([]);
+
+  // Chargement des equipements affectes a cette ligne (lecture seule pour
+  // affichage dans le dialog "Equipements de la ligne").
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await (supabase as any)
+        .from('equipements_lignes')
+        .select('actif, motif_inactif, equipements(id, nom, code)')
+        .eq('numero_ligne', ligne.numero_ligne);
+      if (error || !data || cancelled) return;
+      const flat = (data as any[])
+        .filter(r => r.equipements)
+        .map(r => ({
+          id: r.equipements.id as string,
+          nom: r.equipements.nom as string,
+          code: (r.equipements.code ?? null) as string | null,
+          actif: r.actif as boolean,
+          motif_inactif: (r.motif_inactif ?? null) as string | null,
+        }))
+        .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+      setEquipementsLigne(flat);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [ligne.numero_ligne, showEquipementsDialog]);
+
+  const equipementsActifsCount = equipementsLigne.filter(e => e.actif).length;
+  const equipementsTotalCount = equipementsLigne.length;
 
   const handleToggleActif = (next: boolean) => {
     onUpdate(index, 'actif', next);
@@ -91,7 +131,12 @@ export const LigneProductionForm = ({
 
   const newMotifsList = ARRET_CATEGORIES.flatMap(c => c.motifs);
   const legacyArrets = (ligne.arrets || []).filter(a => !newMotifsList.includes(a.type_arret));
-  const tempsArretCumule = (ligne.arrets || []).reduce((sum, a) => sum + (a.duree_minutes || 0), 0);
+  // On EXCLUT les motifs "indicateur" (ex. Arret bascule) du temps d'arret cumule
+  // affiche dans le form : ces motifs sont saisis pour analyse uniquement et
+  // n'impactent pas le temps d'arret de la ligne.
+  const tempsArretCumule = (ligne.arrets || [])
+    .filter(a => isCountedInDowntime(a.type_arret))
+    .reduce((sum, a) => sum + (a.duree_minutes || 0), 0);
   const lineAgents = allAgents.filter(a => a.lignes_affectees?.includes(ligne.numero_ligne));
 
   // Mettre à jour les valeurs calculées dans le parent
@@ -245,7 +290,7 @@ export const LigneProductionForm = ({
 
               <div>
                 <Label>Effectif Ligne</Label>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Button
                     type="button"
                     variant="outline"
@@ -258,6 +303,16 @@ export const LigneProductionForm = ({
                   <span className="text-muted-foreground text-sm">
                     / {[0, 1].includes(index) ? '08' : [2, 3].includes(index) ? '14' : '10'} max
                   </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowEquipementsDialog(true)}
+                    className="gap-2"
+                    title="Liste des équipements affectés à cette ligne"
+                  >
+                    <Wrench className="h-4 w-4" />
+                    Voir équipements ({equipementsActifsCount}/{equipementsTotalCount})
+                  </Button>
                 </div>
               </div>
             </div>
@@ -804,6 +859,68 @@ export const LigneProductionForm = ({
                 </div>
                 <div className="flex justify-end">
                   <Button type="button" onClick={() => setShowLigneEffectifDialog(false)}>
+                    Fermer
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Dialog : equipements affectes a la ligne (lecture seule) */}
+            <Dialog open={showEquipementsDialog} onOpenChange={setShowEquipementsDialog}>
+              <DialogContent className="sm:max-w-[520px]">
+                <DialogHeader>
+                  <DialogTitle>Équipements de la Ligne {ligne.numero_ligne}</DialogTitle>
+                  <DialogDescription>
+                    Liste des équipements affectés à cette ligne. Pour modifier les affectations,
+                    rendez-vous sur la page <span className="font-medium">Agents &amp; Équipements</span>.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 my-4 max-h-[400px] overflow-y-auto pr-2">
+                  {equipementsLigne.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6 italic">
+                      Aucun équipement affecté à cette ligne.
+                    </p>
+                  ) : (
+                    equipementsLigne.map((eq) => (
+                      <div
+                        key={eq.id}
+                        className={cn(
+                          "flex items-start justify-between gap-3 p-3 border rounded-lg transition-colors",
+                          eq.actif ? "bg-green-50/40 border-green-200" : "bg-amber-50/40 border-amber-300",
+                        )}
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-medium text-sm text-foreground">
+                            {eq.nom}
+                            {eq.code && (
+                              <span className="text-xs text-muted-foreground ml-1.5">({eq.code})</span>
+                            )}
+                          </span>
+                          {!eq.actif && eq.motif_inactif && (
+                            <span
+                              className="text-xs text-amber-800 italic mt-0.5"
+                              title={eq.motif_inactif}
+                            >
+                              Motif : {eq.motif_inactif}
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap",
+                            eq.actif
+                              ? "bg-green-100 text-green-800"
+                              : "bg-amber-100 text-amber-800",
+                          )}
+                        >
+                          {eq.actif ? 'Actif' : 'Inactif'}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <Button type="button" onClick={() => setShowEquipementsDialog(false)}>
                     Fermer
                   </Button>
                 </div>
