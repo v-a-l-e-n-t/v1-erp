@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
-import { Users } from "lucide-react";
+import { Users, Wrench } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AgentForm } from "@/components/AgentForm";
 import { AgentsList } from "@/components/AgentsList";
 import { RolesManagementCard } from "@/components/RolesManagementCard";
+import { EquipementForm } from "@/components/EquipementForm";
+import { EquipementsList } from "@/components/EquipementsList";
+import { GererEquipementsDialog } from "@/components/GererEquipementsDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Agent, Role } from "@/types/production";
+import type { Equipement, EquipementLigne, EquipementWithLignes } from "@/types/equipement";
 import { useAudit } from "@/hooks/useAudit";
 import { useAppAuth } from "@/hooks/useAppAuth";
 import PasswordGate from "@/components/PasswordGate";
@@ -19,14 +25,22 @@ const AgentsManagement = () => {
     const [agents, setAgents] = useState<Agent[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [editingAgent, setEditingAgent] = useState<Agent | undefined>();
+    const [equipements, setEquipements] = useState<EquipementWithLignes[]>([]);
+    const [editingEquipement, setEditingEquipement] = useState<Equipement | undefined>();
+    const [showGererEquipements, setShowGererEquipements] = useState(false);
+    const [savingMatrix, setSavingMatrix] = useState(false);
     const userEmail = session?.user_name ?? '';
+    const { logAction } = useAudit();
 
     useEffect(() => {
         if (isAuthenticated) {
             loadRoles();
             loadAgents();
+            loadEquipements();
         }
     }, [isAuthenticated]);
+
+    // ============== AGENTS ==============
 
     const loadRoles = async () => {
         const { data, error } = await (supabase as any)
@@ -60,7 +74,6 @@ const AgentsManagement = () => {
             return;
         }
 
-        // Charge en parallèle les affectations de lignes
         const { data: aff, error: affErr } = await (supabase as any)
             .from('agents_lignes')
             .select('agent_id, numero_ligne');
@@ -81,10 +94,6 @@ const AgentsManagement = () => {
         setAgents(enriched);
     };
 
-    const { logAction } = useAudit();
-
-    // Synchronise les lignes affectées d'un agent : on supprime tout, on
-    // réinsère la sélection. Simple et idempotent.
     const syncAgentLignes = async (agentId: string, lignes: number[]) => {
         await (supabase as any).from('agents_lignes').delete().eq('agent_id', agentId);
         if (lignes.length > 0) {
@@ -94,7 +103,7 @@ const AgentsManagement = () => {
         }
     };
 
-    const handleSubmit = async (data: Omit<Agent, 'id'>) => {
+    const handleAgentSubmit = async (data: Omit<Agent, 'id'>) => {
         setLoading(true);
         try {
             const userName = userEmail || localStorage.getItem('user_name') || 'Inconnu';
@@ -113,12 +122,7 @@ const AgentsManagement = () => {
                     .eq('id', editingAgent.id);
                 if (error) throw error;
                 agentId = editingAgent.id;
-                await logAction({
-                    table_name: 'agents',
-                    record_id: agentId,
-                    action: 'UPDATE',
-                    details: data,
-                });
+                await logAction({ table_name: 'agents', record_id: agentId, action: 'UPDATE', details: data });
                 toast({ title: "Succès", description: "Agent modifié avec succès" });
             } else {
                 const { data: newAgentData, error } = await (supabase as any)
@@ -128,12 +132,7 @@ const AgentsManagement = () => {
                     .single();
                 if (error) throw error;
                 agentId = newAgentData.id;
-                await logAction({
-                    table_name: 'agents',
-                    record_id: agentId,
-                    action: 'CREATE',
-                    details: data,
-                });
+                await logAction({ table_name: 'agents', record_id: agentId, action: 'CREATE', details: data });
                 toast({ title: "Succès", description: "Agent ajouté avec succès" });
             }
 
@@ -152,25 +151,17 @@ const AgentsManagement = () => {
         }
     };
 
-    const handleEdit = (agent: Agent) => {
+    const handleAgentEdit = (agent: Agent) => {
         setEditingAgent(agent);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleDelete = async (id: string) => {
+    const handleAgentDelete = async (id: string) => {
         setLoading(true);
         try {
-            // agents_lignes auto-supprimé par ON DELETE CASCADE
-            const { error } = await (supabase as any)
-                .from('agents')
-                .delete()
-                .eq('id', id);
+            const { error } = await (supabase as any).from('agents').delete().eq('id', id);
             if (error) throw error;
-            await logAction({
-                table_name: 'agents',
-                record_id: id,
-                action: 'DELETE',
-            });
+            await logAction({ table_name: 'agents', record_id: id, action: 'DELETE' });
             toast({ title: "Succès", description: "Agent supprimé avec succès" });
             await loadAgents();
         } catch (error: any) {
@@ -185,8 +176,155 @@ const AgentsManagement = () => {
         }
     };
 
-    const handleCancel = () => {
-        setEditingAgent(undefined);
+    // ============== EQUIPEMENTS ==============
+
+    const loadEquipements = async () => {
+        const { data: eq, error: eqErr } = await (supabase as any)
+            .from('equipements')
+            .select('*')
+            .order('nom');
+        if (eqErr) {
+            console.error("Error loading equipements:", eqErr);
+            return;
+        }
+        const { data: lignes, error: lErr } = await (supabase as any)
+            .from('equipements_lignes')
+            .select('*');
+        if (lErr) {
+            console.error("Error loading equipements_lignes:", lErr);
+        }
+        const byEquipement = new Map<string, EquipementLigne[]>();
+        (lignes ?? []).forEach((l: EquipementLigne) => {
+            const arr = byEquipement.get(l.equipement_id) ?? [];
+            arr.push(l);
+            byEquipement.set(l.equipement_id, arr);
+        });
+        const enriched: EquipementWithLignes[] = (eq || []).map((e: Equipement) => ({
+            ...e,
+            lignes: byEquipement.get(e.id) ?? [],
+        }));
+        setEquipements(enriched);
+    };
+
+    const handleEquipementSubmit = async (data: Omit<Equipement, 'id' | 'created_at'>) => {
+        setLoading(true);
+        try {
+            const userName = userEmail || localStorage.getItem('user_name') || 'Inconnu';
+            const payload = {
+                ...data,
+                last_modified_by: userName,
+                last_modified_at: new Date().toISOString(),
+            };
+
+            if (editingEquipement) {
+                const { error } = await (supabase as any)
+                    .from('equipements')
+                    .update(payload)
+                    .eq('id', editingEquipement.id);
+                if (error) throw error;
+                await logAction({ table_name: 'equipements', record_id: editingEquipement.id, action: 'UPDATE', details: data });
+                toast({ title: "Succès", description: "Équipement modifié" });
+            } else {
+                const { data: created, error } = await (supabase as any)
+                    .from('equipements')
+                    .insert(payload)
+                    .select()
+                    .single();
+                if (error) throw error;
+                await logAction({ table_name: 'equipements', record_id: created.id, action: 'CREATE', details: data });
+                toast({ title: "Succès", description: "Équipement ajouté" });
+            }
+            await loadEquipements();
+            setEditingEquipement(undefined);
+        } catch (error: any) {
+            console.error('Error saving equipement:', error);
+            toast({
+                title: "Erreur",
+                description: error.message || "Impossible d'enregistrer l'équipement",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEquipementEdit = (eq: EquipementWithLignes) => {
+        setEditingEquipement(eq);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleEquipementDelete = async (id: string) => {
+        setLoading(true);
+        try {
+            // equipements_lignes auto-supprime par ON DELETE CASCADE
+            const { error } = await (supabase as any).from('equipements').delete().eq('id', id);
+            if (error) throw error;
+            await logAction({ table_name: 'equipements', record_id: id, action: 'DELETE' });
+            toast({ title: "Succès", description: "Équipement supprimé" });
+            await loadEquipements();
+        } catch (error: any) {
+            console.error('Error deleting equipement:', error);
+            toast({
+                title: "Erreur",
+                description: error.message || "Impossible de supprimer l'équipement",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
+     * Sauvegarde la matrice de la popup "Gerer equipements" : on supprime
+     * toutes les rows equipements_lignes des equipements concernes puis on
+     * reinsere la matrice complete. Simple et idempotent (comme syncAgentLignes).
+     */
+    const handleMatrixSave = async (rows: Array<{
+        equipement_id: string;
+        numero_ligne: number;
+        actif: boolean;
+        motif_inactif: string | null;
+    }>) => {
+        setSavingMatrix(true);
+        try {
+            const userName = userEmail || localStorage.getItem('user_name') || 'Inconnu';
+            const now = new Date().toISOString();
+
+            // Tous les equipements impactes (ceux du catalogue actuel — meme si pas de rows)
+            const equipementIds = equipements.map(e => e.id);
+            if (equipementIds.length > 0) {
+                const { error: delErr } = await (supabase as any)
+                    .from('equipements_lignes')
+                    .delete()
+                    .in('equipement_id', equipementIds);
+                if (delErr) throw delErr;
+            }
+
+            if (rows.length > 0) {
+                const payload = rows.map(r => ({
+                    ...r,
+                    last_modified_by: userName,
+                    last_modified_at: now,
+                }));
+                const { error: insErr } = await (supabase as any)
+                    .from('equipements_lignes')
+                    .insert(payload);
+                if (insErr) throw insErr;
+            }
+
+            await loadEquipements();
+            toast({ title: "Succès", description: "Affectations équipements enregistrées" });
+            setShowGererEquipements(false);
+        } catch (error: any) {
+            console.error('Error saving matrix:', error);
+            toast({
+                title: "Erreur",
+                description: error.message || "Impossible d'enregistrer les affectations",
+                variant: "destructive",
+            });
+        } finally {
+            setSavingMatrix(false);
+        }
     };
 
     if (!isAuthenticated) {
@@ -200,10 +338,10 @@ const AgentsManagement = () => {
                     <div className="flex items-center gap-3">
                         <Users className="h-6 w-6 text-primary" />
                         <div>
-                            <h1 className="text-2xl font-bold">Gestion des Agents</h1>
+                            <h1 className="text-2xl font-bold">Gestion des Agents et équipements</h1>
                             <div className="flex items-center gap-2">
                                 <p className="text-sm text-muted-foreground">
-                                    Rôles personnalisables + affectation multi-lignes
+                                    Rôles, agents (multi-lignes) et équipements de production
                                 </p>
                                 {userEmail && (
                                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
@@ -217,25 +355,69 @@ const AgentsManagement = () => {
             </header>
 
             <main className="container mx-auto px-4 py-8 max-w-5xl">
-                <div className="space-y-6">
-                    <RolesManagementCard roles={roles} onChanged={loadRoles} />
+                <Tabs defaultValue="agents" className="space-y-6">
+                    <TabsList>
+                        <TabsTrigger value="agents" className="gap-2">
+                            <Users className="h-4 w-4" />
+                            Agents
+                        </TabsTrigger>
+                        <TabsTrigger value="equipements" className="gap-2">
+                            <Wrench className="h-4 w-4" />
+                            Équipements
+                        </TabsTrigger>
+                    </TabsList>
 
-                    <AgentForm
-                        agent={editingAgent}
-                        roles={roles}
-                        onSubmit={handleSubmit}
-                        onCancel={handleCancel}
-                        loading={loading}
-                    />
+                    <TabsContent value="agents" className="space-y-6">
+                        <RolesManagementCard roles={roles} onChanged={loadRoles} />
+                        <AgentForm
+                            agent={editingAgent}
+                            roles={roles}
+                            onSubmit={handleAgentSubmit}
+                            onCancel={() => setEditingAgent(undefined)}
+                            loading={loading}
+                        />
+                        <AgentsList
+                            agents={agents}
+                            roles={roles}
+                            onEdit={handleAgentEdit}
+                            onDelete={handleAgentDelete}
+                            loading={loading}
+                        />
+                    </TabsContent>
 
-                    <AgentsList
-                        agents={agents}
-                        roles={roles}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        loading={loading}
-                    />
-                </div>
+                    <TabsContent value="equipements" className="space-y-6">
+                        <div className="flex justify-end">
+                            <Button
+                                onClick={() => setShowGererEquipements(true)}
+                                disabled={equipements.length === 0}
+                                className="gap-2"
+                            >
+                                <Wrench className="h-4 w-4" />
+                                Gérer équipements
+                            </Button>
+                        </div>
+                        <EquipementForm
+                            equipement={editingEquipement}
+                            onSubmit={handleEquipementSubmit}
+                            onCancel={() => setEditingEquipement(undefined)}
+                            loading={loading}
+                        />
+                        <EquipementsList
+                            equipements={equipements}
+                            onEdit={handleEquipementEdit}
+                            onDelete={handleEquipementDelete}
+                            loading={loading}
+                        />
+                    </TabsContent>
+                </Tabs>
+
+                <GererEquipementsDialog
+                    open={showGererEquipements}
+                    onOpenChange={setShowGererEquipements}
+                    equipements={equipements}
+                    onSave={handleMatrixSave}
+                    saving={savingMatrix}
+                />
             </main>
         </div>
     );

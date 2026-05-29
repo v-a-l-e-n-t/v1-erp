@@ -80,10 +80,10 @@ export default function Home() {
           color: 'text-orange-500',
         },
         {
-          title: 'Gestion Agents',
-          description: 'Gérer les équipes (Ligne, Quart, Exploitation)',
+          title: 'Agents & Équipements',
+          description: 'Gérer les équipes, rôles et équipements de production',
           icon: Users,
-          path: '/agents',
+          path: '/agents-equipements',
           color: 'text-pink-500',
         },
       ]
