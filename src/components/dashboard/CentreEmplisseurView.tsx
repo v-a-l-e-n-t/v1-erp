@@ -76,10 +76,18 @@ const calculateLigneHours = (ligne: any): number => {
     return 9;
 };
 
-const categorizeArret = (type: string): 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre' => {
+/**
+ * Categorise un type d'arret en categorie d'affichage.
+ * Note : 'arret_bascule' a sa propre categorie "Arret bascule" car ce motif
+ * n'est pas comptabilise dans le temps d'arret total (cf isCountedInDowntime).
+ */
+type ArretCategory = 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre' | 'Arrêt bascule';
+
+const categorizeArret = (type: string): ArretCategory => {
     switch (type) {
         case 'causerie_securite':
         case 'exercice_securite':
+        case 'incidents':
             return 'Sécurité';
         case 'manque_personnel':
         case 'manque_bouteilles':
@@ -91,6 +99,8 @@ const categorizeArret = (type: string): 'Sécurité' | 'Ressources' | 'Pannes' |
         case 'maintenance_corrective':
         case 'panne_ligne':
             return 'Pannes';
+        case 'arret_bascule':
+            return 'Arrêt bascule';
         default:
             return 'Autre';
     }
@@ -99,12 +109,14 @@ const categorizeArret = (type: string): 'Sécurité' | 'Ressources' | 'Pannes' |
 const ARRET_LABELS: Record<string, string> = {
     causerie_securite: 'Causerie sécurité',
     exercice_securite: 'Exercice sécurité',
+    incidents: 'Incidents',
     manque_personnel: 'Manque de personnel',
     manque_bouteilles: 'Manque de bouteilles',
     perte_vitesse: 'Perte de vitesse',
     lenteur_cariste: 'Lenteur cariste',
     panne_palettiseur: 'Panne palettiseur',
     autre_panne: 'Autre panne',
+    arret_bascule: 'Arrêt bascule',
     maintenance_corrective: 'Maintenance corrective',
     probleme_approvisionnement: 'Problème approvisionnement',
     panne_ligne: 'Pannes sur la ligne',
@@ -307,7 +319,7 @@ const CentreEmplisseurView = ({
     const [isLinesExpanded, setIsLinesExpanded] = useState(false);
     const [isAgentsExpanded, setIsAgentsExpanded] = useState(false);
     const [isArretsExpanded, setIsArretsExpanded] = useState(false);
-    const [arretFilter, setArretFilter] = useState<'Tous' | 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre'>('Tous');
+    const [arretFilter, setArretFilter] = useState<'Tous' | 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre' | 'Arrêt bascule'>('Tous');
     // Card "Commentaires de shift"
     const [isCommentairesExpanded, setIsCommentairesExpanded] = useState(false);
     const [commentaireShiftFilter, setCommentaireShiftFilter] = useState<'Tous' | 'Shift 1' | 'Shift 2'>('Tous');
@@ -533,9 +545,15 @@ const CentreEmplisseurView = ({
 
                 lineArrets.forEach((arret: any) => {
                     const cat = categorizeArret(arret.type_arret);
-                    
-                    if (arretFilter !== 'Tous' && cat !== arretFilter) {
-                        return;
+
+                    if (arretFilter === 'Arrêt bascule') {
+                        // Mode "Arret bascule" : on ne garde QUE ces motifs
+                        if (cat !== 'Arrêt bascule') return;
+                    } else {
+                        // Tout autre mode : on EXCLUT les arrets bascule (non comptabilises
+                        // dans les temps d'arret) et on applique le filtre categorie.
+                        if (cat === 'Arrêt bascule') return;
+                        if (arretFilter !== 'Tous' && cat !== arretFilter) return;
                     }
 
                     // Fallback to equal distribution if duree_minutes is missing in database
@@ -3143,21 +3161,41 @@ const CentreEmplisseurView = ({
                     {isArretsExpanded && (
                         <div className="space-y-6">
                             {/* Filter Buttons */}
-                            <div className="flex flex-wrap gap-1.5 p-1 bg-muted rounded-lg w-fit">
-                                {(['Tous', 'Sécurité', 'Ressources', 'Pannes', 'Autre'] as const).map((cat) => (
-                                    <button
-                                        key={cat}
-                                        onClick={() => setArretFilter(cat)}
-                                        className={cn(
-                                            "px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all",
-                                            arretFilter === cat
-                                                ? "bg-background text-foreground shadow-sm font-bold"
-                                                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
-                                        )}
-                                    >
-                                        {cat}
-                                    </button>
-                                ))}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex flex-wrap gap-1.5 p-1 bg-muted rounded-lg w-fit">
+                                    {(['Tous', 'Sécurité', 'Ressources', 'Pannes', 'Autre'] as const).map((cat) => (
+                                        <button
+                                            key={cat}
+                                            onClick={() => setArretFilter(cat)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all",
+                                                arretFilter === cat
+                                                    ? "bg-background text-foreground shadow-sm font-bold"
+                                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                            )}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* Filtre Arret bascule : separe car non comptabilise dans les temps d'arret */}
+                                <button
+                                    onClick={() => setArretFilter('Arrêt bascule')}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium border transition-all",
+                                        arretFilter === 'Arrêt bascule'
+                                            ? "bg-amber-500 text-white border-amber-500 shadow-sm font-bold"
+                                            : "bg-background text-amber-700 border-amber-300 hover:bg-amber-50"
+                                    )}
+                                    title="Indicateur seul — non additionne aux temps d'arret"
+                                >
+                                    Arrêt bascule
+                                </button>
+                                {arretFilter === 'Arrêt bascule' && (
+                                    <span className="text-[11px] text-muted-foreground italic">
+                                        Indicateur — non comptabilisé dans les temps d'arrêt
+                                    </span>
+                                )}
                             </div>
 
                             {/* Lines Grid */}

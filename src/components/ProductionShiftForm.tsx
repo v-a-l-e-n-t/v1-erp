@@ -33,7 +33,8 @@ import {
   SHIFT_HOURS,
   ArretType,
   EtapeLigne,
-  ArretProductionForm as ArretFormType
+  ArretProductionForm as ArretFormType,
+  isCountedInDowntime
 } from "@/types/production";
 
 interface ProductionShiftFormProps {
@@ -794,10 +795,13 @@ export const ProductionShiftForm = ({ editMode = false, initialData, onSuccess, 
       const allArrets: ArretProduction[] = [];
 
       lignes.forEach(ligne => {
-        // Calculer le temps d'arrêt pour cette ligne
-        const tempsArretLigne = (ligne.arrets || []).reduce((sum, arret) =>
-          sum + (arret.duree_minutes || 0), 0
-        );
+        // Calculer le temps d'arret pour cette ligne — on EXCLUT les motifs
+        // marques "indicatif" (cf isCountedInDowntime, ex. Arret bascule) qui
+        // sont enregistres dans arrets_production mais ne doivent pas etre
+        // additionnes au temps d'arret total.
+        const tempsArretLigne = (ligne.arrets || [])
+          .filter(arret => isCountedInDowntime(arret.type_arret))
+          .reduce((sum, arret) => sum + (arret.duree_minutes || 0), 0);
         arretShiftCumul += tempsArretLigne;
 
         // Ajouter les arrêts à la liste avec la durée pour la stocker en base

@@ -3,17 +3,33 @@ export type LigneType = 'B6_L1' | 'B6_L2' | 'B6_L3' | 'B6_L4' | 'B12';
 export type ArretType =
   | 'causerie_securite'
   | 'exercice_securite'
+  | 'incidents'
   | 'manque_personnel'
   | 'manque_bouteilles'
   | 'perte_vitesse'
   | 'lenteur_cariste'
   | 'panne_palettiseur'
   | 'autre_panne'
+  | 'arret_bascule'
   // Legacy types (conservés pour compatibilité historique)
   | 'maintenance_corrective'
   | 'probleme_approvisionnement'
   | 'panne_ligne'
   | 'autre';
+
+/**
+ * Motifs qui ne doivent PAS etre additionnes au temps d'arret de la ligne.
+ * Ils sont enregistres comme indicateurs uniquement (ex. Arret bascule) et
+ * affiches separement dans l'analyse temps d'arret du dashboard.
+ */
+export const NON_DOWNTIME_ARRET_TYPES: ReadonlySet<ArretType> = new Set<ArretType>([
+  'arret_bascule',
+]);
+
+export const isCountedInDowntime = (type: ArretType | string | null | undefined): boolean => {
+  if (!type) return true;
+  return !NON_DOWNTIME_ARRET_TYPES.has(type as ArretType);
+};
 export type EtapeLigne =
   | 'BASCULES'
   | 'PURGE'
@@ -211,12 +227,14 @@ export const SHIFT_HOURS = {
 export const ARRET_LABELS: Record<ArretType, string> = {
   causerie_securite: 'Causerie sécurité',
   exercice_securite: 'Exercice sécurité',
+  incidents: 'Incidents',
   manque_personnel: 'Manque de personnel',
   manque_bouteilles: 'Manque de bouteilles',
   perte_vitesse: 'Perte de vitesse',
   lenteur_cariste: 'Lenteur cariste',
   panne_palettiseur: 'Panne palettiseur',
   autre_panne: 'Autre panne',
+  arret_bascule: 'Arrêt bascule',
   // Legacy
   maintenance_corrective: 'Maintenance corrective',
   probleme_approvisionnement: 'Problème approvisionnement',
@@ -228,7 +246,7 @@ export const ARRET_LABELS: Record<ArretType, string> = {
 export const ARRET_CATEGORIES: { label: string; motifs: ArretType[] }[] = [
   {
     label: 'Sécurité',
-    motifs: ['causerie_securite', 'exercice_securite'],
+    motifs: ['causerie_securite', 'exercice_securite', 'incidents'],
   },
   {
     label: 'Ressources',
@@ -236,7 +254,7 @@ export const ARRET_CATEGORIES: { label: string; motifs: ArretType[] }[] = [
   },
   {
     label: 'Pannes',
-    motifs: ['panne_palettiseur', 'autre_panne'],
+    motifs: ['panne_palettiseur', 'autre_panne', 'arret_bascule'],
   },
 ];
 
