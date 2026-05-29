@@ -3233,18 +3233,23 @@ const CentreEmplisseurView = ({
                                                 </span>
                                             </div>
 
-                                            {/* Total Downtime */}
+                                            {/* Total Downtime (ou cumul indicatif en mode Arret bascule) */}
                                             <div className="text-center mb-4">
-                                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Temps d'arrêt</p>
+                                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                                                    {arretFilter === 'Arrêt bascule' ? 'Durée cumulée' : "Temps d'arrêt"}
+                                                </p>
                                                 <p className={cn("text-2xl font-black tabular-nums mt-0.5", textClass)}>
                                                     {formatMinutesToHours(line.totalDuration)}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground mt-0.5">
-                                                    {line.incidentCount} incident{line.incidentCount > 1 ? 's' : ''}
-                                                </p>
+                                                {arretFilter !== 'Arrêt bascule' && (
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        {line.incidentCount} incident{line.incidentCount > 1 ? 's' : ''}
+                                                    </p>
+                                                )}
                                             </div>
 
-                                            {/* Motif list breakdown */}
+                                            {/* Motif list breakdown — masque en mode Arret bascule (motif unique) */}
+                                            {arretFilter !== 'Arrêt bascule' && (
                                             <div className="pt-3 border-t space-y-2">
                                                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">Détail des Motifs</p>
                                                 {line.motifs.length === 0 ? (
@@ -3264,6 +3269,7 @@ const CentreEmplisseurView = ({
                                                     </div>
                                                 )}
                                             </div>
+                                            )}
                                         </div>
                                     );
                                 })}
