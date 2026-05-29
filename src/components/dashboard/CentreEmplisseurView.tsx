@@ -141,15 +141,20 @@ const aggregateShiftInventoryFormat = (
     fieldPrefix: 'stock_outil' | 'consignes_shift',
     clientKey: ShiftInventoryClientKey,
     fmt: 'b6' | 'b12',
+    divisor = 1,
 ): ShiftInventoryFormatRow => {
-    const vides = shifts.reduce(
+    const videsSum = shifts.reduce(
         (sum, s) => sum + (Number(s[`${fieldPrefix}_${clientKey}_${fmt}_vides`]) || 0),
         0,
     );
-    const pleines = shifts.reduce(
+    const pleinesSum = shifts.reduce(
         (sum, s) => sum + (Number(s[`${fieldPrefix}_${clientKey}_${fmt}_pleines`]) || 0),
         0,
     );
+    // Si le filtre couvre >= 2 jours, on affiche la moyenne par jour
+    // (divisor = nombre de jours distincts). Sinon divisor = 1 (totaux bruts).
+    const vides = divisor > 1 ? Math.round(videsSum / divisor) : videsSum;
+    const pleines = divisor > 1 ? Math.round(pleinesSum / divisor) : pleinesSum;
     const cumul = vides + pleines;
     const tauxVides = cumul > 0 ? (vides / cumul) * 100 : 0;
     const tauxPleines = cumul > 0 ? (pleines / cumul) * 100 : 0;
@@ -166,13 +171,14 @@ const aggregateShiftInventoryFormat = (
 const buildShiftInventoryByClient = (
     shifts: any[],
     fieldPrefix: 'stock_outil' | 'consignes_shift',
+    divisor = 1,
 ): ShiftInventoryClientBlock[] =>
     SHIFT_INVENTORY_CLIENT_KEYS.map((clientKey) => ({
         clientKey,
         logoSrc: SHIFT_INVENTORY_LOGOS[clientKey],
         rows: [
-            aggregateShiftInventoryFormat(shifts, fieldPrefix, clientKey, 'b6'),
-            aggregateShiftInventoryFormat(shifts, fieldPrefix, clientKey, 'b12'),
+            aggregateShiftInventoryFormat(shifts, fieldPrefix, clientKey, 'b6', divisor),
+            aggregateShiftInventoryFormat(shifts, fieldPrefix, clientKey, 'b12', divisor),
         ],
     }));
 
@@ -302,13 +308,30 @@ const CentreEmplisseurView = ({
     const [isAgentsExpanded, setIsAgentsExpanded] = useState(false);
     const [isArretsExpanded, setIsArretsExpanded] = useState(false);
     const [arretFilter, setArretFilter] = useState<'Tous' | 'Sécurité' | 'Ressources' | 'Pannes' | 'Autre'>('Tous');
+    // Card "Commentaires de shift"
+    const [isCommentairesExpanded, setIsCommentairesExpanded] = useState(false);
+    const [commentaireShiftFilter, setCommentaireShiftFilter] = useState<'Tous' | 'Shift 1' | 'Shift 2'>('Tous');
+    const [commentaireSelectedDay, setCommentaireSelectedDay] = useState<string>('all');
     const [rawShifts, setRawShifts] = useState<any[]>([]);
     const [showShiftStockConsignes, setShowShiftStockConsignes] = useState(false);
 
-    const shiftInventoryStats = useMemo(() => ({
-        stockOutil: buildShiftInventoryByClient(rawShifts, 'stock_outil'),
-        consignes: buildShiftInventoryByClient(rawShifts, 'consignes_shift'),
-    }), [rawShifts]);
+    // Nombre de jours distincts presents dans les donnees chargees.
+    const numDistinctDays = useMemo(() => {
+        const days = new Set<string>();
+        rawShifts.forEach((s: any) => { if (s?.date) days.add(s.date); });
+        return days.size;
+    }, [rawShifts]);
+
+    const shiftInventoryStats = useMemo(() => {
+        // Moyenne par jour des qu'on couvre >= 2 jours.
+        const divisor = numDistinctDays >= 2 ? numDistinctDays : 1;
+        return {
+            stockOutil: buildShiftInventoryByClient(rawShifts, 'stock_outil', divisor),
+            consignes: buildShiftInventoryByClient(rawShifts, 'consignes_shift', divisor),
+            isAverage: divisor > 1,
+            numDays: numDistinctDays,
+        };
+    }, [rawShifts, numDistinctDays]);
 
     // Export utility functions
     const exportSectionAsImage = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
@@ -2324,7 +2347,10 @@ const CentreEmplisseurView = ({
             {showShiftStockConsignes && (
                 <div className="rounded-lg border bg-card/80 p-3 sm:p-4 animate-in slide-in-from-top-2 fade-in duration-200">
                     <p className="text-xs text-muted-foreground mb-3">
-                        Informations du shift — stock outil et consignes (cumul sur la période filtrée)
+                        Informations du shift — stock outil et consignes
+                        {shiftInventoryStats.isAverage
+                            ? ` (moyenne par jour sur ${shiftInventoryStats.numDays} jours)`
+                            : ' (sur la période filtrée)'}
                     </p>
                     {rawShifts.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">
@@ -3204,37 +3230,133 @@ const CentreEmplisseurView = ({
                                     );
                                 })}
                             </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
-                            {/* Historique des bilans/commentaires de shift */}
-                            <div className="mt-3 border-t pt-4">
-                                <h4 className="text-sm font-bold text-foreground mb-3">Historique des commentaires de shift</h4>
-                                {rawShifts
-                                    .filter((s: any) => (s.bilan_commentaire || '').trim().length > 0)
-                                    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                    .length === 0 ? (
+            {/* 4. COMMENTAIRES DE SHIFT */}
+            <Card className="border-l-4 border-l-blue-500">
+                <CardHeader>
+                    <div
+                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setIsCommentairesExpanded(!isCommentairesExpanded)}
+                    >
+                        {isCommentairesExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        <CardTitle className="text-xl flex items-center gap-2">
+                            <span className="text-lg">📝</span>
+                            <span>COMMENTAIRES DE SHIFT</span>
+                        </CardTitle>
+                    </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4 pt-2">
+                    {isCommentairesExpanded && (() => {
+                        // Shifts commentes, filtres par shift
+                        const commented = rawShifts
+                            .filter((s: any) => (s.bilan_commentaire || '').trim().length > 0)
+                            .filter((s: any) => {
+                                if (commentaireShiftFilter === 'Tous') return true;
+                                const isShift1 = s.shift_type === '10h-19h';
+                                return commentaireShiftFilter === 'Shift 1' ? isShift1 : !isShift1;
+                            });
+
+                        // Jours distincts ayant des commentaires (apres filtre shift)
+                        const daysWithComments = Array.from(
+                            new Set(commented.map((s: any) => s.date).filter(Boolean))
+                        ).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+                        const multiDay = daysWithComments.length > 1;
+
+                        // Si on a change de filtre et que le jour selectionne n'existe plus,
+                        // on retombe sur "Tous les jours".
+                        const effectiveDay =
+                            commentaireSelectedDay !== 'all' && daysWithComments.includes(commentaireSelectedDay)
+                                ? commentaireSelectedDay
+                                : 'all';
+
+                        const visible = commented
+                            .filter((s: any) => effectiveDay === 'all' || s.date === effectiveDay)
+                            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                        return (
+                            <>
+                                {/* Filtre Shift (memes pills que ANALYSE DES TEMPS D'ARRET) */}
+                                <div className="flex flex-wrap gap-1.5 p-1 bg-muted rounded-lg w-fit">
+                                    {(['Tous', 'Shift 1', 'Shift 2'] as const).map((opt) => (
+                                        <button
+                                            key={opt}
+                                            onClick={() => setCommentaireShiftFilter(opt)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all",
+                                                commentaireShiftFilter === opt
+                                                    ? "bg-background text-foreground shadow-sm font-bold"
+                                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                            )}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Sur plusieurs jours : chips de selection du jour */}
+                                {multiDay && (
+                                    <div className="space-y-1.5">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                            Jour à afficher
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                onClick={() => setCommentaireSelectedDay('all')}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                                                    effectiveDay === 'all'
+                                                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                                                        : "bg-background text-muted-foreground border-input hover:border-blue-400 hover:text-foreground"
+                                                )}
+                                            >
+                                                Tous les jours ({daysWithComments.length})
+                                            </button>
+                                            {daysWithComments.map((day) => (
+                                                <button
+                                                    key={day}
+                                                    onClick={() => setCommentaireSelectedDay(day)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-full text-xs font-medium border transition-all tabular-nums",
+                                                        effectiveDay === day
+                                                            ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                                                            : "bg-background text-muted-foreground border-input hover:border-blue-400 hover:text-foreground"
+                                                    )}
+                                                >
+                                                    {new Date(day).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Liste des commentaires */}
+                                {visible.length === 0 ? (
                                     <p className="text-sm text-muted-foreground italic">
-                                        Aucun commentaire enregistré pour le filtre actuel.
+                                        Aucun commentaire enregistré pour ce filtre.
                                     </p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {rawShifts
-                                            .filter((s: any) => (s.bilan_commentaire || '').trim().length > 0)
-                                            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                            .map((s: any) => (
-                                                <div key={s.id} className="p-3 rounded-md border bg-card/70">
-                                                    <p className="text-xs font-semibold text-muted-foreground mb-1">
-                                                        {new Date(s.date).toLocaleDateString('fr-FR')} - {s.shift_type === '10h-19h' ? 'Shift 1' : 'Shift 2'}
-                                                    </p>
-                                                    <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-                                                        {s.bilan_commentaire}
-                                                    </p>
-                                                </div>
-                                            ))}
+                                        {visible.map((s: any) => (
+                                            <div key={s.id} className="p-3 rounded-md border bg-card/70">
+                                                <p className="text-xs font-semibold text-muted-foreground mb-1">
+                                                    {new Date(s.date).toLocaleDateString('fr-FR')} — {s.shift_type === '10h-19h' ? 'Shift 1' : 'Shift 2'}
+                                                </p>
+                                                <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                                                    {s.bilan_commentaire}
+                                                </p>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
-                            </div>
-                        </div>
-                    )}
+                            </>
+                        );
+                    })()}
                 </CardContent>
             </Card>
 
