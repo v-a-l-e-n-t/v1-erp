@@ -8,9 +8,7 @@ import { AgentsList } from "@/components/AgentsList";
 import { RolesManagementCard } from "@/components/RolesManagementCard";
 import { EquipementForm } from "@/components/EquipementForm";
 import { EquipementsList } from "@/components/EquipementsList";
-import { GererEquipementsDialog } from "@/components/GererEquipementsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Agent, Role } from "@/types/production";
 import type { Equipement, EquipementLigne, EquipementWithLignes } from "@/types/equipement";
 import { useAudit } from "@/hooks/useAudit";
@@ -26,9 +24,7 @@ const AgentsManagement = () => {
     const [roles, setRoles] = useState<Role[]>([]);
     const [editingAgent, setEditingAgent] = useState<Agent | undefined>();
     const [equipements, setEquipements] = useState<EquipementWithLignes[]>([]);
-    const [editingEquipement, setEditingEquipement] = useState<Equipement | undefined>();
-    const [showGererEquipements, setShowGererEquipements] = useState(false);
-    const [savingMatrix, setSavingMatrix] = useState(false);
+    const [editingEquipement, setEditingEquipement] = useState<EquipementWithLignes | undefined>();
     const userEmail = session?.user_name ?? '';
     const { logAction } = useAudit();
 
@@ -206,7 +202,33 @@ const AgentsManagement = () => {
         setEquipements(enriched);
     };
 
-    const handleEquipementSubmit = async (data: Omit<Equipement, 'id' | 'created_at'>) => {
+    /** Sync les affectations equipements_lignes : on supprime tout puis on
+     *  reinsere la selection. Idempotent. */
+    const syncEquipementLignes = async (
+        equipementId: string,
+        lignes: Array<Pick<EquipementLigne, 'numero_ligne' | 'actif' | 'motif_inactif'>>,
+    ) => {
+        const userName = userEmail || localStorage.getItem('user_name') || 'Inconnu';
+        const now = new Date().toISOString();
+        await (supabase as any).from('equipements_lignes').delete().eq('equipement_id', equipementId);
+        if (lignes.length > 0) {
+            await (supabase as any).from('equipements_lignes').insert(
+                lignes.map(l => ({
+                    equipement_id: equipementId,
+                    numero_ligne: l.numero_ligne,
+                    actif: l.actif,
+                    motif_inactif: l.motif_inactif,
+                    last_modified_by: userName,
+                    last_modified_at: now,
+                })),
+            );
+        }
+    };
+
+    const handleEquipementSubmit = async (
+        data: Omit<Equipement, 'id' | 'created_at'>,
+        lignes: Array<Pick<EquipementLigne, 'numero_ligne' | 'actif' | 'motif_inactif'>>,
+    ) => {
         setLoading(true);
         try {
             const userName = userEmail || localStorage.getItem('user_name') || 'Inconnu';
@@ -216,13 +238,15 @@ const AgentsManagement = () => {
                 last_modified_at: new Date().toISOString(),
             };
 
+            let equipementId: string;
             if (editingEquipement) {
                 const { error } = await (supabase as any)
                     .from('equipements')
                     .update(payload)
                     .eq('id', editingEquipement.id);
                 if (error) throw error;
-                await logAction({ table_name: 'equipements', record_id: editingEquipement.id, action: 'UPDATE', details: data });
+                equipementId = editingEquipement.id;
+                await logAction({ table_name: 'equipements', record_id: equipementId, action: 'UPDATE', details: { ...data, lignes } });
                 toast({ title: "Succès", description: "Équipement modifié" });
             } else {
                 const { data: created, error } = await (supabase as any)
@@ -231,9 +255,12 @@ const AgentsManagement = () => {
                     .select()
                     .single();
                 if (error) throw error;
-                await logAction({ table_name: 'equipements', record_id: created.id, action: 'CREATE', details: data });
+                equipementId = created.id;
+                await logAction({ table_name: 'equipements', record_id: equipementId, action: 'CREATE', details: { ...data, lignes } });
                 toast({ title: "Succès", description: "Équipement ajouté" });
             }
+
+            await syncEquipementLignes(equipementId, lignes);
             await loadEquipements();
             setEditingEquipement(undefined);
         } catch (error: any) {
@@ -271,59 +298,6 @@ const AgentsManagement = () => {
             });
         } finally {
             setLoading(false);
-        }
-    };
-
-    /**
-     * Sauvegarde la matrice de la popup "Gerer equipements" : on supprime
-     * toutes les rows equipements_lignes des equipements concernes puis on
-     * reinsere la matrice complete. Simple et idempotent (comme syncAgentLignes).
-     */
-    const handleMatrixSave = async (rows: Array<{
-        equipement_id: string;
-        numero_ligne: number;
-        actif: boolean;
-        motif_inactif: string | null;
-    }>) => {
-        setSavingMatrix(true);
-        try {
-            const userName = userEmail || localStorage.getItem('user_name') || 'Inconnu';
-            const now = new Date().toISOString();
-
-            // Tous les equipements impactes (ceux du catalogue actuel — meme si pas de rows)
-            const equipementIds = equipements.map(e => e.id);
-            if (equipementIds.length > 0) {
-                const { error: delErr } = await (supabase as any)
-                    .from('equipements_lignes')
-                    .delete()
-                    .in('equipement_id', equipementIds);
-                if (delErr) throw delErr;
-            }
-
-            if (rows.length > 0) {
-                const payload = rows.map(r => ({
-                    ...r,
-                    last_modified_by: userName,
-                    last_modified_at: now,
-                }));
-                const { error: insErr } = await (supabase as any)
-                    .from('equipements_lignes')
-                    .insert(payload);
-                if (insErr) throw insErr;
-            }
-
-            await loadEquipements();
-            toast({ title: "Succès", description: "Affectations équipements enregistrées" });
-            setShowGererEquipements(false);
-        } catch (error: any) {
-            console.error('Error saving matrix:', error);
-            toast({
-                title: "Erreur",
-                description: error.message || "Impossible d'enregistrer les affectations",
-                variant: "destructive",
-            });
-        } finally {
-            setSavingMatrix(false);
         }
     };
 
@@ -386,16 +360,6 @@ const AgentsManagement = () => {
                     </TabsContent>
 
                     <TabsContent value="equipements" className="space-y-6">
-                        <div className="flex justify-end">
-                            <Button
-                                onClick={() => setShowGererEquipements(true)}
-                                disabled={equipements.length === 0}
-                                className="gap-2"
-                            >
-                                <Wrench className="h-4 w-4" />
-                                Gérer équipements
-                            </Button>
-                        </div>
                         <EquipementForm
                             equipement={editingEquipement}
                             onSubmit={handleEquipementSubmit}
@@ -410,14 +374,6 @@ const AgentsManagement = () => {
                         />
                     </TabsContent>
                 </Tabs>
-
-                <GererEquipementsDialog
-                    open={showGererEquipements}
-                    onOpenChange={setShowGererEquipements}
-                    equipements={equipements}
-                    onSave={handleMatrixSave}
-                    saving={savingMatrix}
-                />
             </main>
         </div>
     );
