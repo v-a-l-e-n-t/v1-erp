@@ -2,7 +2,10 @@
    Landing GazPILOTE — direction "fusion" : bandes sombres éditoriales
    (façon Popcorn) alternant avec des sections claires aérées (façon Spectra).
    Accent orange de la marque (hsl 28 92% 56%) utilisé avec parcimonie.
+   Typo : Clash Display (titres, caractère) + Satoshi (corps, raffiné).
    ============================================================================ */
+
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=satoshi@400,500,700&display=swap");
 
 .lp {
   /* Palette locale, indépendante du thème clair/sombre de l'app */
@@ -19,7 +22,23 @@
   --txt-ink: 240 10% 10%;     /* texte sur fond clair */
   --txt-ink-mut: 240 6% 42%;
 
-  font-feature-settings: "ss01", "cv01";
+  --font-display: "Clash Display", "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+
+  font-family: var(--font-body);
+  font-feature-settings: "ss01";
+}
+
+/* Titres en Clash Display */
+.lp h1, .lp h2, .lp h3,
+.lp .lp-display, .lp .lp-h2 {
+  font-family: var(--font-display);
+}
+
+/* Sélection orange */
+.lp ::selection {
+  background: hsl(var(--accent));
+  color: hsl(var(--ink));
 }
 
 /* --- Bandes --- */
@@ -79,17 +98,17 @@
   width: 1.75rem; height: 1px; background: currentColor; opacity: 0.4;
 }
 
-/* --- Display headings : serré, lourd, éditorial --- */
+/* --- Display headings : serré, lourd, éditorial (Clash Display) --- */
 .lp-display {
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 0.98;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 0.96;
   text-wrap: balance;
 }
 .lp-h2 {
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.02;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
   text-wrap: balance;
 }
 
@@ -141,8 +160,38 @@
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
+/* --- Micro-interactions : flèches des CTA --- */
+.lp button svg { transition: transform 0.25s cubic-bezier(.2,.7,.2,1); }
+.lp button:hover svg.lucide-arrow-right { transform: translateX(3px); }
+.lp button:hover svg.lucide-arrow-up-right { transform: translate(2px, -2px); }
+
+/* --- Nav : soulignement animé --- */
+.lp-header nav button { position: relative; }
+.lp-header nav button::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 1.5px;
+  background: hsl(var(--accent)); transform: scaleX(0); transform-origin: left;
+  transition: transform 0.28s cubic-bezier(.2,.7,.2,1);
+}
+.lp-header nav button:hover::after { transform: scaleX(1); }
+
+/* --- Focus ring de marque --- */
+.lp a:focus-visible,
+.lp button:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* --- Indicateur de scroll dans le hero --- */
+@keyframes lp-scroll-cue {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(6px); opacity: 1; }
+}
+.lp-scroll-cue { animation: lp-scroll-cue 1.8s ease-in-out infinite; }
+
 /* --- Réduction de mouvement --- */
 @media (prefers-reduced-motion: reduce) {
   .lp-reveal { opacity: 1 !important; }
   .lp-marquee-track { animation: none; }
+  .lp-scroll-cue { animation: none; }
 }

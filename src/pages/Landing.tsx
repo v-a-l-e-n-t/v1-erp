@@ -239,8 +239,16 @@ const Landing = () => {
                     </span>
                   ))}
                 </span>
-                Déjà en production · Abidjan & Bouaké
+                Déjà en production · Abidjan &amp; Bouaké
               </div>
+
+              <button onClick={() => scrollTo('features')}
+                className="lp-hero-trust hidden lg:flex items-center gap-2 mt-10 text-[11px] uppercase tracking-[0.18em] font-mono text-[hsl(40_6%_64%)] hover:text-white transition-colors">
+                <span className="lp-scroll-cue inline-flex h-7 w-5 rounded-full border border-current items-center justify-center">
+                  <span className="h-1.5 w-px bg-current" />
+                </span>
+                Découvrir
+              </button>
             </div>
 
             {/* Colonne produit (droite) — panneau net */}
