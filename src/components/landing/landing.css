@@ -1,0 +1,103 @@
+/* ============================================================================
+   Styles dédiés à la nouvelle landing page SaaS GazPILOTE.
+   Couleurs alignées sur le design system (--primary orange 28 90% 55%,
+   foreground navy 215 25% 15%). Tout reste en HSL via les tokens Tailwind.
+   ============================================================================ */
+
+/* Hero : fond navy profond + halo orange. On définit des couleurs locales
+   pour ne pas dépendre du thème clair/sombre du reste de l'app. */
+.lp-hero {
+  --lp-navy: 215 35% 9%;
+  --lp-navy-soft: 215 30% 14%;
+  background:
+    radial-gradient(60% 50% at 50% -10%, hsl(28 90% 55% / 0.18), transparent 70%),
+    radial-gradient(40% 40% at 85% 20%, hsl(28 90% 55% / 0.10), transparent 70%),
+    radial-gradient(45% 45% at 10% 80%, hsl(210 80% 50% / 0.08), transparent 70%),
+    linear-gradient(180deg, hsl(var(--lp-navy)) 0%, hsl(var(--lp-navy-soft)) 100%);
+}
+
+/* Grille technique subtile en overlay (clin d'œil "industriel/SCADA"). */
+.lp-grid-overlay {
+  background-image:
+    linear-gradient(hsl(0 0% 100% / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(0 0% 100% / 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(70% 60% at 50% 35%, black, transparent 80%);
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 35%, black, transparent 80%);
+}
+
+/* Blobs animés (parallax GSAP) */
+.lp-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* Texte dégradé orange pour les accents du titre */
+.lp-gradient-text {
+  background: linear-gradient(120deg, hsl(28 95% 62%), hsl(38 95% 58%) 60%, hsl(28 90% 50%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Carte verre dépoli (glassmorphism) pour le mockup hero */
+.lp-glass {
+  background: hsl(215 30% 14% / 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid hsl(0 0% 100% / 0.08);
+  box-shadow: 0 30px 80px -20px hsl(215 50% 3% / 0.7);
+}
+
+/* Carte flottante (KPI) au-dessus du mockup */
+.lp-float-card {
+  background: hsl(0 0% 100% / 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid hsl(0 0% 100% / 0.6);
+  box-shadow: 0 16px 40px -12px hsl(215 50% 10% / 0.35);
+  will-change: transform;
+}
+
+/* État initial des éléments animés au scroll (évite le flash avant JS) */
+.lp-reveal {
+  opacity: 0;
+}
+
+/* Si l'utilisateur préfère réduire les animations, on montre tout direct. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-reveal {
+    opacity: 1 !important;
+  }
+}
+
+/* Ligne de connexion du workflow (tracée via GSAP scaleX) */
+.lp-flow-line {
+  transform-origin: left center;
+  will-change: transform;
+}
+
+/* Barre de progression animée (scaleX) */
+.lp-progress-fill {
+  transform-origin: left center;
+  will-change: transform;
+}
+
+/* Marquee logos (défilement infini doux en CSS, pausé au hover) */
+@keyframes lp-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.lp-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: lp-marquee 28s linear infinite;
+}
+.lp-marquee:hover .lp-marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-marquee-track { animation: none; }
+}
