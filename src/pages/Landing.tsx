@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -10,59 +10,54 @@ import {
 import DemoRequestDialog from '@/components/DemoRequestDialog';
 import LoginDialog from '@/components/LoginDialog';
 import {
-  BarChart3, Truck, Calculator, ArrowRight, ArrowUpRight,
-  MapPin, Ship, Factory, Gauge, ClipboardCheck, Menu, X, Star,
-  Quote, CheckCircle2,
+  ArrowRight, BarChart3, ClipboardCheck, Truck,
+  Ship, Factory, Gauge as GaugeIcon, Menu, X, Activity,
 } from 'lucide-react';
 import '@/components/landing/landing.css';
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-const bento = [
-  {
-    icon: BarChart3, span: 'lg:col-span-2 lg:row-span-2', accent: true,
-    title: 'Tableau de bord temps réel',
-    body: "Tonnage, réceptions, disponibilité, bilan : tout est calculé en direct, à la ligne et au shift. Plus besoin d'attendre la fin du mois pour savoir où vous en êtes.",
-  },
-  { icon: Calculator, title: 'Masses sphères au gramme', body: 'Barémage intégré S01/S02/S03, calculs Decimal.js, lecture OCR des jauges.' },
-  { icon: ClipboardCheck, title: 'Bilan matière auto', body: 'Stock théorique vs réel, écarts expliqués, par site.' },
-  { icon: Truck, title: 'VRAC & mandataires', body: 'Chargements, bons de transfert, performance par mandataire.' },
-  { icon: MapPin, title: 'Cartographie livraisons', body: 'Vos destinations sur une carte de la Côte d’Ivoire.' },
+const modules = [
+  { id: '01', icon: Factory, title: 'Production', body: "Embouteillage par ligne et par shift, arrêts catégorisés, cadences, équipes.", unit: '5 lignes' },
+  { id: '02', icon: GaugeIcon, title: 'Sphères & stock', body: 'Masses GPL calculées au gramme près, barémage intégré, lecture des jauges.', unit: '3 sphères' },
+  { id: '03', icon: Ship, title: 'Réceptions', body: 'Réceptions navire et clients, contrôles avant/après transfert.', unit: 'multi-clients' },
+  { id: '04', icon: Truck, title: 'Distribution & VRAC', body: 'Chargements VRAC, bons de transfert, mandataires, destinations.', unit: '40+ mandataires' },
+  { id: '05', icon: ClipboardCheck, title: 'Bilan matière', body: 'Réconciliation automatique entrées / sorties, écarts expliqués par site.', unit: 'temps réel' },
+  { id: '06', icon: BarChart3, title: 'Pilotage & analyse', body: 'Tableaux de bord live, objectifs, historiques, exports PDF / Excel.', unit: 'live' },
 ];
 
-const workflow = [
-  { icon: Ship, title: 'Réception', body: 'Navire & clients, barémage des sphères.' },
-  { icon: Gauge, title: 'Stockage', body: 'Masses GPL suivies en temps réel.' },
-  { icon: Factory, title: 'Production', body: 'Embouteillage, lignes, shifts, arrêts.' },
-  { icon: Truck, title: 'Distribution', body: 'VRAC, mandataires, bons.' },
-  { icon: ClipboardCheck, title: 'Bilan', body: 'Réconciliation & écarts.' },
+const flow = [
+  { icon: Ship, label: 'Réception' },
+  { icon: GaugeIcon, label: 'Stockage' },
+  { icon: Factory, label: 'Production' },
+  { icon: Truck, label: 'Distribution' },
+  { icon: ClipboardCheck, label: 'Bilan' },
 ];
 
-const stats = [
+const telemetry = [
+  { target: 2450, suffix: ' T', label: 'Tonnage produit', sub: 'cumul mois' },
+  { target: 25074, suffix: ' T', label: 'Stock sphères', sub: 'disponible' },
+  { target: 94, suffix: ' %', label: 'Disponibilité', sub: 'lignes actives' },
   { target: 2, suffix: '', label: 'Sites pilotés', sub: 'Abidjan · Bouaké' },
-  { target: 5, suffix: '', label: "Lignes d'embouteillage", sub: 'B6 ×4 + B12' },
-  { target: 4, suffix: '', label: 'Marques distribuées', sub: 'Petro · Vivo · Total · SIMAM' },
-  { target: null as number | null, display: 'Live', label: 'Données temps réel', sub: 'Mises à jour continues' },
 ];
 
 const benefits = [
-  'Import Excel automatisé', 'Rapports PDF / Excel exportables',
-  'Analyse par jour, mois, période', 'Suivi des objectifs mensuels',
-  'Multi-sites & multi-équipes', 'Historique complet & audit',
+  'Import Excel automatisé', 'Exports PDF / Excel', 'Analyse jour / mois / période',
+  'Suivi des objectifs', 'Multi-sites & multi-équipes', 'Historique & audit complet',
 ];
 
-const testimonials = [
-  { name: 'Chef de dépôt', role: 'Responsable exploitation', company: 'Centre emplisseur', quote: "On a remplacé cinq classeurs Excel par un seul écran. Le bilan matière qui prenait une demi-journée se fait maintenant en quelques minutes." },
-  { name: 'Chef de quart', role: 'Production', company: 'Ligne d’embouteillage', quote: "Saisir les shifts et les arrêts directement sur place a tout changé. On voit enfin où on perd du temps, ligne par ligne." },
-  { name: 'Responsable VRAC', role: 'Distribution', company: 'Portail clients', quote: "Les chargements VRAC et les bons de transfert sont enfin tracés au même endroit. Zéro bon perdu depuis qu’on est dessus." },
+const logs = [
+  { t: '05:12', who: 'Chef de quart', site: 'ABJ', msg: "Saisie shift directement sur la ligne. On voit enfin où on perd du temps, bascule par bascule." },
+  { t: '11:47', who: 'Chef de dépôt', site: 'ABJ', msg: "Cinq classeurs Excel remplacés par un seul écran. Le bilan matière tombe en quelques minutes." },
+  { t: '18:30', who: 'Resp. VRAC', site: 'BKE', msg: "Chargements et bons de transfert tracés au même endroit. Zéro bon perdu depuis." },
 ];
 
 const faqs = [
-  { q: 'Mes données sont-elles en sécurité ?', a: "Oui. Les données sont hébergées sur une infrastructure cloud sécurisée, avec authentification, journalisation des accès et sauvegardes. Chaque modification sensible est tracée." },
-  { q: 'GazPILOTE gère-t-il plusieurs sites ?', a: "Absolument. La plateforme pilote aujourd’hui les sites d’Abidjan et de Bouaké, avec des bilans et historiques distincts par site, depuis une seule interface." },
-  { q: 'Puis-je importer mes fichiers Excel existants ?', a: "Oui, l’import Excel est automatisé pour les bilans, les ventes mandataires, le barémage des sphères et les bons de transfert. Vos historiques ne sont pas perdus." },
-  { q: 'Est-ce utilisable depuis le terrain ?', a: "L’interface est responsive : saisie des shifts, arrêts, réceptions et inspections directement depuis un mobile ou une tablette sur site." },
-  { q: 'Comment se passe le déploiement ?', a: "Nous configurons vos lignes, marques, mandataires et sphères, importons vos données, puis formons vos équipes. La mise en route est rapide." },
+  { q: 'Les données sont-elles sécurisées ?', a: "Infrastructure cloud sécurisée, authentification, journalisation des accès et sauvegardes. Chaque modification sensible est tracée." },
+  { q: 'Plusieurs sites sont-ils gérés ?', a: "Oui — Abidjan et Bouaké aujourd'hui, avec bilans et historiques distincts par site, depuis une seule interface." },
+  { q: 'Puis-je importer mes fichiers Excel ?', a: "L'import Excel est automatisé pour les bilans, ventes mandataires, barémage des sphères et bons de transfert." },
+  { q: 'Est-ce utilisable depuis le terrain ?', a: "Interface responsive : saisie des shifts, arrêts, réceptions et inspections depuis un mobile ou une tablette sur site." },
+  { q: 'Comment se passe le déploiement ?', a: "Nous configurons lignes, marques, mandataires et sphères, importons vos données, puis formons vos équipes." },
 ];
 
 const clients = [
@@ -72,13 +67,31 @@ const clients = [
   { name: 'SIMAM', logo: '/images/logo-simam.png' },
 ];
 
+const tickerItems = [
+  ['TONNAGE', '2 450 T'], ['DISPONIBILITÉ', '94 %'], ['SPHÈRES', '25 074 T'],
+  ['VRAC', '11 852 T'], ['BILAN', '+0,3 %'], ['RÉCEPTIONS', '20'],
+  ['SITES', 'ABJ · BKE'], ['LIGNES', '5 ACTIVES'],
+];
+
 const Landing = () => {
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
   const [demoOpen, setDemoOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [clock, setClock] = useState('--:--:--');
+
+  // Horloge live (mono) — purement décorative
+  useEffect(() => {
+    const fmt = () => {
+      const d = new Date();
+      const p = (n: number) => String(n).padStart(2, '0');
+      setClock(`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`);
+    };
+    fmt();
+    const id = setInterval(fmt, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const scrollTo = (id: string) => {
     setMobileNav(false);
@@ -86,39 +99,53 @@ const Landing = () => {
   };
 
   useGSAP(() => {
-    // Header : bascule transparent → solide après le hero (toujours actif)
-    ScrollTrigger.create({
-      start: 90, end: 'max',
-      onToggle: (self) => setScrolled(self.isActive),
-    });
-
     const mm = gsap.matchMedia();
     mm.add('(prefers-reduced-motion: no-preference)', () => {
-      // HERO : lignes de titre en clip-reveal + cascade
-      const tl = gsap.timeline({ defaults: { ease: 'power4.out' } });
-      tl.from('.lp-eyebrow-hero', { y: 16, opacity: 0, duration: 0.5 })
-        .from('.lp-hero-line', { yPercent: 110, duration: 0.9, stagger: 0.1 }, '-=0.2')
-        .from('.lp-hero-sub', { y: 18, opacity: 0, duration: 0.6 }, '-=0.5')
-        .from('.lp-hero-cta', { y: 16, opacity: 0, duration: 0.5, stagger: 0.1 }, '-=0.35')
-        .from('.lp-hero-trust', { opacity: 0, duration: 0.5 }, '-=0.2')
-        .from('.lp-hero-panel', { y: 40, opacity: 0, duration: 0.9 }, '-=0.7');
+      // ---- Séquence de "boot" du hero ----
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+      tl.from('.lp-boot', { opacity: 0, duration: 0.4, stagger: 0.06 })
+        .from('.lp-hero-line', { yPercent: 115, duration: 0.85, stagger: 0.1 }, '-=0.1')
+        .from('.lp-hero-sub', { y: 16, opacity: 0, duration: 0.55 }, '-=0.45')
+        .from('.lp-hero-cta', { y: 14, opacity: 0, duration: 0.5, stagger: 0.1 }, '-=0.35')
+        .from('.lp-instrument', { opacity: 0, y: 30, duration: 0.7 }, '-=0.8');
 
-      // Halo orange : léger parallax
+      // ---- Jauge : aiguille + arc + valeur ----
+      const angleFor = (pct: number) => -90 + (pct / 100) * 180;
+      gsap.fromTo('.lp-needle-g',
+        { rotation: -90 },
+        { rotation: angleFor(94), svgOrigin: '120 130', duration: 1.6, ease: 'power3.out', delay: 0.5 });
+
+      const arc = root.current?.querySelector('.lp-gauge-fill') as SVGPathElement | null;
+      if (arc) {
+        const len = arc.getTotalLength();
+        gsap.set(arc, { strokeDasharray: len, strokeDashoffset: len });
+        gsap.to(arc, { strokeDashoffset: len * (1 - 0.94), duration: 1.6, ease: 'power3.out', delay: 0.5 });
+      }
+
+      // ---- P&ID : tracé des lignes au scroll ----
+      gsap.from('.lp-flow-progress', {
+        scaleX: 0, ease: 'none',
+        scrollTrigger: { trigger: '.lp-pid', start: 'top 70%', end: 'bottom 75%', scrub: 1 },
+      });
+
+      // ---- Parallax grille hero ----
+      gsap.to('.lp-hero-grid', {
+        yPercent: 18, ease: 'none',
+        scrollTrigger: { trigger: '.lp-hero', start: 'top top', end: 'bottom top', scrub: 1 },
+      });
       gsap.to('.lp-glow', {
-        yPercent: 25, ease: 'none',
+        yPercent: 30, ease: 'none',
         scrollTrigger: { trigger: '.lp-hero', start: 'top top', end: 'bottom top', scrub: 1 },
       });
 
-      // Reveals génériques
-      gsap.set('.lp-reveal', { y: 34, opacity: 0 });
+      // ---- Reveals ----
+      gsap.set('.lp-reveal', { y: 32, opacity: 0 });
       ScrollTrigger.batch('.lp-reveal', {
         start: 'top 88%',
-        onEnter: (els) => gsap.to(els, {
-          y: 0, opacity: 1, duration: 0.7, ease: 'power3.out', stagger: 0.1, overwrite: true,
-        }),
+        onEnter: (els) => gsap.to(els, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', stagger: 0.08, overwrite: true }),
       });
 
-      // Count-up
+      // ---- Count-ups télémétrie + jauge ----
       gsap.utils.toArray<HTMLElement>('[data-countup]').forEach((el) => {
         const target = Number(el.dataset.target || '0');
         const suffix = el.dataset.suffix || '';
@@ -127,53 +154,42 @@ const Landing = () => {
           trigger: el, start: 'top 92%', once: true,
           onEnter: () => gsap.to(obj, {
             val: target, duration: 1.4, ease: 'power2.out',
-            onUpdate: () => { el.textContent = Math.round(obj.val).toString() + suffix; },
+            onUpdate: () => { el.textContent = Math.round(obj.val).toLocaleString('fr-FR') + suffix; },
           }),
         });
       });
 
-      // Workflow : ligne tracée
-      gsap.from('.lp-flow-line', {
-        scaleX: 0, ease: 'none',
-        scrollTrigger: { trigger: '.lp-workflow', start: 'top 65%', end: 'bottom 75%', scrub: 1 },
-      });
-
-      // Barre de progression
-      gsap.from('.lp-progress-fill', {
-        scaleX: 0, duration: 1.1, ease: 'power2.out',
-        scrollTrigger: { trigger: '.lp-progress-fill', start: 'top 88%', once: true },
-      });
+      // jauge value count-up (lancé avec le boot)
+      const gv = root.current?.querySelector('[data-gauge-val]') as HTMLElement | null;
+      if (gv) {
+        const o = { v: 0 };
+        gsap.to(o, { v: 94, duration: 1.6, ease: 'power3.out', delay: 0.5, onUpdate: () => { gv.textContent = Math.round(o.v).toString(); } });
+      }
     });
   }, { scope: root });
 
   return (
-    <div ref={root} className="lp min-h-screen lp-dark overflow-x-hidden">
-      {/* ===================== HEADER ===================== */}
-      <header className={[
-        'lp-header fixed top-0 inset-x-0 z-50 border-b',
-        scrolled
-          ? 'bg-[hsl(40_30%_98%)]/90 backdrop-blur-xl border-[hsl(240_12%_88%)] text-[hsl(240_10%_10%)]'
-          : 'bg-transparent border-transparent text-[hsl(40_12%_96%)]',
-      ].join(' ')}>
+    <div ref={root} className="lp min-h-screen relative overflow-x-hidden">
+      {/* ===================== HEADER (barre de statut) ===================== */}
+      <header className="fixed top-0 inset-x-0 z-50 bg-[hsl(220_16%_6%)]/85 backdrop-blur-md border-b border-[hsl(210_30%_100%/0.08)]">
         <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button onClick={() => scrollTo('lp-top')} className="flex items-center gap-2.5">
-            <img src="/images/gp-logo.jpeg" alt="GazPILOTE" className="h-9 w-auto rounded-md" />
-            <span className="text-lg font-bold tracking-tight">GazPILOTE</span>
+            <img src="/images/gp-logo.jpeg" alt="GazPILOTE" className="h-9 w-auto rounded" />
+            <span className="lp-display text-xl tracking-tight">GazPILOTE</span>
           </button>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm">
-            {[['Produit', 'features'], ['Cycle GPL', 'workflow'], ['Témoignages', 'temoignages'], ['FAQ', 'faq']].map(([label, id]) => (
-              <button key={id} onClick={() => scrollTo(id)}
-                className="opacity-70 hover:opacity-100 transition-opacity">{label}</button>
+          <nav className="hidden md:flex items-center gap-8 text-sm text-[hsl(215_12%_56%)]">
+            {[['Modules', 'modules'], ['Cycle', 'cycle'], ['Terrain', 'logs'], ['FAQ', 'faq']].map(([l, id]) => (
+              <button key={id} onClick={() => scrollTo(id)} className="lp-navlink hover:text-[hsl(40_16%_92%)] transition-colors">{l}</button>
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-2">
-            <Button variant="ghost" onClick={() => setLoginOpen(true)}
-              className={scrolled ? '' : 'text-white hover:bg-white/10 hover:text-white'}>
-              Connexion
-            </Button>
-            <Button onClick={() => setDemoOpen(true)} className="lp-accent-btn gap-1.5 hover:opacity-90">
+          <div className="hidden md:flex items-center gap-4">
+            <span className="lp-mono text-xs text-[hsl(215_12%_56%)] flex items-center gap-2">
+              <span className="lp-led lp-led-blink" /> {clock}
+            </span>
+            <Button variant="ghost" onClick={() => setLoginOpen(true)} className="text-[hsl(40_16%_92%)] hover:bg-white/10 hover:text-white h-9">Connexion</Button>
+            <Button onClick={() => setDemoOpen(true)} className="h-9 gap-1.5 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
               Démo <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -182,277 +198,107 @@ const Landing = () => {
             {mobileNav ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
-
         {mobileNav && (
-          <div className="md:hidden bg-[hsl(240_9%_7%)] text-[hsl(40_12%_96%)] border-t border-[hsl(0_0%_100%/0.09)] px-5 py-4 flex flex-col gap-3">
-            {[['Produit', 'features'], ['Cycle GPL', 'workflow'], ['Témoignages', 'temoignages'], ['FAQ', 'faq']].map(([label, id]) => (
-              <button key={id} onClick={() => scrollTo(id)} className="text-left py-1.5">{label}</button>
+          <div className="md:hidden border-t border-[hsl(210_30%_100%/0.08)] bg-[hsl(220_16%_6%)] px-5 py-4 flex flex-col gap-3">
+            {[['Modules', 'modules'], ['Cycle', 'cycle'], ['Terrain', 'logs'], ['FAQ', 'faq']].map(([l, id]) => (
+              <button key={id} onClick={() => scrollTo(id)} className="text-left py-1.5 text-sm">{l}</button>
             ))}
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1 bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white"
-                onClick={() => { setMobileNav(false); setLoginOpen(true); }}>Connexion</Button>
-              <Button className="flex-1 lp-accent-btn" onClick={() => { setMobileNav(false); setDemoOpen(true); }}>Démo</Button>
+              <Button variant="outline" className="flex-1 bg-transparent border-white/20 hover:bg-white/10" onClick={() => { setMobileNav(false); setLoginOpen(true); }}>Connexion</Button>
+              <Button className="flex-1 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold" onClick={() => { setMobileNav(false); setDemoOpen(true); }}>Démo</Button>
             </div>
           </div>
         )}
       </header>
 
-      {/* ===================== HERO (sombre) ===================== */}
-      <section id="lp-top" className="lp-hero lp-grain relative isolate px-4 sm:px-6 pt-32 sm:pt-40 pb-20 sm:pb-24 overflow-hidden">
-        <div className="lp-techgrid absolute inset-0 z-0" />
-        <div className="lp-glow w-[40rem] h-[40rem] -top-40 -right-32 z-0" />
+      {/* ===================== HERO (poste de contrôle) ===================== */}
+      <section id="lp-top" className="lp-hero lp-scan lp-grain relative isolate px-4 sm:px-6 pt-28 sm:pt-32 pb-16 overflow-hidden">
+        <div className="lp-hero-grid lp-grid lp-grid-fade absolute inset-0 z-0" />
+        <div className="lp-glow w-[36rem] h-[36rem] -top-32 -right-24 z-0" />
 
         <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-10 items-center">
-            {/* Colonne texte (gauche) */}
+          {/* mini barre de statut */}
+          <div className="lp-boot flex flex-wrap items-center gap-x-6 gap-y-2 lp-mono text-[11px] tracking-[0.18em] text-[hsl(215_12%_56%)] mb-8 pb-4 border-b border-[hsl(210_30%_100%/0.08)]">
+            <span className="flex items-center gap-2 text-[hsl(150_65%_48%)]"><span className="lp-led lp-led-blink" /> SYSTÈME EN LIGNE</span>
+            <span>SITE: ABIDJAN · BOUAKÉ</span>
+            <span className="hidden sm:inline">RÉF. ERP-GPL/CI</span>
+            <span className="ml-auto hidden sm:inline">UPTIME 99.9%</span>
+          </div>
+
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-12 items-center">
+            {/* Colonne texte */}
             <div>
-              <div className="lp-eyebrow-hero lp-eyebrow text-[hsl(40_12%_96%)]/70 mb-6">
-                <span className="num">/</span> ERP GPL · Côte d’Ivoire
-              </div>
-
-              <h1 className="lp-display text-[2.6rem] sm:text-6xl lg:text-[4.4rem] mb-7">
-                <span className="lp-line-mask"><span className="lp-hero-line inline-block">Votre dépôt GPL,</span></span>
-                <span className="lp-line-mask"><span className="lp-hero-line inline-block">piloté <span className="text-[hsl(28_92%_56%)]">au gramme près.</span></span></span>
+              <div className="lp-boot lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-5">// POSTE DE CONTRÔLE</div>
+              <h1 className="lp-display text-[3rem] sm:text-7xl lg:text-[5.2rem] mb-6">
+                <span className="block overflow-hidden"><span className="lp-hero-line inline-block">Votre dépôt GPL,</span></span>
+                <span className="block overflow-hidden"><span className="lp-hero-line inline-block text-[hsl(28_92%_56%)]">sous contrôle.</span></span>
               </h1>
-
-              <p className="lp-hero-sub text-base sm:text-lg text-[hsl(40_6%_64%)] max-w-xl mb-9 leading-relaxed">
-                Réception navire, stockage en sphères, embouteillage, distribution VRAC et
-                bilan matière — réunis sur un seul écran, en temps réel.
-                Fini les classeurs Excel éparpillés.
+              <p className="lp-hero-sub text-[hsl(215_12%_56%)] text-base sm:text-lg max-w-xl mb-8 leading-relaxed">
+                Réception, stockage en sphères, embouteillage, distribution VRAC et bilan matière —
+                instrumentés sur un seul tableau de bord, mis à jour en temps réel.
               </p>
-
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button size="lg" onClick={() => setDemoOpen(true)} className="lp-hero-cta lp-accent-btn gap-2 text-base px-7 h-12 hover:opacity-90">
+                <Button size="lg" onClick={() => setDemoOpen(true)} className="lp-hero-cta h-12 px-7 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
                   Demander une démo <ArrowRight className="h-5 w-5" />
                 </Button>
                 <Button size="lg" variant="outline" onClick={() => setLoginOpen(true)}
-                  className="lp-hero-cta gap-2 text-base px-7 h-12 bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white">
-                  Accéder à la plateforme
+                  className="lp-hero-cta h-12 px-7 gap-2 bg-transparent border-[hsl(210_30%_100%/0.18)] text-[hsl(40_16%_92%)] hover:bg-white/5 hover:text-white">
+                  Accéder à la console
                 </Button>
               </div>
-
-              <div className="lp-hero-trust mt-8 flex items-center gap-3 text-xs text-[hsl(40_6%_64%)]">
-                <span className="flex -space-x-2">
+              <div className="lp-boot mt-8 flex items-center gap-3 lp-mono text-[11px] text-[hsl(215_12%_56%)]">
+                <span className="flex -space-x-1.5">
                   {clients.map((c) => (
-                    <span key={c.name} className="h-7 w-7 rounded-full bg-white ring-2 ring-[hsl(240_9%_7%)] flex items-center justify-center overflow-hidden">
-                      <img src={c.logo} alt={c.name} className="h-5 w-5 object-contain" />
+                    <span key={c.name} className="h-6 w-6 rounded bg-white ring-1 ring-[hsl(220_16%_6%)] flex items-center justify-center overflow-hidden">
+                      <img src={c.logo} alt={c.name} className="h-4 w-4 object-contain" />
                     </span>
                   ))}
                 </span>
-                Déjà en production · Abidjan &amp; Bouaké
-              </div>
-
-              <button onClick={() => scrollTo('features')}
-                className="lp-hero-trust hidden lg:flex items-center gap-2 mt-10 text-[11px] uppercase tracking-[0.18em] font-mono text-[hsl(40_6%_64%)] hover:text-white transition-colors">
-                <span className="lp-scroll-cue inline-flex h-7 w-5 rounded-full border border-current items-center justify-center">
-                  <span className="h-1.5 w-px bg-current" />
-                </span>
-                Découvrir
-              </button>
-            </div>
-
-            {/* Colonne produit (droite) — panneau net */}
-            <div className="lp-hero-panel">
-              <div className="lp-panel rounded-2xl p-3">
-                <div className="flex items-center gap-1.5 px-2 pb-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-                  <span className="ml-2 text-[11px] text-[hsl(40_6%_64%)] font-mono">production · live</span>
-                </div>
-                <div className="rounded-xl bg-[hsl(240_9%_7%)] border border-[hsl(0_0%_100%/0.06)] p-4 sm:p-5">
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    {[
-                      { l: 'Tonnage', v: '2 450 T', c: 'text-[hsl(28_92%_56%)]' },
-                      { l: 'Disponibilité', v: '94 %', c: 'text-emerald-400' },
-                      { l: 'Bilan', v: '+0,3 %', c: 'text-sky-400' },
-                    ].map((k) => (
-                      <div key={k.l}>
-                        <p className="text-[10px] uppercase tracking-wider text-[hsl(40_6%_64%)] font-mono">{k.l}</p>
-                        <p className={`text-lg sm:text-xl font-bold ${k.c}`}>{k.v}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-end justify-between h-28 gap-1.5 border-t border-[hsl(0_0%_100%/0.06)] pt-4">
-                    {[42, 65, 53, 78, 61, 88, 70, 95, 82, 74, 90, 68].map((h, i) => (
-                      <div key={i} className="flex-1 rounded-sm bg-[hsl(28_92%_56%)]/80"
-                        style={{ height: `${h}%`, opacity: 0.4 + (h / 160) }} />
-                    ))}
-                  </div>
-                  <div className="mt-4 flex items-center justify-between text-[11px] text-[hsl(40_6%_64%)] font-mono">
-                    <span>Production / 12 jours</span>
-                    <span className="text-emerald-400">▲ 12,4 %</span>
-                  </div>
-                </div>
+                4 MARQUES · EN PRODUCTION
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* ===================== LOGOS (clair) ===================== */}
-      <section className="lp-light px-4 sm:px-6 py-12 border-y border-[hsl(240_12%_88%)]">
-        <div className="container mx-auto">
-          <p className="lp-reveal text-center text-xs uppercase tracking-[0.2em] text-[hsl(240_6%_42%)] font-mono mb-8">
-            Les marques qui transitent par nos dépôts
-          </p>
-          <div className="lp-marquee overflow-hidden [mask-image:linear-gradient(90deg,transparent,black_12%,black_88%,transparent)]">
-            <div className="lp-marquee-track gap-16 items-center">
-              {[...clients, ...clients, ...clients].map((c, i) => (
-                <img key={i} src={c.logo} alt={c.name}
-                  className="h-10 w-auto object-contain opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== BENTO FEATURES (clair) ===================== */}
-      <section id="features" className="lp-light scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28">
-        <div className="container mx-auto max-w-6xl">
-          <div className="max-w-2xl mb-12 sm:mb-16">
-            <div className="lp-reveal lp-eyebrow text-[hsl(240_6%_42%)] mb-5">
-              <span className="num">01</span><span className="bar" /> Fonctionnalités
-            </div>
-            <h2 className="lp-reveal lp-h2 text-3xl sm:text-5xl text-[hsl(240_10%_10%)]">
-              Un poste de pilotage,<br />pas un tableur.
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 auto-rows-[minmax(180px,auto)]">
-            {bento.map((f) => {
-              const Icon = f.icon;
-              return (
-                <div key={f.title}
-                  className={`lp-reveal lp-bento-cell p-6 sm:p-7 flex flex-col ${f.span || ''} ${f.accent ? 'bg-[hsl(240_9%_7%)] text-white border-transparent' : ''}`}>
-                  <div className={`h-11 w-11 rounded-xl flex items-center justify-center mb-auto ${f.accent ? 'bg-[hsl(28_92%_56%)]' : 'bg-[hsl(28_92%_56%)]/10'}`}>
-                    <Icon className={`h-5 w-5 ${f.accent ? 'text-[hsl(240_9%_7%)]' : 'text-[hsl(28_92%_56%)]'}`} />
-                  </div>
-                  <h3 className={`mt-6 text-lg sm:text-xl font-semibold ${f.accent ? 'text-white' : 'text-[hsl(240_10%_10%)]'} ${f.accent ? 'sm:text-2xl' : ''}`}>
-                    {f.title}
-                  </h3>
-                  <p className={`mt-2 text-sm leading-relaxed ${f.accent ? 'text-[hsl(40_6%_64%)]' : 'text-[hsl(240_6%_42%)]'}`}>
-                    {f.body}
-                  </p>
-                  {f.accent && (
-                    <div className="mt-6 flex items-end justify-between h-16 gap-1.5">
-                      {[40, 62, 50, 78, 58, 88, 72, 95].map((h, i) => (
-                        <div key={i} className="flex-1 rounded-sm bg-[hsl(28_92%_56%)]/70" style={{ height: `${h}%` }} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== WORKFLOW (sombre) ===================== */}
-      <section id="workflow" className="lp-workflow lp-dark lp-grain scroll-mt-20 relative px-4 sm:px-6 py-20 sm:py-28 overflow-hidden">
-        <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="max-w-2xl mb-14">
-            <div className="lp-reveal lp-eyebrow text-[hsl(40_6%_64%)] mb-5">
-              <span className="num">02</span><span className="bar" /> Le cycle GPL
-            </div>
-            <h2 className="lp-reveal lp-h2 text-3xl sm:text-5xl">
-              De la cale du navire<br />au bilan du jour.
-            </h2>
-          </div>
-
-          <div className="relative">
-            <div className="hidden lg:block absolute top-7 left-0 right-0 h-px bg-[hsl(0_0%_100%/0.12)]">
-              <div className="lp-flow-line h-full bg-[hsl(28_92%_56%)]" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-6">
-              {workflow.map((w, i) => {
-                const Icon = w.icon;
-                return (
-                  <div key={w.title} className="lp-reveal relative">
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="relative z-10 h-14 w-14 rounded-xl bg-[hsl(240_8%_11%)] border border-[hsl(0_0%_100%/0.12)] flex items-center justify-center">
-                        <Icon className="h-6 w-6 text-[hsl(28_92%_56%)]" />
-                      </span>
-                      <span className="font-mono text-3xl font-bold text-white/15">0{i + 1}</span>
-                    </div>
-                    <h3 className="font-semibold text-lg mb-1">{w.title}</h3>
-                    <p className="text-sm text-[hsl(40_6%_64%)]">{w.body}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Stats repensées */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px mt-20 bg-[hsl(0_0%_100%/0.08)] rounded-2xl overflow-hidden border border-[hsl(0_0%_100%/0.08)]">
-            {stats.map((s, i) => (
-              <div key={i} className="lp-reveal bg-[hsl(240_9%_7%)] p-6 sm:p-8">
-                {s.target !== null ? (
-                  <div className="text-4xl sm:text-5xl font-bold text-[hsl(28_92%_56%)] mb-2 tracking-tight"
-                    data-countup data-target={s.target} data-suffix={s.suffix}>0</div>
-                ) : (
-                  <div className="text-4xl sm:text-5xl font-bold text-[hsl(28_92%_56%)] mb-2 tracking-tight">{s.display}</div>
-                )}
-                <div className="text-sm font-medium text-white">{s.label}</div>
-                <div className="text-xs text-[hsl(40_6%_64%)] mt-0.5">{s.sub}</div>
+            {/* Colonne instrument : jauge + readouts */}
+            <div className="lp-instrument lp-panel lp-corners rounded-lg p-5">
+              <div className="flex items-center justify-between mb-4">
+                <span className="lp-tag flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-[hsl(28_92%_56%)]" /> CONSOLE · LIVE</span>
+                <span className="flex items-center gap-1.5 lp-mono text-[10px] text-[hsl(150_65%_48%)]"><span className="lp-led lp-led-blink" /> OK</span>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ===================== BENEFITS / SHOWCASE (clair) ===================== */}
-      <section className="lp-light scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28 border-t border-[hsl(240_12%_88%)]">
-        <div className="container mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          <div>
-            <div className="lp-reveal lp-eyebrow text-[hsl(240_6%_42%)] mb-5">
-              <span className="num">03</span><span className="bar" /> Pourquoi GazPILOTE
-            </div>
-            <h2 className="lp-reveal lp-h2 text-3xl sm:text-5xl text-[hsl(240_10%_10%)] mb-6">
-              Chaque kilo compté.<br />Chaque écart expliqué.
-            </h2>
-            <p className="lp-reveal text-base sm:text-lg text-[hsl(240_6%_42%)] mb-8 leading-relaxed max-w-lg">
-              GazPILOTE rapproche automatiquement vos entrées, votre production et vos
-              sorties. Le bilan matière tombe juste — et quand il y a un écart, vous savez
-              exactement d’où il vient.
-            </p>
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3 mb-9">
-              {benefits.map((b) => (
-                <div key={b} className="lp-reveal flex items-center gap-2.5">
-                  <CheckCircle2 className="h-5 w-5 text-[hsl(28_92%_56%)] flex-shrink-0" />
-                  <span className="text-sm text-[hsl(240_10%_10%)]">{b}</span>
-                </div>
-              ))}
-            </div>
-            <Button size="lg" onClick={() => navigate('/dashboard')} className="lp-reveal lp-accent-btn gap-2 h-12 px-7 hover:opacity-90">
-              Explorer la plateforme <ArrowUpRight className="h-5 w-5" />
-            </Button>
-          </div>
-
-          <div className="lp-reveal relative">
-            <div className="rounded-3xl border border-[hsl(240_12%_88%)] bg-white shadow-[0_30px_80px_-40px_hsl(240_30%_20%/0.3)] p-6 sm:p-8">
-              <div className="flex items-center justify-between mb-6">
-                <span className="font-semibold text-[hsl(240_10%_10%)]">Performance du mois</span>
-                <span className="text-xs font-mono text-[hsl(240_6%_42%)]">Mai 2026</span>
-              </div>
-              <div className="space-y-2.5 mb-6">
-                <div className="flex justify-between text-sm">
-                  <span className="text-[hsl(240_6%_42%)]">Tonnage produit</span>
-                  <span className="font-bold text-[hsl(240_10%_10%)]">2 450 T</span>
-                </div>
-                <div className="h-2.5 bg-[hsl(40_20%_92%)] rounded-full overflow-hidden">
-                  <div className="lp-progress-fill h-full bg-[hsl(28_92%_56%)] rounded-full" style={{ width: '78%' }} />
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[hsl(240_6%_42%)]">Objectif atteint</span>
-                  <span className="font-bold text-[hsl(28_92%_56%)]">78 %</span>
+              {/* Jauge SVG */}
+              <div className="flex flex-col items-center py-2">
+                <svg viewBox="0 0 240 150" className="w-full max-w-[300px]">
+                  <path d="M 20 130 A 100 100 0 0 1 220 130" fill="none" stroke="hsl(210 30% 100% / 0.12)" strokeWidth="10" strokeLinecap="round" />
+                  <path className="lp-gauge-fill" d="M 20 130 A 100 100 0 0 1 220 130" fill="none" stroke="hsl(28 92% 56%)" strokeWidth="10" strokeLinecap="round" />
+                  {/* graduations */}
+                  {Array.from({ length: 11 }).map((_, i) => {
+                    const a = (-90 + i * 18) * Math.PI / 180;
+                    const x1 = 120 + Math.sin(a) * 82, y1 = 130 - Math.cos(a) * 82;
+                    const x2 = 120 + Math.sin(a) * 90, y2 = 130 - Math.cos(a) * 90;
+                    return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="hsl(210 30% 100% / 0.25)" strokeWidth="1.5" />;
+                  })}
+                  {/* aiguille */}
+                  <g className="lp-needle-g">
+                    <line x1="120" y1="130" x2="120" y2="52" stroke="hsl(28 92% 56%)" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="120" cy="130" r="7" fill="hsl(28 92% 56%)" />
+                  </g>
+                </svg>
+                <div className="-mt-6 text-center">
+                  <div className="lp-display text-5xl text-[hsl(40_16%_92%)]"><span data-gauge-val>0</span><span className="text-[hsl(28_92%_56%)] text-3xl align-top">%</span></div>
+                  <div className="lp-tag mt-1">DISPONIBILITÉ CENTRE</div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {[{ l: 'Sphères', v: '25 074 T' }, { l: 'VRAC', v: '11 852 T' }, { l: 'Écart', v: '+0,3 %' }].map((k) => (
-                  <div key={k.l} className="rounded-xl bg-[hsl(40_20%_95%)] p-3.5 text-center">
-                    <p className="text-[10px] uppercase text-[hsl(240_6%_42%)] font-mono">{k.l}</p>
-                    <p className="text-sm font-bold text-[hsl(240_10%_10%)] mt-0.5">{k.v}</p>
+
+              {/* readouts */}
+              <div className="grid grid-cols-3 gap-px mt-4 bg-[hsl(210_30%_100%/0.08)] border border-[hsl(210_30%_100%/0.08)] rounded">
+                {[
+                  { l: 'TONNAGE', v: '2 450', u: 'T', c: 'text-[hsl(28_92%_56%)]' },
+                  { l: 'SPHÈRES', v: '25 074', u: 'T', c: 'text-[hsl(190_85%_55%)]' },
+                  { l: 'BILAN', v: '+0,3', u: '%', c: 'text-[hsl(150_65%_48%)]' },
+                ].map((r) => (
+                  <div key={r.l} className="bg-[hsl(220_13%_8%)] p-3">
+                    <div className="lp-tag mb-1">{r.l}</div>
+                    <div className={`lp-mono text-base font-semibold ${r.c}`}>{r.v}<span className="text-[10px] text-[hsl(215_12%_56%)] ml-0.5">{r.u}</span></div>
                   </div>
                 ))}
               </div>
@@ -461,73 +307,189 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ===================== TÉMOIGNAGES (clair) ===================== */}
-      <section id="temoignages" className="lp-light scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28 bg-[hsl(40_20%_95%)] border-y border-[hsl(240_12%_88%)]">
+      {/* ===================== TICKER TÉLÉMÉTRIE ===================== */}
+      <div className="lp-ticker relative overflow-hidden border-y border-[hsl(210_30%_100%/0.08)] bg-[hsl(220_14%_9%)] py-3">
+        <div className="lp-ticker-track">
+          {[...tickerItems, ...tickerItems].map(([l, v], i) => (
+            <span key={i} className="flex items-center gap-2 px-6 lp-mono text-xs whitespace-nowrap">
+              <span className="text-[hsl(215_12%_56%)] tracking-[0.18em]">{l}</span>
+              <span className="text-[hsl(28_92%_56%)] font-semibold">{v}</span>
+              <span className="text-[hsl(210_30%_100%/0.2)] ml-4">/</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ===================== MODULES ===================== */}
+      <section id="modules" className="scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28 relative">
         <div className="container mx-auto max-w-6xl">
-          <div className="max-w-2xl mb-12 sm:mb-16">
-            <div className="lp-reveal lp-eyebrow text-[hsl(240_6%_42%)] mb-5">
-              <span className="num">04</span><span className="bar" /> Sur le terrain
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
+            <div className="max-w-xl">
+              <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// MODULES · 06</div>
+              <h2 className="lp-reveal text-4xl sm:text-6xl">Un instrument<br />pour chaque opération.</h2>
             </div>
-            <h2 className="lp-reveal lp-h2 text-3xl sm:text-5xl text-[hsl(240_10%_10%)]">
-              Ceux qui pilotent au quotidien.
-            </h2>
+            <p className="lp-reveal text-[hsl(215_12%_56%)] max-w-sm">
+              Chaque module pilote une étape réelle de votre dépôt. Tous reliés au même bilan matière.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-5">
-            {testimonials.map((t) => (
-              <figure key={t.name} className="lp-reveal rounded-2xl border border-[hsl(240_12%_88%)] bg-white p-6 flex flex-col">
-                <Quote className="h-7 w-7 text-[hsl(28_92%_56%)]/30 mb-4" />
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-[hsl(28_92%_56%)] text-[hsl(28_92%_56%)]" />
-                  ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[hsl(210_30%_100%/0.08)] border border-[hsl(210_30%_100%/0.08)] rounded-lg overflow-hidden">
+            {modules.map((m) => {
+              const Icon = m.icon;
+              return (
+                <div key={m.id} className="lp-reveal group bg-[hsl(220_13%_8%)] hover:bg-[hsl(220_12%_11%)] transition-colors p-6 sm:p-7 relative">
+                  <div className="flex items-center justify-between mb-8">
+                    <span className="lp-mono text-xs tracking-[0.2em] text-[hsl(215_12%_56%)]">MOD.{m.id}</span>
+                    <Icon className="h-5 w-5 text-[hsl(28_92%_56%)]" />
+                  </div>
+                  <h3 className="text-2xl mb-2 group-hover:text-[hsl(28_92%_56%)] transition-colors">{m.title}</h3>
+                  <p className="text-sm text-[hsl(215_12%_56%)] leading-relaxed mb-4">{m.body}</p>
+                  <span className="lp-mono text-[11px] tracking-[0.15em] text-[hsl(190_85%_55%)]">▸ {m.unit}</span>
                 </div>
-                <blockquote className="text-[15px] leading-relaxed text-[hsl(240_10%_18%)] flex-1">
-                  « {t.quote} »
-                </blockquote>
-                <figcaption className="mt-6 flex items-center gap-3 pt-5 border-t border-[hsl(240_12%_90%)]">
-                  <span className="h-10 w-10 rounded-full bg-[hsl(28_92%_56%)]/12 text-[hsl(28_92%_56%)] flex items-center justify-center font-bold text-sm">
-                    {t.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-[hsl(240_10%_10%)]">{t.name}</span>
-                    <span className="block text-xs text-[hsl(240_6%_42%)]">{t.role} · {t.company}</span>
-                  </span>
-                </figcaption>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== P&ID (cycle) ===================== */}
+      <section id="cycle" className="lp-pid scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28 bg-[hsl(220_14%_9%)] border-y border-[hsl(210_30%_100%/0.08)] relative lp-grain">
+        <div className="container mx-auto max-w-6xl relative z-10">
+          <div className="max-w-xl mb-14">
+            <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// SYNOPTIQUE</div>
+            <h2 className="lp-reveal text-4xl sm:text-6xl">De la cale du navire<br />au bilan du jour.</h2>
+          </div>
+
+          <div className="relative">
+            {/* ligne de flux */}
+            <div className="hidden lg:block absolute top-9 left-[8%] right-[8%] h-px bg-[hsl(210_30%_100%/0.12)]">
+              <svg className="absolute inset-0 w-full h-px overflow-visible" preserveAspectRatio="none">
+                <line x1="0" y1="0.5" x2="100%" y2="0.5" stroke="hsl(28 92% 56% / 0.5)" strokeWidth="2" className="lp-flow-dash" />
+              </svg>
+              <div className="lp-flow-progress h-full bg-[hsl(28_92%_56%)] origin-left" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-4">
+              {flow.map((f, i) => {
+                const Icon = f.icon;
+                return (
+                  <div key={f.label} className="lp-reveal relative flex flex-col items-center text-center">
+                    <div className="relative z-10 h-[4.5rem] w-[4.5rem] rounded-full bg-[hsl(220_13%_8%)] border border-[hsl(210_30%_100%/0.14)] flex items-center justify-center mb-4">
+                      <Icon className="h-7 w-7 text-[hsl(28_92%_56%)]" />
+                      <span className="absolute -top-1.5 -right-1.5 lp-mono text-[10px] h-5 w-5 rounded-full bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] flex items-center justify-center font-semibold">{i + 1}</span>
+                    </div>
+                    <h3 className="text-lg">{f.label}</h3>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== TÉLÉMÉTRIE (stats) ===================== */}
+      <section className="px-4 sm:px-6 py-16 sm:py-20">
+        <div className="container mx-auto max-w-6xl grid grid-cols-2 lg:grid-cols-4 gap-px bg-[hsl(210_30%_100%/0.08)] border border-[hsl(210_30%_100%/0.08)] rounded-lg overflow-hidden">
+          {telemetry.map((s, i) => (
+            <div key={i} className="lp-reveal bg-[hsl(220_13%_8%)] p-6 sm:p-8">
+              <div className="lp-display text-4xl sm:text-6xl text-[hsl(40_16%_92%)] mb-2" data-countup data-target={s.target} data-suffix={s.suffix}>0{s.suffix}</div>
+              <div className="lp-mono text-[11px] tracking-[0.15em] text-[hsl(28_92%_56%)] uppercase">{s.label}</div>
+              <div className="text-xs text-[hsl(215_12%_56%)] mt-1">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===================== BÉNÉFICES ===================== */}
+      <section className="px-4 sm:px-6 py-20 sm:py-28 bg-[hsl(220_14%_9%)] border-y border-[hsl(210_30%_100%/0.08)]">
+        <div className="container mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          <div>
+            <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// POURQUOI</div>
+            <h2 className="lp-reveal text-4xl sm:text-6xl mb-6">Chaque kilo compté.<br />Chaque écart expliqué.</h2>
+            <p className="lp-reveal text-[hsl(215_12%_56%)] mb-8 max-w-lg leading-relaxed">
+              GazPILOTE rapproche automatiquement vos entrées, votre production et vos sorties.
+              Quand il y a un écart, vous savez exactement d'où il vient.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3 mb-9">
+              {benefits.map((b) => (
+                <div key={b} className="lp-reveal flex items-center gap-2.5 lp-mono text-sm text-[hsl(40_16%_92%)]">
+                  <span className="text-[hsl(28_92%_56%)]">+</span> {b}
+                </div>
+              ))}
+            </div>
+            <Button size="lg" onClick={() => navigate('/dashboard')} className="lp-reveal h-12 px-7 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
+              Explorer la console <ArrowRight className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* mini panneau "performance" */}
+          <div className="lp-reveal lp-panel lp-corners rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <span className="lp-tag">PERFORMANCE · MAI 2026</span>
+              <span className="lp-mono text-[10px] text-[hsl(150_65%_48%)] flex items-center gap-1.5"><span className="lp-led" /> SYNC</span>
+            </div>
+            <div className="space-y-2.5 mb-6">
+              <div className="flex justify-between lp-mono text-sm"><span className="text-[hsl(215_12%_56%)]">Tonnage produit</span><span className="font-semibold">2 450 T</span></div>
+              <div className="h-2 bg-[hsl(210_30%_100%/0.08)] rounded-full overflow-hidden">
+                <div className="lp-flow-progress h-full bg-[hsl(28_92%_56%)] origin-left" style={{ width: '78%' }} />
+              </div>
+              <div className="flex justify-between lp-mono text-sm"><span className="text-[hsl(215_12%_56%)]">Objectif</span><span className="text-[hsl(28_92%_56%)] font-semibold">78 %</span></div>
+            </div>
+            <div className="grid grid-cols-3 gap-px bg-[hsl(210_30%_100%/0.08)] border border-[hsl(210_30%_100%/0.08)] rounded">
+              {[['SPHÈRES', '25 074 T'], ['VRAC', '11 852 T'], ['ÉCART', '+0,3 %']].map(([l, v]) => (
+                <div key={l} className="bg-[hsl(220_13%_8%)] p-3 text-center">
+                  <div className="lp-tag mb-1">{l}</div>
+                  <div className="lp-mono text-sm font-semibold">{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== LOGS (témoignages) ===================== */}
+      <section id="logs" className="scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28">
+        <div className="container mx-auto max-w-6xl">
+          <div className="max-w-xl mb-12">
+            <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// JOURNAL · TERRAIN</div>
+            <h2 className="lp-reveal text-4xl sm:text-6xl">Ce qu'en disent<br />les opérateurs.</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-px bg-[hsl(210_30%_100%/0.08)] border border-[hsl(210_30%_100%/0.08)] rounded-lg overflow-hidden">
+            {logs.map((l, i) => (
+              <figure key={i} className="lp-reveal bg-[hsl(220_13%_8%)] p-6 flex flex-col">
+                <div className="flex items-center gap-2 lp-mono text-[11px] text-[hsl(215_12%_56%)] mb-4 pb-3 border-b border-[hsl(210_30%_100%/0.08)]">
+                  <span className="lp-led" />
+                  <span className="text-[hsl(28_92%_56%)]">{l.t}</span>
+                  <span>· {l.site}</span>
+                  <span className="ml-auto">LOG #{i + 1}</span>
+                </div>
+                <blockquote className="text-[15px] text-[hsl(40_16%_92%)] leading-relaxed flex-1">« {l.msg} »</blockquote>
+                <figcaption className="lp-mono text-xs text-[hsl(215_12%_56%)] mt-5">— {l.who}</figcaption>
               </figure>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ===================== FAQ (clair) ===================== */}
-      <section id="faq" className="lp-light scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28">
+      {/* ===================== FAQ ===================== */}
+      <section id="faq" className="scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28 bg-[hsl(220_14%_9%)] border-y border-[hsl(210_30%_100%/0.08)]">
         <div className="container mx-auto max-w-6xl grid lg:grid-cols-[0.8fr_1.2fr] gap-10 lg:gap-16">
           <div>
-            <div className="lp-reveal lp-eyebrow text-[hsl(240_6%_42%)] mb-5">
-              <span className="num">05</span><span className="bar" /> Questions fréquentes
-            </div>
-            <h2 className="lp-reveal lp-h2 text-3xl sm:text-4xl text-[hsl(240_10%_10%)] mb-4">
-              Vous vous demandez<br />sûrement…
-            </h2>
-            <p className="lp-reveal text-[hsl(240_6%_42%)] mb-6">
-              Une autre question ? Écrivez-nous, on répond vite.
-            </p>
-            <Button variant="outline" onClick={() => setDemoOpen(true)} className="lp-reveal gap-2">
+            <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// MANUEL</div>
+            <h2 className="lp-reveal text-4xl sm:text-5xl mb-4">Questions<br />fréquentes.</h2>
+            <p className="lp-reveal text-[hsl(215_12%_56%)] mb-6">Une autre question ? On répond vite.</p>
+            <Button variant="outline" onClick={() => setDemoOpen(true)} className="lp-reveal gap-2 bg-transparent border-[hsl(210_30%_100%/0.18)] hover:bg-white/5">
               Nous contacter <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
-
           <div className="lp-reveal">
             <Accordion type="single" collapsible className="w-full">
               {faqs.map((f, i) => (
-                <AccordionItem key={i} value={`item-${i}`} className="border-[hsl(240_12%_88%)]">
-                  <AccordionTrigger className="text-left text-base font-semibold text-[hsl(240_10%_10%)] hover:no-underline hover:text-[hsl(28_92%_56%)]">
-                    {f.q}
+                <AccordionItem key={i} value={`item-${i}`} className="border-[hsl(210_30%_100%/0.1)]">
+                  <AccordionTrigger className="text-left text-base hover:no-underline hover:text-[hsl(28_92%_56%)] text-[hsl(40_16%_92%)]">
+                    <span className="lp-mono text-xs text-[hsl(28_92%_56%)] mr-3">{String(i + 1).padStart(2, '0')}</span>{f.q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-[hsl(240_6%_42%)] leading-relaxed text-[15px]">
-                    {f.a}
-                  </AccordionContent>
+                  <AccordionContent className="text-[hsl(215_12%_56%)] leading-relaxed text-[15px] pl-8">{f.a}</AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
@@ -535,39 +497,37 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ===================== CTA (sombre) ===================== */}
-      <section className="lp-dark lp-grain relative px-4 sm:px-6 py-24 sm:py-32 overflow-hidden">
-        <div className="lp-glow w-[36rem] h-[36rem] left-1/2 -translate-x-1/2 -bottom-40 z-0" />
+      {/* ===================== CTA ===================== */}
+      <section className="lp-scan lp-grain relative px-4 sm:px-6 py-24 sm:py-32 overflow-hidden">
+        <div className="lp-hero-grid lp-grid lp-grid-fade absolute inset-0 z-0" />
+        <div className="lp-glow w-[34rem] h-[34rem] left-1/2 -translate-x-1/2 -bottom-40 z-0" />
         <div className="container mx-auto max-w-3xl text-center relative z-10">
-          <h2 className="lp-reveal lp-display text-4xl sm:text-6xl mb-6">
-            Reprenez le contrôle<br />de votre <span className="text-[hsl(28_92%_56%)]">dépôt.</span>
-          </h2>
-          <p className="lp-reveal text-base sm:text-lg text-[hsl(40_6%_64%)] mb-10 max-w-xl mx-auto">
-            Rejoignez les centres emplisseurs qui ont remplacé leurs classeurs Excel
-            par un seul tableau de bord.
+          <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-5">// INITIALISER</div>
+          <h2 className="lp-reveal text-5xl sm:text-7xl mb-6">Reprenez le contrôle<br />de votre <span className="text-[hsl(28_92%_56%)]">dépôt.</span></h2>
+          <p className="lp-reveal text-[hsl(215_12%_56%)] text-lg mb-10 max-w-xl mx-auto">
+            Remplacez vos classeurs Excel par un véritable poste de pilotage. Démo en conditions réelles.
           </p>
           <div className="lp-reveal flex flex-col sm:flex-row gap-3 justify-center">
-            <Button size="lg" onClick={() => setDemoOpen(true)} className="lp-accent-btn gap-2 text-base px-8 h-12 hover:opacity-90">
+            <Button size="lg" onClick={() => setDemoOpen(true)} className="h-12 px-8 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
               Demander une démo <ArrowRight className="h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" onClick={() => setLoginOpen(true)}
-              className="gap-2 text-base px-8 h-12 bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white">
+              className="h-12 px-8 gap-2 bg-transparent border-[hsl(210_30%_100%/0.18)] text-[hsl(40_16%_92%)] hover:bg-white/5 hover:text-white">
               Se connecter
             </Button>
           </div>
         </div>
       </section>
 
-      {/* ===================== FOOTER (sombre) ===================== */}
-      <footer className="lp-dark px-4 sm:px-6 py-12 border-t border-[hsl(0_0%_100%/0.09)]">
-        <div className="container mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-5">
+      {/* ===================== FOOTER ===================== */}
+      <footer className="px-4 sm:px-6 py-8 border-t border-[hsl(210_30%_100%/0.08)]">
+        <div className="container mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4 lp-mono text-xs text-[hsl(215_12%_56%)]">
           <div className="flex items-center gap-2.5">
-            <img src="/images/gp-logo.jpeg" alt="GazPILOTE" className="h-8 w-auto rounded" />
-            <span className="font-bold text-lg">GazPILOTE</span>
+            <img src="/images/gp-logo.jpeg" alt="GazPILOTE" className="h-7 w-auto rounded" />
+            <span className="lp-display text-base text-[hsl(40_16%_92%)]">GazPILOTE</span>
+            <span className="flex items-center gap-1.5 ml-2"><span className="lp-led lp-led-blink" /> EN LIGNE</span>
           </div>
-          <p className="text-sm text-[hsl(40_6%_64%)] text-center">
-            © {new Date().getFullYear()} GAZPILOT — ERP pour dépôts GPL · Côte d’Ivoire
-          </p>
+          <p>© {new Date().getFullYear()} GAZPILOT · ERP DÉPÔTS GPL · CÔTE D'IVOIRE</p>
         </div>
       </footer>
 
