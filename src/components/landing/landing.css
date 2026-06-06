@@ -1,103 +1,148 @@
 /* ============================================================================
-   Styles dédiés à la nouvelle landing page SaaS GazPILOTE.
-   Couleurs alignées sur le design system (--primary orange 28 90% 55%,
-   foreground navy 215 25% 15%). Tout reste en HSL via les tokens Tailwind.
+   Landing GazPILOTE — direction "fusion" : bandes sombres éditoriales
+   (façon Popcorn) alternant avec des sections claires aérées (façon Spectra).
+   Accent orange de la marque (hsl 28 92% 56%) utilisé avec parcimonie.
    ============================================================================ */
 
-/* Hero : fond navy profond + halo orange. On définit des couleurs locales
-   pour ne pas dépendre du thème clair/sombre du reste de l'app. */
-.lp-hero {
-  --lp-navy: 215 35% 9%;
-  --lp-navy-soft: 215 30% 14%;
-  background:
-    radial-gradient(60% 50% at 50% -10%, hsl(28 90% 55% / 0.18), transparent 70%),
-    radial-gradient(40% 40% at 85% 20%, hsl(28 90% 55% / 0.10), transparent 70%),
-    radial-gradient(45% 45% at 10% 80%, hsl(210 80% 50% / 0.08), transparent 70%),
-    linear-gradient(180deg, hsl(var(--lp-navy)) 0%, hsl(var(--lp-navy-soft)) 100%);
+.lp {
+  /* Palette locale, indépendante du thème clair/sombre de l'app */
+  --ink: 240 9% 7%;          /* charbon chaud */
+  --ink-soft: 240 8% 11%;
+  --paper: 40 30% 98%;        /* blanc cassé chaud */
+  --paper-2: 40 20% 95%;
+  --line-dark: 0 0% 100% / 0.09;
+  --line-light: 240 12% 88%;
+  --accent: 28 92% 56%;
+  --accent-soft: 28 92% 56% / 0.12;
+  --txt-light: 40 12% 96%;    /* texte sur fond sombre */
+  --txt-light-mut: 40 6% 64%;
+  --txt-ink: 240 10% 10%;     /* texte sur fond clair */
+  --txt-ink-mut: 240 6% 42%;
+
+  font-feature-settings: "ss01", "cv01";
 }
 
-/* Grille technique subtile en overlay (clin d'œil "industriel/SCADA"). */
-.lp-grid-overlay {
+/* --- Bandes --- */
+.lp-dark {
+  background: hsl(var(--ink));
+  color: hsl(var(--txt-light));
+}
+.lp-light {
+  background: hsl(var(--paper));
+  color: hsl(var(--txt-ink));
+}
+
+/* --- Grain (SVG feTurbulence) --- */
+.lp-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* --- Grille technique subtile --- */
+.lp-techgrid {
   background-image:
-    linear-gradient(hsl(0 0% 100% / 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(0 0% 100% / 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(70% 60% at 50% 35%, black, transparent 80%);
-  -webkit-mask-image: radial-gradient(70% 60% at 50% 35%, black, transparent 80%);
+    linear-gradient(hsl(0 0% 100% / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(0 0% 100% / 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(80% 70% at 70% 20%, black, transparent 75%);
+  -webkit-mask-image: radial-gradient(80% 70% at 70% 20%, black, transparent 75%);
 }
 
-/* Blobs animés (parallax GSAP) */
-.lp-blob {
+/* --- Halo orange unique, discret --- */
+.lp-glow {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(64px);
-  will-change: transform;
+  filter: blur(90px);
+  background: hsl(var(--accent) / 0.22);
   pointer-events: none;
-}
-
-/* Texte dégradé orange pour les accents du titre */
-.lp-gradient-text {
-  background: linear-gradient(120deg, hsl(28 95% 62%), hsl(38 95% 58%) 60%, hsl(28 90% 50%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Carte verre dépoli (glassmorphism) pour le mockup hero */
-.lp-glass {
-  background: hsl(215 30% 14% / 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid hsl(0 0% 100% / 0.08);
-  box-shadow: 0 30px 80px -20px hsl(215 50% 3% / 0.7);
-}
-
-/* Carte flottante (KPI) au-dessus du mockup */
-.lp-float-card {
-  background: hsl(0 0% 100% / 0.95);
-  backdrop-filter: blur(8px);
-  border: 1px solid hsl(0 0% 100% / 0.6);
-  box-shadow: 0 16px 40px -12px hsl(215 50% 10% / 0.35);
   will-change: transform;
 }
 
-/* État initial des éléments animés au scroll (évite le flash avant JS) */
-.lp-reveal {
-  opacity: 0;
+/* --- Eyebrow label numéroté, monospace --- */
+.lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.lp-eyebrow .num { color: hsl(var(--accent)); }
+.lp-eyebrow .bar {
+  width: 1.75rem; height: 1px; background: currentColor; opacity: 0.4;
 }
 
-/* Si l'utilisateur préfère réduire les animations, on montre tout direct. */
+/* --- Display headings : serré, lourd, éditorial --- */
+.lp-display {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+.lp-h2 {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+/* --- Bouton accent custom (au cas où) --- */
+.lp-accent-btn {
+  background: hsl(var(--accent));
+  color: hsl(var(--ink));
+  font-weight: 600;
+}
+
+/* --- Reveal de base (évite le flash avant JS) --- */
+.lp-reveal { opacity: 0; }
+
+/* --- Reveal des lignes de titre (clip mask) --- */
+.lp-line-mask { overflow: hidden; display: block; }
+
+/* --- Carte produit (panneau dashboard net, pas de glass) --- */
+.lp-panel {
+  background: hsl(var(--ink-soft));
+  border: 1px solid hsl(var(--line-dark));
+  box-shadow: 0 40px 120px -40px hsl(0 0% 0% / 0.8);
+}
+
+/* --- Bento --- */
+.lp-bento-cell {
+  border: 1px solid hsl(var(--line-light));
+  background: hsl(0 0% 100%);
+  border-radius: 1.25rem;
+  transition: transform 0.3s cubic-bezier(.2,.7,.2,1), box-shadow 0.3s, border-color 0.3s;
+  will-change: transform;
+}
+.lp-bento-cell:hover {
+  transform: translateY(-4px);
+  border-color: hsl(var(--accent) / 0.5);
+  box-shadow: 0 24px 60px -24px hsl(240 30% 20% / 0.25);
+}
+
+/* --- Ligne workflow tracée --- */
+.lp-flow-line { transform-origin: left center; will-change: transform; }
+.lp-progress-fill { transform-origin: left center; will-change: transform; }
+
+/* --- Marquee logos --- */
+@keyframes lp-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.lp-marquee-track { display: flex; width: max-content; animation: lp-marquee 30s linear infinite; }
+.lp-marquee:hover .lp-marquee-track { animation-play-state: paused; }
+
+/* --- Header --- */
+.lp-header {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* --- Réduction de mouvement --- */
 @media (prefers-reduced-motion: reduce) {
-  .lp-reveal {
-    opacity: 1 !important;
-  }
-}
-
-/* Ligne de connexion du workflow (tracée via GSAP scaleX) */
-.lp-flow-line {
-  transform-origin: left center;
-  will-change: transform;
-}
-
-/* Barre de progression animée (scaleX) */
-.lp-progress-fill {
-  transform-origin: left center;
-  will-change: transform;
-}
-
-/* Marquee logos (défilement infini doux en CSS, pausé au hover) */
-@keyframes lp-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.lp-marquee-track {
-  display: flex;
-  width: max-content;
-  animation: lp-marquee 28s linear infinite;
-}
-.lp-marquee:hover .lp-marquee-track {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
+  .lp-reveal { opacity: 1 !important; }
   .lp-marquee-track { animation: none; }
 }
