@@ -337,11 +337,32 @@ const CentreEmplisseurView = ({
     const shiftInventoryStats = useMemo(() => {
         // Moyenne par jour des qu'on couvre >= 2 jours.
         const divisor = numDistinctDays >= 2 ? numDistinctDays : 1;
+        const stockOutil = buildShiftInventoryByClient(rawShifts, 'stock_outil', divisor);
+        const consignes = buildShiftInventoryByClient(rawShifts, 'consignes_shift', divisor);
+
+        // Cumul des bouteilles PLEINES (stock outil + consignes, tous clients),
+        // par format, puis converti en tonnage (B6 = 6 kg, B12 = 12.5 kg).
+        // rows[0] = B6, rows[1] = B12 (cf buildShiftInventoryByClient).
+        const sumPleines = (blocks: typeof stockOutil, rowIdx: 0 | 1) =>
+            blocks.reduce((sum, b) => sum + (b.rows[rowIdx]?.pleines || 0), 0);
+
+        const b6Pleines = sumPleines(stockOutil, 0) + sumPleines(consignes, 0);
+        const b12Pleines = sumPleines(stockOutil, 1) + sumPleines(consignes, 1);
+        const tonnageB6 = (b6Pleines * 6) / 1000;
+        const tonnageB12 = (b12Pleines * 12.5) / 1000;
+
         return {
-            stockOutil: buildShiftInventoryByClient(rawShifts, 'stock_outil', divisor),
-            consignes: buildShiftInventoryByClient(rawShifts, 'consignes_shift', divisor),
+            stockOutil,
+            consignes,
             isAverage: divisor > 1,
             numDays: numDistinctDays,
+            pleines: {
+                b6Pleines,
+                b12Pleines,
+                tonnageB6,
+                tonnageB12,
+                tonnageTotal: tonnageB6 + tonnageB12,
+            },
         };
     }, [rawShifts, numDistinctDays]);
 
@@ -2375,10 +2396,44 @@ const CentreEmplisseurView = ({
                             Aucune donnée de shift pour la période sélectionnée.
                         </p>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                            <ShiftInventoryTable title="Stock outil" clients={shiftInventoryStats.stockOutil} />
-                            <ShiftInventoryTable title="Consignes" clients={shiftInventoryStats.consignes} />
-                        </div>
+                        <>
+                            {/* Cumul tonnage des bouteilles PLEINES (stock outil + consignes) */}
+                            <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-center">
+                                    <p className="text-[10px] sm:text-xs text-blue-700 uppercase font-bold tracking-wider">B6 pleines</p>
+                                    <p className="text-lg sm:text-xl font-black text-blue-700 tabular-nums">
+                                        {shiftInventoryStats.pleines.tonnageB6.toLocaleString('fr-FR', { maximumFractionDigits: 3 })}
+                                        <span className="text-xs font-semibold text-muted-foreground ml-1">T</span>
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                                        {shiftInventoryStats.pleines.b6Pleines.toLocaleString('fr-FR')} bouteilles × 6 kg
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 text-center">
+                                    <p className="text-[10px] sm:text-xs text-indigo-700 uppercase font-bold tracking-wider">B12 pleines</p>
+                                    <p className="text-lg sm:text-xl font-black text-indigo-700 tabular-nums">
+                                        {shiftInventoryStats.pleines.tonnageB12.toLocaleString('fr-FR', { maximumFractionDigits: 3 })}
+                                        <span className="text-xs font-semibold text-muted-foreground ml-1">T</span>
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                                        {shiftInventoryStats.pleines.b12Pleines.toLocaleString('fr-FR')} bouteilles × 12,5 kg
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-center">
+                                    <p className="text-[10px] sm:text-xs text-primary uppercase font-bold tracking-wider">Cumul pleines</p>
+                                    <p className="text-lg sm:text-xl font-black text-primary tabular-nums">
+                                        {shiftInventoryStats.pleines.tonnageTotal.toLocaleString('fr-FR', { maximumFractionDigits: 3 })}
+                                        <span className="text-xs font-semibold text-muted-foreground ml-1">T</span>
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground">B6 + B12 (stock outil + consignes)</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                                <ShiftInventoryTable title="Stock outil" clients={shiftInventoryStats.stockOutil} />
+                                <ShiftInventoryTable title="Consignes" clients={shiftInventoryStats.consignes} />
+                            </div>
+                        </>
                     )}
                 </div>
             )}
