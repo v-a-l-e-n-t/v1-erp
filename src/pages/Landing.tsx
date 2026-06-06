@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -73,18 +73,6 @@ const Landing = () => {
   const [demoOpen, setDemoOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
-  const [clock, setClock] = useState('--:--:--');
-
-  useEffect(() => {
-    const fmt = () => {
-      const d = new Date();
-      const p = (n: number) => String(n).padStart(2, '0');
-      setClock(`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`);
-    };
-    fmt();
-    const id = setInterval(fmt, 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const scrollTo = (id: string) => {
     setMobileNav(false);
@@ -156,10 +144,7 @@ const Landing = () => {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-4">
-            <span className="lp-mono text-xs text-[hsl(215_12%_56%)] flex items-center gap-2">
-              <span className="lp-led lp-led-blink" /> {clock}
-            </span>
+          <div className="hidden md:flex items-center gap-3">
             <Button variant="ghost" onClick={() => setLoginOpen(true)} className="text-[hsl(40_16%_92%)] hover:bg-white/10 hover:text-white h-9">Connexion</Button>
             <Button onClick={() => setDemoOpen(true)} className="h-9 gap-1.5 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
               Démo <ArrowRight className="h-4 w-4" />
