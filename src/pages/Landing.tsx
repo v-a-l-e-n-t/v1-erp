@@ -47,9 +47,9 @@ const benefits = [
 ];
 
 const logs = [
-  { t: '05:12', dept: 'PROD', who: 'Chef de quart', msg: 'Je saisis le poste directement sur la ligne. On voit enfin où le temps se perd, étape par étape.' },
-  { t: '11:47', dept: 'EXPL', who: "Responsable d'exploitation", msg: 'Plusieurs classeurs Excel remplacés par un seul écran. Le bilan matière tombe en quelques minutes.' },
-  { t: '18:30', dept: 'DIST', who: 'Responsable distribution', msg: 'Chargements et bons de transfert tracés au même endroit. Plus aucun document perdu.' },
+  { who: 'Chef de quart', msg: 'Je saisis le poste directement sur la ligne. On voit enfin où le temps se perd, étape par étape.' },
+  { who: "Responsable d'exploitation", msg: 'Plusieurs classeurs Excel remplacés par un seul écran. Le bilan matière tombe en quelques minutes.' },
+  { who: 'Responsable distribution', msg: 'Chargements et bons de transfert tracés au même endroit. Plus aucun document perdu.' },
 ];
 
 const faqs = [
@@ -174,24 +174,18 @@ const Landing = () => {
         <div className="lp-glow w-[36rem] h-[36rem] -top-32 -right-24 z-0" />
 
         <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="lp-boot flex flex-wrap items-center gap-x-6 gap-y-2 lp-mono text-[11px] tracking-[0.18em] text-[hsl(215_12%_56%)] mb-8 pb-4 border-b border-[hsl(210_30%_100%/0.08)]">
-            <span className="flex items-center gap-2 text-[hsl(150_65%_48%)]"><span className="lp-led lp-led-blink" /> SYSTÈME EN LIGNE</span>
-            <span>MODE: MULTI-SITES</span>
-            <span className="hidden sm:inline">RÉF. ERP · GAZ &amp; PÉTROLE</span>
-            <span className="ml-auto hidden sm:inline">UPTIME 99.9%</span>
-          </div>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-12 items-center">
             <div>
-              <div className="lp-boot lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-5">// POSTE DE CONTRÔLE</div>
+              <div className="lp-boot lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-5">SYSTEME DE GESTION 360°</div>
               <h1 className="lp-display text-[3rem] sm:text-7xl lg:text-[5.2rem] mb-6">
-                <span className="block overflow-hidden"><span className="lp-hero-line inline-block">Votre site gaz &amp; pétrole,</span></span>
+                <span className="block overflow-hidden"><span className="lp-hero-line inline-block">Votre site d'hydrocarbure,</span></span>
                 <span className="block overflow-hidden"><span className="lp-hero-line inline-block text-[hsl(28_92%_56%)]">sous contrôle.</span></span>
               </h1>
               <p className="lp-hero-sub text-[hsl(215_12%_56%)] text-base sm:text-lg max-w-xl mb-8 leading-relaxed">
-                Réception, stockage, production, expéditions et bilan matière — instrumentés sur
-                un seul tableau de bord, mis à jour en temps réel. Pensé pour les centres et
-                industries du gaz et du pétrole.
+                Réception, stockage, production, ventes : pilotez votre activité depuis, 
+                un seul espace, mis à jour en temps réel. 
+                Conçu pour les industries du gaz et du pétrole.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button size="lg" onClick={() => setDemoOpen(true)} className="lp-hero-cta h-12 px-7 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
@@ -199,11 +193,11 @@ const Landing = () => {
                 </Button>
                 <Button size="lg" variant="outline" onClick={() => setLoginOpen(true)}
                   className="lp-hero-cta h-12 px-7 gap-2 bg-transparent border-[hsl(210_30%_100%/0.18)] text-[hsl(40_16%_92%)] hover:bg-white/5 hover:text-white">
-                  Accéder à la console
+                  Accéder votre espace
                 </Button>
               </div>
               <div className="lp-boot mt-8 lp-mono text-[11px] tracking-[0.18em] text-[hsl(215_12%_56%)]">
-                GPL · GNL · HYDROCARBURES · GAZ INDUSTRIELS — UNE SEULE PLATEFORME
+                GPL · GNL · HYDROCARBURES · GAZ INDUSTRIELS — NOTRE OUTIL S'ADAPTE A VOS OPERATIONS
               </div>
             </div>
 
@@ -270,8 +264,7 @@ const Landing = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
             <div className="max-w-xl">
-              <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// MODULES · 06</div>
-              <h2 className="lp-reveal text-4xl sm:text-6xl">Un instrument<br />pour chaque opération.</h2>
+              <h2 className="lp-reveal text-4xl sm:text-6xl">Des fonctionnalités<br />pour chaque opération.</h2>
             </div>
             <p className="lp-reveal text-[hsl(215_12%_56%)] max-w-sm">
               Chaque module pilote une étape réelle de votre activité. Tous reliés au même bilan matière.
@@ -301,7 +294,6 @@ const Landing = () => {
       <section id="cycle" className="lp-pid scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28 bg-[hsl(220_14%_9%)] border-y border-[hsl(210_30%_100%/0.08)] relative lp-grain">
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="max-w-xl mb-14">
-            <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// SYNOPTIQUE</div>
             <h2 className="lp-reveal text-4xl sm:text-6xl">De la réception<br />au bilan du jour.</h2>
           </div>
 
@@ -351,8 +343,7 @@ const Landing = () => {
       <section className="px-4 sm:px-6 py-20 sm:py-28 bg-[hsl(220_14%_9%)] border-y border-[hsl(210_30%_100%/0.08)]">
         <div className="container mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <div>
-            <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// POURQUOI</div>
-            <h2 className="lp-reveal text-4xl sm:text-6xl mb-6">Chaque kilo compté.<br />Chaque écart expliqué.</h2>
+            <h2 className="lp-reveal text-4xl sm:text-6xl mb-6">Aucune perte injustifiée<br />Chaque écart expliqué.</h2>
             <p className="lp-reveal text-[hsl(215_12%_56%)] mb-8 max-w-lg leading-relaxed">
               GazPILOTE rapproche automatiquement vos entrées, votre production et vos sorties.
               Quand il y a un écart, vous savez exactement d'où il vient.
@@ -365,13 +356,13 @@ const Landing = () => {
               ))}
             </div>
             <Button size="lg" onClick={() => navigate('/dashboard')} className="lp-reveal h-12 px-7 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
-              Explorer la console <ArrowRight className="h-5 w-5" />
+              Accéder au tableau de bord   <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
 
           <div className="lp-reveal lp-panel lp-corners rounded-lg p-6">
             <div className="flex items-center justify-between mb-6">
-              <span className="lp-tag">PERFORMANCE · EXEMPLE</span>
+              <span className="lp-tag">PERFORMANCE</span>
               <span className="lp-mono text-[10px] text-[hsl(150_65%_48%)] flex items-center gap-1.5"><span className="lp-led" /> SYNC</span>
             </div>
             <div className="space-y-2.5 mb-6">
@@ -389,30 +380,6 @@ const Landing = () => {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== LOGS ===================== */}
-      <section id="logs" className="scroll-mt-20 px-4 sm:px-6 py-20 sm:py-28">
-        <div className="container mx-auto max-w-6xl">
-          <div className="max-w-xl mb-12">
-            <div className="lp-reveal lp-mono text-xs tracking-[0.22em] text-[hsl(28_92%_56%)] mb-4">// JOURNAL · TERRAIN</div>
-            <h2 className="lp-reveal text-4xl sm:text-6xl">Ce qu'en disent<br />les opérateurs.</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-px bg-[hsl(210_30%_100%/0.08)] border border-[hsl(210_30%_100%/0.08)] rounded-lg overflow-hidden">
-            {logs.map((l, i) => (
-              <figure key={i} className="lp-reveal bg-[hsl(220_13%_8%)] p-6 flex flex-col">
-                <div className="flex items-center gap-2 lp-mono text-[11px] text-[hsl(215_12%_56%)] mb-4 pb-3 border-b border-[hsl(210_30%_100%/0.08)]">
-                  <span className="lp-led" />
-                  <span className="text-[hsl(28_92%_56%)]">{l.t}</span>
-                  <span>· {l.dept}</span>
-                  <span className="ml-auto">LOG #{i + 1}</span>
-                </div>
-                <blockquote className="text-[15px] text-[hsl(40_16%_92%)] leading-relaxed flex-1">« {l.msg} »</blockquote>
-                <figcaption className="lp-mono text-xs text-[hsl(215_12%_56%)] mt-5">— {l.who}</figcaption>
-              </figure>
-            ))}
           </div>
         </div>
       </section>
