@@ -1,140 +1,123 @@
 /* ============================================================================
-   Landing GazPILOTE — direction "POSTE DE CONTRÔLE" (instrumentation / HMI).
-   Inspiration : panneaux SCADA, P&ID, télémétrie industrielle.
-   Typo d'ingénierie : Saira Condensed (titres) + IBM Plex Sans (corps) +
-   IBM Plex Mono (données/labels). Accent ambre = signal "live/actif".
+   Landing GazPILOTE — thème CLAIR éditorial.
+   Papier chaud + encre profonde, accent orange de la marque utilisé avec
+   parcimonie. Typo : Clash Display (titres) + Satoshi (corps).
    ============================================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=satoshi@400,500,700&display=swap");
 
 .lp {
-  --bg: 220 16% 6%;          /* charbon bleuté très sombre */
-  --bg-2: 220 14% 9%;
-  --panel: 220 13% 8%;
-  --panel-2: 220 12% 11%;
-  --line: 210 30% 100% / 0.07;
-  --line-strong: 210 30% 100% / 0.14;
-  --amber: 28 92% 56%;       /* signal actif (marque) */
-  --amber-dim: 28 70% 46%;
-  --cyan: 190 85% 55%;       /* données secondaires */
-  --ok: 150 65% 48%;         /* statut OK */
-  --txt: 40 16% 92%;
-  --txt-mut: 215 12% 56%;
+  --paper: 40 33% 98%;
+  --paper-2: 40 22% 95%;
+  --ink: 222 24% 13%;
+  --ink-soft: 222 16% 22%;
+  --muted: 220 10% 46%;
+  --line: 220 16% 90%;
+  --line-strong: 220 14% 84%;
+  --accent: 28 92% 52%;
+  --accent-d: 28 92% 46%;
+  --card: 0 0% 100%;
 
-  --font-display: "Saira Condensed", "IBM Plex Sans", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Clash Display", "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  background: hsl(var(--bg));
-  color: hsl(var(--txt));
+  background: hsl(var(--paper));
+  color: hsl(var(--ink));
   font-family: var(--font-body);
 }
 
-.lp ::selection { background: hsl(var(--amber)); color: hsl(var(--bg)); }
+.lp ::selection { background: hsl(var(--accent)); color: #fff; }
 
-.lp h1, .lp h2, .lp h3, .lp .lp-display {
+.lp h1, .lp h2, .lp h3, .lp .lp-display, .lp .lp-h2 {
   font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  line-height: 0.94;
-  font-weight: 700;
 }
+
+.lp-display { font-weight: 700; letter-spacing: -0.025em; line-height: 0.98; text-wrap: balance; }
+.lp-h2 { font-weight: 600; letter-spacing: -0.02em; line-height: 1.02; text-wrap: balance; }
 
 .lp-mono { font-family: var(--font-mono); }
 
-/* --- Grille blueprint --- */
+/* --- Eyebrow numéroté --- */
+.lp-eyebrow {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: hsl(var(--muted));
+}
+.lp-eyebrow .num { color: hsl(var(--accent)); }
+.lp-eyebrow .bar { width: 1.75rem; height: 1px; background: currentColor; opacity: 0.4; }
+
+/* --- Grille très discrète --- */
 .lp-grid {
   background-image:
-    linear-gradient(hsl(var(--line)) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--line)) 1px, transparent 1px);
-  background-size: 56px 56px;
+    linear-gradient(hsl(var(--ink) / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--ink) / 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
 }
 .lp-grid-fade {
-  -webkit-mask-image: radial-gradient(90% 80% at 60% 30%, black, transparent 80%);
-  mask-image: radial-gradient(90% 80% at 60% 30%, black, transparent 80%);
+  -webkit-mask-image: radial-gradient(85% 75% at 70% 25%, black, transparent 78%);
+  mask-image: radial-gradient(85% 75% at 70% 25%, black, transparent 78%);
 }
 
-/* --- Scanlines très discrètes --- */
-.lp-scan::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-  background: repeating-linear-gradient(0deg, hsl(0 0% 0% / 0.18) 0 1px, transparent 1px 3px);
-  opacity: 0.35; mix-blend-mode: multiply;
-}
-
-/* --- Grain --- */
-.lp-grain::before {
-  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.4;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
-}
-
-/* --- Halo ambre --- */
+/* --- Halo orange doux --- */
 .lp-glow {
-  position: absolute; border-radius: 9999px; filter: blur(90px);
-  background: hsl(var(--amber) / 0.18); pointer-events: none; will-change: transform;
+  position: absolute; border-radius: 9999px; filter: blur(100px);
+  background: hsl(var(--accent) / 0.16); pointer-events: none; will-change: transform;
 }
 
-/* --- Panneau instrument : bord + label tab --- */
+/* --- Cartes --- */
+.lp-card {
+  background: hsl(var(--card)); border: 1px solid hsl(var(--line));
+  box-shadow: 0 1px 2px hsl(var(--ink) / 0.03);
+}
+.lp-bento-cell {
+  background: hsl(var(--card)); border: 1px solid hsl(var(--line)); border-radius: 1.25rem;
+  transition: transform .3s cubic-bezier(.2,.7,.2,1), box-shadow .3s, border-color .3s;
+  will-change: transform;
+}
+.lp-bento-cell:hover {
+  transform: translateY(-4px); border-color: hsl(var(--accent) / 0.5);
+  box-shadow: 0 24px 60px -24px hsl(222 40% 30% / 0.18);
+}
+
+/* --- Panneau produit (hero / showcase) --- */
 .lp-panel {
-  position: relative;
-  background: hsl(var(--panel));
-  border: 1px solid hsl(var(--line-strong));
+  background: hsl(var(--card)); border: 1px solid hsl(var(--line));
+  box-shadow: 0 40px 90px -40px hsl(222 40% 25% / 0.28);
 }
-/* coins en équerre */
-.lp-corners::before, .lp-corners::after {
-  content: ""; position: absolute; width: 10px; height: 10px; pointer-events: none;
-  border-color: hsl(var(--amber)); border-style: solid;
-}
-.lp-corners::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
-.lp-corners::after { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
-
-/* étiquette mono d'un panneau */
-.lp-tag {
-  font-family: var(--font-mono);
-  font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase;
-  color: hsl(var(--txt-mut));
-}
-
-/* --- LED de statut --- */
-.lp-led { width: 7px; height: 7px; border-radius: 9999px; background: hsl(var(--ok)); box-shadow: 0 0 8px hsl(var(--ok) / 0.8); }
-@keyframes lp-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
-.lp-led-blink { animation: lp-blink 1.6s steps(1,end) infinite; }
-
-/* --- Ticker télémétrie --- */
-@keyframes lp-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.lp-ticker-track { display: flex; width: max-content; animation: lp-ticker 38s linear infinite; }
-.lp-ticker:hover .lp-ticker-track { animation-play-state: paused; }
-
-/* --- Flux P&ID : tirets animés --- */
-@keyframes lp-flow { to { stroke-dashoffset: -100; } }
-.lp-flow-dash { stroke-dasharray: 6 8; animation: lp-flow 2.2s linear infinite; }
-
-/* --- Jauge : aiguille --- */
-.lp-needle { transform-box: fill-box; transform-origin: 50% 92%; will-change: transform; }
 
 /* --- Reveal --- */
 .lp-reveal { opacity: 0; }
 
-/* --- Soulignement nav --- */
+/* --- Lignes de flux / barres --- */
+.lp-flow-line, .lp-flow-progress, .lp-progress-fill { transform-origin: left center; will-change: transform; }
+
+/* --- Marquee --- */
+@keyframes lp-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.lp-marquee-track { display: flex; width: max-content; animation: lp-marquee 34s linear infinite; }
+.lp-marquee:hover .lp-marquee-track { animation-play-state: paused; }
+
+/* --- Nav : soulignement animé --- */
 .lp-navlink { position: relative; }
 .lp-navlink::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 1.5px;
-  background: hsl(var(--amber)); transform: scaleX(0); transform-origin: left;
-  transition: transform 0.28s cubic-bezier(.2,.7,.2,1);
+  content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 1.5px;
+  background: hsl(var(--accent)); transform: scaleX(0); transform-origin: left;
+  transition: transform .28s cubic-bezier(.2,.7,.2,1);
 }
 .lp-navlink:hover::after { transform: scaleX(1); }
 
-/* --- Micro-interaction flèches --- */
-.lp button svg, .lp a svg { transition: transform 0.25s cubic-bezier(.2,.7,.2,1); }
+/* --- Micro-interactions flèches --- */
+.lp button svg, .lp a svg { transition: transform .25s cubic-bezier(.2,.7,.2,1); }
 .lp button:hover svg.lucide-arrow-right { transform: translateX(3px); }
+.lp button:hover svg.lucide-arrow-up-right { transform: translate(2px, -2px); }
 
 /* --- Focus ring --- */
 .lp a:focus-visible, .lp button:focus-visible {
-  outline: 2px solid hsl(var(--amber)); outline-offset: 2px;
+  outline: 2px solid hsl(var(--accent)); outline-offset: 2px; border-radius: 6px;
 }
 
 /* --- Réduction de mouvement --- */
 @media (prefers-reduced-motion: reduce) {
   .lp-reveal { opacity: 1 !important; }
-  .lp-ticker-track, .lp-flow-dash, .lp-led-blink { animation: none !important; }
+  .lp-marquee-track { animation: none; }
 }
