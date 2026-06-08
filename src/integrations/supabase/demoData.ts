@@ -227,14 +227,22 @@ for (let i = 0; i < DAYS; i++) {
   const sorties_cond = ri(120000, 260000);
   const fuyardes = ri(0, 8000);
   const bilan = ri(-1500, 1800);
+  const stock_initial = ri(3500000, 4500000);
+  const cumul_sorties = sorties_vrac + sorties_cond + fuyardes;
+  const stock_theorique = stock_initial + reception - cumul_sorties;
+  const stock_final = stock_theorique + bilan; // bilan = final - théorique
   bilanEntries.push({
     id: `demo-bilan-${i}`,
     date: fmt(d),
-    stock_initial: ri(3500000, 4500000),
+    stock_initial,
+    spheres_initial: stock_initial, bouteilles_initial: 0, reservoirs_initial: 0,
+    spheres_final: stock_final, bouteilles_final: 0, reservoirs_final: 0,
     reception_gpl: reception,
     receptions: reception ? [{ quantity: reception, navire: 'NAVIRE-DÉMO', reception_no: `R-${i}` }] : [],
     sorties_vrac, sorties_conditionnees: sorties_cond, fuyardes,
-    cumul_sorties: sorties_vrac + sorties_cond + fuyardes,
+    cumul_sorties,
+    stock_theorique,
+    stock_final,
     sorties_vrac_simam: Math.round(sorties_vrac * 0.45),
     sorties_vrac_petro_ivoire: Math.round(sorties_vrac * 0.25),
     sorties_vrac_vivo_energies: Math.round(sorties_vrac * 0.18),
