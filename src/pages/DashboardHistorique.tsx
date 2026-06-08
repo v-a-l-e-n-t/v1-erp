@@ -32,6 +32,7 @@ import ChariotDashboard from '@/components/dashboard/ChariotDashboard';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
 import { isDemo } from '@/lib/demoMode';
+import { demoBlock } from '@/lib/demoGuard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
@@ -1422,6 +1423,7 @@ const DashboardHistorique = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (demoBlock('supprimer un bilan')) return;
     const success = await deleteEntry(id);
 
     if (success) {
@@ -1433,6 +1435,7 @@ const DashboardHistorique = () => {
   };
 
   const handleEdit = (entry: BilanEntry) => {
+    if (demoBlock('modifier un bilan')) return;
     setEditingEntry(entry);
   };
 
@@ -1474,6 +1477,7 @@ const DashboardHistorique = () => {
   };
 
   const handlePrint = (entry: BilanEntry) => {
+    if (demoBlock('imprimer un bilan')) return;
     exportIndividualToPDF(entry);
     toast.success('Impression réussie');
   };
@@ -2693,11 +2697,13 @@ const DashboardHistorique = () => {
                       availableMonths={availableMonths}
                       allAgents={allAgents}
                       onEdit={async (shiftId) => {
+                        if (demoBlock('modifier un shift de production')) return;
                         const data = await fetchShiftDetailsForEdit(shiftId);
                         setEditModalData(data);
                         setSelectedShiftForEdit(shiftId);
                       }}
                       onDelete={async (shiftId) => {
+                        if (demoBlock('supprimer un shift de production')) return;
                         const reason = prompt("Raison de la suppression :");
                         if (reason) {
                           await deleteProductionShift(shiftId, reason);

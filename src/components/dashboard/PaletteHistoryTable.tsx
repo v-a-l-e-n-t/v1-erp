@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { demoBlock } from '@/lib/demoGuard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -172,6 +173,7 @@ const PaletteHistoryTable = ({
     (entry.mandataires as any)?.nom ?? mandataires.find(m => m.id === entry.mandataire_id)?.nom ?? '—';
 
   const handleEdit = (entry: PaletteEntry) => {
+    if (demoBlock('modifier une palette')) return;
     setEditingEntry(entry);
     setEditingData({
       date: entry.date,
@@ -198,6 +200,7 @@ const PaletteHistoryTable = ({
   }, [mandataires, mandataireSearch]);
 
   const handleSave = async () => {
+    if (demoBlock('modifier une palette')) return;
     if (!editingEntry || !editingData) return;
     try {
       const { error } = await (supabase as any)
@@ -231,6 +234,7 @@ const PaletteHistoryTable = ({
   };
 
   const handleDelete = async () => {
+    if (demoBlock('supprimer une palette')) return;
     if (!deletingEntry) return;
     try {
       const { error } = await (supabase as any)

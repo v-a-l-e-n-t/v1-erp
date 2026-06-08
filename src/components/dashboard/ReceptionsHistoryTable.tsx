@@ -8,6 +8,7 @@ import { format, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
+import { demoBlock } from '@/lib/demoGuard';
 import { toast } from 'sonner';
 import {
   Table,
@@ -183,6 +184,7 @@ const ReceptionsHistoryTable = ({
   const totalPages = Math.max(1, Math.ceil(filteredEntries.length / itemsPerPage));
 
   const handleSave = async () => {
+    if (demoBlock('modifier une réception')) return;
     if (!editingId || !editingData) return;
     try {
       const { error } = await (supabase as any)
@@ -229,6 +231,7 @@ const ReceptionsHistoryTable = ({
   };
 
   const handleDelete = async () => {
+    if (demoBlock('supprimer une réception')) return;
     if (!deleteId) return;
     try {
       const { error } = await (supabase as any)
@@ -270,6 +273,7 @@ const ReceptionsHistoryTable = ({
   };
 
   const handleAddReception = async () => {
+    if (demoBlock('ajouter une réception')) return;
     if (!newReception.date || !newReception.client || newReception.poids_kg <= 0) {
       toast.error('Veuillez remplir tous les champs correctement');
       return;

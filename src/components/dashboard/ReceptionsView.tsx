@@ -9,6 +9,7 @@ import { format, endOfMonth, subDays, differenceInDays, startOfMonth, endOfMonth
 import { fr } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
+import { demoBlock } from '@/lib/demoGuard';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import html2canvas from 'html2canvas';
@@ -384,6 +385,7 @@ export default function ReceptionsView({
   };
 
   const handleAddReception = async () => {
+    if (demoBlock('ajouter une réception')) return;
     if (!newReception.date || !newReception.client || newReception.poids_kg <= 0) {
       toast.error('Veuillez remplir tous les champs correctement');
       return;

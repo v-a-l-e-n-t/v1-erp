@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { demoBlock } from '@/lib/demoGuard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -184,6 +185,7 @@ const AtelierHistoryTable = ({
   }, [entries, selectedClient, selectedBottleType]);
 
   const handleEdit = (row: AtelierHistoryRow) => {
+    if (demoBlock('modifier une saisie atelier')) return;
     setEditingRow(row);
     setEditingData({
       date: row.date,
@@ -195,6 +197,7 @@ const AtelierHistoryTable = ({
   };
 
   const handleSave = async () => {
+    if (demoBlock('modifier une saisie atelier')) return;
     if (!editingRow || !editingData) return;
     try {
       const entry = editingRow.originalEntry;
@@ -225,6 +228,7 @@ const AtelierHistoryTable = ({
   };
 
   const handleDelete = async () => {
+    if (demoBlock('supprimer une saisie atelier')) return;
     if (!deletingRow) return;
     try {
       const entry = deletingRow.originalEntry;

@@ -15,6 +15,7 @@ import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getM
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { demoBlock } from "@/lib/demoGuard";
 import * as XLSX from "xlsx";
 import {
   Search,
@@ -212,6 +213,7 @@ const MandatairesVentesHistory = () => {
   }, [ventes, searchTerm, selectedMandataire, selectedClient, selectedDestination, filterType, selectedYear, selectedMonth, dateStart, dateEnd, singleDate]);
 
   const handleDelete = async () => {
+    if (demoBlock('supprimer une vente')) return;
     if (!deleteId) return;
     try {
       const { error } = await supabase
@@ -597,7 +599,7 @@ const MandatairesVentesHistory = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => setEditData(vente)}
+                                onClick={() => { if (demoBlock('modifier une vente')) return; setEditData(vente); }}
                               >
                                 <Pencil className="h-4 w-4 text-blue-600" />
                               </Button>
