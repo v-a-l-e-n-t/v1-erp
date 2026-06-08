@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { isDemo } from '@/lib/demoMode';
 
 export type AuthRole = 'admin' | 'vrac';
 
@@ -34,6 +35,12 @@ export function useAuthGuard(role: AuthRole = 'admin'): AuthState {
     let cancelled = false;
 
     const evaluate = async () => {
+      // Mode démo : accès ouvert (admin & vrac). Les données restent fictives,
+      // toute l'app passe par le client Supabase intercepté.
+      if (isDemo()) {
+        if (!cancelled) setIsAuthorized(true);
+        return;
+      }
       if (role === 'vrac') {
         if (!cancelled) setIsAuthorized(readVracFlag());
         return;

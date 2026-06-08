@@ -37,6 +37,7 @@ import InspectionValidation from "./pages/InspectionValidation";
 import InspectionHistorique from "./pages/InspectionHistorique";
 import { ProtectedRoute, VracProtectedRoute } from "./components/ProtectedRoute";
 import { BonsExpiryWatcher } from "./components/rapport-bl/BonsExpiryWatcher";
+import DemoBanner from "./components/DemoBanner";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -99,6 +100,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <DemoBanner />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

@@ -31,6 +31,7 @@ import GraphesView from '@/components/dashboard/GraphesView';
 import ChariotDashboard from '@/components/dashboard/ChariotDashboard';
 import DataChatbot from '@/components/DataChatbot';
 import PasswordGate from '@/components/PasswordGate';
+import { isDemo } from '@/lib/demoMode';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { saveFilterState, loadFilterState, dateRangeToState, stateToDateRange, stateToDate, FilterType } from '@/utils/filterPersistence';
 import { AtelierEntry, ATELIER_CLIENT_LABELS, AtelierClientKey, AtelierCategory, AtelierFormat } from '@/types/atelier';
@@ -56,11 +57,11 @@ const DashboardHistorique = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('dashboard_authenticated') === 'true' || localStorage.getItem('isAuthenticated') === 'true';
+    return isDemo() || sessionStorage.getItem('dashboard_authenticated') === 'true' || localStorage.getItem('isAuthenticated') === 'true';
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !isDemo()) {
       navigate("/");
     }
   }, [isAuthenticated, navigate]);

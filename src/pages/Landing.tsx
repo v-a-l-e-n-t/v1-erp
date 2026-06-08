@@ -8,6 +8,7 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from '@/components/ui/accordion';
 import DemoRequestDialog from '@/components/DemoRequestDialog';
+import DemoChooserDialog from '@/components/landing/DemoChooserDialog';
 import LoginDialog from '@/components/LoginDialog';
 import {
   ArrowRight, BarChart3, ClipboardCheck, Truck, Ship, Factory,
@@ -71,8 +72,11 @@ const Landing = () => {
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+
+  const openDemo = () => setChooserOpen(true);
 
   const scrollTo = (id: string) => {
     setMobileNav(false);
@@ -146,7 +150,7 @@ const Landing = () => {
 
           <div className="hidden md:flex items-center gap-3">
             <Button variant="ghost" onClick={() => setLoginOpen(true)} className="text-[hsl(40_16%_92%)] hover:bg-white/10 hover:text-white h-9">Connexion</Button>
-            <Button onClick={() => setDemoOpen(true)} className="h-9 gap-1.5 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
+            <Button onClick={openDemo} className="h-9 gap-1.5 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
               Démo <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -162,7 +166,7 @@ const Landing = () => {
             ))}
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1 bg-transparent border-white/20 hover:bg-white/10" onClick={() => { setMobileNav(false); setLoginOpen(true); }}>Connexion</Button>
-              <Button className="flex-1 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold" onClick={() => { setMobileNav(false); setDemoOpen(true); }}>Démo</Button>
+              <Button className="flex-1 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold" onClick={() => { setMobileNav(false); openDemo(); }}>Démo</Button>
             </div>
           </div>
         )}
@@ -188,7 +192,7 @@ const Landing = () => {
                 Conçu pour les industries du gaz et du pétrole.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button size="lg" onClick={() => setDemoOpen(true)} className="lp-hero-cta h-12 px-7 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
+                <Button size="lg" onClick={openDemo} className="lp-hero-cta h-12 px-7 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
                   Demander une démo <ArrowRight className="h-5 w-5" />
                 </Button>
                 <Button size="lg" variant="outline" onClick={() => setLoginOpen(true)}
@@ -421,7 +425,7 @@ const Landing = () => {
             Remplacez vos classeurs Excel par un véritable poste de pilotage. Démo en conditions réelles.
           </p>
           <div className="lp-reveal flex flex-col sm:flex-row gap-3 justify-center">
-            <Button size="lg" onClick={() => setDemoOpen(true)} className="h-12 px-8 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
+            <Button size="lg" onClick={openDemo} className="h-12 px-8 gap-2 bg-[hsl(28_92%_56%)] text-[hsl(220_16%_6%)] font-semibold hover:bg-[hsl(28_92%_50%)]">
               Demander une démo <ArrowRight className="h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" onClick={() => setLoginOpen(true)}
@@ -444,6 +448,11 @@ const Landing = () => {
         </div>
       </footer>
 
+      <DemoChooserDialog
+        open={chooserOpen}
+        onOpenChange={setChooserOpen}
+        onContact={() => { setChooserOpen(false); setDemoOpen(true); }}
+      />
       <DemoRequestDialog open={demoOpen} onOpenChange={setDemoOpen} />
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
     </div>
