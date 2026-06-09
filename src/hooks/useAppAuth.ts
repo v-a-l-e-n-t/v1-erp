@@ -12,12 +12,15 @@ export interface AppAuthSession {
   user_id: string;
   user_name: string;
   authenticated_at: string; // ISO timestamp
+  /** Routes autorisées si l'utilisateur est cloisonné ; null/absent = accès complet. */
+  allowed_routes?: string[] | null;
 }
 
 interface VerifyLoginRow {
   user_id: string;
   full_name: string;
   logged_at: string;
+  allowed_routes: string[] | null;
 }
 
 const AUTH_CHANGED_EVENT = 'app-auth:changed';
@@ -100,6 +103,7 @@ export function useAppAuth() {
         user_id: row.user_id,
         user_name: row.full_name,
         authenticated_at: row.logged_at ?? new Date().toISOString(),
+        allowed_routes: row.allowed_routes ?? null,
       };
       persist(newSession);
       setSession(newSession);

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Lock } from "lucide-react";
 import { useAppAuth } from "@/hooks/useAppAuth";
+import { getAllowedRoutes, homeRoute } from "@/lib/routeAccess";
 
 interface LoginDialogProps {
     open: boolean;
@@ -31,7 +32,9 @@ const LoginDialog = ({ open, onOpenChange, redirectTo }: LoginDialogProps) => {
             toast.success(`Bienvenue`);
             onOpenChange(false);
             if (redirectTo !== null) {
-                navigate(redirectTo ?? "/dashboard");
+                // Utilisateur cloisonné → sa route d'accueil ; sinon /dashboard.
+                const restricted = getAllowedRoutes();
+                navigate(restricted ? homeRoute() : (redirectTo ?? "/dashboard"));
             }
         } else {
             toast.error("Code incorrect");
